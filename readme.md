@@ -1,7 +1,7 @@
 ## WORKWARRIOR
 
 Productivity is personal. In the pursuit of team and remote collaboration, the 
-legibility of graphical interfaces was traded for the speed of the terminal. 
+speed of the terminal was traded for the legibility of graphical interfaces. 
 Workwarrior ties together the functionality of existing CLIs (Command Line Interfaces) 
 using scripts of all kinds to support daily discipline. The productive developer, 
 researcher, scientist or artist needs, at minimum, to continually perform 4 types of 
