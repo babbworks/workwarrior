@@ -1,0 +1,51 @@
+colors:
+  body: none
+  date: black
+  tags: yellow
+  title: cyan
+default_hour: 9
+default_minute: 0
+editor: ''
+encrypt: false
+highlight: true
+indent_character: '|'
+journals:
+  default:
+    journal: /Users/mp/.local/share/jrnl/journal.txt  
+  wp: ~/journals/j-workpads.txt
+  babb: ~/journals/j-babb.txt
+  babb-system: ~/journals/j-babbsystem.txt
+  fam: ~/journals/j-fam.txt
+  christ: ~/journals/j-jc.txt
+  linux: ~/journals/j-linux.txt
+  personal: ~/journals/j-personal.txt
+  rust: ~/journals/j-rust.txt
+  board: ~/journals/j-babbboard.txt
+  box: ~/journals/j-babbbox.txt
+  bash: ~/journals/j-bash.txt
+  learn: ~/journals/j-family-kids-learning.txt
+  mgroup: ~/journals/j-mgroup.txt
+  babbfin: ~/journals/j-babbfin.txt
+  assembly: ~/journals/j-assembly.txt
+  c: ~/journals/j-c.txt
+  python: ~/journals/j-python.txt
+  buffalo: ~/journals/j-buffalo.txt
+  math: ~/journals/j-math.txt
+  electronics: ~/journals/j-electronics.txt
+  leading: ~/journals/j-leading.txt
+  accounting: ~/journals/j-accounting.txt
+  devsys: ~/journals/j-devsys.txt
+  hamilton: ~/journals/j-hamilton.txt
+  prompts: ~/journals/j-prompts.txt
+  pittsburgh: ~/journals/j-pittsburgh.txt
+  nevada: ~/journals/j-nevada.txt
+  tools: ~/journals/j-tools.txt
+  mac: ~/journals/j-mac.txt
+  scripts: ~/journals/j-scripts.txt
+  workwarrior: ~/journals/j-workwarrior.txt
+linewrap: 79
+tagsymbols: '#@'
+template: false
+timeformat: '%F %r'
+version: v4.2.1
+

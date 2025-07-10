@@ -1,0 +1,482 @@
+{
+	"auto_complete":
+	{
+		"selected_items":
+		[
+		]
+	},
+	"buffers":
+	[
+		{
+			"file": "/Users/mp/ww/functions/journals/private/j-books.txt",
+			"settings":
+			{
+				"buffer_size": 3319,
+				"encoding": "UTF-8",
+				"line_ending": "Unix"
+			},
+			"undo_stack":
+			[
+				[
+					3,
+					1,
+					"paste",
+					null,
+					"AgAAAAAAAAAAAAAATAIAAAAAAAAAAAAATAIAAAAAAABMAgAAAAAAAEAAAABbMjAyNS0wNi0yMyAwMzoxNzowMSBQTV0gTm8gdGF4IQoKWzIwMjUtMDctMDIgMDE6MDI6MjQgQU1dIHRlc3QK",
+					"BAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/"
+				],
+				[
+					4,
+					1,
+					"revert",
+					null,
+					"AgAAAAAAAAAAAAAAAAAAAAAAAABRAgAAWzIwMjUtMDctMDIgMTI6MzY6MjMgQU1dIEBuZWFyZWFzdGFjYyBUd28gcGFyYWxsZWwgZGV2ZWxvcG1lbnRzIGV2b2x2ZWQgaGFuZCBpbiBoYW5kIGZvciBhYm91dCBoYWxmIGEgbWlsbGVubml1bS4KRmlyc3QsIG51bWVyYWN5IGFuZCBxdWFudGl0YXRpdmUgbWVhc3VyZW1lbnQgd2VyZSBuZWVkwq0gZWQgdG8gZXh0ZW5kIHRoZSBjb250cm9sIG92ZXIgbmF0dXJlIHRvIGluY2x1ZGUgdGhlIHJoeXRobXMgbyBmIHRoZSBsYXJnZSBpbnN0aXR1dGlvbnPigJR0aGVpciBzZWFzb25hbCBzY2hlZHVsZSBvZiBwbGFudGluZyBhbmQgaGFydmVzdGluZywgYW5kIHRoZSBtb250aGx5IHJoeXRobSBvZiBwcm92aXNpb25pbmcgdGhlaXIgd29ya3Nob3BzIGFuZCBkZXBlbmRlbnQgbGFib3Igc28gYXMgdG8gY29vcmRpbmF0ZSB0aGUgbGFyZ2UgZmxvd3MgaW52b2x2ZWQuIFNlY29uZCwgd3JpdHRlbiBub3Rhwq0gdGlvbiB3YXMgbmVlZGVkIHRvIHRyYWNrIGFuZCBxdWFudGlmeSB0aGVzZSByZXNvdXJjZSBmbG93cywgYW5kIHRvIGNsYXPCrSBzaWZ5IHRoZSBkaXNidXJzZW1lbnRzIGFuZCByZWNlaXB0cyBmb3IgYSBteXJpYWQgb2YgYWN0aXZpdGllcy4AAAAAAAAAAMQFAAAAAAAAAAAAAA",
+					"BAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAATAIAAAAAAABMAgAAAAAAAAAAAAAAAPC/"
+				],
+				[
+					7,
+					1,
+					"insert",
+					{
+						"characters": "@neareast"
+					},
+					"CQAAAGcCAAAAAAAAaAIAAAAAAAAAAAAAaAIAAAAAAABpAgAAAAAAAAAAAABpAgAAAAAAAGoCAAAAAAAAAAAAAGoCAAAAAAAAawIAAAAAAAAAAAAAawIAAAAAAABsAgAAAAAAAAAAAABsAgAAAAAAAG0CAAAAAAAAAAAAAG0CAAAAAAAAbgIAAAAAAAAAAAAAbgIAAAAAAABvAgAAAAAAAAAAAABvAgAAAAAAAHACAAAAAAAAAAAAAA",
+					"BAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAZwIAAAAAAABnAgAAAAAAAAAAAAAAAPC/"
+				],
+				[
+					8,
+					1,
+					"insert",
+					{
+						"characters": "s"
+					},
+					"AQAAAHACAAAAAAAAcQIAAAAAAAAAAAAA",
+					"BAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAcAIAAAAAAABwAgAAAAAAAAAAAAAAAPC/"
+				],
+				[
+					9,
+					1,
+					"left_delete",
+					null,
+					"AQAAAHACAAAAAAAAcAIAAAAAAAABAAAAcw",
+					"BAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAcQIAAAAAAABxAgAAAAAAAAAAAAAAAPC/"
+				],
+				[
+					10,
+					1,
+					"insert",
+					{
+						"characters": "acc"
+					},
+					"AwAAAHACAAAAAAAAcQIAAAAAAAAAAAAAcQIAAAAAAAByAgAAAAAAAAAAAAByAgAAAAAAAHMCAAAAAAAAAAAAAA",
+					"BAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAcAIAAAAAAABwAgAAAAAAAAAAAAAAAPC/"
+				],
+				[
+					11,
+					1,
+					"insert",
+					{
+						"characters": " "
+					},
+					"AQAAAHMCAAAAAAAAdAIAAAAAAAAAAAAA",
+					"BAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAcwIAAAAAAABzAgAAAAAAAAAAAAAAAPC/"
+				],
+				[
+					12,
+					1,
+					"revert",
+					null,
+					"AgAAAAAAAAAAAAAAAAAAAAAAAADhBQAAWzIwMjUtMDctMDIgMTI6MzY6MjMgQU1dIEBuZWFyZWFzdGFjYyBUd28gcGFyYWxsZWwgZGV2ZWxvcG1lbnRzIGV2b2x2ZWQgaGFuZCBpbiBoYW5kIGZvciBhYm91dCBoYWxmIGEgbWlsbGVubml1bS4KRmlyc3QsIG51bWVyYWN5IGFuZCBxdWFudGl0YXRpdmUgbWVhc3VyZW1lbnQgd2VyZSBuZWVkwq0gZWQgdG8gZXh0ZW5kIHRoZSBjb250cm9sIG92ZXIgbmF0dXJlIHRvIGluY2x1ZGUgdGhlIHJoeXRobXMgbyBmIHRoZSBsYXJnZSBpbnN0aXR1dGlvbnPigJR0aGVpciBzZWFzb25hbCBzY2hlZHVsZSBvZiBwbGFudGluZyBhbmQgaGFydmVzdGluZywgYW5kIHRoZSBtb250aGx5IHJoeXRobSBvZiBwcm92aXNpb25pbmcgdGhlaXIgd29ya3Nob3BzIGFuZCBkZXBlbmRlbnQgbGFib3Igc28gYXMgdG8gY29vcmRpbmF0ZSB0aGUgbGFyZ2UgZmxvd3MgaW52b2x2ZWQuIFNlY29uZCwgd3JpdHRlbiBub3Rhwq0gdGlvbiB3YXMgbmVlZGVkIHRvIHRyYWNrIGFuZCBxdWFudGlmeSB0aGVzZSByZXNvdXJjZSBmbG93cywgYW5kIHRvIGNsYXPCrSBzaWZ5IHRoZSBkaXNidXJzZW1lbnRzIGFuZCByZWNlaXB0cyBmb3IgYSBteXJpYWQgb2YgYWN0aXZpdGllcy4KClsyMDI1LTA3LTAyIDAxOjA1OjM2IEFNXSBAbmVhcmVhc3RhY2MgVG8gY29vcmRpbmF0ZSB0aGVzZSBhY3Rpdml0aWVzIHRoZSBTdW1lcmlhbnMgY3JlYXRlZCBhIGNsdXN0ZXIgb2YgaW50ZXJsb2NraW5nIGlubm92YXRpb25zIGluIGEg4oCcYmlnIGJhbmfigJ0gYXMgYSB1bmlmaWVkLWZpZWxkIGFwcHJvYWNoLiBBbiBhZG1pbmlzdHJhdGl2ZSBjYWxlbmRhciBiYXNlZCBvbiB1bmlmb3JtIDMwLWRheSBtb250aHMgbGVkIHRvIHRoZQpzZXhhZ2VzaW1hbCBzeXN0ZW0gb2YgY291bnRpbmcgYW5kIGRpdmlkaW5nIGludG8gNjB0aHMsIGFuZCBhIG1hdGNowq0gaW5nIHNleGFnZXNpbWFsIHNldCBvZiB3ZWlnaHRzIGFuZCBtZWFzdXJlcyB0byBhbGxvY2F0ZSByYXRpb25zIHRvIHRoZSB3b3JrIGZvcmNlIGZvciBtb250aGx5IGFuZCBkYWlseSB1c2UuIE11dHVhbCBwcmljZSBlcXVpdmFsZW5jaWVzIHdlcmUgYXNzaWduZWQgZm9yIGtleSBjb21tb2RpdGllcyBhbmQgdGhlIHJlbnRhbCByYXRlIGZvciBsYW5kIChzZWUgUmVuZ2VyIDE5OTUpLiBUaGVzZSBwcmljZXMgc2VydmVkIGFzIGNvZWZmaWNpZW50cyB0byBmb3JtIGEgZ3JpZCBvZiBlcXVpdmFsZW7CrSBjaWVzIGluIHdoaWNoIGJhcmxleSBhbmQgc2lsdmVyIGVtZXJnZWQgYXMgdGhlIGJhc2ljIHJlZmVyZW5jZSBwcmljZXMgb3Ig4oCcbW9uZXktb2YtYWNjb3VudC7igJ0gU2V0dGluZyB0aGVzZSB0d28gY29tbW9kaXRpZXMgYXMgYSBqb2ludCBzdGFuZGFyZCBvZiB2YWx1ZSBlbmFibGVkIGRpc3BhcmF0ZSB0cmFuc2FjdGlvbnMgdG8gYmUgb3JnYW5pemVkIGludG8gYW4gaW50ZcKtIGdyYXRlZCBzeXN0ZW0gaW4gd2hpY2ggYW4gb3ZlcmFsbCBiYWxhbmNlIGNvdWxkIGJlIHN0cnVjayB0byBtZWFzdXJlIHRoZSBuZXQgZ2FpbiBvciBsb3NzLgoAAAAAAAAAAB8HAAAAAAAAAAAAAA",
+					"BAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAdAIAAAAAAAB0AgAAAAAAAAAAAAAAAPC/"
+				],
+				[
+					13,
+					1,
+					"revert",
+					null,
+					"AgAAAAAAAAAAAAAAAAAAAAAAAAAvBwAAWzIwMjUtMDctMDIgMTI6MzY6MjMgQU1dIEBuZWFyZWFzdGFjYyBUd28gcGFyYWxsZWwgZGV2ZWxvcG1lbnRzIGV2b2x2ZWQgaGFuZCBpbiBoYW5kIGZvciBhYm91dCBoYWxmIGEgbWlsbGVubml1bS4KRmlyc3QsIG51bWVyYWN5IGFuZCBxdWFudGl0YXRpdmUgbWVhc3VyZW1lbnQgd2VyZSBuZWVkwq0gZWQgdG8gZXh0ZW5kIHRoZSBjb250cm9sIG92ZXIgbmF0dXJlIHRvIGluY2x1ZGUgdGhlIHJoeXRobXMgbyBmIHRoZSBsYXJnZSBpbnN0aXR1dGlvbnPigJR0aGVpciBzZWFzb25hbCBzY2hlZHVsZSBvZiBwbGFudGluZyBhbmQgaGFydmVzdGluZywgYW5kIHRoZSBtb250aGx5IHJoeXRobSBvZiBwcm92aXNpb25pbmcgdGhlaXIgd29ya3Nob3BzIGFuZCBkZXBlbmRlbnQgbGFib3Igc28gYXMgdG8gY29vcmRpbmF0ZSB0aGUgbGFyZ2UgZmxvd3MgaW52b2x2ZWQuIFNlY29uZCwgd3JpdHRlbiBub3Rhwq0gdGlvbiB3YXMgbmVlZGVkIHRvIHRyYWNrIGFuZCBxdWFudGlmeSB0aGVzZSByZXNvdXJjZSBmbG93cywgYW5kIHRvIGNsYXPCrSBzaWZ5IHRoZSBkaXNidXJzZW1lbnRzIGFuZCByZWNlaXB0cyBmb3IgYSBteXJpYWQgb2YgYWN0aXZpdGllcy4KClsyMDI1LTA3LTAyIDAxOjA1OjM2IEFNXSBAbmVhcmVhc3RhY2MgVG8gY29vcmRpbmF0ZSB0aGVzZSBhY3Rpdml0aWVzIHRoZSBTdW1lcmlhbnMgY3JlYXRlZCBhIGNsdXN0ZXIgb2YgaW50ZXJsb2NraW5nIGlubm92YXRpb25zIGluIGEg4oCcYmlnIGJhbmfigJ0gYXMgYSB1bmlmaWVkLWZpZWxkIGFwcHJvYWNoLiBBbiBhZG1pbmlzdHJhdGl2ZSBjYWxlbmRhciBiYXNlZCBvbiB1bmlmb3JtIDMwLWRheSBtb250aHMgbGVkIHRvIHRoZQpzZXhhZ2VzaW1hbCBzeXN0ZW0gb2YgY291bnRpbmcgYW5kIGRpdmlkaW5nIGludG8gNjB0aHMsIGFuZCBhIG1hdGNowq0gaW5nIHNleGFnZXNpbWFsIHNldCBvZiB3ZWlnaHRzIGFuZCBtZWFzdXJlcyB0byBhbGxvY2F0ZSByYXRpb25zIHRvIHRoZSB3b3JrIGZvcmNlIGZvciBtb250aGx5IGFuZCBkYWlseSB1c2UuIE11dHVhbCBwcmljZSBlcXVpdmFsZW5jaWVzIHdlcmUgYXNzaWduZWQgZm9yIGtleSBjb21tb2RpdGllcyBhbmQgdGhlIHJlbnRhbCByYXRlIGZvciBsYW5kIChzZWUgUmVuZ2VyIDE5OTUpLiBUaGVzZSBwcmljZXMgc2VydmVkIGFzIGNvZWZmaWNpZW50cyB0byBmb3JtIGEgZ3JpZCBvZiBlcXVpdmFsZW7CrSBjaWVzIGluIHdoaWNoIGJhcmxleSBhbmQgc2lsdmVyIGVtZXJnZWQgYXMgdGhlIGJhc2ljIHJlZmVyZW5jZSBwcmljZXMgb3Ig4oCcbW9uZXktb2YtYWNjb3VudC7igJ0gU2V0dGluZyB0aGVzZSB0d28gY29tbW9kaXRpZXMgYXMgYSBqb2ludCBzdGFuZGFyZCBvZiB2YWx1ZSBlbmFibGVkIGRpc3BhcmF0ZSB0cmFuc2FjdGlvbnMgdG8gYmUgb3JnYW5pemVkIGludG8gYW4gaW50ZcKtIGdyYXRlZCBzeXN0ZW0gaW4gd2hpY2ggYW4gb3ZlcmFsbCBiYWxhbmNlIGNvdWxkIGJlIHN0cnVjayB0byBtZWFzdXJlIHRoZSBuZXQgZ2FpbiBvciBsb3NzLgoKWzIwMjUtMDctMDIgMDI6MjA6NTYgQU1dIEBuZWFyZWFzdGFjYyBAcmVmbGVjdGlvbiBvbiBASW50cm9kdWN0aW9uLgpUaGUgU3RhdGUsIHRoZW4gdGhlIFBhbGFjZXMgUmVnaW1lIGFuZCBpdHMgc2NyaWJlcyBldCBhbCwgaGFkIG9yaWdpbnMgZm9yIGFjY291bnRpbmcgaW4gcmVzb3VyY2UgYWxsb2NhdGlvbiBmb3IgZW5zdXJpbmcgc3VmZmljaWVudCBzdXBwbGllcyBmb3IgdGhlIG1haW50ZW5hbmNlIG9mIHRoZSBQYWxhY2UgdGhlIHRoZSBjYXJyeWluZyBvdXQgb2YgcHVibGljIHdvcmtzIGFuZCBwcm9qZWN0cyBpZSBlbm91Z2ggZm9vZCBhbmQgbWF0ZXJpYWxzIGFuZCBsYWJvci4KAAAAAAAAAAAfBwAAAAAAAAAAAAA",
+					"BAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAdAIAAAAAAAB0AgAAAAAAAAAAAAAAAPC/"
+				],
+				[
+					14,
+					1,
+					"revert",
+					null,
+					"BQAAAAAAAAAAAAAAAAAAAAAAAAAvBwAAWzIwMjUtMDctMDIgMTI6MzY6MjMgQU1dIEBuZWFyZWFzdGFjYyBUd28gcGFyYWxsZWwgZGV2ZWxvcG1lbnRzIGV2b2x2ZWQgaGFuZCBpbiBoYW5kIGZvciBhYm91dCBoYWxmIGEgbWlsbGVubml1bS4KRmlyc3QsIG51bWVyYWN5IGFuZCBxdWFudGl0YXRpdmUgbWVhc3VyZW1lbnQgd2VyZSBuZWVkwq0gZWQgdG8gZXh0ZW5kIHRoZSBjb250cm9sIG92ZXIgbmF0dXJlIHRvIGluY2x1ZGUgdGhlIHJoeXRobXMgbyBmIHRoZSBsYXJnZSBpbnN0aXR1dGlvbnPigJR0aGVpciBzZWFzb25hbCBzY2hlZHVsZSBvZiBwbGFudGluZyBhbmQgaGFydmVzdGluZywgYW5kIHRoZSBtb250aGx5IHJoeXRobSBvZiBwcm92aXNpb25pbmcgdGhlaXIgd29ya3Nob3BzIGFuZCBkZXBlbmRlbnQgbGFib3Igc28gYXMgdG8gY29vcmRpbmF0ZSB0aGUgbGFyZ2UgZmxvd3MgaW52b2x2ZWQuIFNlY29uZCwgd3JpdHRlbiBub3Rhwq0gdGlvbiB3YXMgbmVlZGVkIHRvIHRyYWNrIGFuZCBxdWFudGlmeSB0aGVzZSByZXNvdXJjZSBmbG93cywgYW5kIHRvIGNsYXPCrSBzaWZ5IHRoZSBkaXNidXJzZW1lbnRzIGFuZCByZWNlaXB0cyBmb3IgYSBteXJpYWQgb2YgYWN0aXZpdGllcy4KClsyMDI1LTA3LTAyIDAxOjA1OjM2IEFNXSBAbmVhcmVhc3RhY2MgVG8gY29vcmRpbmF0ZSB0aGVzZSBhY3Rpdml0aWVzIHRoZSBTdW1lcmlhbnMgY3JlYXRlZCBhIGNsdXN0ZXIgb2YgaW50ZXJsb2NraW5nIGlubm92YXRpb25zIGluIGEg4oCcYmlnIGJhbmfigJ0gYXMgYSB1bmlmaWVkLWZpZWxkIGFwcHJvYWNoLiBBbiBhZG1pbmlzdHJhdGl2ZSBjYWxlbmRhciBiYXNlZCBvbiB1bmlmb3JtIDMwLWRheSBtb250aHMgbGVkIHRvIHRoZQpzZXhhZ2VzaW1hbCBzeXN0ZW0gb2YgY291bnRpbmcgYW5kIGRpdmlkaW5nIGludG8gNjB0aHMsIGFuZCBhIG1hdGNowq0gaW5nIHNleGFnZXNpbWFsIHNldCBvZiB3ZWlnaHRzIGFuZCBtZWFzdXJlcyB0byBhbGxvY2F0ZSByYXRpb25zIHRvIHRoZSB3b3JrIGZvcmNlIGZvciBtb250aGx5IGFuZCBkYWlseSB1c2UuIE11dHVhbCBwcmljZSBlcXVpdmFsZW5jaWVzIHdlcmUgYXNzaWduZWQgZm9yIGtleSBjb21tb2RpdGllcyBhbmQgdGhlIHJlbnRhbCByYXRlIGZvciBsYW5kIChzZWUgUmVuZ2VyIDE5OTUpLiBUaGVzZSBwcmljZXMgc2VydmVkIGFzIGNvZWZmaWNpZW50cyB0byBmb3JtIGEgZ3JpZCBvZiBlcXVpdmFsZW7CrSBjaWVzIGluIHdoaWNoIGJhcmxleSBhbmQgc2lsdmVyIGVtZXJnZWQgYXMgdGhlIGJhc2ljIHJlZmVyZW5jZSBwcmljZXMgb3Ig4oCcbW9uZXktb2YtYWNjb3VudC7igJ0gU2V0dGluZyB0aGVzZSB0d28gY29tbW9kaXRpZXMgYXMgYSBqb2ludCBzdGFuZGFyZCBvZiB2YWx1ZSBlbmFibGVkIGRpc3BhcmF0ZSB0cmFuc2FjdGlvbnMgdG8gYmUgb3JnYW5pemVkIGludG8gYW4gaW50ZcKtIGdyYXRlZCBzeXN0ZW0gaW4gd2hpY2ggYW4gb3ZlcmFsbCBiYWxhbmNlIGNvdWxkIGJlIHN0cnVjayB0byBtZWFzdXJlIHRoZSBuZXQgZ2FpbiBvciBsb3NzLgoKWzIwMjUtMDctMDIgMDI6MjA6NTYgQU1dIEBuZWFyZWFzdGFjYyBAcmVmbGVjdGlvbiBvbiBASW50cm9kdWN0aW9uLgpUaGUgU3RhdGUsIHRoZW4gdGhlIFBhbGFjZXMgUmVnaW1lIGFuZCBpdHMgc2NyaWJlcyBldCBhbCwgaGFkIG9yaWdpbnMgZm9yIGFjY291bnRpbmcgaW4gcmVzb3VyY2UgYWxsb2NhdGlvbiBmb3IgZW5zdXJpbmcgc3VmZmljaWVudCBzdXBwbGllcyBmb3IgdGhlIG1haW50ZW5hbmNlIG9mIHRoZSBQYWxhY2UgdGhlIHRoZSBjYXJyeWluZyBvdXQgb2YgcHVibGljIHdvcmtzIGFuZCBwcm9qZWN0cyBpZSBlbm91Z2ggZm9vZCBhbmQgbWF0ZXJpYWxzIGFuZCBsYWJvci4KAAAAAAAAAAD3DAAAAAAAAAAAAAAAAAAAAAAAAPcMAAAAAAAAAAAAAAAAAAAAAAAA9wwAAAAAAAAAAAAAAAAAAAAAAAD3DAAAAAAAAAAAAAA",
+					"BAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAdAIAAAAAAAB0AgAAAAAAAAAAAAAAAPC/"
+				]
+			]
+		},
+		{
+			"file": "/Users/mp/ww/functions/journals/private/j-workpads.txt",
+			"settings":
+			{
+				"buffer_size": 19402,
+				"encoding": "UTF-8",
+				"line_ending": "Unix"
+			},
+			"undo_stack":
+			[
+				[
+					4,
+					1,
+					"insert",
+					{
+						"characters": "x"
+					},
+					"AQAAALdLAAAAAAAAuEsAAAAAAAAAAAAA",
+					"BAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAt0sAAAAAAAC3SwAAAAAAAAAAAAAAAPC/"
+				],
+				[
+					5,
+					4,
+					"right_delete",
+					null,
+					"BAAAALhLAAAAAAAAuEsAAAAAAAABAAAAObhLAAAAAAAAuEsAAAAAAAABAAAANrhLAAAAAAAAuEsAAAAAAAABAAAAN7hLAAAAAAAAuEsAAAAAAAABAAAAOQ",
+					"BAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAuEsAAAAAAAC4SwAAAAAAAAAAAAAAAPC/"
+				],
+				[
+					6,
+					1,
+					"insert",
+					{
+						"characters": "25cf"
+					},
+					"BAAAALhLAAAAAAAAuUsAAAAAAAAAAAAAuUsAAAAAAAC6SwAAAAAAAAAAAAC6SwAAAAAAALtLAAAAAAAAAAAAALtLAAAAAAAAvEsAAAAAAAAAAAAA",
+					"BAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAuEsAAAAAAAC4SwAAAAAAAAAAAAAAAPC/"
+				],
+				[
+					7,
+					1,
+					"insert",
+					{
+						"characters": " "
+					},
+					"AQAAALxLAAAAAAAAvUsAAAAAAAAAAAAA",
+					"BAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAvEsAAAAAAAC8SwAAAAAAAAAAAAAAAPC/"
+				],
+				[
+					10,
+					1,
+					"insert",
+					{
+						"characters": " "
+					},
+					"AgAAALVLAAAAAAAAtksAAAAAAAAAAAAAtksAAAAAAAC2SwAAAAAAAAcAAAAmI3gyNWNm",
+					"BAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAvEsAAAAAAAC1SwAAAAAAAAAAAAAAAPC/"
+				],
+				[
+					11,
+					1,
+					"insert",
+					{
+						"characters": "⚪️"
+					},
+					"AgAAALZLAAAAAAAAt0sAAAAAAAAAAAAAt0sAAAAAAAC4SwAAAAAAAAAAAAA",
+					"BAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAtksAAAAAAAC2SwAAAAAAAAAAAAAAAPC/"
+				],
+				[
+					13,
+					1,
+					"left_delete",
+					null,
+					"AQAAALVLAAAAAAAAtUsAAAAAAAABAAAAIA",
+					"BAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAtksAAAAAAAC2SwAAAAAAAAAAAAAAAPC/"
+				],
+				[
+					15,
+					1,
+					"insert",
+					{
+						"characters": " or"
+					},
+					"AwAAALdLAAAAAAAAuEsAAAAAAAAAAAAAuEsAAAAAAAC5SwAAAAAAAAAAAAC5SwAAAAAAALpLAAAAAAAAAAAAAA",
+					"BAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAt0sAAAAAAAC3SwAAAAAAAAAAAAAAAPC/"
+				],
+				[
+					16,
+					1,
+					"insert",
+					{
+						"characters": " "
+					},
+					"AQAAALpLAAAAAAAAu0sAAAAAAAAAAAAA",
+					"BAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAuksAAAAAAAC6SwAAAAAAAAAAAAAAAPC/"
+				],
+				[
+					17,
+					1,
+					"insert",
+					{
+						"characters": "⃝"
+					},
+					"AQAAALtLAAAAAAAAvEsAAAAAAAAAAAAA",
+					"BAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAu0sAAAAAAAC7SwAAAAAAAAAAAAAAAPC/"
+				],
+				[
+					24,
+					1,
+					"insert",
+					{
+						"characters": " "
+					},
+					"AQAAAMhLAAAAAAAAyUsAAAAAAAAAAAAA",
+					"BAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAyEsAAAAAAADISwAAAAAAAAAAAAAAAPC/"
+				]
+			]
+		}
+	],
+	"build_system": "",
+	"build_system_choices":
+	[
+	],
+	"build_varint": "",
+	"command_palette":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"console":
+	{
+		"height": 130.0,
+		"history":
+		[
+		]
+	},
+	"distraction_free":
+	{
+		"menu_visible": true,
+		"show_minimap": false,
+		"show_open_files": false,
+		"show_tabs": false,
+		"side_bar_visible": false,
+		"status_bar_visible": false
+	},
+	"expanded_folders":
+	[
+		"/Users/mp/ww/functions/journals",
+		"/Users/mp/ww/functions/journals/private"
+	],
+	"file_history":
+	[
+		"/Users/mp/.config/jrnl/jrnl.yaml",
+		"/Users/mp/ww/services/profile/create-ww-profile.sh",
+		"/Users/mp/.bashrc",
+		"/Users/mp/ww/bin/personal bashrc june 30.sh",
+		"/Users/mp/ww/bin/june 30 create new profile 2.sh",
+		"/Users/mp/ww/bin/june 30 create new profile.sh",
+		"/Users/mp/ww/resources/terminal-files/bash/.bashrc_ww",
+		"/Users/mp/task",
+		"/Users/mp/BASH/Terms/dbox/.bashrc",
+		"/Users/mp/9",
+		"/Users/mp/ww/TOOLS/terminals/bash/.bashrc_ww",
+		"/Users/mp/scripts/taskwarrior/create-ww-profile.sh",
+		"/Users/mp/BASH/Terms/dbox/.bashrc-copy-june232025.txt",
+		"/Users/mp/ww/bin/wwterm",
+		"/Users/mp/ww/terminals/bash/.bashrc",
+		"/Users/mp/ww/terminals/bash/.bashrc_ww",
+		"/Users/mp/scripts/taskwarrior/Taskwarrior-Timewarrior Integration --.txt",
+		"/Users/mp/.taskrc",
+		"/Users/mp/jconfig",
+		"/Users/mp/Documents/BASH/Terms/dbox/.bashrc",
+		"/Users/mp/Documents/journals/j-hamilton.txt",
+		"/Users/mp/Documents/journals/j-workpads.txt",
+		"/Users/mp/Documents/journals/j-tools.txt",
+		"/Users/mp/Documents/journals/j-babbbox.txt",
+		"/Users/mp/What is a Flowarrior and what are his weapons? :D",
+		"/Users/mp/Documents/journals/j-babbsystem.txt",
+		"/Users/mp/Documents/journals/j-bash.txt",
+		"/Users/mp/Documents/journals/j-devsys.txt",
+		"/Users/mp/documents/a/jrnl.yaml",
+		"/Users/mp/apps/wp/IOPF/may4/command_encoder.c"
+	],
+	"find":
+	{
+		"height": 39.0
+	},
+	"find_in_files":
+	{
+		"height": 0.0,
+		"where_history":
+		[
+		]
+	},
+	"find_state":
+	{
+		"case_sensitive": false,
+		"find_history":
+		[
+		],
+		"highlight": true,
+		"in_selection": false,
+		"preserve_case": false,
+		"regex": false,
+		"replace_history":
+		[
+		],
+		"reverse": false,
+		"scrollbar_highlights": true,
+		"show_context": true,
+		"use_buffer2": true,
+		"use_gitignore": true,
+		"whole_word": false,
+		"wrap": true
+	},
+	"groups":
+	[
+		{
+			"sheets":
+			[
+				{
+					"buffer": 0,
+					"file": "/Users/mp/ww/functions/journals/private/j-books.txt",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 3319,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								628,
+								628
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/Text/Plain text.tmLanguage"
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 1,
+					"stack_multiselect": false,
+					"type": "text"
+				},
+				{
+					"buffer": 1,
+					"file": "/Users/mp/ww/functions/journals/private/j-workpads.txt",
+					"selected": true,
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 19402,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								19401,
+								19401
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/Text/Plain text.tmLanguage"
+						},
+						"translation.x": 0.0,
+						"translation.y": 4131.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 0,
+					"stack_multiselect": false,
+					"type": "text"
+				}
+			]
+		}
+	],
+	"incremental_find":
+	{
+		"height": 27.0
+	},
+	"input":
+	{
+		"height": 0.0
+	},
+	"layout":
+	{
+		"cells":
+		[
+			[
+				0,
+				0,
+				1,
+				1
+			]
+		],
+		"cols":
+		[
+			0.0,
+			1.0
+		],
+		"rows":
+		[
+			0.0,
+			1.0
+		]
+	},
+	"menu_visible": true,
+	"output.exec":
+	{
+		"height": 31.0
+	},
+	"output.find_results":
+	{
+		"height": 0.0
+	},
+	"pinned_build_system": "",
+	"project": "imported-journals.sublime-project",
+	"replace":
+	{
+		"height": 50.0
+	},
+	"save_all_on_build": true,
+	"select_file":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"select_project":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"select_symbol":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"selected_group": 0,
+	"settings":
+	{
+	},
+	"show_minimap": true,
+	"show_open_files": true,
+	"show_tabs": true,
+	"side_bar_visible": true,
+	"side_bar_width": 267.0,
+	"status_bar_visible": true,
+	"template_settings":
+	{
+	}
+}
