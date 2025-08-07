@@ -1,0 +1,297 @@
+#!/bin/bash
+
+# -- Terminal Aliases
+alias src="source ~/.bashrc"
+alias bash="nano ~/.bashrc"
+alias c="clear"
+alias cl="c && list"
+alias h="history"
+alias copyl='fc -ln -1 | pbcopy'
+
+# -- Terminal Behavior
+shopt -s
+
+# -- Exports
+export PATH="$HOME/ww/bin:$PATH"
+
+
+# -- SUBLIME (command followed by path/to/file)
+export EDITOR="subl -w"
+
+# -- Confirmation of Alternative Workwarrior BASHRC
+
+export ACTIVE_BASHRC="$HOME/ww/terminals/bash/bashrc_ww"
+echo COMPLETE***
+
+
+# -- COLLECTED WORKWARRIOR ALIASES
+alias u="task udas"
+alias j="jrnl --list"
+alias tm="timew"
+alias tms="timew start"
+alias tsum="timew summary :ids"
+alias list='task list'
+alias add='task add'
+alias tw='timew'
+alias time='timew'
+alias tal="alias | grep -E 'task'"
+alias tp="task project:"
+
+
+
+
+
+
+
+
+# -- WORKWARRIOR (aka "WW") ------------------------------------
+
+# -- This file (bashrc_ww) is organized from highest level components for WW \
+# -- down to its Secondary and Ancillary Elements.
+# -- 
+# -- SECTIONS:
+# -- Groups
+# -- Profiles
+# -- Kits
+# -- Tools
+# -- Extensions
+# -- Tool Setups
+# -- Attributes
+# -- Stats
+# -- Shortcuts
+# -- Naming Conventions
+
+
+# -- Group Creation
+# -- Alias: ""
+
+# -- Profile Creation
+# -- Alias: "ww-new"
+# -- Script(s) employed:
+# ---- ~/scripts/taskwarrior/create-ww-profile.sh
+
+alias p-new='$HOME/ww/services/profile/create-ww-profile.sh'
+
+# -- Profile Selection
+# -- Function: activiates a profile's taskrc file, taskwarrior database and \
+# -- a timewarrior database contained within the profile folder.
+# -- Selecting of profile via alias also states name of Profile Group.
+# -- Group names recorded into functions below.
+
+# -- Profile Switching for Group: Base
+function use_task_profile() {
+  local profile="$1"
+  export WARRIOR_PROFILE="$profile"
+  export TASKRC="$HOME/ww/profiles/$profile/.taskrc"
+  export TASKDATA="$HOME/ww/profiles/$profile/.task"
+  export TIMEWARRIORDB="$HOME/ww/profiles/$profile/.timewarrior"
+  echo "Workwarrior Profile: $profile"
+}
+
+# -- Profile Identification in Terminal Prompt:
+export PS1='[\u@\h \W ${WARRIOR_PROFILE:-default}]\$ '
+
+>>>> ? "Include creation date for profile in prompt?"
+
+# -- Workwarrior Profile Aliases for Group: "all"
+# -- "all" is the default Group in WW System
+alias p-ww='use_task_profile workwarrior'
+alias p-
+alias p-fam='use_task_profile family'
+alias p-tools='use_task_profile tools'
+alias p-kids='use_task_profile kids'
+alias p-b='use_task_profile babb'
+alias p-board='use_task_profile babb-board'
+alias p-box='use_task_profile babb-box'
+alias p-bs='use_task_profile babb-system'
+alias p-bas='use_task_profile basics'
+alias p-bfin='use_task_profile babb-fin'
+alias p-wp='use_task_profile workpads'
+alias p-bcli='use_task_profile babb-cli'
+
+
+
+# -- TASKWARRIOR ----------------------------------------
+# -- About Tool:
+# -- 
+
+# -- DIRECTION ACTIVATION OF TASK PROFILES
+# -- Convention: "t-" plus profile alias
+
+alias t-ww='unset TASKDATA && TASKRC=~/tasks/workwarrior/.timewarrior-babb TASKRC=~/tasks/babb/.taskrc task'
+
+
+# -- Task Aliases for Prefixing with Project
+
+
+# -- TIMEWARRIOR ----------------------------------------
+# -- About Tool:
+# -- 
+
+# -- Old Configurations (REMOVE)
+alias timeww='TIMEWARRIORDB=~/tasks/workwarrior/.timewarrior timew'
+alias timetw='TIMEWARRIORDB=~/times/.timewarrior-toolwarrior/data timew'
+alias timewps='TIMEWARRIORDB=~/tasks/.timewarrior/data timew'
+alias timebabb='TIMEWARRIORDB=~/times/.timewarrior-babbdevelopment/data timew'
+alias timebasics='TIMEWARRIORDB=~/times/.timewarrior-basics/data timew'
+alias timebsys='TIMEWARRIORDB=~/times/.timewarrior-babbsystem/data timew'
+alias timeboard='TIMEWARRIORDB=~/times/.timewarrior-babbboard/data timew'
+alias timebox='TIMEWARRIORDB=~/times/.timewarrior-babbbox/data timew'
+alias timebcli='TIMEWARRIORDB=~/times/.timewarrior-babbcli/data timew'
+alias timebfin='TIMEWARRIORDB=~/times/.timewarrior-babbfinancials/data timew'
+alias timefam='TIMEWARRIORDB=~/times/.timewarrior-family/data timew'
+alias timekids='TIMEWARRIORDB=~/times/.timewarrior-kidslearning/data timew'
+alias timemath='TIMEWARRIORDB=~/times/.timewarrior-math/data timew'
+
+
+# -- JRNL -----------------------------------------------
+# -- About Tool:
+# -- 
+
+# -- JRNL Configuration
+alias j-config="nano ~/ww/.config/jrnl/jrnl.yaml"
+
+
+# -- Journal ALIASES ---
+
+
+# -- Old Configuration (REMOVE)
+alias jwp="jrnl wp"
+alias jb="jrnl babb"
+alias jbs="jrnl babb-system"
+alias jl="jrnl linux"
+alias jboard="jrnl board"
+alias jbox="jrnl box"
+alias jbfin="jrnl babbfin"
+alias jbash="jrnl bash"
+alias ja="jrnl assembly"
+alias jmath="jrnl math"
+alias jc="jrnl c"
+alias jpers="jrnl personal"
+alias jfam="jrnl fam"
+alias jrust="jrnl rust"
+alias jbuffalo="jrnl buffalo"
+alias jacc="jrnl accounting"
+alias jlearn="jrnl learn"
+alias jpython="jrnl python"
+alias jch="jrnl christ"
+alias jmg="jrnl mgroup"
+alias jham="jrnl hamilton"
+alias jp="jrnl prompts"
+alias jds="jrnl devsys"
+alias jpitt="jrnl pittsburgh"
+alias jnev="jrnl nevada"
+alias jtools="jrnl tools"
+alias jmac="jrnl mac"
+alias jscr="jrnl scripts"
+alias jww="jrnl workwarrior"
+alias jtw="jrnl toolwarrior"
+
+
+# -- Journal Scripts 
+# -- 
+# -- Populated via Script:
+# -- 
+
+# -- Journal Response Templates
+alias j-ww-general='~/scripts/journals/base/workwarrior/general.sh'
+
+# -- Journal Export Aliases
+alias j-exp-w='export JOURNAL_FILE="~/docs/journals/j-workpads.txt"'
+
+# -- Journal Meta Scripts
+# -- 
+# -- Populated via Script:
+# -- 
+
+# -- Create New Jouranl Entry Template
+alias j-temp='~/docs/scripts/jrnl/create-new-template-jrnl.sh'
+
+
+
+# -- TO DO by SJL
+# -- About Tool:
+# -- 
+
+# -- Aliases for Simplified Todo Lists
+alias todo-ww='python3 ~/apps/t/t.py --task-dir ~/todo --list tasks'
+
+# -- Old Configuration (REMOVE)
+
+alias t='python3 ~/apps/t/t.py --task-dir ~/todo --list tasks'
+alias tg='python3 ~/apps/t/t.py --task-dir ~/todo --list groceries'
+alias tpi='python3 ~/apps/t/t.py --task-dir ~/todo --list workpadsissues'
+alias tbi='python3 ~/apps/t/t.py --task-dir ~/todo --list basicsissues'
+alias tsi='python3 ~/apps/t/t.py --task-dir ~/todo --list systemissues'
+alias tw='python3 ~/apps/t/t.py --task-dir ~/todo --list writing'
+alias tf='python3 ~/apps/t/t.py --task-dir ~/todo --list family'
+alias tr='python3 ~/apps/t/t.py --task-dir ~/todo --list reading'
+alias tbabb='python3 ~/apps/t/t.py --task-dir ~/todo --list babb'
+alias tww='python3 ~/apps/t/t.py --task-dir ~/todo --list workwarrior'
+
+# -- Hledger --------------------------------------------
+# -- About Tool:
+# -- 
+
+# -- General Aliases for Hledger
+alias h='hledger'
+alias hi="~/.cabal/bin/hledger-iadd"
+alias f="~/src/hledger/bin/ft"
+alias ha="h add"
+alias hb='h bal'
+
+# -- Direct Aliases for Ledger Files per Profile
+alias l-ww='export LEDGER_FILE="~/accounting/base/workwarrior/demo-ledger.journal"'
+
+# -- Old Configuration (REMOVE)
+alias hmg22='export LEDGER_FILE="~/docs/acc/mg/desk/2022/ledgersmg2022.journal"'
+alias hmg23='export LEDGER_FILE="~/docs/acc/mg/desk/2023/ledgersmg2023.journal"'
+alias hmg24='export LEDGER_FILE="~/docs/acc/mg/desk/2024/2024accounts-main.journal"'
+alias hmg25='export LEDGER_FILE="~/docs/acc/mg/desk/2025/main25.journal"'
+alias hsptax='export LEDGER_FILE="~/docs/acc/taxcalc/overview-ledger-sps.journal"'
+alias hfam='export LEDGER_FILE="~/docs/acc/fam/fam.j"'
+alias hbabb='export LEDGER_FILE="~/docs/acc/babb/babb.j"'
+alias hwp='export LEDGER_FILE="~/docs/acc/babb/workpads.j"'
+alias hhc='export LEDGER_FILE="~/docs/acc/hc/hc.j"'
+alias hret24='export LEDGER_FILE="~/docs/acc/temp/2024return.j"'
+alias hbf='export LEDGER_FILE="~/docs/acc/babb/Corp_Accounts_862.journal"'
+
+
+
+# -- EXTENSIONS -----------------------------------------
+
+
+# -- TaskWarrior TUI - Terminal User Interface
+# -- About Extension:
+# -- 
+# -- Populated via Script:
+# -- 
+# -- Convention: "tui-" plus profile alias
+
+alias tui='taskwarrior-tui'
+alias tui-ww='TASKRC="~/tasks/workwarrior/.taskrc" TASKDATA="~/tasks/workwarrior/.task" taskwarrior-tui'
+alias tuiwp='TASKRC="$HOME/tasks/workpads/.taskrc" TASKDATA="$HOME/tasks/workpads/.task" taskwarrior-tui'
+alias tuib='TASKRC="~/tasks/babb/.taskrc" TASKDATA="~/tasks/babb/data/.task" taskwarrior-tui'
+alias tuibc='TASKRC="~/tasks/babb-fin/.taskrc" TASKDATA="~/tasks/babb-fin/data/.task" taskwarrior-tui'
+alias tuibas='TASKRC="~/tasks/basics/.taskrc" TASKDATA="~/tasks/basics/data/.task" taskwarrior-tui'
+alias tuibb='TASKRC="~/tasks/babb-board/.taskrc" TASKDATA="~/tasks/babb-board/data/.task" taskwarrior-tui'
+alias tuibs='TASKRC="~/tasks/babb-system/.taskrc" TASKDATA="~/tasks/babb-system/data/.task" taskwarrior-tui'
+alias tuibx='TASKRC="~/tasks/babb-box/.taskrc" TASKDATA="~/tasks/babb-box/data/.task" taskwarrior-tui'
+alias tuifam='TASKRC="~/tasks/family/.taskrc" TASKDATA="~/tasks/family/data/.task" taskwarrior-tui'
+
+
+# -- TaskSH - Shell for Taskwarrior
+# -- About Extension:
+# -- Created by Maintainers of Taskwarrior
+# -- Populated via Script:
+# -- 
+# -- Convention: COMPLETE
+
+# -- Activation of TASKSH for Each Profile
+alias tasksh-wp='TASKRC=~/tasks/workpads/.taskrc TASKDATA=~/tasks/workpads/data/.task tasksh'
+
+
+
+# -- Activation of VIT for Various Profiles
+alias vit-bs='TASKRC="~/tasks/babb-system/.taskrc" vit'
+

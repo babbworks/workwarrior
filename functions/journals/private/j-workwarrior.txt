@@ -1,0 +1,18 @@
+[2025-06-20 07:04:52 AM] test
+
+[2025-06-23 04:26:23 PM] test
+
+[2025-06-24 01:23:45 AM] Preference for profile switching
+
+[2025-06-24 02:37:01 AM] Setting up Taskwarrior and Timewarrior when each are custom.
+c
+
+[2025-06-29 11:21:49 PM] test
+
+[2025-06-29 11:36:11 PM] How to store files?
+In functions name store funciton program files plus scripts to make each function work with other functions and Ww overall.
+
+[2025-07-01 05:08:33 AM] hello here we go.
+this is a test.
+
+[2025-07-01 05:10:43 AM] this is a test

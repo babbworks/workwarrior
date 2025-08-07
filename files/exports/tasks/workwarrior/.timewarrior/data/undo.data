@@ -1,0 +1,47 @@
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250624T052756Z","tags":["Here we go"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250624T052756Z","tags":["Here we go"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250624T052756Z","end":"20250624T052836Z","tags":["Here we go"]}
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250624T053455Z","tags":["Here we go"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250624T053455Z","tags":["Here we go"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250624T053455Z","end":"20250624T053514Z","tags":["Here we go"]}
+txn:
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250624T053541Z","tags":["Here we go"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250624T053541Z","tags":["Here we go"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250624T053541Z","end":"20250624T053604Z","tags":["Here we go"]}
+txn:
+  type: interval
+  before: 
+  after: {"id":3,"start":"20250624T053629Z","tags":["Here we go"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250624T053629Z","tags":["Here we go"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250624T053629Z","end":"20250624T053642Z","tags":["Here we go"]}
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250624T053642Z","tags":["TaskOpen","annotation","extensions.tasks","linkhandling"]}

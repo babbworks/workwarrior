@@ -1,0 +1,8 @@
+[2025-06-12 01:59:44 PM] test
+
+[2025-06-12 02:07:54 PM] What is the syntax of the system?
+In other words what are its constitutent parts and how do they relate? What does each produce, what are its inputs, and what are the inputs and outputs for each relationship within the system? The systems primary elements appear to be Tasks, Time, and Notes ie Journals. In other words, Actions, Time and Notes. Exchanges are also their own element but they represent value swaps between elements of a clients systems and processes. These can all be brought together within a Pad ie Workpad. For argument sake we can say that a Pad becomes a Workpad when their is intent to share the pad or otherwise make it social. Each individuated Action, Time Log and Note, as well as Exchange is represented as a Record ie a standardized log. Thecreation of a Pad happens when one or more records furnish the primary content for a standalone document which references the record-s, allowing its creator contextualize and annotate the aggregated information.
+
+[2025-06-12 02:08:19 PM] last
+
+[2025-06-12 02:08:21 PM] list

@@ -1,0 +1,583 @@
+{
+	"auto_complete":
+	{
+		"selected_items":
+		[
+		]
+	},
+	"buffers":
+	[
+		{
+			"file": "/Users/mp/ww/functions/journals/private/j-books.txt",
+			"settings":
+			{
+				"buffer_size": 3319,
+				"encoding": "UTF-8",
+				"line_ending": "Unix"
+			},
+			"undo_stack":
+			[
+				[
+					3,
+					1,
+					"paste",
+					null,
+					"AgAAAAAAAAAAAAAATAIAAAAAAAAAAAAATAIAAAAAAABMAgAAAAAAAEAAAABbMjAyNS0wNi0yMyAwMzoxNzowMSBQTV0gTm8gdGF4IQoKWzIwMjUtMDctMDIgMDE6MDI6MjQgQU1dIHRlc3QK",
+					"CwAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8"
+				],
+				[
+					4,
+					1,
+					"revert",
+					null,
+					"AgAAAAAAAAAAAAAAAAAAAAAAAABRAgAAWzIwMjUtMDctMDIgMTI6MzY6MjMgQU1dIEBuZWFyZWFzdGFjYyBUd28gcGFyYWxsZWwgZGV2ZWxvcG1lbnRzIGV2b2x2ZWQgaGFuZCBpbiBoYW5kIGZvciBhYm91dCBoYWxmIGEgbWlsbGVubml1bS4KRmlyc3QsIG51bWVyYWN5IGFuZCBxdWFudGl0YXRpdmUgbWVhc3VyZW1lbnQgd2VyZSBuZWVkwq0gZWQgdG8gZXh0ZW5kIHRoZSBjb250cm9sIG92ZXIgbmF0dXJlIHRvIGluY2x1ZGUgdGhlIHJoeXRobXMgbyBmIHRoZSBsYXJnZSBpbnN0aXR1dGlvbnPigJR0aGVpciBzZWFzb25hbCBzY2hlZHVsZSBvZiBwbGFudGluZyBhbmQgaGFydmVzdGluZywgYW5kIHRoZSBtb250aGx5IHJoeXRobSBvZiBwcm92aXNpb25pbmcgdGhlaXIgd29ya3Nob3BzIGFuZCBkZXBlbmRlbnQgbGFib3Igc28gYXMgdG8gY29vcmRpbmF0ZSB0aGUgbGFyZ2UgZmxvd3MgaW52b2x2ZWQuIFNlY29uZCwgd3JpdHRlbiBub3Rhwq0gdGlvbiB3YXMgbmVlZGVkIHRvIHRyYWNrIGFuZCBxdWFudGlmeSB0aGVzZSByZXNvdXJjZSBmbG93cywgYW5kIHRvIGNsYXPCrSBzaWZ5IHRoZSBkaXNidXJzZW1lbnRzIGFuZCByZWNlaXB0cyBmb3IgYSBteXJpYWQgb2YgYWN0aXZpdGllcy4AAAAAAAAAAMQFAAAAAAAAAAAAAA",
+					"CwAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAABMAgAAAAAAAEwCAAAAAAAAAAAAAAAA8L8"
+				],
+				[
+					7,
+					1,
+					"insert",
+					{
+						"characters": "@neareast"
+					},
+					"CQAAAGcCAAAAAAAAaAIAAAAAAAAAAAAAaAIAAAAAAABpAgAAAAAAAAAAAABpAgAAAAAAAGoCAAAAAAAAAAAAAGoCAAAAAAAAawIAAAAAAAAAAAAAawIAAAAAAABsAgAAAAAAAAAAAABsAgAAAAAAAG0CAAAAAAAAAAAAAG0CAAAAAAAAbgIAAAAAAAAAAAAAbgIAAAAAAABvAgAAAAAAAAAAAABvAgAAAAAAAHACAAAAAAAAAAAAAA",
+					"CwAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAABnAgAAAAAAAGcCAAAAAAAAAAAAAAAA8L8"
+				],
+				[
+					8,
+					1,
+					"insert",
+					{
+						"characters": "s"
+					},
+					"AQAAAHACAAAAAAAAcQIAAAAAAAAAAAAA",
+					"CwAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAABwAgAAAAAAAHACAAAAAAAAAAAAAAAA8L8"
+				],
+				[
+					9,
+					1,
+					"left_delete",
+					null,
+					"AQAAAHACAAAAAAAAcAIAAAAAAAABAAAAcw",
+					"CwAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAABxAgAAAAAAAHECAAAAAAAAAAAAAAAA8L8"
+				],
+				[
+					10,
+					1,
+					"insert",
+					{
+						"characters": "acc"
+					},
+					"AwAAAHACAAAAAAAAcQIAAAAAAAAAAAAAcQIAAAAAAAByAgAAAAAAAAAAAAByAgAAAAAAAHMCAAAAAAAAAAAAAA",
+					"CwAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAABwAgAAAAAAAHACAAAAAAAAAAAAAAAA8L8"
+				],
+				[
+					11,
+					1,
+					"insert",
+					{
+						"characters": " "
+					},
+					"AQAAAHMCAAAAAAAAdAIAAAAAAAAAAAAA",
+					"CwAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAABzAgAAAAAAAHMCAAAAAAAAAAAAAAAA8L8"
+				],
+				[
+					12,
+					1,
+					"revert",
+					null,
+					"AgAAAAAAAAAAAAAAAAAAAAAAAADhBQAAWzIwMjUtMDctMDIgMTI6MzY6MjMgQU1dIEBuZWFyZWFzdGFjYyBUd28gcGFyYWxsZWwgZGV2ZWxvcG1lbnRzIGV2b2x2ZWQgaGFuZCBpbiBoYW5kIGZvciBhYm91dCBoYWxmIGEgbWlsbGVubml1bS4KRmlyc3QsIG51bWVyYWN5IGFuZCBxdWFudGl0YXRpdmUgbWVhc3VyZW1lbnQgd2VyZSBuZWVkwq0gZWQgdG8gZXh0ZW5kIHRoZSBjb250cm9sIG92ZXIgbmF0dXJlIHRvIGluY2x1ZGUgdGhlIHJoeXRobXMgbyBmIHRoZSBsYXJnZSBpbnN0aXR1dGlvbnPigJR0aGVpciBzZWFzb25hbCBzY2hlZHVsZSBvZiBwbGFudGluZyBhbmQgaGFydmVzdGluZywgYW5kIHRoZSBtb250aGx5IHJoeXRobSBvZiBwcm92aXNpb25pbmcgdGhlaXIgd29ya3Nob3BzIGFuZCBkZXBlbmRlbnQgbGFib3Igc28gYXMgdG8gY29vcmRpbmF0ZSB0aGUgbGFyZ2UgZmxvd3MgaW52b2x2ZWQuIFNlY29uZCwgd3JpdHRlbiBub3Rhwq0gdGlvbiB3YXMgbmVlZGVkIHRvIHRyYWNrIGFuZCBxdWFudGlmeSB0aGVzZSByZXNvdXJjZSBmbG93cywgYW5kIHRvIGNsYXPCrSBzaWZ5IHRoZSBkaXNidXJzZW1lbnRzIGFuZCByZWNlaXB0cyBmb3IgYSBteXJpYWQgb2YgYWN0aXZpdGllcy4KClsyMDI1LTA3LTAyIDAxOjA1OjM2IEFNXSBAbmVhcmVhc3RhY2MgVG8gY29vcmRpbmF0ZSB0aGVzZSBhY3Rpdml0aWVzIHRoZSBTdW1lcmlhbnMgY3JlYXRlZCBhIGNsdXN0ZXIgb2YgaW50ZXJsb2NraW5nIGlubm92YXRpb25zIGluIGEg4oCcYmlnIGJhbmfigJ0gYXMgYSB1bmlmaWVkLWZpZWxkIGFwcHJvYWNoLiBBbiBhZG1pbmlzdHJhdGl2ZSBjYWxlbmRhciBiYXNlZCBvbiB1bmlmb3JtIDMwLWRheSBtb250aHMgbGVkIHRvIHRoZQpzZXhhZ2VzaW1hbCBzeXN0ZW0gb2YgY291bnRpbmcgYW5kIGRpdmlkaW5nIGludG8gNjB0aHMsIGFuZCBhIG1hdGNowq0gaW5nIHNleGFnZXNpbWFsIHNldCBvZiB3ZWlnaHRzIGFuZCBtZWFzdXJlcyB0byBhbGxvY2F0ZSByYXRpb25zIHRvIHRoZSB3b3JrIGZvcmNlIGZvciBtb250aGx5IGFuZCBkYWlseSB1c2UuIE11dHVhbCBwcmljZSBlcXVpdmFsZW5jaWVzIHdlcmUgYXNzaWduZWQgZm9yIGtleSBjb21tb2RpdGllcyBhbmQgdGhlIHJlbnRhbCByYXRlIGZvciBsYW5kIChzZWUgUmVuZ2VyIDE5OTUpLiBUaGVzZSBwcmljZXMgc2VydmVkIGFzIGNvZWZmaWNpZW50cyB0byBmb3JtIGEgZ3JpZCBvZiBlcXVpdmFsZW7CrSBjaWVzIGluIHdoaWNoIGJhcmxleSBhbmQgc2lsdmVyIGVtZXJnZWQgYXMgdGhlIGJhc2ljIHJlZmVyZW5jZSBwcmljZXMgb3Ig4oCcbW9uZXktb2YtYWNjb3VudC7igJ0gU2V0dGluZyB0aGVzZSB0d28gY29tbW9kaXRpZXMgYXMgYSBqb2ludCBzdGFuZGFyZCBvZiB2YWx1ZSBlbmFibGVkIGRpc3BhcmF0ZSB0cmFuc2FjdGlvbnMgdG8gYmUgb3JnYW5pemVkIGludG8gYW4gaW50ZcKtIGdyYXRlZCBzeXN0ZW0gaW4gd2hpY2ggYW4gb3ZlcmFsbCBiYWxhbmNlIGNvdWxkIGJlIHN0cnVjayB0byBtZWFzdXJlIHRoZSBuZXQgZ2FpbiBvciBsb3NzLgoAAAAAAAAAAB8HAAAAAAAAAAAAAA",
+					"CwAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAB0AgAAAAAAAHQCAAAAAAAAAAAAAAAA8L8"
+				],
+				[
+					13,
+					1,
+					"revert",
+					null,
+					"AgAAAAAAAAAAAAAAAAAAAAAAAAAvBwAAWzIwMjUtMDctMDIgMTI6MzY6MjMgQU1dIEBuZWFyZWFzdGFjYyBUd28gcGFyYWxsZWwgZGV2ZWxvcG1lbnRzIGV2b2x2ZWQgaGFuZCBpbiBoYW5kIGZvciBhYm91dCBoYWxmIGEgbWlsbGVubml1bS4KRmlyc3QsIG51bWVyYWN5IGFuZCBxdWFudGl0YXRpdmUgbWVhc3VyZW1lbnQgd2VyZSBuZWVkwq0gZWQgdG8gZXh0ZW5kIHRoZSBjb250cm9sIG92ZXIgbmF0dXJlIHRvIGluY2x1ZGUgdGhlIHJoeXRobXMgbyBmIHRoZSBsYXJnZSBpbnN0aXR1dGlvbnPigJR0aGVpciBzZWFzb25hbCBzY2hlZHVsZSBvZiBwbGFudGluZyBhbmQgaGFydmVzdGluZywgYW5kIHRoZSBtb250aGx5IHJoeXRobSBvZiBwcm92aXNpb25pbmcgdGhlaXIgd29ya3Nob3BzIGFuZCBkZXBlbmRlbnQgbGFib3Igc28gYXMgdG8gY29vcmRpbmF0ZSB0aGUgbGFyZ2UgZmxvd3MgaW52b2x2ZWQuIFNlY29uZCwgd3JpdHRlbiBub3Rhwq0gdGlvbiB3YXMgbmVlZGVkIHRvIHRyYWNrIGFuZCBxdWFudGlmeSB0aGVzZSByZXNvdXJjZSBmbG93cywgYW5kIHRvIGNsYXPCrSBzaWZ5IHRoZSBkaXNidXJzZW1lbnRzIGFuZCByZWNlaXB0cyBmb3IgYSBteXJpYWQgb2YgYWN0aXZpdGllcy4KClsyMDI1LTA3LTAyIDAxOjA1OjM2IEFNXSBAbmVhcmVhc3RhY2MgVG8gY29vcmRpbmF0ZSB0aGVzZSBhY3Rpdml0aWVzIHRoZSBTdW1lcmlhbnMgY3JlYXRlZCBhIGNsdXN0ZXIgb2YgaW50ZXJsb2NraW5nIGlubm92YXRpb25zIGluIGEg4oCcYmlnIGJhbmfigJ0gYXMgYSB1bmlmaWVkLWZpZWxkIGFwcHJvYWNoLiBBbiBhZG1pbmlzdHJhdGl2ZSBjYWxlbmRhciBiYXNlZCBvbiB1bmlmb3JtIDMwLWRheSBtb250aHMgbGVkIHRvIHRoZQpzZXhhZ2VzaW1hbCBzeXN0ZW0gb2YgY291bnRpbmcgYW5kIGRpdmlkaW5nIGludG8gNjB0aHMsIGFuZCBhIG1hdGNowq0gaW5nIHNleGFnZXNpbWFsIHNldCBvZiB3ZWlnaHRzIGFuZCBtZWFzdXJlcyB0byBhbGxvY2F0ZSByYXRpb25zIHRvIHRoZSB3b3JrIGZvcmNlIGZvciBtb250aGx5IGFuZCBkYWlseSB1c2UuIE11dHVhbCBwcmljZSBlcXVpdmFsZW5jaWVzIHdlcmUgYXNzaWduZWQgZm9yIGtleSBjb21tb2RpdGllcyBhbmQgdGhlIHJlbnRhbCByYXRlIGZvciBsYW5kIChzZWUgUmVuZ2VyIDE5OTUpLiBUaGVzZSBwcmljZXMgc2VydmVkIGFzIGNvZWZmaWNpZW50cyB0byBmb3JtIGEgZ3JpZCBvZiBlcXVpdmFsZW7CrSBjaWVzIGluIHdoaWNoIGJhcmxleSBhbmQgc2lsdmVyIGVtZXJnZWQgYXMgdGhlIGJhc2ljIHJlZmVyZW5jZSBwcmljZXMgb3Ig4oCcbW9uZXktb2YtYWNjb3VudC7igJ0gU2V0dGluZyB0aGVzZSB0d28gY29tbW9kaXRpZXMgYXMgYSBqb2ludCBzdGFuZGFyZCBvZiB2YWx1ZSBlbmFibGVkIGRpc3BhcmF0ZSB0cmFuc2FjdGlvbnMgdG8gYmUgb3JnYW5pemVkIGludG8gYW4gaW50ZcKtIGdyYXRlZCBzeXN0ZW0gaW4gd2hpY2ggYW4gb3ZlcmFsbCBiYWxhbmNlIGNvdWxkIGJlIHN0cnVjayB0byBtZWFzdXJlIHRoZSBuZXQgZ2FpbiBvciBsb3NzLgoKWzIwMjUtMDctMDIgMDI6MjA6NTYgQU1dIEBuZWFyZWFzdGFjYyBAcmVmbGVjdGlvbiBvbiBASW50cm9kdWN0aW9uLgpUaGUgU3RhdGUsIHRoZW4gdGhlIFBhbGFjZXMgUmVnaW1lIGFuZCBpdHMgc2NyaWJlcyBldCBhbCwgaGFkIG9yaWdpbnMgZm9yIGFjY291bnRpbmcgaW4gcmVzb3VyY2UgYWxsb2NhdGlvbiBmb3IgZW5zdXJpbmcgc3VmZmljaWVudCBzdXBwbGllcyBmb3IgdGhlIG1haW50ZW5hbmNlIG9mIHRoZSBQYWxhY2UgdGhlIHRoZSBjYXJyeWluZyBvdXQgb2YgcHVibGljIHdvcmtzIGFuZCBwcm9qZWN0cyBpZSBlbm91Z2ggZm9vZCBhbmQgbWF0ZXJpYWxzIGFuZCBsYWJvci4KAAAAAAAAAAAfBwAAAAAAAAAAAAA",
+					"CwAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAB0AgAAAAAAAHQCAAAAAAAAAAAAAAAA8L8"
+				],
+				[
+					14,
+					1,
+					"revert",
+					null,
+					"DAAAAAAAAAAAAAAAAAAAAAAAAAAvBwAAWzIwMjUtMDctMDIgMTI6MzY6MjMgQU1dIEBuZWFyZWFzdGFjYyBUd28gcGFyYWxsZWwgZGV2ZWxvcG1lbnRzIGV2b2x2ZWQgaGFuZCBpbiBoYW5kIGZvciBhYm91dCBoYWxmIGEgbWlsbGVubml1bS4KRmlyc3QsIG51bWVyYWN5IGFuZCBxdWFudGl0YXRpdmUgbWVhc3VyZW1lbnQgd2VyZSBuZWVkwq0gZWQgdG8gZXh0ZW5kIHRoZSBjb250cm9sIG92ZXIgbmF0dXJlIHRvIGluY2x1ZGUgdGhlIHJoeXRobXMgbyBmIHRoZSBsYXJnZSBpbnN0aXR1dGlvbnPigJR0aGVpciBzZWFzb25hbCBzY2hlZHVsZSBvZiBwbGFudGluZyBhbmQgaGFydmVzdGluZywgYW5kIHRoZSBtb250aGx5IHJoeXRobSBvZiBwcm92aXNpb25pbmcgdGhlaXIgd29ya3Nob3BzIGFuZCBkZXBlbmRlbnQgbGFib3Igc28gYXMgdG8gY29vcmRpbmF0ZSB0aGUgbGFyZ2UgZmxvd3MgaW52b2x2ZWQuIFNlY29uZCwgd3JpdHRlbiBub3Rhwq0gdGlvbiB3YXMgbmVlZGVkIHRvIHRyYWNrIGFuZCBxdWFudGlmeSB0aGVzZSByZXNvdXJjZSBmbG93cywgYW5kIHRvIGNsYXPCrSBzaWZ5IHRoZSBkaXNidXJzZW1lbnRzIGFuZCByZWNlaXB0cyBmb3IgYSBteXJpYWQgb2YgYWN0aXZpdGllcy4KClsyMDI1LTA3LTAyIDAxOjA1OjM2IEFNXSBAbmVhcmVhc3RhY2MgVG8gY29vcmRpbmF0ZSB0aGVzZSBhY3Rpdml0aWVzIHRoZSBTdW1lcmlhbnMgY3JlYXRlZCBhIGNsdXN0ZXIgb2YgaW50ZXJsb2NraW5nIGlubm92YXRpb25zIGluIGEg4oCcYmlnIGJhbmfigJ0gYXMgYSB1bmlmaWVkLWZpZWxkIGFwcHJvYWNoLiBBbiBhZG1pbmlzdHJhdGl2ZSBjYWxlbmRhciBiYXNlZCBvbiB1bmlmb3JtIDMwLWRheSBtb250aHMgbGVkIHRvIHRoZQpzZXhhZ2VzaW1hbCBzeXN0ZW0gb2YgY291bnRpbmcgYW5kIGRpdmlkaW5nIGludG8gNjB0aHMsIGFuZCBhIG1hdGNowq0gaW5nIHNleGFnZXNpbWFsIHNldCBvZiB3ZWlnaHRzIGFuZCBtZWFzdXJlcyB0byBhbGxvY2F0ZSByYXRpb25zIHRvIHRoZSB3b3JrIGZvcmNlIGZvciBtb250aGx5IGFuZCBkYWlseSB1c2UuIE11dHVhbCBwcmljZSBlcXVpdmFsZW5jaWVzIHdlcmUgYXNzaWduZWQgZm9yIGtleSBjb21tb2RpdGllcyBhbmQgdGhlIHJlbnRhbCByYXRlIGZvciBsYW5kIChzZWUgUmVuZ2VyIDE5OTUpLiBUaGVzZSBwcmljZXMgc2VydmVkIGFzIGNvZWZmaWNpZW50cyB0byBmb3JtIGEgZ3JpZCBvZiBlcXVpdmFsZW7CrSBjaWVzIGluIHdoaWNoIGJhcmxleSBhbmQgc2lsdmVyIGVtZXJnZWQgYXMgdGhlIGJhc2ljIHJlZmVyZW5jZSBwcmljZXMgb3Ig4oCcbW9uZXktb2YtYWNjb3VudC7igJ0gU2V0dGluZyB0aGVzZSB0d28gY29tbW9kaXRpZXMgYXMgYSBqb2ludCBzdGFuZGFyZCBvZiB2YWx1ZSBlbmFibGVkIGRpc3BhcmF0ZSB0cmFuc2FjdGlvbnMgdG8gYmUgb3JnYW5pemVkIGludG8gYW4gaW50ZcKtIGdyYXRlZCBzeXN0ZW0gaW4gd2hpY2ggYW4gb3ZlcmFsbCBiYWxhbmNlIGNvdWxkIGJlIHN0cnVjayB0byBtZWFzdXJlIHRoZSBuZXQgZ2FpbiBvciBsb3NzLgoKWzIwMjUtMDctMDIgMDI6MjA6NTYgQU1dIEBuZWFyZWFzdGFjYyBAcmVmbGVjdGlvbiBvbiBASW50cm9kdWN0aW9uLgpUaGUgU3RhdGUsIHRoZW4gdGhlIFBhbGFjZXMgUmVnaW1lIGFuZCBpdHMgc2NyaWJlcyBldCBhbCwgaGFkIG9yaWdpbnMgZm9yIGFjY291bnRpbmcgaW4gcmVzb3VyY2UgYWxsb2NhdGlvbiBmb3IgZW5zdXJpbmcgc3VmZmljaWVudCBzdXBwbGllcyBmb3IgdGhlIG1haW50ZW5hbmNlIG9mIHRoZSBQYWxhY2UgdGhlIHRoZSBjYXJyeWluZyBvdXQgb2YgcHVibGljIHdvcmtzIGFuZCBwcm9qZWN0cyBpZSBlbm91Z2ggZm9vZCBhbmQgbWF0ZXJpYWxzIGFuZCBsYWJvci4KAAAAAAAAAAD3DAAAAAAAAAAAAAAAAAAAAAAAAPcMAAAAAAAAAAAAAAAAAAAAAAAA9wwAAAAAAAAAAAAAAAAAAAAAAAD3DAAAAAAAAAAAAAAAAAAAAAAAAPcMAAAAAAAAAAAAAAAAAAAAAAAA9wwAAAAAAAAAAAAAAAAAAAAAAAD3DAAAAAAAAAAAAAAAAAAAAAAAAPcMAAAAAAAAAAAAAAAAAAAAAAAA9wwAAAAAAAAAAAAAAAAAAAAAAAD3DAAAAAAAAAAAAAAAAAAAAAAAAPcMAAAAAAAAAAAAAA",
+					"CwAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAB0AgAAAAAAAHQCAAAAAAAAAAAAAAAA8L8"
+				]
+			]
+		},
+		{
+			"contents": "[2025-06-09 01:56:27 AM] test\n\n[2025-06-09 02:00:14 AM] test\n\n[2025-06-09 02:01:18 AM] Simplified business records\n\n[2025-06-09 02:02:20 AM] Minimized record sizes using binary\n\n[2025-06-09 02:03:30 AM] Reducing electricity required to store and transmit records using bit packing techniques to compress record data within each 32 bit sequence\n\n[2025-06-09 02:04:36 AM] Designing a command and retrieval language for business records based on fidelity to global general accounting standards\n\n[2025-06-09 02:05:53 AM] Using the language of Ins and Outs to universalize access to record keeping\n\n[2025-06-09 02:10:44 AM] general pricing of 2,097,151 by possible 15 units, max value of 1,457,265 using a 21/4 bit split\n\n[2025-06-09 02:13:43 AM] general format for 32 bit seq named VALUE is 25 for determining numbers and 7 for flags\n\n[2025-06-09 02:14:45 AM] Any in or Out of with override flag set to 1 assumes additionao number is an account code maintained by user\n\n[2025-06-09 02:14:59 AM] An OUT with debit flag means Asset acquired, if Credit then Expense\n\n[2025-06-09 02:15:18 AM] An IN with credit flag means equity increased, if defit then Income acquired\n\n[2025-06-09 02:17:59 AM] for Flags from 26th bit to 32nd First flag confirms Scaling Factor, 2nd for Optimal Split, 3rd confirms Order of Split.\n4th flag for Plus or Minus, 5th for Less than or Greater Than, 6th for Debit or Credit, and 7th to allocate Account Code via Unit Override.\n\n[2025-06-09 02:23:47 AM] Setup Sequence vs Value Sequence is as follows. first 2 bits identify 1 of 4 options: Sender Format Requiring Conversion, Converted, Copy from Sender, or For Represented Entity. Next, Scaling Factor provided using 7 bits. Optimal Split indicates size of multiplier using 4 bits Cost Per Unit Optimization. The Enquiry or Acknowledge Bells indicated with single bits. Group, Record and File Separators share a total of 12 bits -- e.g. bits 4:5:3 to have a split of 15 groups, 31 records, 7 files. ID of Entity Transmitting or Representing gets 5 bits -- 31 variables.\n\n[2025-06-09 02:26:06 AM] the ID contained within the Setup Sequence identifies a sub-identity or sub-division of the Sender but requires correlation with the Full Sender ID contained in a separate transmission likely of 64 bits\n\n[2025-06-09 02:56:54 AM] a 21/4 split gives Most High Price when units included.\nA 15/10 split optimizes for units with 1023 at value 32,767.\n\n[2025-06-09 04:01:42 AM] Suppose we have 2 to 4 sequences of 32 bits, so 64 and 64, total 128 bits.\nAn additional 64 bits may be required for timestamping etc. The VALUE SEQUENCE carries the raw data about the value of the entry plus 7 bits to confirm 1st if scaling factor activated, 2nd if Optimal Split is activated, and 3rd to confirm Order of Split ie does high become low. 4th flag indicates a plus or minus, 5th for Less Than ie Past or Greater Than ie Future, 6th of reserved bits indicates Debit or Credit, and lastly 7th bit in VALseq indicates whether or not to interpret Unit number as Account Code. This use of the 7th digit may not be resilient since conflict emerges from need to record Unit number. The Setup Sequence confirms the required split between value and units ie Multiplicand and the Multiplier. The remaining 7 bits in the Setup Sequence are available for programming. The 3rd sequence we can call Shaping Sequence begins with 2 bits to confirm Transmission Type, Sender Formation Requiring inversion, already converted, copy from sender, or for Represented Entity. Scaling factor confirmed with 7 bits. Optimal split then indicates size of multiplier. Enquiry or Acknowledge Bells each get a single bit. Then to associate the single record with other reocrds, IDs for indicating Group, Record and File Separators will use a total of 12 bits ie 4,5,3. ID ie sub-division or sub-identity derives from 5 bits. Possible to extend ID bit value to 6 to get 64 possibilities. This results in 3 sequences so far achieving: Record Pattern, Record Value, and Record Treatment. The 4th sequence provides the timestamp at 38 to 44 bits with en epochal reference, so totalling to approx max 54 bits. This leaves minimum 10 bits for additional flags. This 4th sequence could be known as Record Generation. Total bits for sequences 1 to 4 equals 160. Sender Identity ie. Transmitter identificaiton requires its own 64 bit sequence bringing the total to 224 bits. Leaves minimum 32 bits available.\n\n[2025-06-09 04:04:12 AM] Record Pattern, Record Value, Record Treatment, Record Generation, Record Creator, and Record Routing\n\n[2025-06-09 04:26:11 AM] The syntax or signature style eliminates the need to associate a record to a specific account.\nFor example a record marked as IN with a Credit equals Equity Increased, if Debit then Income acquired. Or if OUt with Credit then Expense or OUT with Debit then Asset acquired. On the user end, if avoiding making the User understand debit and credit designations for the varied parts of the chart of accounts, THEN an In could be paired with Ins or Outs to indicate the same as above.\n\n[2025-06-09 04:48:51 AM] What if we termed the 2nd flag differently such that the first flag remains either an IN or an OUT which can be universally understood as a flow into or out of the business, unmistakable.\nThe 2nd flag would then take the shape of an indicator about personal loss or gain. For example In Out indicates equity or investment into the business. Out In indicates withdraw of cash and therefore equity depletion. This results in two flip states IO and OI. And if In is not marked with an Out then by presumptively recording In In we can assume a sale of some sort occurs and revenue or stock is increased. In the case of an OUT not marked with an IN we can assume the implied Out Out indicates Expense. This covers owner deposits and withdrawals, income and expenses. Combined with a past or future indicator we cover a lot of ground for maintaining a robust basic system. In In Past is sale and In In Future is Pending Revenue.. Out Out Past is expenses and Out Out Future is Pending Expenses.\n\n[2025-06-09 04:53:04 AM] in terms of time, then In Out Future is anticipated increase in equity whereas Out In Future is anticipated reduction in equity.\nIncome, Assets, Expenses and Equity covered just not Liabilities.\n\n[2025-06-09 04:58:37 AM] Liabilities treatment.\nOut Out Future? In In Future?\n\n[2025-06-09 05:02:51 AM] From angle of user, what does the entry sequence look like using the In and Out system?\nIf User indicates an inflow of cash, what is the minimal next step we can ask to complete the record setup? What about a button representing themselves i.e. the owner? And they only need to press it if cash or goods are flowing from them or to them?\n\n[2025-06-09 05:05:49 AM] When only In is selected with absence of Head Profile button pushed, then In In is coded for.\nSame for pushing of Out. A button or command to identify external sender or receiver could also be included.\n\n[2025-06-09 05:11:20 AM] test\n\n[2025-06-09 12:15:11 PM] Workpads @Tech.nical\nWorkpad Element: Value Sequence\nImportance: Contains the principle number anchoring the record, represents the value coming in or out for the recorder\nDiscoveries: Optimal number of bits allotted for value calculation is 25 which leaves 7 bits for flags. Flags are: Scaling Factor Yes or No, Optimal Split Yes or No, Order of Split Regular or Reversed -- does the Multiplicand switch its first place with the Multiplier? 4th flag is Plus or Minus to indicate In or Out, 5th for Past or Future ie Less Than or Greater than sign, 6th flag for likely Debit or Credit, with 7th flag optionally confirming if Unit Code functions as Account Code.\nConnections: Dependent on a Setup Sequence ie Record Pattern to confirm the split of bits if any for calculating primary number of the exchange and this is coupled with a universally set sequence of 1010101 to confirm alternation of 7 individual flags. Possibility of allowing for alternate usage of the 7 bit end sequence by inverting the pattern of the 7 bits ie 0101010. This would switch program interpretation to \"Record Value Alternate Ending\" or RVAE. The RVAE can take a few forms. RVAE1 is full inversion to 0101010, flag set TBD. RVAE2 or RVAE21 gives sequence 0010101 and pattern continues 0001010, 0000101, 0000010, 0000001, 0000000, therefore RVAE21 through RVAE26. For RVAE3 we get 0110101, 0111010, 0111101, 0111110, and 0111111, therefore RVAE3 or RVAE31 through RVAE35. RVAE4 is 0100101, then 0100010, 0100001, and 0100000, therefore RVAE4 or RVAE41 through RVAE44. For RVAE5 we get 0101101, 0101110, and 0101111, therefore RVAE51 through RVAE53. For RVAE 6 0101001 and 0101000, therefore RVAE61 to RVAE62. And lastly for RVAE7 we get 0101011. Total alternate sequences are 1+6+5+4+3+2+1+1 so 23 sequence patterns where \"1111111\" is RVAE8. Same approach can be taken for default pattern of \"1010101\" resulting in 22 additional sequences. Pattern \"1111111\" removed from RVAE and treated as part of RVE1, RVE21-26, RVE31-35, RVE41-44, RVE51-53, RVE61-62, and RVE7 or RVE71. Grand total for all possible Ending Sequences for Record Value sequence equals 44. Also depenent on Record Treatment sequence which is organized as: Transmission Type, Scaling Factor using 7 bits, Split Indicator for Multiplier using 4 bits, Enquiry and Acknowledgement Request with 1 bit each. Next the Group, Record and File separators apportioned 4, 5 and 3 bits. Thus far for RT we have a total use of 2+7+4+1+1+4+5+3 so 27 bits with 5 remaining. Allotment of remaining 5 bits can go to Scaling Factor or to any of the 3 separator types. If File Separator is understood as less commonly needed, then its 3 bits become available for redistribution also. The Very High Number Formula or VHNF is covered in its own document. Other connections include Record Generation ie Record Identity, Record Creator, Record Routing, and Record Owner. Flag of 1 bit likely needs to be reserved in Record Treatment RT to indicate positive or negative.\nTechnical: skip\n\n[2025-06-09 01:38:09 PM] Workpads @Tech.nical\nWorkpad Element: Very High Number Formula\nImportance: Necessary to calculate economic and scientific data\nDiscoveries: possible to reach into trillions or to handle long decimal sequences\nConnections: skip\nTechnical: M1*M2*S*M3 with 4 free bits for allocation to S and M3 as needed. If our general maximum is in the 1-2 trillion range using 25 bits plus 7 for scaling plus 4 for multiplier with 4 extra bits for allocation as required, then utilizing the 3 bits for File separator designation allows us to reach higher. To go remarkably higher we could designate two 64 bit sets as part of the same Record Separator and provide summing or factoring instructions for when this is the case. In this case e.g Record 1 designated as Multiplicand goes first in Transmission and the 2nd received \"Record 1\" is taken as the multiplier. There would then be required a flag method for determining if the 2 calculations represent Item and Quantity or else just a means for obtaining the higher number. Bits that should become available in Paired sequence are possibly the 7 bits after the 2nd 25 bit sequence. Still need to include Group, Record and File Separator IDs in the 2nd 32 bit sequence of of Record 1bnsmission type of 2 bits should be freed up as well as the remaining 4 or 5 bits, so Scaling Factor can me modified 7+2+4+1+1+4 equals 19 so 524287.\n\n\t[2025-06-09 03:50:05 PM] Summary of Approach for Numbers Above 1-2 Trillion.\n\tPermit daisy chains for records in order to cover into quadrillions and beyond. First 64 bit sequence follows normal patterns for Value Record and Record Treatment 32 + 32. Next 64 bit sequence permits maximizing of its SetA and its SetB retains Separator IDs, and possibly also its Enquiry and Acknowledge bits. If 7 bits in Set A are retained or duplicated, function is ONE to validate a match using those bits as well as the Transmission Type and of course the Separator IDs.\n\n[2025-06-09 03:50:06 PM] jw Pattern block is 64 bits, sets up Value and Treament blocks that combine to 64 bits, so 128 bits used.\nIdentity Blocks required for the record itself as well as for the Sender, 64+64, so another 128, totaling 256. Record Owner uses another 64 bits. And Record Routing requires 32 to 64 bits, so 320 or 384. Record Routing should likely be considered an advanced option that's not required for basic transmission of the record; Entity Represented has 5 bits available -- 32 possibilities -- but would rely on a separate table or index to confirm alphanumeric readable identity that this SID refers to. If Routing not used, then classification of record based on Associated Entity plus the signature of In In Past, In In Future, Out Out Past, Out Out Future, In Out Past, In Out Future, and Out In Past and Out In Future. This gives a minimum resolution for: Sale Complete, Sale Pending, Expense Complete or Expense Pending, as well as Equity Increase Complete, Equity Increase Pending, and Equity Decrease Complete, Equity Decrease Pending. Sale Pending and Expense Pending are in practice two types of Liabilities, with the other two being split between Equity Increase Pending and Equity Decrease Pending. Equity Increase Pending gets special treatment, indicating a confirmed or anticipated future cash or asset injection to the business in the form of a commitment, promise or intention. This gives us a Basic Chart of Accounts or Basic Set of Accounts -- BCA or BSA -- of Assets, Sales, Expenses, Equity, and Liabilities. Greater resolution about the good or service exchanged, not yet provided for, potentially done through Routing Record. For Expenses, binary resolution desired to indicate Cost of Sales versus Operational Expenses. Handling of tax obligations needs to be addressed, as well as Other Revenue items. We can venture to give a universal numbering to these buckets such that Assets is 1, Sales is 2, Other Sales is 3, Sales Expense is 4, Operating Expenses is 5, Equity or Investment Amounts is 6, General Liabilities is 7 and Government Liabilities is 8. This approach to numbering top level accounts requires 4 bits -- max 15. Safe to presume 4 or possibly 5 layers of accounts, so default 4+7+7+7 equals 24 bits. If remaining 8 bits used as identifiers for the entered item than max appended ID up to 255.\n\n[2025-06-09 05:02:42 PM] test\n\n[2025-06-09 05:03:52 PM] Usage of In In etc should set majority of cases for first 4 bit signature.\nFor Other Sales, Operating expneses, and government liabilities find flags or assign buttons?\n\n\t\n\n[2025-06-10 01:34:10 AM] Record Pattern is default 64 bits or 32 bits with Record Treatment block assumed then as default.\n\n[2025-06-10 02:30:17 AM] CONFIRMING RESOLUTION OF CALCULATED TOTALS FOR RECORD VALUE and RV + RECORD TREATMENT.\nMaximum number with 25 bits is 33,554,431, so max three place decimal is 33,554.431 this would be M1 maxxed with M2 effectively or implicitly set to 1. Otherwise in RV block we have M1\n\n[2025-06-10 03:20:58 AM] Is the Scaling Factor and M3 better of with naming related to their fractional or prime coprime roles?\n\n\n\n\n[2025-06-10 03:38:40 AM] RESHAPING THE APPROACH TO FLAGS AND DESIGN OF RV AND RT BLOCKS.\nLet 1st flag at 26th bit represent Off or On for Quantity1 and 27th bit represent Quantity2. So if Q1 set to ON that assumption is 25 bits carry a max Base Value, approx 33,554M and 3rd Sub-block in RT represents a Quantity. But for majority of economic transactions max 25 bit value is greater than what's required, i.e. a division of the 25 bits suffices to create representation for the Value and Quantity -- with equilibrium determined by a dedicated algorithm. Continuing with flag modification, the setting of Bit 27 to ON would confirm inclusion of 4th sub-block in RT with alias Q2. Does this confirm activation of \"Max Formula\" ie. M1xM2xQ1xQ2? The 7th possible flag at Bit 32 in RV is the last option for creating a varied calculation. This flag could possibly indicate that 1 of the 4 numbers represents a fixed quantity and therefore remains a fixed number in the Max Formula.\n\n[2025-06-10 03:55:30 AM] What does the 25 bit plus 7 plus 4 setup achieve, aside from its performance as an equation that can calculate all integers up to 4.54 billion?\nONE any integer up to 33,554,431 is provided for with just the use of 25 bits, allowing for Flags 26 and 27 to be kept off.Where units are 1023 or less and cost is 32,767 or less, only the 25 bits are required to make the record. When value is e.g. in the range of 4194303, quantity can be max 7 while staying within 25 bits and thereby not depending on Record Treatment block. If we shift our approach for some scenarios demarcated by flags -- and let the 25 bits represent a max common value then the Scaling Factor could be treated as the quantity which is max 127, which would cover most purchasing scenarios in most economies.\n\n[2025-06-10 11:12:13 AM] Formula for calculating max N consecutive integers is likely to be: M1xM2xQ1+Q2 which arguably has a 4.261 set of numbers.\n\n[2025-06-10 11:43:42 AM] HOW TO TRIAGE BASE VALUES AND FACTORED VALUES ie VALUE x QUANTITY.\nProgram must perform an ordered set of checks based on the submitted numbers. IF below 33.554M, is value and quantity expressible from an ideal division of 25 bits? IF value is less than 33.554 and the factor of its quantity becomes greater than 33,554 THEN the use of Q1 and maybe Q2 are required to encode an equation representing the total. IF Value is requires 19-25 bits and quantity is 127 or less, then Alt Cal 1 i.e. AC1 selected with Q1 flag set at bit 26.\n\n[2025-06-11 10:54:43 AM] If we don't include a time token ie Past or Future, then either this signifies Past as default or else it can be taken as a budget item or goal. Without forcing the attachment of, the goal or budget is then simply designated as Future and is logged generally as part of a list of goals. This would be the most rudimentary form while the regular Blocks for Creation Date and Exchange Date can be included, except Exchange Date would be swapped for something like Target Date. For a Goal or Target for -- IN, we can provide a sub-program that provides basic statistics about the progress toward the goal, which is likely to include calculations such as Pace to Reach Target, Percentage to Target etc. Same could be done for equity for In In and Out Out.\n\n[2025-06-23 03:09:14 PM] test\n\n[2025-06-23 03:16:41 PM] test\n\n[2025-06-23 03:29:27 PM] test\n\n[2025-07-02 03:51:36 AM] @workpic @weather Consider how to channel aspects of the Uruk job records into the exported jpeg for workpads.\nEG dots could be used to represented estimated hours of work, with maybe a large circle for 5 hours, a small circle for 1 hour and dots or points for half hours - but how is this more sensible than just a number? Is it for mental purposes, to more viscerally quantify the labor required? Could weather be worked into this approach EG \"22···30··42··30···27\". For laborers involved maybe ∆∆∆. What can a ⚪️ or ⃝  represent?\n\n[2025-07-10 11:12:11 PM] test\n",
+			"file": "/Users/mp/ww/functions/journals/private/j-workpads.txt",
+			"file_size": 19454,
+			"file_write_time": 133966771318731858,
+			"settings":
+			{
+				"buffer_size": 19077,
+				"line_ending": "Unix"
+			},
+			"undo_stack":
+			[
+				[
+					4,
+					1,
+					"insert",
+					{
+						"characters": "x"
+					},
+					"AQAAALdLAAAAAAAAuEsAAAAAAAAAAAAA",
+					"CwAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAC3SwAAAAAAALdLAAAAAAAAAAAAAAAA8L8"
+				],
+				[
+					5,
+					4,
+					"right_delete",
+					null,
+					"BAAAALhLAAAAAAAAuEsAAAAAAAABAAAAObhLAAAAAAAAuEsAAAAAAAABAAAANrhLAAAAAAAAuEsAAAAAAAABAAAAN7hLAAAAAAAAuEsAAAAAAAABAAAAOQ",
+					"CwAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAC4SwAAAAAAALhLAAAAAAAAAAAAAAAA8L8"
+				],
+				[
+					6,
+					1,
+					"insert",
+					{
+						"characters": "25cf"
+					},
+					"BAAAALhLAAAAAAAAuUsAAAAAAAAAAAAAuUsAAAAAAAC6SwAAAAAAAAAAAAC6SwAAAAAAALtLAAAAAAAAAAAAALtLAAAAAAAAvEsAAAAAAAAAAAAA",
+					"CwAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAC4SwAAAAAAALhLAAAAAAAAAAAAAAAA8L8"
+				],
+				[
+					7,
+					1,
+					"insert",
+					{
+						"characters": " "
+					},
+					"AQAAALxLAAAAAAAAvUsAAAAAAAAAAAAA",
+					"CwAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAC8SwAAAAAAALxLAAAAAAAAAAAAAAAA8L8"
+				],
+				[
+					10,
+					1,
+					"insert",
+					{
+						"characters": " "
+					},
+					"AgAAALVLAAAAAAAAtksAAAAAAAAAAAAAtksAAAAAAAC2SwAAAAAAAAcAAAAmI3gyNWNm",
+					"CwAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAC8SwAAAAAAALVLAAAAAAAAAAAAAAAA8L8"
+				],
+				[
+					11,
+					1,
+					"insert",
+					{
+						"characters": "⚪️"
+					},
+					"AgAAALZLAAAAAAAAt0sAAAAAAAAAAAAAt0sAAAAAAAC4SwAAAAAAAAAAAAA",
+					"CwAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAC2SwAAAAAAALZLAAAAAAAAAAAAAAAA8L8"
+				],
+				[
+					13,
+					1,
+					"left_delete",
+					null,
+					"AQAAALVLAAAAAAAAtUsAAAAAAAABAAAAIA",
+					"CwAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAC2SwAAAAAAALZLAAAAAAAAAAAAAAAA8L8"
+				],
+				[
+					15,
+					1,
+					"insert",
+					{
+						"characters": " or"
+					},
+					"AwAAALdLAAAAAAAAuEsAAAAAAAAAAAAAuEsAAAAAAAC5SwAAAAAAAAAAAAC5SwAAAAAAALpLAAAAAAAAAAAAAA",
+					"CwAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAC3SwAAAAAAALdLAAAAAAAAAAAAAAAA8L8"
+				],
+				[
+					16,
+					1,
+					"insert",
+					{
+						"characters": " "
+					},
+					"AQAAALpLAAAAAAAAu0sAAAAAAAAAAAAA",
+					"CwAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAC6SwAAAAAAALpLAAAAAAAAAAAAAAAA8L8"
+				],
+				[
+					17,
+					1,
+					"insert",
+					{
+						"characters": "⃝"
+					},
+					"AQAAALtLAAAAAAAAvEsAAAAAAAAAAAAA",
+					"CwAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAC7SwAAAAAAALtLAAAAAAAAAAAAAAAA8L8"
+				],
+				[
+					24,
+					1,
+					"insert",
+					{
+						"characters": " "
+					},
+					"AQAAAMhLAAAAAAAAyUsAAAAAAAAAAAAA",
+					"CwAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAADISwAAAAAAAMhLAAAAAAAAAAAAAAAA8L8"
+				],
+				[
+					18,
+					2,
+					"left_delete",
+					null,
+					"AgAAANQFAAAAAAAA1AUAAAAAAAABAAAACtMFAAAAAAAA0wUAAAAAAAABAAAALg",
+					"BgAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAANUFAAAAAAAA1QUAAAAAAAAAAAAAAADwvw"
+				],
+				[
+					19,
+					1,
+					"insert",
+					{
+						"characters": " "
+					},
+					"AQAAANMFAAAAAAAA1AUAAAAAAAAAAAAA",
+					"BgAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAANMFAAAAAAAA0wUAAAAAAAAAAAAAAADwvw"
+				],
+				[
+					22,
+					1,
+					"left_delete",
+					null,
+					"AQAAAPAFAAAAAAAA8AUAAAAAAAABAAAAOg",
+					"BgAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAPEFAAAAAAAA8QUAAAAAAAAAAAAAAADwvw"
+				],
+				[
+					23,
+					1,
+					"insert",
+					{
+						"characters": "."
+					},
+					"AQAAAPAFAAAAAAAA8QUAAAAAAAAAAAAA",
+					"BgAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAPAFAAAAAAAA8AUAAAAAAAAAAAAAAADwvw"
+				],
+				[
+					59,
+					1,
+					"insert",
+					{
+						"characters": "\t"
+					},
+					"AgAAAOk4AAAAAAAA6jgAAAAAAAAAAAAA6jgAAAAAAADqOAAAAAAAAPkAAABbMjAyNS0wNi0xMCAxMjo1Mzo1MiBBTV0gUmVndWxhciBJbiBJbiwgT3V0IE91dCwgSW4gT3V0LCBPdXQgSW4sIGFsbCB3aXRoIFBhc3QgYW5kIEZ1dHVyZSB2YXJpYXRpb25zIGNvdmVyZWQgYnkgYXV0by1zZXR0aW5nIG9mIGZpcnN0IDQgYml0cyBvZiBST1VUSU5HLCBidXQgaG93IHRvIHNldCBvciBpbmRpY2F0ZSBBOiBPdGhlciBTYWxlcywgQjogT3BlcmF0aW5nIEV4cGVuc2VzLCBhbmQgQzogR292ZXJubWVudCBMaWFiaWxpdGllcz8",
+					"BgAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAOI5AAAAAAAA6TgAAAAAAAAAAAAAAADwvw"
+				],
+				[
+					68,
+					1,
+					"insert",
+					{
+						"characters": "\t"
+					},
+					"AQAAAME6AAAAAAAAwjoAAAAAAAAAAAAA",
+					"BgAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAME6AAAAAAAAwToAAAAAAAAAAAAAAADwvw"
+				],
+				[
+					69,
+					1,
+					"left_delete",
+					null,
+					"AQAAAME6AAAAAAAAwToAAAAAAAABAAAACQ",
+					"BgAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAMI6AAAAAAAAwjoAAAAAAAAAAAAAAADwvw"
+				],
+				[
+					88,
+					1,
+					"insert",
+					{
+						"characters": "\n"
+					},
+					"AgAAABM7AAAAAAAAFDsAAAAAAAAAAAAAFDsAAAAAAAAUOwAAAAAAAG0AAABbMjAyNS0wNi0xMCAwMzozNzo0MCBBTV0gUVVFU1RJT046IHNob3VsZCBlLmcuCjIgYml0cyBiZSBhbGxvdGVkIHRvIG1ha2Ugc3VyZSBhbGwgaW50ZWdlcnMgY2FuIGJlIGNhbGN1bGF0ZWQ/",
+					"BgAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAIA7AAAAAAAAEzsAAAAAAAAAAAAAAADwvw"
+				],
+				[
+					94,
+					1,
+					"indent",
+					null,
+					"AgAAAKQsAAAAAAAApSwAAAAAAAAAAAAA8iwAAAAAAADzLAAAAAAAAAAAAAA",
+					"BgAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvwAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8L8AAAAAAQAAAM8uAAAAAAAApCwAAAAAAAAAAAAAAADwvw"
+				]
+			]
+		}
+	],
+	"build_system": "",
+	"build_system_choices":
+	[
+	],
+	"build_varint": "",
+	"command_palette":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"console":
+	{
+		"height": 130.0,
+		"history":
+		[
+		]
+	},
+	"distraction_free":
+	{
+		"menu_visible": true,
+		"show_minimap": false,
+		"show_open_files": false,
+		"show_tabs": false,
+		"side_bar_visible": false,
+		"status_bar_visible": false
+	},
+	"expanded_folders":
+	[
+		"/Users/mp/ww/functions/journals",
+		"/Users/mp/ww/functions/journals/private",
+		"/Users/mp/ww/functions/journals/scripts",
+		"/Users/mp/ww/functions/journals/sublime-projects"
+	],
+	"file_history":
+	[
+		"/Users/mp/ww/functions/journals/private/j-workwarrior.txt",
+		"/Users/mp/.config/jrnl/jrnl.yaml",
+		"/Users/mp/ww/services/profile/create-ww-profile.sh",
+		"/Users/mp/.bashrc",
+		"/Users/mp/ww/bin/personal bashrc june 30.sh",
+		"/Users/mp/ww/bin/june 30 create new profile 2.sh",
+		"/Users/mp/ww/bin/june 30 create new profile.sh",
+		"/Users/mp/ww/resources/terminal-files/bash/.bashrc_ww",
+		"/Users/mp/task",
+		"/Users/mp/BASH/Terms/dbox/.bashrc",
+		"/Users/mp/9",
+		"/Users/mp/ww/TOOLS/terminals/bash/.bashrc_ww",
+		"/Users/mp/scripts/taskwarrior/create-ww-profile.sh",
+		"/Users/mp/BASH/Terms/dbox/.bashrc-copy-june232025.txt",
+		"/Users/mp/ww/bin/wwterm",
+		"/Users/mp/ww/terminals/bash/.bashrc",
+		"/Users/mp/ww/terminals/bash/.bashrc_ww",
+		"/Users/mp/scripts/taskwarrior/Taskwarrior-Timewarrior Integration --.txt",
+		"/Users/mp/.taskrc",
+		"/Users/mp/jconfig",
+		"/Users/mp/Documents/BASH/Terms/dbox/.bashrc",
+		"/Users/mp/Documents/journals/j-hamilton.txt",
+		"/Users/mp/Documents/journals/j-workpads.txt",
+		"/Users/mp/Documents/journals/j-tools.txt",
+		"/Users/mp/Documents/journals/j-babbbox.txt",
+		"/Users/mp/What is a Flowarrior and what are his weapons? :D",
+		"/Users/mp/Documents/journals/j-babbsystem.txt",
+		"/Users/mp/Documents/journals/j-bash.txt",
+		"/Users/mp/Documents/journals/j-devsys.txt",
+		"/Users/mp/documents/a/jrnl.yaml",
+		"/Users/mp/apps/wp/IOPF/may4/command_encoder.c"
+	],
+	"find":
+	{
+		"height": 27.0
+	},
+	"find_in_files":
+	{
+		"height": 0.0,
+		"where_history":
+		[
+		]
+	},
+	"find_state":
+	{
+		"case_sensitive": false,
+		"find_history":
+		[
+			"7th",
+			"7th bit7th",
+			"7th bit",
+			"over ride",
+			"override",
+			"quantity",
+			"multiplier",
+			"identity",
+			"scaling",
+			"32",
+			"optimal",
+			"sequence"
+		],
+		"highlight": true,
+		"in_selection": false,
+		"preserve_case": false,
+		"regex": false,
+		"replace_history":
+		[
+		],
+		"reverse": false,
+		"scrollbar_highlights": true,
+		"show_context": true,
+		"use_buffer2": true,
+		"use_gitignore": true,
+		"whole_word": false,
+		"wrap": true
+	},
+	"groups":
+	[
+		{
+			"sheets":
+			[
+				{
+					"buffer": 0,
+					"file": "/Users/mp/ww/functions/journals/private/j-books.txt",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 3319,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								628,
+								628
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/Text/Plain text.tmLanguage"
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 1,
+					"stack_multiselect": false,
+					"type": "text"
+				},
+				{
+					"buffer": 1,
+					"file": "/Users/mp/ww/functions/journals/private/j-workpads.txt",
+					"selected": true,
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 19077,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								16408,
+								16408
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/Text/Plain text.tmLanguage",
+							"tab_size": 4,
+							"translate_tabs_to_spaces": false
+						},
+						"translation.x": 0.0,
+						"translation.y": 3470.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 0,
+					"stack_multiselect": false,
+					"type": "text"
+				}
+			]
+		}
+	],
+	"incremental_find":
+	{
+		"height": 27.0
+	},
+	"input":
+	{
+		"height": 0.0
+	},
+	"layout":
+	{
+		"cells":
+		[
+			[
+				0,
+				0,
+				1,
+				1
+			]
+		],
+		"cols":
+		[
+			0.0,
+			1.0
+		],
+		"rows":
+		[
+			0.0,
+			1.0
+		]
+	},
+	"menu_visible": true,
+	"output.exec":
+	{
+		"height": 31.0
+	},
+	"output.find_results":
+	{
+		"height": 0.0
+	},
+	"pinned_build_system": "",
+	"project": "imported-journals.sublime-project",
+	"replace":
+	{
+		"height": 50.0
+	},
+	"save_all_on_build": true,
+	"select_file":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"select_project":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"select_symbol":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"selected_group": 0,
+	"settings":
+	{
+	},
+	"show_minimap": true,
+	"show_open_files": true,
+	"show_tabs": true,
+	"side_bar_visible": true,
+	"side_bar_width": 267.0,
+	"status_bar_visible": true,
+	"template_settings":
+	{
+	}
+}
