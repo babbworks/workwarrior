@@ -1,0 +1,24 @@
+{
+  "name": "testquestions123",
+  "description": "lkjaskldjf",
+  "service": "custom",
+  "questions": [
+    {
+      "id": "q1",
+      "text": "kjakjasdf",
+      "type": "text",
+      "required": true
+    },
+    {
+      "id": "q2",
+      "text": "asdkfaslkdfj",
+      "type": "text",
+      "required": true
+    }
+  ],
+  "output_format": {
+    "title": "testquestions123 - {date}",
+    "description": "Generated from template",
+    "tags": ["custom", "template"]
+  }
+}

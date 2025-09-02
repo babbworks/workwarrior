@@ -1,0 +1,13 @@
+; Hledger journal for w
+; Initialized on 2025-07-15
+account assets:cash
+account expenses:misc
+account equity:opening-balances
+
+2025-07-15 * Profile initialization
+    assets:cash          $0.00
+    equity:opening-balances   $0.00
+
+2025-08-22 Test entry
+    assets:cash                  1
+    income:general              -1

@@ -1,0 +1,24 @@
+{
+  "name": "test1",
+  "description": "testing",
+  "service": "journal",
+  "questions": [
+    {
+      "id": "q1",
+      "text": "working?",
+      "type": "text",
+      "required": true
+    },
+    {
+      "id": "q2",
+      "text": "Okay?",
+      "type": "text",
+      "required": true
+    }
+  ],
+  "output_format": {
+    "title": "test1 - {date}",
+    "description": "Generated from template",
+    "tags": ["journal", "template"]
+  }
+}

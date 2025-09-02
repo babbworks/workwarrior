@@ -1,0 +1,11 @@
+[2025-07-15 14:13] 2025-07-15 14:10: Welcome to your w journal!
+
+
+[2025-08-13 07:26] NEed to really simplify the syntax, maybe make a guide to get on track, harmonize competing first letter options and create a better GO TO menu set with most frequenlty to be likely used commands like NEW.
+
+[2025-08-13 07:30] @menu @new should provide the fullest set of options essentially a testimony to what the system can do.
+Could be need to slightly structure the number-based selection into types or themes. If space permits each item confirms the text associated with the command that is the alias or literal string which can be used after NEW. Make the aim to keep all strings of options literal commands without aliases but instead provide for shortcodes identified within brackets.
+
+[2025-08-13 07:30] menu @new @items @overview Tasklist can be tl, List can be l, but for task is it add?
+eeOption to make use of add command not followed by specific commands default to task creation? one simple convenience otherwise ADD can do nearly the same thing as NEW so what's the difference? ADD creates entries to things that already exist? Should this way of dividing things mean that in the new menu there is no e.g. single NEW TASK? This would mean NEW gets used for Profile, Tasklist, Timelist, Journals, Counts and other fundamental tools within WW. Add handles entries with these tools singular orcombined
+
