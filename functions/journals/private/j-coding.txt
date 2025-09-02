@@ -1,0 +1,32 @@
+[2025-05-16 04:01:01 PM] 1233333333333333333
+
+[2025-05-16 04:09:33 PM] Research @GitHub
+Topic: test
+Importance: test
+Discoveries: test
+Connections: test
+Technical: test
+
+[2025-05-16 04:11:38 PM] Research @GitHub
+Topic: Command line logging of insights
+Importance: Speed of work
+Discoveries: JRNL tool can be harnessed to create numerous journals. When paired with a bash script, a set of questions can be activated to guide the recording of insights and observations.
+Connections: Has application with use of other command line tools including Inference Models.
+Technical: Bash Script is made into an executable. Alternative journal is created, given an alias, then identified in the script. Alt approach is to create a command to set environment variable for default journal to specialty journal, then adjust script to reflect this sequence.
+
+[2025-05-16 04:26:23 PM] Research @GitHub
+Topic: test
+Importance: test
+Discoveries: test
+Connections: test
+Technical: test
+
+[2025-05-16 04:43:51 PM] yesterday good meeting at Yupi
+
+[2025-05-17 05:52:24 AM] tags
+
+[2025-06-17 10:37:18 AM] @algorithms A balanced tree is a binary search tree for which the lenght of all paths from the root of the tree to any leaf node is as close to the same number as possible.
+
+[2025-06-18 02:56:08 PM] test
+
+[2025-06-18 04:41:31 PM] setting up custom taskw and timew requires placement of .timewarrior file somewhere ideally within folder housing taskrc and task file, modify taskrc to reference hook location, and include in alias eg TIMEWARRIORDB=/home/morgen/tasks/workwarrior/.timewarrior-workwarrior
