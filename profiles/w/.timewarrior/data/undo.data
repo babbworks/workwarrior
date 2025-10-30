@@ -1,0 +1,11 @@
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250821T163319Z"}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250821T163319Z"}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250821T163319Z","end":"20250821T163325Z"}

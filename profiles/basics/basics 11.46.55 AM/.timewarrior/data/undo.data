@@ -1,0 +1,33 @@
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250629T115831Z","tags":["new"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250629T115831Z","tags":["new"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250629T115831Z","end":"20250629T115843Z","tags":["new"]}
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250629T120133Z","tags":["new"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250629T120133Z","tags":["new"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250629T120133Z","end":"20250629T120147Z","tags":["new"]}
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250629T120822Z","tags":["new"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250629T120822Z","tags":["new"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250629T120822Z","end":"20250629T120840Z","tags":["new"]}

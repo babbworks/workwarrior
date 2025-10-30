@@ -1,0 +1,20 @@
+colors:
+  body: none
+  date: blue
+  powerdrill: /Users/mp/ww/profiles/tools/journals/powerdrill.txt
+  powerdrilling: /Users/mp/ww/profiles/tools/journals/powerdrilling.txt
+  tags: yellow
+  title: cyan
+default_hour: 9
+default_minute: 0
+editor: nano
+encrypt: false
+highlight: true
+indent_character: '|'
+journals: null
+linewrap: 79
+tagsymbols: '@'
+template: false
+timeformat: '%Y-%m-%d %H:%M'
+version: v4.2.1
+  lkajslkdfjalksjdflkajsd: /Users/mp/ww/profiles/tools/journals/lkajslkdfjalksjdflkajsd.txt

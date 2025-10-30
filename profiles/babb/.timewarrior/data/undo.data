@@ -1,0 +1,33 @@
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250629T115831Z","tags":["new"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250629T115831Z","tags":["new"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250629T115831Z","end":"20250629T115843Z","tags":["new"]}
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250629T121106Z","tags":["canada"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250629T121106Z","tags":["canada"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250629T121106Z","end":"20250629T121302Z","tags":["canada"]}
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250629T121310Z","tags":["germany"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250629T121310Z","tags":["germany"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250629T121310Z","end":"20250629T122124Z","tags":["germany"]}

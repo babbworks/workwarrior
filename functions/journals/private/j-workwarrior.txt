@@ -1,12 +1,16 @@
+<<<<<<< HEAD
 [2025-06-20 07:04:52 AM] test
 
 [2025-06-23 04:26:23 PM] test
 
+=======
+>>>>>>> b78e8d2 (updating for transfer to Lenovo)
 [2025-06-24 01:23:45 AM] Preference for profile switching
 
 [2025-06-24 02:37:01 AM] Setting up Taskwarrior and Timewarrior when each are custom.
 c
 
+<<<<<<< HEAD
 [2025-06-29 11:21:49 PM] test
 
 [2025-06-29 11:36:11 PM] How to store files?
@@ -16,3 +20,19 @@ In functions name store funciton program files plus scripts to make each functio
 this is a test.
 
 [2025-07-01 05:10:43 AM] this is a test
+=======
+[2025-06-29 11:36:11 PM] How to store files?
+In functions name store funciton program files plus scripts to make each function work with other functions and Ww overall.
+
+[2025-07-13 08:08:05 AM] @ideas @todo Develop a way for rapid autocreation of todo lists and maybe even all functions ie TAJLD with reference various things within Workwarrior.
+For example a Do list named ProjectAreas. How to assign them to a group? Doing so would allow for basic hierarchies.
+
+[2025-07-13 08:09:37 AM] @adjustments @functions @syntax Replace functionality of letter D to mean Do and rename file to d.py and log this into WW Design file.
+
+[2025-07-13 08:11:45 AM] @functions @adjustments @tasks Modify the add command so that a limited set of words perhaps limited to function letters will also add entries to there and not just a new task, otherwise if no valid letter following add then proceed as task.
+
+[2025-07-13 08:13:50 AM] @functions @adjustments Modify so that use of basic syntax for each function works without a dash?
+Example j contains --.
+
+[2025-08-07 03:50:41 PM] test
+>>>>>>> b78e8d2 (updating for transfer to Lenovo)

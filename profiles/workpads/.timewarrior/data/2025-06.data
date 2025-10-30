@@ -1,0 +1,27 @@
+inc 20250618T164140Z - 20250618T183535Z # extensions "fix @vs net runtime extension warning" vs
+inc 20250618T184653Z - 20250623T195511Z # "Timewarrior Instance creation" scripts.time
+inc 20250623T195518Z - 20250623T200858Z # "Taskwarrior Web" browser extensions.tasks interface
+inc 20250623T200902Z - 20250623T201356Z # TaskOpen annotation extensions.tasks linkhandling
+inc 20250623T201401Z - 20250623T201710Z # "Process Model Reply Script" inference ollama scripts.lllm
+inc 20250623T201715Z - 20250623T201842Z # "Timewarrior Instance creation" scripts.time
+inc 20250623T202154Z - 20250623T203202Z # "Allocation Template creation" scripts.time
+inc 20250623T203207Z - 20250623T204122Z # "Default Timewarrior Reporting" default reports reports.time time
+inc 20250623T204122Z - 20250624T030034Z # "Allocation Template creation" scripts.time
+inc 20250624T030419Z - 20250624T030449Z # "Timewarrior Standard Report creation" default reports.new time
+inc 20250624T030805Z - 20250624T030840Z # "Allocation Template Script" scripts.new time
+inc 20250624T031424Z - 20250624T031448Z # "this is a test"
+inc 20250624T032838Z - 20250624T032903Z # "this is a test"
+inc 20250624T033643Z - 20250624T045720Z # "this is a test"
+inc 20250624T045720Z - 20250624T045932Z # two
+inc 20250624T045947Z - 20250624T050200Z # two
+inc 20250624T050440Z - 20250624T050641Z # uda.mile:test
+inc 20250624T050651Z - 20250624T050937Z # "Value Processing: go through stages to determine how to treat the received Main Value" algos core
+inc 20250624T050949Z - 20250624T051102Z # list
+inc 20250624T051108Z - 20250624T052435Z # list
+inc 20250624T052435Z - 20250624T053132Z # Nevaaaaada
+inc 20250624T053147Z - 20250624T053302Z # Nevaaaaada
+inc 20250624T061126Z - 20250624T061136Z # two
+inc 20250624T061204Z - 20250624T061220Z # two
+inc 20250629T114228Z - 20250629T114243Z # two
+inc 20250629T114305Z - 20250629T114315Z # uda.mile:test
+inc 20250629T115638Z - 20250629T115814Z # two

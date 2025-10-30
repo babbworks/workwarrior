@@ -1,0 +1,9 @@
+; Hledger journal for jobs
+; Initialized on 2025-07-13
+account assets:cash
+account expenses:misc
+account equity:opening-balances
+
+2025-07-13 * Profile initialization
+    assets:cash          $0.00
+    equity:opening-balances   $0.00

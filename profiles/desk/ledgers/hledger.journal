@@ -1,0 +1,12 @@
+; Hledger journal for desk
+; Initialized on 2025-07-02
+
+; Account declarations
+account assets:cash
+account expenses:misc
+account equity:opening-balances
+
+; Initial transaction
+2025-07-02 * Profile initialization
+    assets:cash                 $0.00
+    equity:opening-balances    $0.00

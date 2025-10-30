@@ -1,0 +1,324 @@
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250618T152443Z","tags":["Logging details and setup info for timewarrior-aggregate extension"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250618T152443Z","tags":["Logging details and setup info for timewarrior-aggregate extension"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250618T152443Z","end":"20250618T152728Z","tags":["Logging details and setup info for timewarrior-aggregate extension"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250618T152443Z","end":"20250618T152728Z","tags":["Logging details and setup info for timewarrior-aggregate extension"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250618T152443Z","end":"20250618T152728Z","tags":["Aggregate","Logging Extension","timewarrior:"]}
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250618T100000Z","end":"20250618T113000Z","tags":["Workwarrior","file","initiation"]}
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250618T164140Z","tags":["extensions","fix @vs net runtime extension warning","vs"]}
+txn:
+  type: interval
+  before: {"id":3,"start":"20250618T100000Z","end":"20250618T113000Z","tags":["Workwarrior","file","initiation"]}
+  after: 
+txn:
+  type: interval
+  before: {"id":2,"start":"20250618T152443Z","end":"20250618T152728Z","tags":["Aggregate","Logging Extension","timewarrior:"]}
+  after: 
+txn:
+  type: interval
+  before: {"id":1,"start":"20250618T164140Z","tags":["extensions","fix @vs net runtime extension warning","vs"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250618T164140Z","end":"20250618T183535Z","tags":["extensions","fix @vs net runtime extension warning","vs"]}
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250618T184653Z","tags":["Timewarrior Instance creation","scripts.time"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250618T184653Z","tags":["Timewarrior Instance creation","scripts.time"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250618T184653Z","end":"20250623T195511Z","tags":["Timewarrior Instance creation","scripts.time"]}
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250623T195518Z","tags":["Taskwarrior Web","browser","extensions.tasks","interface"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250623T195518Z","tags":["Taskwarrior Web","browser","extensions.tasks","interface"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250623T195518Z","end":"20250623T200858Z","tags":["Taskwarrior Web","browser","extensions.tasks","interface"]}
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250623T200902Z","tags":["TaskOpen","annotation","extensions.tasks","linkhandling"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250623T200902Z","tags":["TaskOpen","annotation","extensions.tasks","linkhandling"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250623T200902Z","end":"20250623T201356Z","tags":["TaskOpen","annotation","extensions.tasks","linkhandling"]}
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250623T201401Z","tags":["Process Model Reply Script","inference","ollama","scripts.lllm"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250623T201401Z","tags":["Process Model Reply Script","inference","ollama","scripts.lllm"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250623T201401Z","end":"20250623T201710Z","tags":["Process Model Reply Script","inference","ollama","scripts.lllm"]}
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250623T201715Z","tags":["Timewarrior Instance creation","scripts.time"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250623T201715Z","tags":["Timewarrior Instance creation","scripts.time"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250623T201715Z","end":"20250623T201842Z","tags":["Timewarrior Instance creation","scripts.time"]}
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250623T202154Z","tags":["Allocation Template creation","scripts.time"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250623T202154Z","tags":["Allocation Template creation","scripts.time"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250623T202154Z","end":"20250623T203202Z","tags":["Allocation Template creation","scripts.time"]}
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250623T203207Z","tags":["Default Timewarrior Reporting","default","reports","reports.time","time"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250623T203207Z","tags":["Default Timewarrior Reporting","default","reports","reports.time","time"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250623T203207Z","end":"20250623T204122Z","tags":["Default Timewarrior Reporting","default","reports","reports.time","time"]}
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250623T204122Z","tags":["Allocation Template creation","scripts.time"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250623T204122Z","tags":["Allocation Template creation","scripts.time"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250623T204122Z","end":"20250624T030034Z","tags":["Allocation Template creation","scripts.time"]}
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250624T030419Z","tags":["Timewarrior Standard Report creation","default","reports.new","time"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250624T030419Z","tags":["Timewarrior Standard Report creation","default","reports.new","time"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250624T030419Z","end":"20250624T030449Z","tags":["Timewarrior Standard Report creation","default","reports.new","time"]}
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250624T030805Z","tags":["Allocation Template Script","scripts.new","time"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250624T030805Z","tags":["Allocation Template Script","scripts.new","time"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250624T030805Z","end":"20250624T030840Z","tags":["Allocation Template Script","scripts.new","time"]}
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250624T031424Z","tags":["this is a test"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250624T031424Z","tags":["this is a test"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250624T031424Z","end":"20250624T031448Z","tags":["this is a test"]}
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250624T032838Z","tags":["this is a test"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250624T032838Z","tags":["this is a test"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250624T032838Z","end":"20250624T032903Z","tags":["this is a test"]}
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250624T033643Z","tags":["this is a test"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250624T033643Z","tags":["this is a test"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250624T033643Z","end":"20250624T045720Z","tags":["this is a test"]}
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250624T045720Z","tags":["two"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250624T045720Z","tags":["two"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250624T045720Z","end":"20250624T045932Z","tags":["two"]}
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250624T045947Z","tags":["two"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250624T045947Z","tags":["two"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250624T045947Z","end":"20250624T050200Z","tags":["two"]}
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250624T050440Z","tags":["uda.mile:test"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250624T050440Z","tags":["uda.mile:test"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250624T050440Z","end":"20250624T050641Z","tags":["uda.mile:test"]}
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250624T050651Z","tags":["Value Processing: go through stages to determine how to treat the received Main Value","algos","core"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250624T050651Z","tags":["Value Processing: go through stages to determine how to treat the received Main Value","algos","core"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250624T050651Z","end":"20250624T050937Z","tags":["Value Processing: go through stages to determine how to treat the received Main Value","algos","core"]}
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250624T050949Z","tags":["list"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250624T050949Z","tags":["list"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250624T050949Z","end":"20250624T051102Z","tags":["list"]}
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250624T051108Z","tags":["list"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250624T051108Z","tags":["list"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250624T051108Z","end":"20250624T052435Z","tags":["list"]}
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250624T052435Z","tags":["Nevaaaaada"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250624T052435Z","tags":["Nevaaaaada"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250624T052435Z","end":"20250624T053132Z","tags":["Nevaaaaada"]}
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250624T053147Z","tags":["Nevaaaaada"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250624T053147Z","tags":["Nevaaaaada"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250624T053147Z","end":"20250624T053302Z","tags":["Nevaaaaada"]}
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250624T061126Z","tags":["two"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250624T061126Z","tags":["two"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250624T061126Z","end":"20250624T061136Z","tags":["two"]}
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250624T061204Z","tags":["two"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250624T061204Z","tags":["two"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250624T061204Z","end":"20250624T061220Z","tags":["two"]}
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250629T114228Z","tags":["two"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250629T114228Z","tags":["two"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250629T114228Z","end":"20250629T114243Z","tags":["two"]}
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250629T114305Z","tags":["uda.mile:test"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250629T114305Z","tags":["uda.mile:test"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250629T114305Z","end":"20250629T114315Z","tags":["uda.mile:test"]}
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250629T115638Z","tags":["two"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250629T115638Z","tags":["two"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250629T115638Z","end":"20250629T115814Z","tags":["two"]}

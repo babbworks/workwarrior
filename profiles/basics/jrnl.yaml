@@ -1,0 +1,16 @@
+journals:
+  default: /Users/mp/ww/profiles/basics/journals/basics.txt
+editor: nano
+encrypt: false
+tagsymbols: '@'
+default_hour: 9
+default_minute: 0
+timeformat: "%Y-%m-%d %H:%M"
+highlight: true
+linewrap: 79
+template: false
+colors:
+  body: none
+  date: blue
+  tags: yellow
+  title: cyan

@@ -1,0 +1,76 @@
+# Questions Manager Service - Folder Structure
+
+```
+services/questions/
+├── q.sh                          # Main questions manager script
+├── templates/                    # Template storage
+│   ├── task/                     # Task-related question templates
+│   │   ├── daily_standup.json
+│   │   ├── project_review.json
+│   │   └── bug_report.json
+│   ├── journal/                  # Journal-related question templates
+│   │   ├── daily_reflection.json
+│   │   ├── weekly_review.json
+│   │   └── mood_tracker.json
+│   ├── time/                     # Time tracking question templates
+│   │   ├── work_session.json
+│   │   └── break_analysis.json
+│   ├── todo/                     # Todo-related question templates
+│   │   ├── task_breakdown.json
+│   │   └── priority_review.json
+│   ├── ledger/                   # Ledger/financial question templates
+│   │   ├── expense_entry.json
+│   │   └── budget_review.json
+│   └── custom/                   # User-created custom templates
+│       └── meeting_notes.json
+├── handlers/                     # Service-specific handlers
+│   ├── task_handler.sh
+│   ├── journal_handler.sh
+│   ├── time_handler.sh
+│   ├── todo_handler.sh
+│   ├── ledger_handler.sh
+│   └── custom_handler.sh
+├── lib/                          # Shared utilities
+│   ├── template_manager.sh       # Template CRUD operations
+│   ├── question_prompt.sh        # Question prompting logic
+│   └── output_formatter.sh       # Format answers for different services
+└── config/                       # Configuration files
+    ├── default_settings.conf
+    └── service_mappings.conf
+```
+
+## Template JSON Structure
+
+Each template file will contain:
+```json
+{
+  "name": "Daily Standup",
+  "description": "Questions for daily standup meetings",
+  "service": "task",
+  "questions": [
+    {
+      "id": "q1",
+      "text": "What did you accomplish yesterday?",
+      "type": "text",
+      "required": true
+    },
+    {
+      "id": "q2", 
+      "text": "What are you working on today?",
+      "type": "text",
+      "required": true
+    },
+    {
+      "id": "q3",
+      "text": "Any blockers or challenges?",
+      "type": "text",
+      "required": false
+    }
+  ],
+  "output_format": {
+    "task_title": "Daily Standup - {date}",
+    "task_description": "Yesterday: {q1}\nToday: {q2}\nBlockers: {q3}",
+    "tags": ["standup", "daily"]
+  }
+}
+```

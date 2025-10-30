@@ -1,0 +1,40 @@
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250618T164804Z","tags":["-c","\/home\/morgen\/times\/.timewarrior-workwarrior\/timewarrior.cfg","Timetracking test for Workwarrior config"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250618T164804Z","tags":["-c","\/home\/morgen\/times\/.timewarrior-workwarrior\/timewarrior.cfg","Timetracking test for Workwarrior config"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250618T164804Z","end":"20250618T165047Z","tags":["-c","\/home\/morgen\/times\/.timewarrior-workwarrior\/timewarrior.cfg","Timetracking test for Workwarrior config"]}
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250618T165047Z","tags":["Test of Workwarrior config"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250618T165047Z","tags":["Test of Workwarrior config"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250618T165047Z","end":"20250618T172036Z","tags":["Test of Workwarrior config"]}
+txn:
+  type: interval
+  before: {"id":2,"start":"20250618T164804Z","end":"20250618T165047Z","tags":["-c","\/home\/morgen\/times\/.timewarrior-workwarrior\/timewarrior.cfg","Timetracking test for Workwarrior config"]}
+  after: 
+txn:
+  type: interval
+  before: {"id":1,"start":"20250618T165047Z","end":"20250618T172036Z","tags":["Test of Workwarrior config"]}
+  after: 
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250618T175125Z","tags":["Test"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250618T175125Z","tags":["Test"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250618T175125Z","end":"20250618T175134Z","tags":["Test"]}

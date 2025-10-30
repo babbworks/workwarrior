@@ -2,6 +2,7 @@
 set -e
 
 SHELL_RC="$HOME/.bashrc"
+<<<<<<< HEAD
 
 # --- Normal Profile Creation ---
 PROFILE_NAME="$1"
@@ -10,6 +11,17 @@ if [[ -z "$PROFILE_NAME" ]]; then
   exit 1
 fi
 
+=======
+PROFILE_NAME="$1"
+PROFILE_TYPE="$2"  # "quick" or "custom"
+
+if [[ -z "$PROFILE_NAME" ]]; then
+  echo "Usage: $0 <profile-name> [quick|custom]"
+  exit 1
+fi
+
+PROFILE_TYPE="${PROFILE_TYPE:-quick}"  # default to quick if not provided
+>>>>>>> b78e8d2 (updating for transfer to Lenovo)
 BASE="$HOME/ww/profiles/$PROFILE_NAME"
 TASKDATA="$BASE/.task"
 TIMEWDB="$BASE/.timewarrior"
@@ -17,6 +29,7 @@ JOURNALS="$BASE/journals"
 LEDGERS="$BASE/ledgers"
 TODO_DIR="$BASE/todo"
 DEFAULT_TODO_FILE="$TODO_DIR/${PROFILE_NAME}_default.todo"
+<<<<<<< HEAD
 
 HOOKSRC=$(find ~/ww/services/profile/ -name "on-modify.timewarrior" 2>/dev/null | head -n 1)
 TASKRC_SRC="$HOME/ww/functions/tasks/default-taskrc/.taskrc"
@@ -38,12 +51,29 @@ add_alias_to_section() {
     return 0
   fi
 
+=======
+HOOKSRC=$(find ~/ww/services/profile/ -name "on-modify.timewarrior" 2>/dev/null | head -n 1)
+TASKRC_SRC="$HOME/ww/functions/tasks/default-taskrc/.taskrc"
+
+mkdir -p "$TASKDATA/hooks" "$TIMEWDB" "$JOURNALS" "$LEDGERS" "$TODO_DIR"
+touch "$DEFAULT_TODO_FILE"
+
+# Function to add aliases in a dedicated section
+add_alias_to_section() {
+  local alias_line="$1"
+  local section_marker="$2"
+  local temp_file
+  temp_file=$(mktemp)
+
+  if grep -Fxq "$alias_line" "$SHELL_RC"; then return 0; fi
+>>>>>>> b78e8d2 (updating for transfer to Lenovo)
   if ! grep -Fxq "$section_marker" "$SHELL_RC"; then
     echo "" >> "$SHELL_RC"
     echo "$section_marker" >> "$SHELL_RC"
   fi
 
   awk -v section="$section_marker" -v new_alias="$alias_line" '
+<<<<<<< HEAD
     {
       print $0
       if ($0 == section && !added) {
@@ -81,6 +111,35 @@ echo "$(date '+%Y-%m-%d %H:%M'): Welcome to your $PROFILE_NAME journal!" > "$def
 cat > "$BASE/jrnl.yaml" << EOF
 journals:
   default: $default_journal_file
+=======
+    { print $0 }
+    $0 == section && !added { print new_alias; added=1 }
+  ' "$SHELL_RC" > "$temp_file" && mv "$temp_file" "$SHELL_RC"
+}
+
+echo "🔧 Creating Workwarrior profile: $PROFILE_NAME ($PROFILE_TYPE mode)"
+echo
+
+# --------------------------
+# Setup .taskrc & Work List
+# --------------------------
+TASKRC_DEST="$BASE/.taskrc"
+if [[ -f "$TASKRC_SRC" ]]; then
+  cp "$TASKRC_SRC" "$TASKRC_DEST"
+else
+  touch "$TASKRC_DEST"
+fi
+echo "✓ Work List (.taskrc) created"
+
+# --------------------------
+# Setup jrnl.yaml & Notebook
+# --------------------------
+DEFAULT_NOTEBOOK="$JOURNALS/$PROFILE_NAME.txt"
+echo "$(date '+%Y-%m-%d %H:%M'): Welcome to your $PROFILE_NAME Notebook!" > "$DEFAULT_NOTEBOOK"
+cat > "$BASE/jrnl.yaml" << EOF
+journals:
+  default: $DEFAULT_NOTEBOOK
+>>>>>>> b78e8d2 (updating for transfer to Lenovo)
 editor: nano
 encrypt: false
 tagsymbols: '@'
@@ -96,6 +155,7 @@ colors:
   tags: yellow
   title: cyan
 EOF
+<<<<<<< HEAD
 
 echo "✓ Created default journal: $default_journal_file"
 echo "✓ Created jrnl.yaml with default journal: $default_journal_file"
@@ -103,6 +163,15 @@ echo "✓ Created jrnl.yaml with default journal: $default_journal_file"
 # --- Ledger ---
 default_ledger_file="$LEDGERS/$PROFILE_NAME.journal"
 cat > "$default_ledger_file" <<EOF
+=======
+echo "✓ Notebook (jrnl.yaml) created"
+
+# --------------------------
+# Setup Ledger & Workbook
+# --------------------------
+DEFAULT_WORKBOOK="$LEDGERS/$PROFILE_NAME.journal"
+cat > "$DEFAULT_WORKBOOK" <<EOF
+>>>>>>> b78e8d2 (updating for transfer to Lenovo)
 ; Hledger journal for $PROFILE_NAME
 ; Initialized on $(date '+%Y-%m-%d')
 account assets:cash
@@ -113,6 +182,7 @@ $(date '+%Y-%m-%d') * Profile initialization
     assets:cash          \$0.00
     equity:opening-balances   \$0.00
 EOF
+<<<<<<< HEAD
 
 echo "✓ Created default ledger: $default_ledger_file"
 
@@ -144,6 +214,21 @@ if [[ -f "$HOOKSRC" ]]; then
   cp "$HOOKSRC" "$TASKDATA/hooks/on-modify.timewarrior"
   chmod +x "$TASKDATA/hooks/on-modify.timewarrior"
   echo "✓ Installed on-modify.timewarrior hook"
+=======
+echo "✓ Workbook (ledger) created"
+
+# --------------------------
+# Setup TODO & Plain List
+# --------------------------
+echo "✓ Plain List created at $DEFAULT_TODO_FILE"
+
+# --------------------------
+# Setup Time List (Timewarrior)
+# --------------------------
+if [[ -f "$HOOKSRC" ]]; then
+  cp "$HOOKSRC" "$TASKDATA/hooks/on-modify.timewarrior"
+  chmod +x "$TASKDATA/hooks/on-modify.timewarrior"
+>>>>>>> b78e8d2 (updating for transfer to Lenovo)
 else
   cat > "$TASKDATA/hooks/on-modify.timewarrior" <<'EOF'
 #!/usr/bin/env python3
@@ -159,6 +244,7 @@ def main():
 if __name__ == '__main__': main()
 EOF
   chmod +x "$TASKDATA/hooks/on-modify.timewarrior"
+<<<<<<< HEAD
   echo "✓ Created fallback timewarrior hook"
 fi
 
@@ -217,6 +303,32 @@ function t() {
   python3 "$HOME/ww/tools/todo/t/t.py" -t "$todo_dir" "$@"
 }
 
+=======
+fi
+echo "✓ Time List hook installed"
+
+# --------------------------
+# Aliases for Lists
+# --------------------------
+add_alias_to_section "alias Work='$TASKRC_DEST'" "# -- Lists ---"
+add_alias_to_section "alias List='$DEFAULT_TODO_FILE'" "# -- Lists ---"
+add_alias_to_section "alias Time='$TIMEWDB'" "# -- Lists ---"
+
+# --------------------------
+# Aliases for Books
+# --------------------------
+add_alias_to_section "alias Notebook='jrnl --config-file \"$BASE/jrnl.yaml\"'" "# -- Books ---"
+add_alias_to_section "alias journal='jrnl --config-file \"$BASE/jrnl.yaml\"'" "# -- Books ---"
+add_alias_to_section "alias Workbook='hledger -f \"$DEFAULT_WORKBOOK\"'" "# -- Books ---"
+add_alias_to_section "alias ledger='hledger -f \"$DEFAULT_WORKBOOK\"'" "# -- Books ---"
+
+# --------------------------
+# Profile activation function
+# --------------------------
+if ! grep -q 'function use_task_profile' "$SHELL_RC"; then
+  cat >> "$SHELL_RC" <<'EOF'
+
+>>>>>>> b78e8d2 (updating for transfer to Lenovo)
 function use_task_profile() {
   local profile="$1"
   if [[ -z "$profile" ]]; then
@@ -226,7 +338,11 @@ function use_task_profile() {
 
   local base="$HOME/ww/profiles/$profile"
   if [[ ! -d "$base" ]]; then
+<<<<<<< HEAD
     echo "Error: Profile '$profile' not found at $base" >&2
+=======
+    echo "Error: Profile not found at $base" >&2
+>>>>>>> b78e8d2 (updating for transfer to Lenovo)
     return 1
   fi
 
@@ -236,6 +352,7 @@ function use_task_profile() {
   export TASKDATA="$base/.task"
   export TIMEWARRIORDB="$base/.timewarrior"
 
+<<<<<<< HEAD
   eval "$(declare -f j)"
   eval "$(declare -f l)"
   eval "$(declare -f t)"
@@ -248,6 +365,11 @@ function use_task_profile() {
 }
 EOF
   echo "✓ Added core Workwarrior functions and global 't' function to $SHELL_RC"
+=======
+  echo "✓ Profile '$profile' activated. Lists and Books ready."
+}
+EOF
+>>>>>>> b78e8d2 (updating for transfer to Lenovo)
 fi
 
 source "$SHELL_RC" > /dev/null 2>&1
@@ -255,6 +377,7 @@ source "$SHELL_RC" > /dev/null 2>&1
 echo
 echo "✅ Profile '$PROFILE_NAME' setup complete!"
 echo "📁 Location: $BASE"
+<<<<<<< HEAD
 echo "📝 Default Journal: $default_journal_file"
 echo "💰 Ledgers: $PROFILE_NAME"
 echo "🗂  TaskRC: $TASKRC_DEST"
@@ -265,3 +388,12 @@ echo "👉 Then use: j-$PROFILE_NAME for direct journal access"
 echo "👉 Or: p-$PROFILE_NAME or $PROFILE_NAME to activate profile (enables simple 'j', 'l' and 't' commands)"
 echo "👉 Use: t-$PROFILE_NAME to run TODO tool inside this profile"
 echo
+=======
+echo "📝 Notebook: $DEFAULT_NOTEBOOK"
+echo "💰 Workbook: $DEFAULT_WORKBOOK"
+echo "🗒 Plain List: $DEFAULT_TODO_FILE"
+echo "⌛ Time List DB: $TIMEWDB"
+echo
+echo "👉 Aliases: Work, List, Time, Notebook, journal, Workbook, ledger"
+echo "👉 Activate profile: use_task_profile $PROFILE_NAME"
+>>>>>>> b78e8d2 (updating for transfer to Lenovo)

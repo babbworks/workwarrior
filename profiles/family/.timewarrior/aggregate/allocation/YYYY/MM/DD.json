@@ -1,0 +1,24 @@
+[
+    {
+        "tags": [
+            "office",
+            "project"
+        ],
+        "allocation": 3
+    },
+    {
+        "tags": [
+            "office",
+            "maintenance"
+        ],
+        "allocation": 3
+    },
+    {
+        "tags": [
+            "office",
+            "review"
+        ],
+        "allocation": 1
+    }
+]
+

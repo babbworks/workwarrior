@@ -1,0 +1,55 @@
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250629T115831Z","tags":["new"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250629T115831Z","tags":["new"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250629T115831Z","end":"20250629T115843Z","tags":["new"]}
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250629T121106Z","tags":["canada"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250629T121106Z","tags":["canada"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250629T121106Z","end":"20250629T121227Z","tags":["canada"]}
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250629T121238Z","tags":["france"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250629T121238Z","tags":["france"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250629T121238Z","end":"20250629T121446Z","tags":["france"]}
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250629T121456Z","tags":["england"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250629T121456Z","tags":["england"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250629T121456Z","end":"20250629T121509Z","tags":["england"]}
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250630T030204Z","tags":["Starting task"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250630T030204Z","tags":["Starting task"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250630T030204Z","end":"20250630T030228Z","tags":["Starting task"]}

@@ -115,4 +115,10 @@ Program must perform an ordered set of checks based on the submitted numbers. IF
 [2025-06-23 03:29:27 PM] test
 
 [2025-07-02 03:51:36 AM] @workpic @weather Consider how to channel aspects of the Uruk job records into the exported jpeg for workpads.
+<<<<<<< HEAD
 EG dots could be used to represented estimated hours of work, with maybe a large circle for 5 hours, a small circle for 1 hour and dots or points for half hours - but how is this more sensible than just a number? Is it for mental purposes, to more viscerally quantify the labor required? Could weather be worked into this approach EG "22···30··42··30···27". For laborers involved maybe ∆∆∆. What can a ⚪️ or ⃝  represent? 
+=======
+EG dots could be used to represented estimated hours of work, with maybe a large circle for 5 hours, a small circle for 1 hour and dots or points for half hours - but how is this more sensible than just a number? Is it for mental purposes, to more viscerally quantify the labor required? Could weather be worked into this approach EG "22···30··42··30···27". For laborers involved maybe ∆∆∆. What can a ⚪️ or ⃝  represent?
+
+[2025-07-10 11:12:11 PM] test
+>>>>>>> b78e8d2 (updating for transfer to Lenovo)

@@ -35,3 +35,10 @@ The universal business system we are building according to these principles is n
 And, like the lesser known works of Babbage, we see splendid unity in all of man’s actions, as daily life and business life forever weave together to create tomorrow. Exchange in all its forms helps further human processes and human places. ‘Business’ is the simplest and handiest way to describe this grand process of civilization which has its basis in the individual, the family, small groups and the use of advantage in order to grow.
 
 Business is short hand for exchange activities. And Babb is here to help.
+<<<<<<< HEAD
+=======
+
+[2025-08-07 03:51:11 PM] test
+
+[2025-08-07 03:51:58 PM] test
+>>>>>>> b78e8d2 (updating for transfer to Lenovo)

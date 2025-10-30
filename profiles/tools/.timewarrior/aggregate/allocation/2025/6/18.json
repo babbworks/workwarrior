@@ -1,0 +1,23 @@
+[
+    {
+        "tags": [
+            "Workwarrior"
+        ],
+        "allocation": 10
+    },
+    {
+        "tags": [
+            "Workpads",
+            "Protocol"
+        ],
+        "allocation": 5
+    },
+    {
+        "tags": [
+            "Babb",
+            "Financials"
+        ],
+        "allocation": 3
+    }
+]
+

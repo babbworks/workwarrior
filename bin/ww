@@ -1,0 +1,44 @@
+
+#!/usr/bin/env bash
+# Workwarrior dynamic dispatcher
+
+WW_DIR="$HOME/ww/services"
+CMD="$1"
+shift || true
+
+# Look for service script
+if [[ -n "$CMD" && -x "$WW_DIR/$CMD/$CMD.sh" ]]; then
+    exec "$WW_DIR/$CMD/$CMD.sh" "$@"
+elif [[ "$CMD" == "help" ]]; then
+    exec "$WW_DIR/help/menu-help.sh" "$@"
+elif [[ -z "$CMD" ]]; then
+    echo "Workwarrior: No command given."
+    echo "Run 'ww help' for usage."
+    exit 1
+else
+    echo "Workwarrior: Unknown command '$CMD'"
+    echo "Available commands:"
+    for d in "$WW_DIR"/*/; do
+        name=$(basename "$d")
+        echo "  $name"
+    done
+    exit 1
+fi
+
+
+#!/usr/bin/env bash
+WW_DIR="$HOME/ww"
+REGISTRY="$WW_DIR/services/services.map"
+
+CMD="$1"
+shift || true
+
+target=$(grep "^$CMD=" "$REGISTRY" | cut -d= -f2)
+if [[ -n "$target" && -x "$WW_DIR/$target" ]]; then
+    exec "$WW_DIR/$target" "$@"
+else
+    echo "Unknown command: $CMD"
+    echo "Available commands:"
+    cut -d= -f1 "$REGISTRY" | sort
+    exit 1
+fi
