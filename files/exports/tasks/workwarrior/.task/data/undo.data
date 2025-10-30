@@ -1,0 +1,11 @@
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20250624T043722Z","tags":["Random"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20250624T043722Z","tags":["Random"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20250624T043722Z","end":"20250624T051802Z","tags":["Random"]}

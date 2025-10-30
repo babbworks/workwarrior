@@ -1,0 +1,108 @@
+#!/bin/bash
+
+# Custom Taskwarrior-Timewarrior Integration Aliases
+# Add these to your ~/.bashrc or ~/.bash_aliases
+
+# Set your custom Taskwarrior data directory
+export TASKDATA="$HOME/tasks/workwarrior/.task"
+
+# Alias for custom Taskwarrior instance
+alias tww='task rc.data.location=$TASKDATA'
+
+# Function to handle Taskwarrior commands with Timewarrior integration
+tww_integrated() {
+    local task_id="$1"
+    local command="$2"
+    
+    # If no arguments, just run normal taskwarrior
+    if [ $# -eq 0 ]; then
+        task rc.data.location="$TASKDATA"
+        return
+    fi
+    
+    # Handle different command patterns
+    case "$command" in
+        "start")
+            # Start the task in Taskwarrior
+            task rc.data.location="$TASKDATA" "$task_id" start
+            
+            # Get task description for Timewarrior
+            local task_desc=$(task rc.data.location="$TASKDATA" "$task_id" export | jq -r '.[0].description' 2>/dev/null)
+            
+            if [ -n "$task_desc" ] && [ "$task_desc" != "null" ]; then
+                # Start time tracking in Timewarrior with task description
+                echo "Starting time tracking for: $task_desc"
+                timew start "Task $task_id: $task_desc"
+            else
+                # Fallback if description extraction fails
+                echo "Starting time tracking for task $task_id"
+                timew start "Task $task_id"
+            fi
+            ;;
+            
+        "stop")
+            # Stop the task in Taskwarrior
+            task rc.data.location="$TASKDATA" "$task_id" stop
+            
+            # Stop time tracking in Timewarrior
+            echo "Stopping time tracking"
+            timew stop
+            ;;
+            
+        "done"|"complete")
+            # Mark task as done in Taskwarrior
+            task rc.data.location="$TASKDATA" "$task_id" done
+            
+            # Stop time tracking in Timewarrior if it's running
+            if timew get dom.active.tag 2>/dev/null | grep -q "Task $task_id"; then
+                echo "Stopping time tracking for completed task"
+                timew stop
+            fi
+            ;;
+            
+        *)
+            # For all other commands, just pass through to Taskwarrior
+            task rc.data.location="$TASKDATA" "$@"
+            ;;
+    esac
+}
+
+# Override the tww alias with the integrated function
+alias tww='tww_integrated'
+
+# Additional helpful aliases
+alias tww-add='task rc.data.location=$TASKDATA add'
+alias tww-list='task rc.data.location=$TASKDATA list'
+alias tww-active='task rc.data.location=$TASKDATA +ACTIVE'
+alias tw-summary='timew summary'
+alias tw-stop='timew stop'
+
+# Function to add a new task and optionally start it immediately
+tww_quick() {
+    if [ $# -eq 0 ]; then
+        echo "Usage: tww_quick 'task description' [start]"
+        return 1
+    fi
+    
+    local description="$1"
+    local should_start="$2"
+    
+    # Add the task and capture the ID
+    local output=$(task rc.data.location="$TASKDATA" add "$description" 2>&1)
+    local task_id=$(echo "$output" | grep -o 'Created task [0-9]\+' | grep -o '[0-9]\+')
+    
+    if [ -n "$task_id" ]; then
+        echo "Created task $task_id: $description"
+        
+        # If 'start' was specified, start the task and time tracking
+        if [ "$should_start" = "start" ]; then
+            tww_integrated "$task_id" "start"
+        fi
+    else
+        echo "Failed to create task"
+        return 1
+    fi
+}
+
+# Alias for quick task creation
+alias tww-quick='tww_quick'

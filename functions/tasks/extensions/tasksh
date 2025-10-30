@@ -1,0 +1,1363 @@
+#!/bin/sh
+
+# VARS
+
+VERSION=0.0.1
+CONFIG=~/.config/taskshrc
+DEFAULT_FOLDER=~/tasksh
+
+NAME=$(basename "$0")
+
+if [ -f $CONFIG ]; then
+    # shellcheck disable=SC1090
+    . $CONFIG
+else
+    touch $CONFIG
+fi
+
+# functions
+
+# shellcheck disable=SC2120
+help() {
+
+    WHICH=${1:-general}
+
+    case "$WHICH" in
+
+        general )
+            echo "Usage: $NAME [mode] [OPTIONS]..."
+            echo "Manage (add, edit, view, etc.) tasks."
+            echo 
+            echo "$NAME has 8 modes, (a)dd, (ag)enda, (c)onfig, (m)ark, (e)dit, (l)ist,"
+            echo "(r)emove, and (v)iew."
+            echo "Each mode has different functionality, to see usage for use:"
+            echo "  $NAME [mode] -h"
+            echo "  or"
+            echo "  $NAME [mode] --help"
+            echo
+            echo "For example:"
+            echo "  $NAME add -h"
+            echo "  or for using the add shorthand"
+            echo "  $NAME a -h"
+            echo
+            echo "There is technically a 9th 'no-mode' mode with two options:"
+            echo
+            echo "Help:"
+            echo "  This gets the general help message for $NAME"
+            echo
+            echo "  $NAME -h"
+            echo "  $NAME --help"
+            echo 
+            echo "Version:"
+            echo "  This gets the $NAME version"
+            echo
+            echo "  $NAME -v"
+            echo "  $NAME --version"
+
+        ;;
+
+        add )
+            echo "Usage: $NAME add [TITLE] [OPTIONS]... "
+            echo "Usage: $NAME add [OPTIONS]... -- [TITLE] "
+            echo "Add a task."
+            echo 
+            echo "Options:"
+            echo "  -d | --due                  : Set the the due date of the task"
+            echo "  -s | --schedule             : Schedule the task to be started on the specified date/time"
+            echo "  -t | --type                 : Sets the task type, for example TODO, PROJ, etc. There is no restriction on what the type can be set to, aside from it having to a single word (no spaces)"
+            echo "  -c | --desc | --description : Sets the description of the task"
+            echo "  -ed | --editor              : Opens a terminal editor (whatever \$EDITOR is set to) for the task file (this is the description)"
+            echo "  -h | --help                 : Prints help information"
+            echo
+            echo "Examples:" 
+            echo "  $NAME add This is my Note Title -d 12/12/2022 -t CUSTOM"
+            echo "  $NAME add -s 1/30/2023 -- Another note title"
+        ;;
+
+        config ) 
+            echo "Usage: $NAME config [OPTIONS]..."
+            echo "Edit $NAME configuration"
+            echo 
+            echo "Options:"
+            echo "  -f | --folder : Changes the tasksh folder (the folder in which all the tasks are stored"
+            echo
+            echo "Examples:"
+            echo "  $NAME config -f ~/tasksh"
+        ;;
+
+        mark )
+            echo "Usage:     $NAME mark [TASK_ID]"
+            echo "Alternate: $NAME mark [TASK_ID] [OPTIONS]..."
+            echo "Mark a task as done (or alternatively a done task as active)."
+            echo "If no options are given, will default to marking the provided TASK_ID as done"
+            echo 
+            echo "Options:"
+            echo "  -a | --active : Sets the task as active (if task is already active, has no effect)"
+            echo "  -d | --done   : Sets the task as done (if task is already done, has no effect)"
+            echo "  -h | --help   : Prints help information"
+            echo
+            echo "Examples:"
+            echo "  $NAME mark 1"
+            echo "  $NAME mark -d 1"
+        ;; 
+
+        edit )
+            echo "Usage: $NAME add [TASK_ID] [OPTIONS]... "
+            echo "Usage: $NAME add [OPTIONS]... -i [TASK_ID] "
+            echo "Edits a task."
+            echo 
+            echo "Options:"
+            echo "  -i  | --id                   : Selects the task to edit based on id. Note that if task id is specified both ways (first param and via named param -i) then the last value id specified will be used to select the task"
+            echo "  -d  | --due                  : Change the the due date of the task"
+            echo "  -s  | --schedule             : Changes task scheduling (when the task is to be started)"
+            echo "  -t  | --type                 : Changes the task type, for example TODO, PROJ, etc. There is no restriction on what the type can be set to, aside from it having to a single word (no spaces)"
+            echo "  -ti | --title               : Changes the task title."
+            echo "  -c  | --desc | --description : Changes the description of the task"
+            echo "  -h  | --help                 : Prints help information"
+            echo
+            echo "Examples:" 
+            echo "  $NAME edit 1 -d 12/12/2022 -t CUSTOM"
+            echo "  $NAME add -s 1/30/2023 -i 2"
+        ;;
+
+        list )
+            echo "Usage: $NAME list [OPTIONS]..."
+            echo "Lists existing tasks."
+            echo 
+            echo "Options:"
+            echo "  -t  | --type        : Filters based on one or more task types given"
+            echo "  -o  | --overdue     : Filters based on task due date being before today and task being ACTIVE"
+            echo "  -no | --not-overdue : Reverse of overdue"
+            echo "  --due               : Filters based on if the task is due on or before specified date"
+            echo "  --scheduled         : FIlters based on if the task is scheduled on specified date" 
+            echo "  -s  | --status      : Filters based on status, either DONE or ACTIVE"
+            echo "  -d  | --detailed    : Each task is output in a detailed view (same as in view mode)"
+            echo "  -h  | --help        : Prints help information"
+            echo 
+            echo "Examples:"
+            echo "  $NAME list"
+            echo "  $NAME list --type TODO URGENT --detailed"
+        ;;
+
+        remove )
+            echo "Usage:     $NAME remove [TASK_ID] [OPTIONS]..."
+            echo "Alternate: $NAME remove [OPTIONS]..."
+            echo "Removes a task. Note that by default, a confirmation will be required to remove specified task"
+            echo 
+            echo "Options:"
+            echo "  -n | --no-confirm : Do not ask for confirmation when removing tasking"
+            echo "  -h  | --help      : Prints help information"
+            echo
+            echo "Examples:"
+            echo "  $NAME remove 1"
+            echo "  $NAME remove -n 1"
+        ;;
+
+        view )
+            echo "Usage:     $NAME view [TASK_ID]"
+            echo "Alternate: $NAME view [-h | --help]"
+            echo "View a task."
+            echo 
+            echo "Options:"
+            echo "  -h  | --help                 : Prints help information"
+            echo
+            echo "Examples:"
+            echo "  $NAME view 1"
+        ;;
+        
+        * )
+            echo "Unknown help section, ERROR"
+            exit 1
+    esac
+
+    exit 0
+}
+
+default() {
+    echo TASKSH v$VERSION
+
+    help
+}
+
+configure() {
+    # check notes dir
+    if [ -z ${TASKSH_DIR+x} ]; then
+        echo "TASHSH has no folder set."
+
+        echo "Specify a folder TASKSH should use to store data [$DEFAULT_FOLDER]: " 
+        read -r FOLDER
+        TASKSH_DIR=${FOLDER:-$DEFAULT_FOLDER}
+
+        if [ ! -d "$TASKSH_DIR" ]; then
+            create_tasksh_dir
+
+        elif [ "$(ls -A "$TASKSH_DIR")" ]; then
+            echo "$TASKSH_DIR is not empty, are you sure you want to use this folder? y/[n]"
+
+            while true; do
+                read -r YN
+                case "${YN:-n}" in
+                    y ) 
+                        echo "Successfully created TASKSH folder ($TASKSH_DIR)"
+                        if echo "TASKSH_DIR=\"$TASKSH_DIR\"" > $CONFIG; then
+                            echo "Successfully added TASKSH_DIR to TASKSH config"
+                        else
+                            echo "FAILED to add TASKSH_DIR to TASKSH config"
+                            exit 1
+                        fi
+
+                        break
+                        ;;
+
+                    n ) 
+                        echo "TASKSH requires a folder to function, exiting"
+
+                        exit 1
+                        ;;
+
+                    * ) echo "Invalid response, input y or n";;
+                esac
+            done
+        fi
+    fi
+
+    if [ ! -d "$TASKSH_DIR" ]; then
+        create_tasksh_dir
+    fi
+}
+
+create_tasksh_dir() {
+    echo "$TASKSH_DIR does not exist, would you like to create it y/[n]"
+            
+    while true; do
+        read -r YN
+        case "${YN:-n}" in
+            y ) 
+                if mkdir -p "$TASKSH_DIR"; then
+                    echo "Successfully created TASKSH folder ($TASKSH_DIR)"
+                    if echo "TASKSH_DIR=\"$TASKSH_DIR\"" > $CONFIG; then
+                        echo "Successfully added TASKSH_DIR to TASKSH config"
+                    else
+                        echo "FAILED to add TASKSH_DIR to TASKSH config"
+                        exit 1
+                    fi
+                else
+                    echo "FAILED TO create TASKSH folder ($TASKSH_DIR)"
+                    exit 1
+                fi
+
+                break
+                ;;
+
+            n ) 
+                echo "TASKSH requires a folder to function, exiting"
+
+                exit 1
+                ;;
+
+            * ) echo "Invalid response, input y or n";;
+        esac
+    done
+}
+
+# Handle configuration
+configure
+
+# Mode functions
+add() {
+    shift # shift over mode
+
+    while [ "$#" -gt 0 ]; do
+
+        case "$1" in
+
+            -d | --due ) 
+                if ( echo "${2:--x}" | grep -qe '^-.*' ); then
+                    echo "due (-d, --due) requires one argument, got zero"
+                    exit 1
+                elif ( ! echo "${3:--x}" | grep -qe '^-.*' ); then
+                    echo "due (-d, --due) only takes one argument, got more than one"
+                    exit 1
+                fi
+
+                if ! TASK_DUE=$(date -d "$2" +%s); then
+                    echo "ERROR: Invalid date format, dates are parsed via the date command, see date --help for help"
+                    exit 1
+                fi
+                
+                shift 2
+                ;;
+
+            -s | --schedule ) 
+
+                if ( echo "${2:--x}" | grep -qe '^-.*' ); then
+                    echo "schedule (-s, --schedule) requires one argument, got zero"
+                    exit 1
+                elif ( ! echo "${3:--x}" | grep -qe '^-.*' ); then
+                    echo "schedule (-s, --schedule) only takes one argument, got more than one"
+                    exit 1
+                fi
+
+                if ! TASK_SCHEDULE=$(date -d "$2" +%s); then
+                    echo "ERROR: Invalid date format, dates are parsed via the date command, see date --help for help"
+                    exit 1
+                fi
+                
+                shift 2
+                ;;
+
+            -t | --type )
+
+                if ( echo "${2:--x}" | grep -qe '^-.*' ); then
+                    echo "type (-t, --type) requires one argument, got zero"
+                    exit 1
+                elif ( ! echo "${3:--x}" | grep -qe '^-.*' ); then
+                    echo "type (-t, --type) only takes one argument, got more than one"
+                    exit 1
+                fi
+
+                TASK_TYPE="$2"
+                shift 2
+                ;;
+
+            -c | --desc | --description )
+
+                if ( echo "${2:--x}" | grep -qe '^-.*' ); then
+                    echo "description (-c, --desc, --description) requires one or more arguments"
+                    exit 1
+                fi
+
+                TASK_DESC="$2"
+                shift 2
+
+                while [ "$#" -gt 0 ]; do
+                    if ( echo "${1:--x}" | grep -qe '^-.*' ); then
+                        break
+                    else
+                        TASK_DESC="$TASK_DESC $1"
+                        shift
+                    fi
+                done                
+                ;;
+
+            -ed | --editor )
+
+                if ( ! echo "${2:--x}" | grep -qe '^-.*' ); then
+                    echo "editor (-ed, --editor) takes no arguments, got more than zero"
+                    exit 1
+                fi
+
+                OPEN_EDITOR=true
+                shift
+                ;;
+
+            -h | --help)
+                help add
+                ;;
+
+            -- )
+                shift 
+
+                if [ "$#" -eq 0 ] && [ -z ${TASKSH_DIR+x} ]; then
+                    echo 'No task title set, a task title is required!'
+                    exit 1
+                fi
+
+                while [ "$#" -gt 0 ]; do
+                    TASK_TITLE="$TASK_TITLE${TASK_TITLE:+ }$1"
+                    shift
+                done
+                ;;
+
+            * )
+                if ( echo "${1:--x}" | grep -qe '^-.*' ); then
+                    echo "$1 is an invalid options, see help (-h, --help) for available options"
+                    exit 1
+                else
+                    TASK_TITLE="$TASK_TITLE${TASK_TITLE:+ }$1"
+                    shift
+                fi
+                ;;
+        esac 
+
+    done
+
+    if [ -z "$TASK_TITLE" ]; then
+        echo "Must specify a task title"
+        exit 1
+    fi
+
+    # sed -n sed -n 's/^\([0-9][0-9]*\)\.\([a-z][a-z0-9]*\)\.\([A-Za-z0-9][A-Za-z0-9]*\)\.\([A-Z][A-Z]*\)$/\1 \2 \3 \4/p' 
+
+    # \1 -> ID
+    # \2 -> timing info
+    # \3 -> task type
+    # \4 -> status
+
+    # start ID
+    TASK_ID=1
+
+    # look in folder, get highest id and increment
+    for i in "$TASKSH_DIR"/*; do
+        CURRENT_ID=$(basename "$i" | sed -n 's/^\([0-9][0-9]*\)\.\([a-z][a-z0-9]*\)\.\([A-Za-z0-9][A-Za-z0-9]*\)\.\([A-Z][A-Z]*\)$/\1/p')
+
+        : "${CURRENT_ID:=0}"
+
+        if [ "$CURRENT_ID" -ge "$TASK_ID" ]; then
+            TASK_ID=$((CURRENT_ID+1))
+        fi
+    done
+ 
+    # incoporate task id into filename
+    TASK_FILENAME="$TASK_ID"
+
+    # # incorporate timing params into filename
+    TASK_TIMING="${TASK_SCHEDULE:+s}${TASK_SCHEDULE}"
+    TASK_TIMING="$TASK_TIMING${TASK_DUE:+d}${TASK_DUE}"
+
+    if [ "${TASK_TIMING:-}" = '' ]; then
+        TASK_FILENAME="$TASK_FILENAME.n"
+    else
+        TASK_FILENAME="$TASK_FILENAME.$TASK_TIMING"
+    fi
+
+    # incorporate type into filename
+    TASK_FILENAME="$TASK_FILENAME.${TASK_TYPE-TODO}"
+
+    # add default status
+    TASK_FILENAME="$TASK_FILENAME.ACTIVE"
+
+    # make full path
+    TASK_PATH="$TASKSH_DIR/$TASK_FILENAME"
+
+    # ensure file does not exist
+    if [ -f "$TASK_PATH" ]; then
+        echo "ERROR: File already exist despite ID supposedly being incremented"
+        echo "this is a error within TASKSH"
+        exit 1
+    fi
+
+    # create file
+    if ! echo "TASK_TITLE=\"$TASK_TITLE\"" > "$TASK_PATH"; then
+        echo "ERROR: Failed to write task to file"
+        exit 1
+    fi
+    if ! echo "TASK_DESC=\"$TASK_DESC\"" >> "$TASK_PATH"; then
+        echo "ERROR: Failed to append task description to file"
+        exit 1
+    fi
+
+    # open file with EDITOR if specified
+    if [ "$OPEN_EDITOR" = true ]; then
+        $EDITOR "$TASK_PATH"
+    fi
+}
+
+agenda() {
+    shift 
+
+    clear
+
+    list _
+
+    while true; do
+        echo "Command (h for help): "
+        read -r answer
+
+        case $(echo "$answer" | cut -d' ' -f1) in 
+
+        h | help )
+            clear
+            
+            echo "Usage: $NAME agenda [OPTIONS]..."
+            echo "View your agenda generated based on tasks"
+            echo 
+            echo "Commands:"
+            echo "  v [TASK ID]  : Views the given task ID"
+            echo "  o            : Lists tasks that are overdue (including due today)"
+            echo "  d | d [DATE] : Lists tasks that are either due today (no date given) or are due on the given date. This includes ACTIVE tasks due prior to given date (or today)"
+            echo "  s | s [DATE] : Lists tasks that are either scheduled today (no date given) or are scheduled on the given date"
+            echo "  a            : Returns to the starting agenda view"
+            echo "  q            : Quits"
+            echo "  h            : Prints help information"
+            echo
+            ;;
+
+        v | view )
+
+            clear
+
+            TASK_ID=$(echo "$answer" | cut -d' ' -f2)
+
+            if ( ! echo "$TASK_ID" | grep -qe "^[0-9][0-9]*$" ); then
+                echo "INVALID: Task ID must be a unsigned integer!"
+            else
+                if (! view _ "$TASK_ID"); then
+                    echo "No task with ID $TASK_ID found"
+                fi
+            fi
+
+            echo 
+            TASK_ID=""
+        
+            ;;
+
+        o | overdue )  
+            clear
+            list _ -o
+            ;;
+
+        d | due )
+            TASK_DUE_DATE=$(echo "$answer" | cut -d' ' -f2)
+
+            if [ "$TASK_DUE_DATE" = "$answer" ]; then
+                TASK_DUE_DATE=""
+                list _ -o
+            else
+                if ( ! list _ --due "$TASK_DUE_DATE"); then
+                    echo "INVALID: date invalid"
+                fi
+            fi
+            TASK_DUE_DATE=""
+            ;;
+
+        s | scheduled )
+            clear
+
+            TASK_SCHEDULE_DATE=$(echo "$answer" | cut -d' ' -f2)
+
+            if [ "$TASK_SCHEDULE_DATE" = "$answer" ]; then
+                TASK_SCHEDULE_DATE=""
+                if ( ! list _ --scheduled "$(date +"%m/%d/%Y")" ); then
+                    echo "INVALID: date invalid"
+                fi
+            else
+                if ( ! list _ --scheduled "$TASK_SCHEDULE_DATE" ); then
+                    echo "INVALID: date invalid"
+                fi
+            fi
+            TASK_SCHEDULE_DATE=""
+            ;;
+            
+        a | agenda )
+            clear
+            list _
+            ;;
+
+        q | quit )
+            exit 0
+            ;;
+
+        * )
+            echo "Invalid command, see help (h or help)"
+            ;;
+        
+        esac
+    done
+}
+
+config() { 
+    shift 
+
+    while [ "$#" -gt 0 ]; do
+
+        case "$1" in
+
+            -f | --folder ) 
+                if ( echo "${2:--x}" | grep -qe '^-.*' ); then
+                    echo "tasksh folder (-f, --folder) requires one argument, the tasksh folder path"
+                    exit 1
+                elif ( ! echo "${3:--x}" | grep -qe '^-.*' ); then
+                    echo "tasksh folder (-f, --folder) only takes one argument, the tasksh folder path, got more than one argument"
+                    exit 1
+                fi
+
+                if [ ! -d "$TASKSH_DIR" ]; then
+                    create_tasksh_dir
+
+                elif [ "$(ls -A "$TASKSH_DIR")" ]; then
+                    echo "$TASKSH_DIR is not empty, are you sure you want to use this folder? y/[n]"
+
+                    while true; do
+                        read -r YN
+                        case "${YN:-n}" in
+                            y ) 
+                                echo "Successfully created TASKSH folder ($TASKSH_DIR)"
+                                if echo "TASKSH_DIR=\"$TASKSH_DIR\"" > $CONFIG; then
+                                    echo "Successfully added TASKSH_DIR to TASKSH config"
+                                else
+                                    echo "FAILED to add TASKSH_DIR to TASKSH config"
+                                    exit 1
+                                fi
+
+                                break
+                                ;;
+
+                            n ) 
+                                echo "TASKSH requires a folder to function, exiting"
+
+                                exit 1
+                                ;;
+
+                            * ) echo "Invalid response, input y or n";;
+                        esac
+                    done
+                fi
+
+                shift 2
+                ;;
+
+            -h | --help)
+                help config
+                ;;
+
+            * )
+                echo "$1 is an invalid options, see help (-h, --help) for available options"
+                exit 1
+                ;;
+        esac 
+    done
+}
+
+mark() {
+    shift # shift over mode
+
+    if [ "$#" -eq 0 ]; then
+        echo "task id is required for mark mode."
+        exit 1
+    fi
+
+    # when marking, default to done
+    TASK_STATUS="DONE"
+
+    while [ "$#" -gt 0 ]; do
+
+        case "$1" in
+
+            -a | --active ) 
+                if ( echo "${2:--x}" | grep -qe '^-.*' ); then
+                    echo "active (-a, --active) requires one argument, the task id"
+                    exit 1
+                elif ( ! echo "${3:--x}" | grep -qe '^-.*' ); then
+                    echo "active (-a, --active) only takes one argument, the task id, got more than one argument"
+                    exit 1
+                fi
+
+                if ( echo "$2" | grep -qe "^[0-9][0-9]*$" ); then
+                    TASK_ID=$2
+                else
+                    echo "invalid task id, task ids can only be unsigned integer numbers"
+                    exit 1
+                fi
+
+                TASK_STATUS="ACTIVE"
+
+                shift 2
+                ;;
+
+            -d | --done ) 
+                if ( echo "${2:--x}" | grep -qe '^-.*' ); then
+                    echo "done (-d, --done) requires one argument, the task id"
+                    exit 1
+                elif ( ! echo "${3:--x}" | grep -qe '^-.*' ); then
+                    echo "done (-d, --done) only takes one argument, the task id, got more than one argument"
+                    exit 1
+                fi
+
+                if ( echo "$2" | grep -qe "^[0-9][0-9]*$" ); then
+                    TASK_ID=$2
+                else
+                    echo "invalid task id, task ids can only be unsigned integer numbers"
+                    exit 1
+                fi
+
+                TASK_STATUS="DONE"
+
+                shift 2
+                ;;
+
+            -h | --help)
+                help mark
+                ;;
+
+            * )
+                if ( echo "${1:--x}" | grep -qe '^-.*' ); then
+                    echo "$1 is an invalid options, see help (-h, --help) for available options"
+                    exit 1
+                elif ( echo "$1" | grep -qe "^[0-9][0-9]*$" ); then
+                    TASK_ID=$1
+                else
+                    echo "invalid task id, task ids can only be unsigned integer numbers"
+                    exit 1
+                fi
+
+                shift
+                ;;
+        esac 
+    done
+
+    # the id.*.*.* is because in the task file format, there are 3 dots seperating id, scheduling, type, and status
+    if ! TASK_PATH=$(ls "$TASKSH_DIR/$TASK_ID".*.*.* -R 2>/dev/null); then
+        echo "No task with ID $TASK_ID found"
+        exit 1
+    fi
+
+    if [ "$(echo "$TASK_PATH" | wc -l)" -gt 1 ]; then
+        echo "Multiple matches found, this is likely do manually modification of tasksh folder ($TASKSH_DIR). This requires a manually fix, inside the tasksh folder, change the file names such that no tasks share the same id (file name format is ID.SCHEDULING.TYPE.STATUS."
+        echo "$TASK_PATH"
+        exit 1
+    fi
+
+
+    if [ "$TASK_STATUS" = "ACTIVE" ]; then
+        TASK_PATH_NEW=$(echo "$TASK_PATH" | sed 's/.DONE$/.ACTIVE/')
+    elif [ "$TASK_STATUS" = "DONE" ]; then
+        TASK_PATH_NEW=$(echo "$TASK_PATH" | sed 's/.ACTIVE$/.DONE/')
+    else
+        echo "INVALID TASK_STATUS! THIS IS A PROBLEM WITH TASKSH"
+        exit 1
+    fi
+
+
+    if [ "$TASK_PATH" = "$TASK_PATH_NEW" ]; then
+        echo "task $TASK_ID is already $TASK_STATUS"
+        exit 0
+    fi
+
+    if ! mv "$TASK_PATH" "$TASK_PATH_NEW"; then
+        echo "Failed to update task due to failure to rename task file ($TASK_PATH)"
+        echo "This is likely a permissions error. Ensure that the folder and file has read and write permissions"
+        exit 1
+    fi
+}
+
+edit() {
+    shift 
+
+    while [ "$#" -gt 0 ]; do
+
+        case "$1" in
+
+            -d | --due ) 
+                if ( echo "${2:--x}" | grep -qe '^-.*' ); then
+                    echo "due (-d, --due) requires one argument, got zero"
+                    exit 1
+                elif ( ! echo "${3:--x}" | grep -qe '^-.*' ); then
+                    echo "due (-d, --due) only takes one argument, got more than one"
+                    exit 1
+                fi
+
+                if ! TASK_DUE=$(date -d "$2" +%s); then
+                    echo "ERROR: Invalid date format, dates are parsed via the date command, see date --help for help"
+                    exit 1
+                fi
+                
+                shift 2
+                ;;
+
+            -s | --schedule ) 
+
+                if ( echo "${2:--x}" | grep -qe '^-.*' ); then
+                    echo "schedule (-s, --schedule) requires one argument, got zero"
+                    exit 1
+                elif ( ! echo "${3:--x}" | grep -qe '^-.*' ); then
+                    echo "schedule (-s, --schedule) only takes one argument, got more than one"
+                    exit 1
+                fi
+
+                if ! TASK_SCHEDULE=$(date -d "$2" +%s); then
+                    echo "ERROR: Invalid date format, dates are parsed via the date command, see date --help for help"
+                    exit 1
+                fi
+                
+                shift 2
+                ;;
+
+            -t | --type )
+
+                if ( echo "${2:--x}" | grep -qe '^-.*' ); then
+                    echo "type (-t, --type) requires one argument, got zero"
+                    exit 1
+                elif ( ! echo "${3:--x}" | grep -qe '^-.*' ); then
+                    echo "type (-t, --type) only takes one argument, got more than one"
+                    exit 1
+                fi
+
+                TASK_TYPE="$2"
+                shift 2
+                ;;
+
+            -ti | --title )
+
+                if ( echo "${2:--x}" | grep -qe '^-.*' ); then
+                    echo "title (-i, --title) requires one or more arguments"
+                    exit 1
+                fi
+
+                NEW_TASK_TITLE="$2"
+                shift 2
+
+                while [ "$#" -gt 0 ]; do
+                    if ( echo "${1:--x}" | grep -qe '^-.*' ); then
+                        break
+                    else
+                        NEW_TASK_TITLE="$NEW_TASK_TITLE $1"
+                        shift
+                    fi
+                done                
+                ;;
+
+            -c | --desc | --description )
+
+                if ( echo "${2:--x}" | grep -qe '^-.*' ); then
+                    echo "description (-c, --desc, --description) requires one or more arguments"
+                    exit 1
+                fi
+
+                NEW_TASK_DESC="$2"
+                shift 2
+
+                while [ "$#" -gt 0 ]; do
+                    if ( echo "${1:--x}" | grep -qe '^-.*' ); then
+                        break
+                    else
+                        NEW_TASK_DESC="$NEW_TASK_DESC $1"
+                        shift
+                    fi
+                done                
+                ;;
+
+            -i | --id ) 
+
+                case $2 in
+                    '' | -* )
+                        echo "id requires one argument, the task id, see help (-h, --help) for more information."
+                        exit 1
+                        ;;
+                    
+                    *[!0-9]* ) 
+                        echo "task id is always an intenger, please specify a valid task id."
+                        exit 1
+                        ;;
+                    * ) 
+                        TASK_ID=$2
+                        ;;
+                esac
+
+                shift 2
+                ;;
+
+            * ) 
+                
+                case $1 in
+                    '' )
+                        echo "A task ID is required"
+                        exit 1
+                        ;;
+
+                    -* )
+                        echo "$1 is an invalid option, see help (-h, --help) for available options"
+                        exit 1
+                        ;;
+
+                    *[!0-9]* ) 
+                        echo "task id is always an intenger, please specify a valid task id."
+                        exit 1
+                        ;;
+                    * ) 
+                        TASK_ID=$1
+                        shift
+                        ;;
+                esac
+                ;;
+        esac 
+    done
+
+    # the id.*.*.* is because in the task file format, there are 3 dots seperating id, scheduling, type, and status
+    if ! TASK_PATH=$(ls "$TASKSH_DIR/$TASK_ID".*.*.* -R 2>/dev/null); then
+        echo "No task with ID $TASK_ID found"
+        exit 1
+    fi
+
+    if [ "$(echo "$TASK_PATH" | wc -l)" -gt 1 ]; then
+        echo "Multiple matches found, this is likely do manually modification of tasksh folder ($TASKSH_DIR). This requires a manually fix, inside the tasksh folder, change the file names such that no tasks share the same id (file name format is ID.SCHEDULING.TYPE.STATUS."
+        echo "$TASK_PATH"
+        exit 1
+    fi
+
+    # parse filename
+    TASK_TIMING="$(basename "$TASK_PATH" | sed -n 's/^\([0-9][0-9]*\)\.\([a-z][a-z0-9]*\)\.\([A-Za-z0-9][A-Za-z0-9]*\)\.\([A-Z][A-Z]*\)$/\2/p')"
+
+    OLD_TASK_SCHEDULED=$(echo "$TASK_TIMING" | sed -n 's/.*s\([0-9][0-9]*\).*/\1/p')
+    OLD_TASK_DUE=$(echo "$TASK_TIMING" | sed -n 's/.*d\([0-9][0-9]*\).*/\1/p')
+    OLD_TASK_TYPE="$(basename "$TASK_PATH" | sed -n 's/^\([0-9][0-9]*\)\.\([a-z][a-z0-9]*\)\.\([A-Za-z0-9][A-Za-z0-9]*\)\.\([A-Z][A-Z]*\)$/\3/p')"
+    OLD_TASK_STATUS="$(basename "$TASK_PATH" | sed -n 's/^\([0-9][0-9]*\)\.\([a-z][a-z0-9]*\)\.\([A-Za-z0-9][A-Za-z0-9]*\)\.\([A-Z][A-Z]*\)$/\4/p')"
+
+    # created new filename
+    TASK_FILENAME="$TASK_ID"
+
+    # # incorporate timing params into filename
+    if [ -n "$OLD_TASK_SCHEDULED" ] || [ -n "$TASK_SCHEDULE" ]; then
+        TASK_TIMING_DESCRIPTOR="s${TASK_SCHEDULE:-$OLD_TASK_SCHEDULED}"
+    fi
+
+    if [ -n "$OLD_TASK_DUE" ] || [ -n "$TASK_DUE" ]; then
+        TASK_TIMING_DESCRIPTOR="${TASK_TIMING_DESCRIPTOR}d${TASK_DUE:-$OLD_TASK_DUE}"
+    fi
+
+    if [ "${TASK_TIMING_DESCRIPTOR:-}" = '' ]; then
+        TASK_FILENAME="$TASK_FILENAME.n"
+    else
+        TASK_FILENAME="$TASK_FILENAME.$TASK_TIMING_DESCRIPTOR"
+    fi
+
+    # incorporate type into filename
+    TASK_FILENAME="$TASK_FILENAME.${TASK_TYPE-$OLD_TASK_TYPE}"
+
+    # add default status
+    TASK_FILENAME="$TASK_FILENAME.$OLD_TASK_STATUS"
+
+    # make full path
+    NEW_TASK_PATH="$TASKSH_DIR/$TASK_FILENAME"
+
+    # rename if different
+    if [ "$TASK_PATH" != "$NEW_TASK_PATH" ]; then
+        if ! mv "$TASK_PATH" "$NEW_TASK_PATH"; then
+            echo "Failed to update task due to failure to rename task file ($TASK_PATH)"
+            echo "This is likely a permissions error. Ensure that the folder and file has read and write permissions"
+            exit 1
+        fi
+    fi
+
+    # load if either title or desc was edited
+    if [ -n "$NEW_TASK_TITLE" ] || [ -n "$NEW_TASK_DESC" ]; then
+        # shellcheck disable=SC1090
+        . "$NEW_TASK_PATH"
+
+        if ! echo "TASK_TITLE=\"${NEW_TASK_TITLE:-$TASK_TITLE}\"" > "$NEW_TASK_PATH"; then
+            echo "ERROR: Failed to write new title to file ($TASK_PATH)"
+            exit 1
+        fi
+        if ! echo "TASK_DESC=\"${NEW_TASK_DESC:-$TASK_DESC}\"" >> "$NEW_TASK_PATH"; then
+            echo "ERROR: Failed to append task description to file ($NEW_TASK_PATH)"
+            exit 1
+        fi
+
+    fi
+    
+}
+
+list() { 
+    shift # shift over mode
+
+    while [ "$#" -gt 0 ]; do
+
+        case "$1" in
+
+            -t | --type )
+                if ( echo "${2:--x}" | grep -qe '^-.*' ); then
+                    echo "type (-t, --type) requires one or more arguments, got none"
+                    exit 1
+                fi
+
+
+                TASK_TYPE_REGEX=".*\.$2"
+                
+                shift 2
+
+                while [ "$#" -gt 0 ] && ( ! echo "${1:--x}" | grep -qe '^-.*' ); do
+                    TASK_TYPE_REGEX="$TASK_TYPE_REGEX\|$1"
+                    shift
+                done
+
+                TASK_TYPE_REGEX="$TASK_TYPE_REGEX\..*"
+                ;;
+
+            -o | --overdue )
+
+                OVERDUE=true
+                TASK_STATUS_FILTER="ACTIVE"
+
+                shift 1
+                ;;
+
+            -no | --not-overdue )
+
+                OVERDUE=false
+
+                shift 1
+                ;;
+
+            --due )
+                if ( echo "${2:--x}" | grep -qe '^-.*' ); then
+                    echo "due (--due) requires one argument, got none"
+                    exit 1
+                elif ( ! echo "${3:--x}" | grep -qe '^-.*' ); then
+                    echo "due (--due) only takes one argument, got more than one"
+                    exit 1
+                fi
+
+                if ! TASK_DUE_DATE=$(date -d "$2" +%s); then
+                    echo "Invalid date"
+                    exit 1
+                fi
+
+                shift 2
+                ;;
+
+            --scheduled )
+                if ( echo "${2:--x}" | grep -qe '^-.*' ); then
+                    echo "scheduled (--scheduled) requires one argument, got none"
+                    exit 1
+                elif ( ! echo "${3:--x}" | grep -qe '^-.*' ); then
+                    echo "scheduled (--scheduled) only takes one argument, got more than one"
+                    exit 1
+                fi
+
+                if ! TASK_SCHEDULED_DATE=$(date -d "$2" +%s); then
+                    echo "Invalid date"
+                    exit 1
+                fi
+
+                shift 2
+                ;;
+
+            -s | --status )
+                if ( echo "${2:--x}" | grep -qe '^-.*' ); then
+                    echo "status (-s, --status) requires one argument, got none"
+                    exit 1
+                elif ( ! echo "${3:--x}" | grep -qe '^-.*' ); then
+                    echo "status (-s, --status) only takes one argument, got more than one"
+                    exit 1
+                fi
+
+                case "$2" in 
+
+                    ACTIVE )
+                        TASK_STATUS_FILTER="$2"
+                        ;;
+                    
+                    DONE )
+                        TASK_STATUS_FILTER="$2"
+                        ;;
+
+                    * )
+                        echo "Invalid status argument ($2). Valid values are 'ACTIVE' and 'DONE'"
+                        exit 1
+                        ;;
+                esac
+                
+
+                shift 2
+                ;;
+
+            -d | --detailed )
+                DETAILED=true
+                shift
+                ;;
+
+            -h | --help)
+                help list
+                ;;
+
+            * )
+                echo "$1 is an invalid options, see help (-h, --help) for available options"
+                exit 1
+                ;;
+        esac 
+    done
+
+    if [ ! "$DETAILED" = true ]; then
+        printf "%3s | %6s | %10s | %25s | %13s | %10s | %20s\n" "ID" "STATUS" "TYPE" "TITLE" "DUE" "SCHEDULED" "PATH" 
+        printf '%*s\n' "121" '' | tr ' ' -
+    fi
+
+    # iterate over tasks in task dir
+    for task in "$TASKSH_DIR"/*; do
+
+        if [ -n "$TASK_TYPE_REGEX" ] && ( ! echo "$task" | grep -qe "$TASK_TYPE_REGEX" ); then
+            continue
+        fi
+
+        if [ -n "$TASK_STATUS_FILTER" ] && ( ! echo "$task" | grep -qe ".*\.$TASK_STATUS_FILTER$" ); then
+            continue
+        fi
+
+        TASK_TIMING="$(basename "$task" | sed -n 's/^\([0-9][0-9]*\)\.\([a-z][a-z0-9]*\)\.\([A-Za-z0-9][A-Za-z0-9]*\)\.\([A-Z][A-Z]*\)$/\2/p')"
+        TASK_SCHEDULED=$(echo "$TASK_TIMING" | sed -n 's/.*s\([0-9][0-9]*\).*/\1/p')
+        TASK_DUE=$(echo "$TASK_TIMING" | sed -n 's/.*d\([0-9][0-9]*\).*/\1/p')
+
+        if [ "$OVERDUE" = true ] || [ "$OVERDUE" = false ]; then
+            # shellcheck disable=SC2034
+            if [ -n "$TASK_DUE" ] && ( v=$(date -d "@$TASK_DUE") ); then
+                if [ ! "$(date +%s)" -gt "$TASK_DUE" ] && [ "$OVERDUE" = true ]; then
+                    continue
+                elif [ "$(date +%s)" -gt "$TASK_DUE" ] && [ "$OVERDUE" = false ]; then
+                    continue
+                fi
+            elif [ "$OVERDUE" = true ]; then
+                continue
+            fi
+        fi
+
+        if [ -n "$TASK_DUE_DATE" ]; then
+            if [ -z "$TASK_DUE" ]; then
+                continue
+            elif [ "$TASK_DUE" -gt "$TASK_DUE_DATE" ]; then
+                continue
+            fi
+        fi
+
+        if [ -n "$TASK_SCHEDULED_DATE" ]; then
+            if [ -z "$TASK_SCHEDULED" ]; then
+                continue
+            elif [ ! "$TASK_SCHEDULED_DATE" -eq "$TASK_SCHEDULED" ]; then
+                continue
+            fi
+        fi
+
+        TASK_ID="$(basename "$task" | sed -n 's/^\([0-9][0-9]*\)\.\([a-z][a-z0-9]*\)\.\([A-Za-z0-9][A-Za-z0-9]*\)\.\([A-Z][A-Z]*\)$/\1/p')"
+
+        if [ "$DETAILED" = true ]; then
+            view _ "$TASK_ID"
+            printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' -
+        else 
+
+            TASK_TYPE="$(basename "$task" | sed -n 's/^\([0-9][0-9]*\)\.\([a-z][a-z0-9]*\)\.\([A-Za-z0-9][A-Za-z0-9]*\)\.\([A-Z][A-Z]*\)$/\3/p')"
+            TASK_STATUS="$(basename "$task" | sed -n 's/^\([0-9][0-9]*\)\.\([a-z][a-z0-9]*\)\.\([A-Za-z0-9][A-Za-z0-9]*\)\.\([A-Z][A-Z]*\)$/\4/p')"
+
+            # shellcheck disable=SC1090
+            . "$task"
+
+            if [ -n "$TASK_SCHEDULED" ]; then
+                if ! TASK_SCHEDULED_PARSED=$(date -d "@$TASK_SCHEDULED" +"%m/%d/%Y"); then
+                    TASK_SCHEDULED_PARSED="ERROR"
+                fi
+            else
+                TASK_SCHEDULED_PARSED=""
+            fi
+
+            if [ -n "$TASK_DUE" ]; then
+                if ! TASK_DUE_PARSED=$(date -d "@$TASK_DUE" +"%m/%d/%Y"); then
+                    TASK_DUE_PARSED="ERROR"
+                fi
+                # check overdue
+                if [ "$(date +%s)" -gt "$TASK_DUE" ] && [ "$TASK_STATUS" = "ACTIVE" ]; then
+                    TASK_DUE_PARSED="$TASK_DUE_PARSED(*)"
+                fi
+            else
+                TASK_DUE_PARSED=""
+            fi
+
+            # echo "$TASK_ID $TASK_STATUS $TASK_TYPE $TASK_TITLE $task" 
+            printf "%3d | %6s | %10s | %25s | %13s | %10s | %20s\n" "$TASK_ID" "$TASK_STATUS" "$TASK_TYPE" "$TASK_TITLE" "$TASK_DUE_PARSED" "$TASK_SCHEDULED_PARSED" "$task" 
+        fi
+
+    done
+}
+
+remove() {
+    shift # shift over mode
+
+    if [ "$#" -eq 0 ]; then
+        echo "task id is required for remove mode."
+        exit 1
+    fi
+
+    while [ "$#" -gt 0 ]; do
+
+        case "$1" in
+
+            -n | --no-confirm ) 
+
+                NO_CONFIRM=true
+                shift
+                ;;
+
+            -h | --help)
+                help remove
+                ;;
+
+            * )
+                if ( echo "${1:--x}" | grep -qe '^-.*' ); then
+                    echo "$1 is an invalid options, see help (-h, --help) for available options"
+                    exit 1
+                elif ( echo "$1" | grep -qe "^[0-9][0-9]*$" ); then
+                    TASK_ID=$1
+                else
+                    echo "invalid task id, task ids can only be unsigned integer numbers"
+                    exit 1
+                fi
+
+                shift
+                ;;
+        esac 
+    done
+
+    # the id.*.*.* is because in the task file format, there are 3 dots seperating id, scheduling, type, and status
+    if ! TASK_PATH=$(ls "$TASKSH_DIR/$TASK_ID".*.*.* -R 2>/dev/null); then
+        echo "No task with ID $TASK_ID found"
+        exit 1
+    fi
+
+    if [ "$(echo "$TASK_PATH" | wc -l)" -gt 1 ]; then
+        echo "Multiple matches found, this is likely do manually modification of tasksh folder ($TASKSH_DIR). This requires a manually fix, inside the tasksh folder, change the file names such that no tasks share the same id (file name format is ID.SCHEDULING.TYPE.STATUS."
+        echo "$TASK_PATH"
+        exit 1
+    fi
+
+    if [ ! "$NO_CONFIRM" = true ]; then
+        echo "Are you sure you wish to permanently remove task $TASK_ID ($TASK_PATH)? (y/n)"
+        while true; do
+            read -r answer
+            case "$answer" in 
+
+            y | Y )
+                break
+                ;;
+
+            n | N )
+                exit 0
+                ;;
+
+            * )
+                echo "Invalid reponse, must be either 'y' or 'n'"
+                ;;
+            
+            esac
+        done
+    fi
+
+    if ! rm "$TASK_PATH"; then
+        echo "Failed to remove task."
+        echo "This is likely a permissions error. Ensure that the folder and file have read and write permissions"
+        exit 1
+    fi
+}
+
+view() {
+    shift 
+
+    # accepts either task_ID or -h/--help
+
+    case "$1" in
+
+        -h | --help)
+            help view
+            ;;
+
+        * )
+            if ( echo "$1" | grep -qe "^[0-9][0-9]*$" ); then
+                TASK_ID=$1
+            else
+                echo "Invalid option, see help (-h | --help)"
+                exit 1
+            fi
+            ;;
+    esac
+
+    # the id.*.*.* is because in the task file format, there are 3 dots seperating id, scheduling, type, and status
+    if ! TASK_PATH=$(ls "$TASKSH_DIR/$TASK_ID".*.*.* -R 2>/dev/null); then
+        echo "No task with ID $TASK_ID found"
+        exit 1
+    fi
+
+    if [ "$(echo "$TASK_PATH" | wc -l)" -gt 1 ]; then
+        echo "Multiple matches found, this is likely do manually modification of tasksh folder ($TASKSH_DIR). This requires a manually fix, inside the tasksh folder, change the file names such that no tasks share the same id (file name format is ID.SCHEDULING.TYPE.STATUS."
+        echo "$TASK_PATH"
+        exit 1
+    fi
+
+    # parse filename
+    TASK_TIMING="$(basename "$TASK_PATH" | sed -n 's/^\([0-9][0-9]*\)\.\([a-z][a-z0-9]*\)\.\([A-Za-z0-9][A-Za-z0-9]*\)\.\([A-Z][A-Z]*\)$/\2/p')"
+
+    TASK_SCHEDULED=$(echo "$TASK_TIMING" | sed -n 's/.*s\([0-9][0-9]*\).*/\1/p')
+    TASK_DUE=$(echo "$TASK_TIMING" | sed -n 's/.*d\([0-9][0-9]*\).*/\1/p')
+    TASK_TYPE="$(basename "$TASK_PATH" | sed -n 's/^\([0-9][0-9]*\)\.\([a-z][a-z0-9]*\)\.\([A-Za-z0-9][A-Za-z0-9]*\)\.\([A-Z][A-Z]*\)$/\3/p')"
+    TASK_STATUS="$(basename "$TASK_PATH" | sed -n 's/^\([0-9][0-9]*\)\.\([a-z][a-z0-9]*\)\.\([A-Za-z0-9][A-Za-z0-9]*\)\.\([A-Z][A-Z]*\)$/\4/p')"
+
+    # shellcheck disable=SC1090
+    . "$TASK_PATH"
+
+    # echo details
+    echo "TITLE      : $TASK_TITLE"
+    echo "ID         : $TASK_ID" 
+    echo "STATUS     : $TASK_STATUS"
+
+    # added scheduled and due if applicable
+    if [ -n "$TASK_SCHEDULED" ]; then
+        if ! TASK_SCHEDULED_PARSED=$(date -d "@$TASK_SCHEDULED" +"%m/%d/%Y"); then
+            TASK_SCHEDULED_PARSED="FAILED TO PARSE ($TASK_SCHEDULED)"
+        fi
+    echo "SCHEDULED  : $TASK_SCHEDULED_PARSED"
+    fi
+
+    if [ -n "$TASK_DUE" ]; then
+        if ! TASK_DUE_PARSED=$(date -d "@$TASK_DUE" +"%m/%d/%Y"); then
+            TASK_DUE_PARSED="FAILED TO PARSE ($TASK_DUE)"
+        fi
+        # check overview
+        if [ "$(date +%s)" -gt "$TASK_DUE" ] && [ "$TASK_STATUS" = "ACTIVE" ]; then
+            TASK_OVERDUE=y
+        fi
+    echo "DUE        : $TASK_DUE_PARSED ${TASK_OVERDUE:+[OVERDUE!]}"
+    fi
+    
+    echo "DESCRIPTION: $TASK_DESC"
+    echo
+    echo "TASK_FILE  : $TASK_PATH"
+}
+
+# PARSE CLI
+if [ "$#" -eq 0 ]; then
+    default
+fi
+
+## Parse Modes
+case "$1" in
+
+    a | add ) 
+        add "$@"
+        ;;
+    
+    ag | agenda )
+        agenda "$@"
+        ;;
+
+    c | config )
+        config "$@"
+        ;;
+
+    m | mark )
+        mark "$@"
+        ;;
+
+    e | edit )
+        edit "$@"
+        ;;
+
+    l | list )
+        list "$@"
+        ;;
+    
+    r | remove )
+        remove "$@"
+        ;;
+
+    v | view )
+        view "$@"
+        ;;
+
+    -h | --help )
+        help
+        ;;
+
+    -v | --version )
+        echo v$VERSION
+        exit 0
+        ;;
+
+    * )
+        echo "ERROR: Invalid mode, see help (-h, --help)" 
+        exit 1       
+esac
