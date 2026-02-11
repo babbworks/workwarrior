@@ -1,3 +1,0 @@
-#!/ww/bin/bash
-
-exec bash --rcfile "$HOME/ww/terminals/bash/.bashrc_ww"
