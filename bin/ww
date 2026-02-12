@@ -42,9 +42,12 @@ Commands:
   service     Service management (list)
   groups      Profile grouping (create, list, add, remove, show, delete)
   models      LLM providers and model registry
+  extensions  External tool extensions registry
   find        Search across profiles and data types
   custom      Custom services (journal configuration, etc.)
   shortcut    Shortcut reference (list, info, compact)
+  export      Export profile data (json, csv, markdown)
+  x           Delete profiles and data (with backup)
   deps        Dependency management (check, install)
   version     Show version information
   help        Show this help message
@@ -77,6 +80,13 @@ Models Commands:
   ww models add-model <name> <provider> <model_id> [notes]
   ww models set-default <name>
   ww models remove-model <name>
+
+Extensions Commands:
+  ww extensions taskwarrior refresh
+  ww extensions taskwarrior list --status active
+  ww extensions taskwarrior search vim
+  ww extensions taskwarrior info taskwiki
+  ww extensions taskwarrior cards
 
 Find Commands:
   ww find <term>               Search across profiles
@@ -113,7 +123,15 @@ Examples:
   ww groups create focus work personal
   ww groups show focus
   ww models list
+  ww extensions taskwarrior list --status active
   ww find invoice
+  extensions taskwarrior list --status active
+  models
+  groups
+  journals
+  ledgers
+  find
+  services
   ww deps check               Check dependency status
   ww version                  Show version
   ww help groups              Show groups help
@@ -123,6 +141,17 @@ Examples:
   ww shortcut info <key>      Show details for a shortcut
   ww shortcut add x "Example" global "Example command" "echo hi" false
   ww shortcut remove x
+
+Standalone Commands:
+  extensions     Alias for 'ww extensions'
+  models         Alias for 'ww models'
+  groups         Alias for 'ww groups'
+  journals       List journals for active profile
+  ledgers        List ledgers for active profile
+  find           Alias for 'ww find'
+  services       Alias for 'ww service'
+  tasks          Alias for 'task'
+  times          Alias for 'timew'
 
 After creating a profile, activate it with:
   p-<profile-name>            e.g., p-work
@@ -147,6 +176,9 @@ show_service_help() {
     models)
       cmd_models help
       ;;
+    extensions)
+      cmd_extensions help
+      ;;
     find)
       cmd_find --help
       ;;
@@ -161,6 +193,22 @@ show_service_help() {
       ;;
     ""|help|-h|--help)
       show_usage
+      ;;
+    standalone)
+      cat << EOF
+Standalone Commands
+
+These commands can be run without the ww prefix:
+  extensions     Alias for 'ww extensions'
+  models         Alias for 'ww models'
+  groups         Alias for 'ww groups'
+  journals       List journals for active profile
+  ledgers        List ledgers for active profile
+  find           Alias for 'ww find'
+  services       Alias for 'ww service'
+  tasks          Alias for 'task'
+  times          Alias for 'timew'
+EOF
       ;;
     *)
       log_error "Unknown help topic: $topic"
@@ -388,6 +436,19 @@ cmd_models() {
 }
 
 # ============================================================================
+# EXTENSIONS COMMAND
+# ============================================================================
+
+cmd_extensions() {
+  if [[ -f "$WW_BASE/services/extensions/extensions.sh" ]]; then
+    "$WW_BASE/services/extensions/extensions.sh" "$@"
+  else
+    log_error "Extensions service not found"
+    exit 1
+  fi
+}
+
+# ============================================================================
 # FIND COMMAND
 # ============================================================================
 
@@ -595,6 +656,9 @@ main() {
     models)
       cmd_models "$@"
       ;;
+    extensions)
+      cmd_extensions "$@"
+      ;;
     find)
       cmd_find "$@"
       ;;
@@ -603,6 +667,22 @@ main() {
       ;;
     shortcut)
       cmd_shortcut "$@"
+      ;;
+    export|e)
+      if [[ -f "$WW_BASE/services/export/export.sh" ]]; then
+        "$WW_BASE/services/export/export.sh" "$@"
+      else
+        log_error "Export service not found"
+        exit 1
+      fi
+      ;;
+    x)
+      if [[ -f "$WW_BASE/services/x-delete/x.sh" ]]; then
+        "$WW_BASE/services/x-delete/x.sh" "$@"
+      else
+        log_error "Delete service not found"
+        exit 1
+      fi
       ;;
     deps|d)
       cmd_deps "$@"

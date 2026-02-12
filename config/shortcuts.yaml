@@ -52,7 +52,21 @@ shortcuts:
     command: "list"
     requires_profile: true
 
+  p:
+    name: "Profile"
+    category: function
+    description: "Profile info and stats"
+    command: "profile"
+    requires_profile: true
+
   # Workwarrior services
+
+  profile:
+    name: "Profile Tool"
+    category: service
+    description: "Profile management and stats"
+    command: "profile"
+    requires_profile: false
   q:
     name: "Questions"
     category: service
@@ -65,6 +79,20 @@ shortcuts:
     category: service
     description: "Custom service dispatcher"
     command: "ww custom"
+    requires_profile: false
+
+  export:
+    name: "Export"
+    category: service
+    description: "Export profile data"
+    command: "export"
+    requires_profile: false
+
+  x:
+    name: "Delete"
+    category: service
+    description: "Delete profiles and data"
+    command: "x"
     requires_profile: false
 
   # Global commands

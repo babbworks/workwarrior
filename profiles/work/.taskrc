@@ -364,3 +364,21 @@ uda.url2.type=string
 uda.url2.label=url2
 uda.url3.type=string
 uda.url3.label=url3
+
+# GitHub sync UDAs
+uda.githubissue.type=numeric
+uda.githubissue.label=GitHub Issue
+
+uda.githuburl.type=string
+uda.githuburl.label=GitHub URL
+
+uda.githubrepo.type=string
+uda.githubrepo.label=GitHub Repo
+
+uda.githubauthor.type=string
+uda.githubauthor.label=GitHub Author
+
+uda.githubsync.type=string
+uda.githubsync.label=Sync Enabled
+uda.githubsync.values=enabled,disabled
+uda.githubsync.default=disabled

@@ -123,6 +123,15 @@ Manage configuration for local and remote model providers. This service stores c
 **Key Services:**
 - `models.sh` - Manage providers and models
 
+### extensions/
+**Purpose:** External tool extensions registry
+
+Manage registries of extensions for tools such as Taskwarrior.
+
+**Key Services:**
+- `extensions.sh` - Extensions registry manager
+- `taskwarrior.py` - Taskwarrior extensions scraper/registry
+
 ### find/
 **Purpose:** Search and discovery services
 

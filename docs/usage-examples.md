@@ -127,6 +127,33 @@ ww find --type time --native @client-x :week
 ww find --type ledger --native 'desc:invoice'
 ```
 
+## Extensions Service
+
+```bash
+ww extensions taskwarrior refresh
+ww extensions taskwarrior list --status active
+ww extensions taskwarrior search vim
+ww extensions taskwarrior info taskwiki
+ww extensions taskwarrior cards
+
+# Standalone (no ww prefix)
+extensions taskwarrior list --status active
+models
+groups
+journals
+ledgers
+find
+services
+tasks
+times
+```
+
+## Standalone Help
+
+```bash
+ww help standalone
+```
+
 ## Search Guides
 
 - `docs/search-guides/task.md`

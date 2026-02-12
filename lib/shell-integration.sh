@@ -693,21 +693,105 @@ timew() {
   TIMEWARRIORDB="$base/.timewarrior" command timew "${args[@]}"
 }
 
+# Standalone wrappers (no ww prefix)
+extensions() {
+  if [[ $# -eq 0 ]]; then
+    ww extensions taskwarrior list
+  else
+    ww extensions "$@"
+  fi
+}
+
+models() {
+  if [[ $# -eq 0 ]]; then
+    ww models list
+  else
+    ww models "$@"
+  fi
+}
+
+groups() {
+  if [[ $# -eq 0 ]]; then
+    if [[ -n "${WARRIOR_PROFILE:-}" ]]; then
+      ww groups list --profile "$WARRIOR_PROFILE"
+    else
+      ww groups list
+    fi
+  else
+    ww groups "$@"
+  fi
+}
+
+journals() {
+  if [[ -z "${WORKWARRIOR_BASE:-}" ]]; then
+    echo "Error: No profile is active" >&2
+    return 1
+  fi
+  local jrnl_config="$WORKWARRIOR_BASE/jrnl.yaml"
+  if [[ ! -f "$jrnl_config" ]]; then
+    echo "Error: Journal configuration not found: $jrnl_config" >&2
+    return 1
+  fi
+  grep "^  [a-zA-Z0-9_-]\+:" "$jrnl_config" | sed 's/^  /  • /'
+}
+
+ledgers() {
+  if [[ -z "${WORKWARRIOR_BASE:-}" ]]; then
+    echo "Error: No profile is active" >&2
+    return 1
+  fi
+  local ledger_config="$WORKWARRIOR_BASE/ledgers.yaml"
+  if [[ ! -f "$ledger_config" ]]; then
+    echo "Error: Ledger configuration not found: $ledger_config" >&2
+    return 1
+  fi
+  grep "^  [a-zA-Z0-9_-]\+:" "$ledger_config" | sed 's/^  /  • /'
+}
+
+find() {
+  if [[ $# -eq 0 ]]; then
+    ww find --list-queries
+  else
+    ww find "$@"
+  fi
+}
+
+tasks() {
+  task "$@"
+}
+
+times() {
+  timew "$@"
+}
+
+services() {
+  if [[ $# -eq 0 ]]; then
+    ww service list
+  else
+    ww service "$@"
+  fi
+}
 # Global issues function - operates on active profile's bugwarrior config
 # Checks WORKWARRIOR_BASE is set (profile must be active)
 # Routes "i custom" to configuration tool
+# Routes GitHub sync commands (push, pull, sync, enable-sync, disable-sync, sync-status) to github-sync.sh
 # Sets bugwarrior environment variables for profile isolation
 # Validates configuration exists before executing
 # Displays error if no profile active or configuration not found
 #
-# Usage: i [bugwarrior-args]
+# Usage: i [bugwarrior-args | github-sync-commands]
 # Examples:
-#   i pull                    - Pull issues from configured services
+#   i pull                    - Pull issues from configured services (bugwarrior)
+#   i push                    - Push task changes to GitHub (two-way sync)
+#   i sync                    - Bidirectional sync with GitHub (two-way sync)
+#   i enable-sync <task> <issue> <repo>  - Enable GitHub sync for a task
+#   i disable-sync <task>     - Disable GitHub sync for a task
+#   i sync-status             - Show GitHub sync status
 #   i pull --dry-run          - Test configuration without syncing
 #   i uda                     - List bugwarrior UDAs
 #   i custom                  - Configure issue services
 # Returns: 0 on success, 1 on failure
-# Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5, 3.3
+# Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5, 3.3, 14.4, 14.5, 14.6, 19.1, 19.2, 19.3, 19.4, 19.5
 i() {
   if ! ww_resolve_scope "$@"; then
     return 1
@@ -734,6 +818,49 @@ i() {
     return $?
   fi
 
+  # Route GitHub two-way sync commands to github-sync.sh
+  if [[ ${#args[@]} -gt 0 ]]; then
+    local first_arg="${args[0]}"
+    case "$first_arg" in
+      push|sync|enable-sync|disable-sync|sync-status)
+        # Route to GitHub sync CLI
+        local ww_base="${WW_BASE:-$HOME/ww}"
+        local github_sync_cli="$ww_base/services/custom/github-sync.sh"
+        
+        if [[ ! -f "$github_sync_cli" ]]; then
+          echo "Error: GitHub sync CLI not found at $github_sync_cli" >&2
+          return 1
+        fi
+        
+        # Map i() commands to github-sync commands
+        local sync_command=""
+        case "$first_arg" in
+          push)
+            sync_command="push"
+            ;;
+          sync)
+            sync_command="sync"
+            ;;
+          enable-sync)
+            sync_command="enable"
+            ;;
+          disable-sync)
+            sync_command="disable"
+            ;;
+          sync-status)
+            sync_command="status"
+            ;;
+        esac
+        
+        # Execute github-sync with remaining arguments
+        local remaining=("${args[@]:1}")
+        WORKWARRIOR_BASE="$WW_SCOPE_BASE" WARRIOR_PROFILE="$WW_SCOPE_PROFILE" \
+          "$github_sync_cli" "$sync_command" "${remaining[@]}"
+        return $?
+        ;;
+    esac
+  fi
+
   # Check if bugwarrior config exists
   local bugwarrior_config="$WW_SCOPE_BASE/.config/bugwarrior/bugwarriorrc"
   if [[ ! -f "$bugwarrior_config" ]]; then
@@ -758,6 +885,7 @@ i() {
   if [[ ${#args[@]} -gt 0 && "${args[0]}" == "pull" ]]; then
     echo "⚠️  One-way sync: External services → TaskWarrior"
     echo "   Changes in TaskWarrior will NOT sync back to issue trackers"
+    echo "   For two-way GitHub sync, use: i push, i sync, or i enable-sync"
     echo ""
   fi
 
@@ -1040,6 +1168,211 @@ ensure_shell_functions() {
       }
     ' "$SHELL_CONFIG" > "$SHELL_CONFIG.tmp"
     
+    mv "$SHELL_CONFIG.tmp" "$SHELL_CONFIG"
+  fi
+
+  # Standalone wrappers
+  if ! grep -q "^extensions()" "$SHELL_CONFIG" && ! grep -q "^function extensions[[:space:]]*{" "$SHELL_CONFIG"; then
+    log_info "Adding extensions function"
+    awk -v marker="$SECTION_CORE_FUNCTIONS" '
+      {
+        print
+        if ($0 == marker && !added) {
+          print ""
+          print "# Extensions wrapper"
+          print "extensions() {"
+          print "  if [[ $# -eq 0 ]]; then"
+          print "    ww extensions taskwarrior list"
+          print "  else"
+          print "    ww extensions \"$@\""
+          print "  fi"
+          print "}"
+          added = 1
+        }
+      }
+    ' "$SHELL_CONFIG" > "$SHELL_CONFIG.tmp"
+    mv "$SHELL_CONFIG.tmp" "$SHELL_CONFIG"
+  fi
+
+  if ! grep -q "^models()" "$SHELL_CONFIG" && ! grep -q "^function models[[:space:]]*{" "$SHELL_CONFIG"; then
+    log_info "Adding models function"
+    awk -v marker="$SECTION_CORE_FUNCTIONS" '
+      {
+        print
+        if ($0 == marker && !added) {
+          print ""
+          print "# Models wrapper"
+          print "models() {"
+          print "  if [[ $# -eq 0 ]]; then"
+          print "    ww models list"
+          print "  else"
+          print "    ww models \"$@\""
+          print "  fi"
+          print "}"
+          added = 1
+        }
+      }
+    ' "$SHELL_CONFIG" > "$SHELL_CONFIG.tmp"
+    mv "$SHELL_CONFIG.tmp" "$SHELL_CONFIG"
+  fi
+
+  if ! grep -q "^groups()" "$SHELL_CONFIG" && ! grep -q "^function groups[[:space:]]*{" "$SHELL_CONFIG"; then
+    log_info "Adding groups function"
+    awk -v marker="$SECTION_CORE_FUNCTIONS" '
+      {
+        print
+        if ($0 == marker && !added) {
+          print ""
+          print "# Groups wrapper"
+          print "groups() {"
+          print "  if [[ $# -eq 0 ]]; then"
+          print "    if [[ -n \"$WARRIOR_PROFILE\" ]]; then"
+          print "      ww groups list --profile \"$WARRIOR_PROFILE\""
+          print "    else"
+          print "      ww groups list"
+          print "    fi"
+          print "  else"
+          print "    ww groups \"$@\""
+          print "  fi"
+          print "}"
+          added = 1
+        }
+      }
+    ' "$SHELL_CONFIG" > "$SHELL_CONFIG.tmp"
+    mv "$SHELL_CONFIG.tmp" "$SHELL_CONFIG"
+  fi
+
+  if ! grep -q "^journals()" "$SHELL_CONFIG" && ! grep -q "^function journals[[:space:]]*{" "$SHELL_CONFIG"; then
+    log_info "Adding journals function"
+    awk -v marker="$SECTION_CORE_FUNCTIONS" '
+      {
+        print
+        if ($0 == marker && !added) {
+          print ""
+          print "# Journals wrapper"
+          print "journals() {"
+          print "  if [[ -z \"$WORKWARRIOR_BASE\" ]]; then"
+          print "    echo \"Error: No profile is active\" >&2"
+          print "    return 1"
+          print "  fi"
+          print "  local jrnl_config=\"$WORKWARRIOR_BASE/jrnl.yaml\""
+          print "  if [[ ! -f \"$jrnl_config\" ]]; then"
+          print "    echo \"Error: Journal configuration not found: $jrnl_config\" >&2"
+          print "    return 1"
+          print "  fi"
+          print "  grep \"^  [a-zA-Z0-9_-]\\+:\" \"$jrnl_config\" | sed \"s/^  /  • /\""
+          print "}"
+          added = 1
+        }
+      }
+    ' "$SHELL_CONFIG" > "$SHELL_CONFIG.tmp"
+    mv "$SHELL_CONFIG.tmp" "$SHELL_CONFIG"
+  fi
+
+  if ! grep -q "^ledgers()" "$SHELL_CONFIG" && ! grep -q "^function ledgers[[:space:]]*{" "$SHELL_CONFIG"; then
+    log_info "Adding ledgers function"
+    awk -v marker="$SECTION_CORE_FUNCTIONS" '
+      {
+        print
+        if ($0 == marker && !added) {
+          print ""
+          print "# Ledgers wrapper"
+          print "ledgers() {"
+          print "  if [[ -z \"$WORKWARRIOR_BASE\" ]]; then"
+          print "    echo \"Error: No profile is active\" >&2"
+          print "    return 1"
+          print "  fi"
+          print "  local ledger_config=\"$WORKWARRIOR_BASE/ledgers.yaml\""
+          print "  if [[ ! -f \"$ledger_config\" ]]; then"
+          print "    echo \"Error: Ledger configuration not found: $ledger_config\" >&2"
+          print "    return 1"
+          print "  fi"
+          print "  grep \"^  [a-zA-Z0-9_-]\\+:\" \"$ledger_config\" | sed \"s/^  /  • /\""
+          print "}"
+          added = 1
+        }
+      }
+    ' "$SHELL_CONFIG" > "$SHELL_CONFIG.tmp"
+    mv "$SHELL_CONFIG.tmp" "$SHELL_CONFIG"
+  fi
+
+  if ! grep -q "^find()" "$SHELL_CONFIG" && ! grep -q "^function find[[:space:]]*{" "$SHELL_CONFIG"; then
+    log_info "Adding find function"
+    awk -v marker="$SECTION_CORE_FUNCTIONS" '
+      {
+        print
+        if ($0 == marker && !added) {
+          print ""
+          print "# Find wrapper"
+          print "find() {"
+          print "  if [[ $# -eq 0 ]]; then"
+          print "    ww find --list-queries"
+          print "  else"
+          print "    ww find \"$@\""
+          print "  fi"
+          print "}"
+          added = 1
+        }
+      }
+    ' "$SHELL_CONFIG" > "$SHELL_CONFIG.tmp"
+    mv "$SHELL_CONFIG.tmp" "$SHELL_CONFIG"
+  fi
+
+  if ! grep -q "^tasks()" "$SHELL_CONFIG" && ! grep -q "^function tasks[[:space:]]*{" "$SHELL_CONFIG"; then
+    log_info "Adding tasks function"
+    awk -v marker="$SECTION_CORE_FUNCTIONS" '
+      {
+        print
+        if ($0 == marker && !added) {
+          print ""
+          print "# Tasks wrapper"
+          print "tasks() {"
+          print "  task \"$@\""
+          print "}"
+          added = 1
+        }
+      }
+    ' "$SHELL_CONFIG" > "$SHELL_CONFIG.tmp"
+    mv "$SHELL_CONFIG.tmp" "$SHELL_CONFIG"
+  fi
+
+  if ! grep -q "^times()" "$SHELL_CONFIG" && ! grep -q "^function times[[:space:]]*{" "$SHELL_CONFIG"; then
+    log_info "Adding times function"
+    awk -v marker="$SECTION_CORE_FUNCTIONS" '
+      {
+        print
+        if ($0 == marker && !added) {
+          print ""
+          print "# Times wrapper"
+          print "times() {"
+          print "  timew \"$@\""
+          print "}"
+          added = 1
+        }
+      }
+    ' "$SHELL_CONFIG" > "$SHELL_CONFIG.tmp"
+    mv "$SHELL_CONFIG.tmp" "$SHELL_CONFIG"
+  fi
+
+  if ! grep -q "^services()" "$SHELL_CONFIG" && ! grep -q "^function services[[:space:]]*{" "$SHELL_CONFIG"; then
+    log_info "Adding services function"
+    awk -v marker="$SECTION_CORE_FUNCTIONS" '
+      {
+        print
+        if ($0 == marker && !added) {
+          print ""
+          print "# Services wrapper"
+          print "services() {"
+          print "  if [[ $# -eq 0 ]]; then"
+          print "    ww service list"
+          print "  else"
+          print "    ww service \"$@\""
+          print "  fi"
+          print "}"
+          added = 1
+        }
+      }
+    ' "$SHELL_CONFIG" > "$SHELL_CONFIG.tmp"
     mv "$SHELL_CONFIG.tmp" "$SHELL_CONFIG"
   fi
 

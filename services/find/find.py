@@ -348,6 +348,7 @@ def main():
     parser.add_argument("--summary", action="store_true")
     parser.add_argument("--save")
     parser.add_argument("--load")
+    parser.add_argument("--list-queries", action="store_true")
     parser.add_argument("-h", "--help", action="store_true")
     parser.add_argument("term", nargs="*")
     args = parser.parse_args()
@@ -373,8 +374,17 @@ def main():
         print("  --native                 Use native tool search where available")
         print("  --save <name>            Save query")
         print("  --load <name>            Load saved query")
+        print("  --list-queries           List saved queries")
         sys.exit(0)
 
+    if args.list_queries:
+        queries = load_queries()
+        if not queries:
+            print("No saved queries")
+        else:
+            for k in sorted(queries.keys()):
+                print(k)
+        sys.exit(0)
     if args.load:
         q = load_queries().get(args.load)
         if not q:

@@ -39,13 +39,23 @@ group_exists() {
 }
 
 list_groups() {
+  local filter_profile="${1:-}"
   ensure_groups_config
   echo "Groups:"
   if ! grep -q "^  " "$GROUPS_CONFIG"; then
     echo "  (none)"
     return 0
   fi
-  grep "^  [a-zA-Z0-9_-]\+:" "$GROUPS_CONFIG" | sed 's/^  /  • /'
+  if [[ -n "$filter_profile" ]]; then
+    awk -v p="$filter_profile" '
+      $0 ~ /^  [a-zA-Z0-9_-]+:$/ { group=$1; sub(":", "", group); in_group=1; found=0; next }
+      in_group && $0 ~ /^  [a-zA-Z0-9_-]+:$/ { in_group=0; if (found) print group; group=""; }
+      in_group && $0 ~ /^      - / { val=$0; sub("^      - ", "", val); if (val == p) found=1 }
+      END { if (in_group && found) print group }
+    ' "$GROUPS_CONFIG" | sed 's/^/  • /'
+  else
+    grep "^  [a-zA-Z0-9_-]\+:" "$GROUPS_CONFIG" | sed 's/^  /  • /'
+  fi
 }
 
 show_group() {
@@ -238,6 +248,7 @@ Usage: ww groups <action> [arguments]
 
 Actions:
   list                          List all groups
+  list --profile <name>         List groups containing a profile
   show <group>                  Show profiles in a group
   create <group> [profiles...]  Create a group with optional profiles
   add <group> <profiles...>     Add profiles to a group
@@ -259,7 +270,11 @@ main() {
 
   case "$action" in
     list|"")
-      list_groups
+      if [[ "${1:-}" == "--profile" && -n "${2:-}" ]]; then
+        list_groups "$2"
+      else
+        list_groups
+      fi
       ;;
     show)
       if [[ -z "${1:-}" ]]; then

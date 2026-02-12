@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Export command entry point
+# Usage: export [type] [format] [options]
+
+WW_BASE="${WW_BASE:-$HOME/ww}"
+
+exec "$WW_BASE/services/export/export.sh" "$@"

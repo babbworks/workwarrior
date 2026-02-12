@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# X (delete) command entry point
+# Usage: x [type] [name] [options]
+
+WW_BASE="${WW_BASE:-$HOME/ww}"
+
+exec "$WW_BASE/services/x-delete/x.sh" "$@"

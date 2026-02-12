@@ -94,6 +94,7 @@ ww models list              # List configured models
 ww models providers         # List model providers
 ww models show <name>       # Show model details
 ww find <term>              # Search across profiles
+ww extensions taskwarrior list --status active  # List Taskwarrior extensions
 ww service list             # List available services
 ww shortcut list            # List available shortcuts
 ww shortcut info <key>      # Show shortcut details
@@ -106,6 +107,8 @@ ww help                     # Show help
 Notes:
 - Use `ww groups ...` (plural). `ww group ...` is not supported.
 - You can run `help <command>` as a shortcut for `ww help <command>` (e.g., `help groups`).
+- Standalone commands are available without `ww`: `extensions`, `models`, `groups`, `journals`, `ledgers`, `find`, `services`, `tasks`, `times`.
+- Run `ww help standalone` to see the full list.
 
 **Global shell functions:**
 ```bash
@@ -186,6 +189,8 @@ See `services/README.md` for the registry overview and service development patte
 - `docs/service-development.md` – how to build and register services
 - `docs/usage-examples.md` – practical workflows and CLI usage
 - `docs/search-guides/` – tool-specific search guides
+- `docs/setups/` – setup notes for integrated tools
+- `docs/archive/` – archived historical references
 
 ## Status
 
