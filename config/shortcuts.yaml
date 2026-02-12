@@ -1,0 +1,76 @@
+# Workwarrior Shortcode Registry
+# Default shortcuts for all tools and services
+#
+# Categories:
+#   profile  - External tools that operate on the active profile
+#   function - Shell functions requiring an active profile
+#   service  - Workwarrior services (invoked via ww or directly)
+#   global   - Always available, no profile needed
+
+shortcuts:
+  # Profile-bound external tools
+  a:
+    name: "Times (TimeWarrior)"
+    category: profile
+    description: "Action tracking"
+    command: "timew"
+    requires_profile: true
+
+  t:
+    name: "Tasks (TaskWarrior)"
+    category: profile
+    description: "Task tracking"
+    command: "task"
+    requires_profile: true
+
+  # Profile-bound functions
+  j:
+    name: "Journal (JRNL)"
+    category: function
+    description: "Profile journaling"
+    command: "j"
+    requires_profile: true
+
+  l:
+    name: "Ledger (Hledger)"
+    category: function
+    description: "Profile accounting"
+    command: "l"
+    requires_profile: true
+
+  i:
+    name: "Issues (Bugwarrior)"
+    category: function
+    description: "Issue synchronization"
+    command: "i"
+    requires_profile: true
+
+  list:
+    name: "List"
+    category: function
+    description: "Simple list manager"
+    command: "list"
+    requires_profile: true
+
+  # Workwarrior services
+  q:
+    name: "Questions"
+    category: service
+    description: "Question templates"
+    command: "ww q"
+    requires_profile: false
+
+  custom:
+    name: "Custom Services"
+    category: service
+    description: "Custom service dispatcher"
+    command: "ww custom"
+    requires_profile: false
+
+  # Global commands
+  ww:
+    name: "Workwarrior"
+    category: global
+    description: "Main CLI"
+    command: "ww"
+    requires_profile: false

@@ -1,0 +1,133 @@
+# Bugwarrior Configuration Template
+# Documentation: https://bugwarrior.readthedocs.io
+#
+# ⚠️  IMPORTANT: One-Way Sync Only
+# Bugwarrior pulls issues FROM external services TO TaskWarrior.
+# Changes in TaskWarrior do NOT sync back to issue trackers.
+# External services (GitHub, Jira, etc.) are authoritative.
+
+[general]
+# Specify which TaskWarrior instance to use
+targets = my_tasks
+
+# Optional: Notification settings
+# notification = True
+
+# Optional: Inline links in task descriptions
+# inline_links = False
+
+# Optional: Annotation links
+# annotation_links = True
+
+# Optional: Annotation comments
+# annotation_comments = True
+
+# ============================================================================
+# GitHub Example
+# ============================================================================
+# [my_github]
+# service = github
+# github.login = your_username
+# github.token = @oracle:use_keyring
+# github.username = your_username
+# github.include_repos = owner/repo1, owner/repo2
+# github.only_if_assigned = your_username
+# github.import_labels_as_tags = True
+# github.filter_pull_requests = False
+
+# ============================================================================
+# GitLab Example
+# ============================================================================
+# [my_gitlab]
+# service = gitlab
+# gitlab.host = gitlab.com
+# gitlab.login = your_username
+# gitlab.token = @oracle:use_keyring
+# gitlab.include_repos = 123, 456
+# gitlab.only_if_assigned = your_username
+
+# ============================================================================
+# Jira Example
+# ============================================================================
+# [my_jira]
+# service = jira
+# jira.base_uri = https://mycompany.atlassian.net
+# jira.username = your_email@company.com
+# jira.password = @oracle:use_keyring
+# jira.query = assignee=currentUser() AND status!=Done
+
+# ============================================================================
+# Trello Example
+# ============================================================================
+# [my_trello]
+# service = trello
+# trello.api_key = your_api_key
+# trello.token = @oracle:use_keyring
+# trello.include_boards = board_id_1, board_id_2
+
+# ============================================================================
+# Credential Security
+# ============================================================================
+# For better security, use @oracle directives instead of plain text:
+#
+# 1. System Keyring (Recommended):
+#    github.token = @oracle:use_keyring
+#
+# 2. Password Prompt:
+#    github.token = @oracle:ask_password
+#
+# 3. External Password Manager:
+#    github.token = @oracle:eval:pass github/token
+#
+# 4. Environment Variable:
+#    github.token = @oracle:eval:echo $GITHUB_TOKEN
+#
+# Documentation: https://bugwarrior.readthedocs.io/en/latest/common_configuration.html#passwords
+
+# ============================================================================
+# Advanced Configuration
+# ============================================================================
+# [general]
+# # Shorten descriptions
+# description_length = 100
+#
+# # Add tags to all imported issues
+# add_tags = bugwarrior
+#
+# # Log level
+# log.level = INFO
+#
+# # Legacy matching (for older TaskWarrior versions)
+# legacy_matching = False
+
+# ============================================================================
+# Service-Specific Options
+# ============================================================================
+# Each service has many configuration options. Common ones include:
+#
+# • Filtering:
+#   - only_if_assigned
+#   - also_unassigned
+#   - include_repos / exclude_repos
+#   - query (for Jira JQL)
+#
+# • Metadata:
+#   - import_labels_as_tags
+#   - import_sprints_as_tags
+#   - default_priority
+#
+# • Templates:
+#   - description_template
+#   - annotation_template
+#
+# See documentation for complete options:
+# https://bugwarrior.readthedocs.io/en/latest/services/
+
+# ============================================================================
+# Getting Started
+# ============================================================================
+# 1. Uncomment and configure one of the service examples above
+# 2. Replace credentials with secure @oracle directives
+# 3. Run: i pull --dry-run (to test configuration)
+# 4. Run: i pull (to sync issues)
+# 5. Run: task list (to view synced tasks)

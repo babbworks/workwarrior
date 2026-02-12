@@ -1,0 +1,11 @@
+txn:
+  type: interval
+  before: 
+  after: {"id":0,"start":"20260211T054726Z","tags":["run"]}
+txn:
+  type: interval
+  before: {"id":1,"start":"20260211T054726Z","tags":["run"]}
+  after: 
+  type: interval
+  before: 
+  after: {"id":1,"start":"20260211T054726Z","end":"20260211T054800Z","tags":["run"]}

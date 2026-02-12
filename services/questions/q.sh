@@ -12,7 +12,7 @@ function q() {
   
   # Create directory structure if it doesn't exist
   if [[ ! -d "$questions_dir" ]]; then
-    mkdir -p "$templates_dir"/{task,journal,time,todo,ledger,custom}
+    mkdir -p "$templates_dir"/{task,journal,time,list,ledger,custom}
     mkdir -p "$handlers_dir"
     mkdir -p "$lib_dir"
     mkdir -p "$questions_dir/config"
@@ -26,8 +26,9 @@ function q() {
     echo "  task     - Task management questions"
     echo "  journal  - Journal entry questions"
     echo "  time     - Time tracking questions"
-    echo "  todo     - Todo list questions"
+    echo "  list     - List questions"
     echo "  ledger   - Financial/ledger questions"
+    echo "  custom   - Custom templates"
     echo ""
     echo "Usage:"
     echo "  q <service>           - List templates for service"
@@ -50,10 +51,10 @@ function q() {
       else
         # Create template for specific service
         local service="$2"
-        if [[ "$service" =~ ^(task|journal|time|todo|ledger)$ ]]; then
+        if [[ "$service" =~ ^(task|journal|time|list|ledger|custom)$ ]]; then
           _q_create_template "$service"
         else
-          echo "Error: Invalid service '$service'. Valid services: task, journal, time, todo, ledger" >&2
+          echo "Error: Invalid service '$service'. Valid services: task, journal, time, list, ledger, custom" >&2
           return 1
         fi
       fi
@@ -75,7 +76,7 @@ function q() {
       fi
       _q_delete_template "$2"
       ;;
-    "task"|"journal"|"time"|"todo"|"ledger")
+    "task"|"journal"|"time"|"list"|"ledger"|"custom")
       if [[ $# -eq 1 ]]; then
         # List templates for this service
         _q_list_service_templates "$command"
@@ -221,7 +222,7 @@ _q_list_all_templates() {
   echo "All Templates:"
   echo "=============="
   
-  for service in task journal time todo ledger custom; do
+  for service in task journal time list ledger custom; do
     local service_dir="$templates_dir/$service"
     if [[ -d "$service_dir" ]]; then
       local has_templates=0
@@ -420,11 +421,11 @@ for key, value in data['answers'].items():
     print(f'{key}: {value}')
 
 print('')
-print('TODO: Implement SERVICE_NAME-specific processing')
+print('List: Implement SERVICE_NAME-specific processing')
 print('This handler should format the answers and integrate with SERVICE_NAME')
 "
 
-# TODO: Add SERVICE_NAME-specific integration here
+# List: Add SERVICE_NAME-specific integration here
 # For example:
 # - Format answers into task description
 # - Create Workwarrior task with appropriate tags
@@ -441,13 +442,100 @@ EOF
   echo "You can customize this handler for $service-specific integration."
 }
 
-# Placeholder helper functions for future implementation
-_q_edit_template() {
+# Helper function to find template file by name (searches all service directories)
+_q_find_template() {
   local template_name="$1"
-  echo "Edit template functionality not yet implemented: $template_name"
+  local templates_dir="$WORKWARRIOR_BASE/services/questions/templates"
+
+  for service in task journal time list ledger custom; do
+    local template_file="$templates_dir/$service/${template_name}.json"
+    if [[ -f "$template_file" ]]; then
+      echo "$template_file"
+      return 0
+    fi
+  done
+
+  return 1
 }
 
+# Helper function to edit an existing template
+_q_edit_template() {
+  local template_name="$1"
+
+  # Find the template file
+  local template_file
+  template_file=$(_q_find_template "$template_name")
+
+  if [[ $? -ne 0 || -z "$template_file" ]]; then
+    echo "Error: Template '$template_name' not found." >&2
+    echo "Available templates:"
+    _q_list_all_templates
+    return 1
+  fi
+
+  # Determine editor to use
+  local editor="${EDITOR:-${VISUAL:-nano}}"
+
+  echo "Opening template: $template_file"
+  echo "Using editor: $editor"
+
+  # Open in editor
+  "$editor" "$template_file"
+
+  if [[ $? -eq 0 ]]; then
+    # Validate JSON after editing
+    if command -v python3 &> /dev/null; then
+      if python3 -c "import json; json.load(open('$template_file'))" 2>/dev/null; then
+        echo "✓ Template saved and validated successfully"
+        return 0
+      else
+        echo "Warning: Template JSON may be invalid. Please check syntax." >&2
+        return 1
+      fi
+    else
+      echo "✓ Template saved (JSON validation skipped - python3 not available)"
+      return 0
+    fi
+  else
+    echo "Error: Editor exited with error" >&2
+    return 1
+  fi
+}
+
+# Helper function to delete a template
 _q_delete_template() {
   local template_name="$1"
-  echo "Delete template functionality not yet implemented: $template_name"
+
+  # Find the template file
+  local template_file
+  template_file=$(_q_find_template "$template_name")
+
+  if [[ $? -ne 0 || -z "$template_file" ]]; then
+    echo "Error: Template '$template_name' not found." >&2
+    echo "Available templates:"
+    _q_list_all_templates
+    return 1
+  fi
+
+  # Extract service from path for display
+  local service=$(basename "$(dirname "$template_file")")
+
+  echo "Template found: $template_file"
+  echo "Service: $service"
+
+  # Confirm deletion
+  read -p "Are you sure you want to delete template '$template_name'? (y/N): " confirm
+
+  if [[ "$confirm" =~ ^[Yy]$ ]]; then
+    if rm -f "$template_file"; then
+      echo "✓ Template '$template_name' deleted successfully"
+      return 0
+    else
+      echo "Error: Failed to delete template" >&2
+      return 1
+    fi
+  else
+    echo "Deletion cancelled"
+    return 0
+  fi
 }

@@ -225,7 +225,7 @@ The Workwarrior Profiles System and Services Registry provides a comprehensive f
 1. THE Questions_Service SHALL provide a q function accessible from the shell
 2. WHEN no profile is active, THE Questions_Service SHALL display an error message
 3. WHEN called without arguments, THE Questions_Service SHALL display a help menu listing available services
-4. THE Questions_Service SHALL support question templates for task, journal, time, todo, and ledger services
+4. THE Questions_Service SHALL support question templates for task, journal, time, list, and ledger services
 5. THE Questions_Service SHALL organize templates in a templates directory with subdirectories per service type
 6. THE Questions_Service SHALL allow creating new templates interactively
 7. WHEN creating a template, THE Questions_Service SHALL prompt for template name, display name, description, and questions

@@ -72,6 +72,34 @@ create_profile_directories() {
     return 1
   fi
   
+  # Create .config/bugwarrior directory for issues service
+  if ! ensure_directory "$profile_base/.config/bugwarrior"; then
+    log_error "Failed to create .config/bugwarrior directory"
+    return 1
+  fi
+  
+  # Create bugwarriorrc template
+  local bugwarriorrc="$profile_base/.config/bugwarrior/bugwarriorrc"
+  if [[ ! -f "$bugwarriorrc" ]]; then
+    cat > "$bugwarriorrc" << 'EOF'
+# Bugwarrior Configuration
+# Run 'i custom' to configure issue synchronization services
+#
+# Supported services: GitHub, GitLab, Jira, Trello, Todoist, and 20+ more
+# Documentation: https://bugwarrior.readthedocs.io
+#
+# ⚠️  IMPORTANT: One-Way Sync Only
+# Bugwarrior pulls issues FROM external services TO TaskWarrior.
+# Changes in TaskWarrior do NOT sync back to issue trackers.
+
+[general]
+targets = my_tasks
+
+EOF
+    chmod 600 "$bugwarriorrc"
+    log_info "Created bugwarriorrc template"
+  fi
+  
   log_success "Profile directory structure created at: $profile_base"
   return 0
 }

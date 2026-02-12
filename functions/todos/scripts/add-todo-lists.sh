@@ -45,7 +45,7 @@ if [[ ${#profiles[@]} -eq 0 ]]; then
   exit 1
 fi
 
-echo "Select a profile to add new TODO list(s):"
+echo "Select a profile to add new list(s):"
 for i in "${!profiles[@]}"; do
   printf "   %d. %s\n" $((i+1)) "${profiles[$i]}"
 done
@@ -74,14 +74,14 @@ else
 fi
 
 BASE="$PROFILE_DIR/$PROFILE"
-TODO_DIR="$BASE/todo"
-mkdir -p "$TODO_DIR"
+LIST_DIR="$BASE/list"
+mkdir -p "$LIST_DIR"
 
-echo "Enter unique TODO list names for '$PROFILE' (e.g., 'errands', 'projectX')."
+echo "Enter unique list names for '$PROFILE' (e.g., 'errands', 'projectX')."
 echo "Leave blank to finish."
 
 while true; do
-  read -p "New TODO List Name: " list_name
+  read -p "New List Name: " list_name
   list_name=$(echo "$list_name" | xargs)
   [[ -z "$list_name" ]] && break
 
@@ -90,20 +90,20 @@ while true; do
     continue
   fi
 
-  list_file="$TODO_DIR/${PROFILE}_${list_name}.todo"
+  list_file="$LIST_DIR/${PROFILE}_${list_name}.list"
   if [[ -f "$list_file" ]]; then
-    echo "TODO list '$list_file' already exists. Skipping file creation."
+    echo "List '$list_file' already exists. Skipping file creation."
   else
-    echo "# TODO List: $list_name" > "$list_file"
-    echo "✓ Created TODO list: $list_file"
+    echo "# List: $list_name" > "$list_file"
+    echo "✓ Created list: $list_file"
   fi
 
-  ALIAS="alias t-$PROFILE-$list_name='python3 \"$HOME/ww/tools/todo/t/t.py\" -t \"$TODO_DIR\" -l \"${PROFILE}_${list_name}.todo\"'"
-  add_alias_to_section "$ALIAS" "# -- Direct Aliases for TODO tool ---"
-  echo "✓ Created alias: t-$PROFILE-$list_name"
+  ALIAS="alias list-$PROFILE-$list_name='python3 \"$HOME/ww/tools/list/list.py\" -t \"$LIST_DIR\" -l \"${PROFILE}_${list_name}.list\"'"
+  add_alias_to_section "$ALIAS" "# -- Direct Aliases for List tool ---"
+  echo "✓ Created alias: list-$PROFILE-$list_name"
 done
 
 echo
-echo "✅ TODO list creation complete for profile '$PROFILE'!"
+echo "✅ List creation complete for profile '$PROFILE'!"
 echo "👉 Run: source $SHELL_RC to activate new aliases."
 echo

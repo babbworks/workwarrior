@@ -46,7 +46,7 @@ General-purpose utility scripts for various productivity workflows. These script
 - `ledgers/` - Ledger-related utilities
 - `tasks/` - Task-related utilities
 - `times/` - Time tracking utilities
-- `todo/` - Todo list utilities
+- `list/` - Simple list utilities
 - `templates/` - Script templates
 - `terminals/` - Terminal configuration scripts
 
@@ -106,6 +106,31 @@ A directory for users to add their own custom services without modifying the cor
 - Use descriptive names for service scripts
 - Include README files for complex services
 - Make scripts executable (`chmod +x`)
+
+### groups/
+**Purpose:** Profile grouping services
+
+Manage collections of profiles for easy association and listing. Groups are global and do not require an active profile.
+
+**Key Services:**
+- `groups.sh` - Create, list, and modify profile groups
+
+### models/
+**Purpose:** LLM provider and model registry
+
+Manage configuration for local and remote model providers. This service stores configuration only and does not make network calls.
+
+**Key Services:**
+- `models.sh` - Manage providers and models
+
+### find/
+**Purpose:** Search and discovery services
+
+Search across profiles and data types such as journals, ledgers, and lists.
+
+**Key Services:**
+- `find.sh` - Cross-profile search utility
+ - `find.py` - Advanced query engine
 
 ## Service Structure
 
@@ -197,6 +222,19 @@ Services have access to the following environment variables when a profile is ac
 - `TASKRC` - Path to TaskWarrior configuration file
 - `TASKDATA` - Path to TaskWarrior data directory
 - `TIMEWARRIORDB` - Path to TimeWarrior data directory
+
+## Help Shortcuts
+
+You can access help for most built-in services via:
+
+```bash
+ww help profile
+ww help service
+ww help groups
+ww help custom
+ww help shortcut
+ww help deps
+```
 
 ## Best Practices
 

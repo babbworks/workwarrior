@@ -346,13 +346,14 @@ create_test_service() {
 @test "get_service_path returns empty for non-existent service" {
   local category="scripts"
   local service_name="nonexistent.sh"
-  
+
   # Try to get non-existent service
-  local service_path
-  service_path=$(get_service_path "$category" "$service_name")
-  
-  # Should return empty
-  [[ -z "$service_path" ]]
+  # Use run to capture output and status without failing the test
+  run get_service_path "$category" "$service_name"
+
+  # Should return non-zero exit code and empty output
+  [[ "$status" -ne 0 ]]
+  [[ -z "$output" ]]
 }
 
 @test "get_service_path requires both category and service name" {

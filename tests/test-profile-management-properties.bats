@@ -1,4 +1,49 @@
-rectories "$profile_name" >/dev/null 2>&1
+#!/usr/bin/env bats
+# Property-Based Tests for Profile Management
+# Feature: workwarrior-profiles-and-services
+# Properties 4, 5, 6, 7, 32
+
+load 'test_helper/bats-support/load'
+load 'test_helper/bats-assert/load'
+
+setup() {
+  export TEST_MODE=1
+  export TEST_WW_BASE="${BATS_TEST_TMPDIR}/ww-test-$$"
+  export WW_BASE="$TEST_WW_BASE"
+  export PROFILES_DIR="$TEST_WW_BASE/profiles"
+  export SERVICES_DIR="$TEST_WW_BASE/services"
+  export RESOURCES_DIR="$TEST_WW_BASE/resources"
+  export FUNCTIONS_DIR="$TEST_WW_BASE/functions"
+  export HOME="$TEST_WW_BASE"
+  export SHELL_RC="$HOME/.bashrc"
+
+  mkdir -p "$PROFILES_DIR" "$SERVICES_DIR" "$RESOURCES_DIR" "$FUNCTIONS_DIR"
+  touch "$SHELL_RC"
+
+  source "${BATS_TEST_DIRNAME}/../lib/core-utils.sh"
+  source "${BATS_TEST_DIRNAME}/../lib/profile-manager.sh"
+  source "${BATS_TEST_DIRNAME}/../lib/shell-integration.sh"
+}
+
+teardown() {
+  if [[ -d "$TEST_WW_BASE" ]]; then
+    rm -rf "$TEST_WW_BASE"
+  fi
+}
+
+random_alphanumeric() {
+  local length="$1"
+  local chars='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-'
+  local result=''
+  for ((i=0; i<length; i++)); do
+    result="${result}${chars:RANDOM%${#chars}:1}"
+  done
+  echo "$result"
+}
+
+create_test_profile() {
+  local profile_name="$1"
+  create_profile_directories "$profile_name" >/dev/null 2>&1
   create_taskrc "$profile_name" >/dev/null 2>&1
   create_journal_config "$profile_name" >/dev/null 2>&1
   create_ledger_config "$profile_name" >/dev/null 2>&1

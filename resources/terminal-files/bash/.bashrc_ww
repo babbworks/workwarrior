@@ -209,25 +209,16 @@ alias j-temp='~/docs/scripts/jrnl/create-new-template-jrnl.sh'
 
 
 
-# -- TO DO by SJL
-# -- About Tool:
-# -- 
+# -- LIST TOOL (Simple list manager, bundled with Workwarrior)
+# -- About Tool: Minimalist list tool for quick capture
+# -- Original: "t" by Steve Losh, renamed to "list" for Workwarrior
 
-# -- Aliases for Simplified Todo Lists
-alias todo-ww='python3 ~/apps/t/t.py --task-dir ~/todo --list tasks'
+# -- Example aliases for list tool (update paths for your profile)
+# alias list='python3 ~/ww/tools/list/list.py --task-dir ~/ww/profiles/$WARRIOR_PROFILE/todo --list tasks'
+# alias list-groceries='python3 ~/ww/tools/list/list.py --task-dir ~/ww/profiles/$WARRIOR_PROFILE/todo --list groceries'
 
-# -- Old Configuration (REMOVE)
-
-alias t='python3 ~/apps/t/t.py --task-dir ~/todo --list tasks'
-alias tg='python3 ~/apps/t/t.py --task-dir ~/todo --list groceries'
-alias tpi='python3 ~/apps/t/t.py --task-dir ~/todo --list workpadsissues'
-alias tbi='python3 ~/apps/t/t.py --task-dir ~/todo --list basicsissues'
-alias tsi='python3 ~/apps/t/t.py --task-dir ~/todo --list systemissues'
-alias tw='python3 ~/apps/t/t.py --task-dir ~/todo --list writing'
-alias tf='python3 ~/apps/t/t.py --task-dir ~/todo --list family'
-alias tr='python3 ~/apps/t/t.py --task-dir ~/todo --list reading'
-alias tbabb='python3 ~/apps/t/t.py --task-dir ~/todo --list babb'
-alias tww='python3 ~/apps/t/t.py --task-dir ~/todo --list workwarrior'
+# -- Old Configuration (REMOVE - these use deprecated paths)
+# alias t='python3 ~/apps/t/t.py --task-dir ~/todo --list tasks'
 
 # -- Hledger --------------------------------------------
 # -- About Tool:

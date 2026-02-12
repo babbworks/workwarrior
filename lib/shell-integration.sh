@@ -22,6 +22,9 @@ readonly SECTION_CORE_FUNCTIONS="# --- Workwarrior Core Functions ---"
 # Default shell configuration file
 readonly SHELL_CONFIG="${HOME}/.bashrc"
 
+# Global workspace defaults
+readonly WW_GLOBAL_BASE="${WW_GLOBAL_BASE:-${WW_BASE:-$HOME/ww}/global}"
+
 # ============================================================================
 # ALIAS MANAGEMENT FUNCTIONS
 # ============================================================================
@@ -227,18 +230,24 @@ remove_profile_aliases() {
     return 1
   fi
 
-  # Remove p-<profile-name> alias
-  sed -i "/^alias p-${profile_name}=/d" "$SHELL_CONFIG"
-  
-  # Remove <profile-name> alias (shorthand)
-  # Be careful to match the exact alias, not partial matches
-  sed -i "/^alias ${profile_name}='use_task_profile ${profile_name}'/d" "$SHELL_CONFIG"
-  
-  # Remove j-<profile-name> alias
-  sed -i "/^alias j-${profile_name}=/d" "$SHELL_CONFIG"
-  
-  # Remove all l-<profile-name>* aliases (including l-<profile-name>-<ledger-name>)
-  sed -i "/^alias l-${profile_name}/d" "$SHELL_CONFIG"
+  # Remove aliases using a portable approach (BSD/GNU sed compatible)
+  local tmp_file="$SHELL_CONFIG.tmp"
+  if ! sed \
+    -e "/^alias p-${profile_name}=/d" \
+    -e "/^alias ${profile_name}='use_task_profile ${profile_name}'/d" \
+    -e "/^alias j-${profile_name}=/d" \
+    -e "/^alias l-${profile_name}/d" \
+    "$SHELL_CONFIG" > "$tmp_file"; then
+    log_error "Failed to update $SHELL_CONFIG"
+    rm -f "$tmp_file"
+    return 1
+  fi
+
+  if ! mv "$tmp_file" "$SHELL_CONFIG"; then
+    log_error "Failed to save updated $SHELL_CONFIG"
+    rm -f "$tmp_file"
+    return 1
+  fi
 
   log_success "Removed aliases for profile '$profile_name'"
   log_info "Backup saved to: $SHELL_CONFIG.bak"
@@ -250,6 +259,167 @@ remove_profile_aliases() {
 # ============================================================================
 # GLOBAL SHELL FUNCTIONS
 # ============================================================================
+
+# Resolve scope for global/profile-aware commands
+# Supports: --global, --profile <name>, --profile=<name>
+# Sets: WW_SCOPE_BASE, WW_SCOPE_PROFILE, WW_SCOPE_MODE, WW_REMAINING_ARGS
+ww_resolve_scope() {
+  local scope_mode=""
+  local scope_profile=""
+  local args=()
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --global)
+        scope_mode="global"
+        shift
+        ;;
+      --profile)
+        scope_mode="profile"
+        scope_profile="${2:-}"
+        shift 2
+        ;;
+      --profile=*)
+        scope_mode="profile"
+        scope_profile="${1#--profile=}"
+        shift
+        ;;
+      --)
+        shift
+        args+=("$@")
+        break
+        ;;
+      *)
+        args+=("$1")
+        shift
+        ;;
+    esac
+  done
+
+  if [[ "$scope_mode" == "profile" && -z "$scope_profile" ]]; then
+    echo "Error: --profile requires a profile name" >&2
+    return 1
+  fi
+
+  if [[ -n "$scope_mode" ]]; then
+    WW_SCOPE_MODE="$scope_mode"
+  elif [[ -n "$WORKWARRIOR_BASE" && -n "$WARRIOR_PROFILE" ]]; then
+    WW_SCOPE_MODE="active"
+    WW_SCOPE_PROFILE="$WARRIOR_PROFILE"
+    WW_SCOPE_BASE="$WORKWARRIOR_BASE"
+  elif [[ "${WW_GLOBAL_DEFAULT:-}" == "1" ]]; then
+    WW_SCOPE_MODE="global"
+  else
+    echo "Error: No profile is active. Use p-<profile> or add --global/--profile." >&2
+    return 1
+  fi
+
+  if [[ "$WW_SCOPE_MODE" == "profile" ]]; then
+    WW_SCOPE_PROFILE="$scope_profile"
+    WW_SCOPE_BASE="${WW_BASE:-$HOME/ww}/profiles/$scope_profile"
+    if [[ ! -d "$WW_SCOPE_BASE" ]]; then
+      echo "Error: Profile '$scope_profile' does not exist at $WW_SCOPE_BASE" >&2
+      return 1
+    fi
+  elif [[ "$WW_SCOPE_MODE" == "global" ]]; then
+    WW_SCOPE_PROFILE="global"
+    WW_SCOPE_BASE="$WW_GLOBAL_BASE"
+  fi
+
+  WW_REMAINING_ARGS=("${args[@]}")
+  return 0
+}
+
+# Ensure global workspace exists with minimal structure
+ensure_global_workspace() {
+  local base="$WW_GLOBAL_BASE"
+  local journals_dir="$base/journals"
+  local ledgers_dir="$base/ledgers"
+  local list_dir="$base/list"
+  local task_dir="$base/.task"
+  local task_hooks="$task_dir/hooks"
+  local timew_dir="$base/.timewarrior"
+
+  mkdir -p "$journals_dir" "$ledgers_dir" "$list_dir" "$task_dir" "$task_hooks" "$timew_dir"
+
+  # Default journal
+  local default_journal="$journals_dir/global.txt"
+  if [[ ! -f "$default_journal" ]]; then
+    echo "$(date '+%Y-%m-%d %H:%M'): Welcome to your global journal!" > "$default_journal"
+  fi
+
+  # jrnl.yaml
+  local jrnl_config="$base/jrnl.yaml"
+  if [[ ! -f "$jrnl_config" ]]; then
+    cat > "$jrnl_config" << EOF
+journals:
+  default: $default_journal
+editor: nano
+encrypt: false
+tagsymbols: '@'
+default_hour: 9
+default_minute: 0
+timeformat: "%Y-%m-%d %H:%M"
+highlight: true
+linewrap: 79
+template: false
+colors:
+  body: none
+  date: blue
+  tags: yellow
+  title: cyan
+EOF
+  fi
+
+  # Default ledger
+  local default_ledger="$ledgers_dir/global.journal"
+  if [[ ! -f "$default_ledger" ]]; then
+    cat > "$default_ledger" << EOF
+; Hledger journal for global workspace
+; Initialized on $(date '+%Y-%m-%d')
+account assets:cash
+account expenses:misc
+account equity:opening-balances
+
+$(date '+%Y-%m-%d') * Global initialization
+    assets:cash          \$0.00
+    equity:opening-balances   \$0.00
+EOF
+  fi
+
+  # ledgers.yaml
+  local ledgers_config="$base/ledgers.yaml"
+  if [[ ! -f "$ledgers_config" ]]; then
+    cat > "$ledgers_config" << EOF
+ledgers:
+  default: $default_ledger
+EOF
+  fi
+
+  # Default list file
+  local default_list="$list_dir/global_default.list"
+  if [[ ! -f "$default_list" ]]; then
+    echo "# List: global_default" > "$default_list"
+  fi
+
+  # Minimal .taskrc (if missing)
+  local taskrc="$base/.taskrc"
+  if [[ ! -f "$taskrc" ]]; then
+    if [[ -f "${WW_BASE:-$HOME/ww}/resources/config-files/.taskrc" ]]; then
+      cp "${WW_BASE:-$HOME/ww}/resources/config-files/.taskrc" "$taskrc"
+      sed -i.bak \
+        -e "s|^data.location=.*|data.location=$task_dir|" \
+        -e "s|^hooks.location=.*|hooks.location=$task_hooks|" \
+        "$taskrc" && rm -f "$taskrc.bak"
+    else
+      cat > "$taskrc" << EOF
+data.location=$task_dir
+hooks.location=$task_hooks
+hooks=1
+EOF
+    fi
+  fi
+}
 
 # Activate a profile and export all required environment variables
 # Validates profile exists before activation
@@ -327,14 +497,16 @@ use_task_profile() {
 # Returns: 0 on success, 1 on failure
 # Validates: Requirements 4.7, 8.10, 8.11, 8.12, 8.13, 8.14, 8.15, 8.18
 j() {
-  # Check if profile is active
-  if [[ -z "$WORKWARRIOR_BASE" ]]; then
-    echo "Error: No profile is active" >&2
-    echo "Activate a profile first with: p-<profile-name>" >&2
+  if ! ww_resolve_scope "$@"; then
     return 1
   fi
+  local args=("${WW_REMAINING_ARGS[@]}")
 
-  local jrnl_config="$WORKWARRIOR_BASE/jrnl.yaml"
+  if [[ "$WW_SCOPE_MODE" == "global" ]]; then
+    ensure_global_workspace
+  fi
+
+  local jrnl_config="$WW_SCOPE_BASE/jrnl.yaml"
 
   # Check if jrnl.yaml exists
   if [[ ! -f "$jrnl_config" ]]; then
@@ -343,14 +515,34 @@ j() {
   fi
 
   # If no arguments, just run jrnl to view default journal
-  if [[ $# -eq 0 ]]; then
+  if [[ ${#args[@]} -eq 0 ]]; then
     jrnl --config-file "$jrnl_config"
+    return $?
+  fi
+
+  # Check for special commands
+  local first_arg="${args[0]}"
+  
+  # Handle 'j custom' command (reserved)
+  if [[ "$first_arg" == "custom" ]]; then
+    # Only valid when a profile is active or explicitly targeted
+    if [[ "$WW_SCOPE_MODE" == "global" ]]; then
+      echo "Error: 'j custom' is not available for global scope" >&2
+      return 1
+    fi
+    local remaining=("${args[@]:1}")
+    if command -v ww &>/dev/null; then
+      WORKWARRIOR_BASE="$WW_SCOPE_BASE" WARRIOR_PROFILE="$WW_SCOPE_PROFILE" ww custom journals "${remaining[@]}"
+    else
+      local ww_base="${WW_BASE:-$HOME/ww}"
+      WORKWARRIOR_BASE="$WW_SCOPE_BASE" WARRIOR_PROFILE="$WW_SCOPE_PROFILE" \
+        "$ww_base/services/custom/configure-journals.sh" "${remaining[@]}"
+    fi
     return $?
   fi
 
   # Check if first argument is a journal name
   # A journal name is a single word without spaces
-  local first_arg="$1"
   local is_journal_name=0
 
   # Check if first arg exists as a journal in jrnl.yaml
@@ -361,20 +553,20 @@ j() {
   # If first arg is a journal name, use it
   if [[ $is_journal_name -eq 1 ]]; then
     local journal_name="$first_arg"
-    shift  # Remove journal name from arguments
+    local remaining=("${args[@]:1}")
     
     # If no more arguments, view the journal
-    if [[ $# -eq 0 ]]; then
+    if [[ ${#remaining[@]} -eq 0 ]]; then
       jrnl --config-file "$jrnl_config" "$journal_name"
       return $?
     fi
     
     # Write to named journal
-    jrnl --config-file "$jrnl_config" "$journal_name" "$@"
+    jrnl --config-file "$jrnl_config" "$journal_name" "${remaining[@]}"
     return $?
   else
     # Write to default journal
-    jrnl --config-file "$jrnl_config" "$@"
+    jrnl --config-file "$jrnl_config" "${args[@]}"
     return $?
   fi
 }
@@ -393,19 +585,38 @@ j() {
 # Returns: 0 on success, 1 on failure
 # Validates: Requirements 4.8, 9.8, 9.9
 l() {
-  # Check if profile is active
-  if [[ -z "$WORKWARRIOR_BASE" ]]; then
-    echo "Error: No profile is active" >&2
-    echo "Activate a profile first with: p-<profile-name>" >&2
+  if ! ww_resolve_scope "$@"; then
     return 1
   fi
+  local args=("${WW_REMAINING_ARGS[@]}")
 
-  local ledger_config="$WORKWARRIOR_BASE/ledgers.yaml"
+  if [[ "$WW_SCOPE_MODE" == "global" ]]; then
+    ensure_global_workspace
+  fi
+
+  local ledger_config="$WW_SCOPE_BASE/ledgers.yaml"
 
   # Check if ledgers.yaml exists
   if [[ ! -f "$ledger_config" ]]; then
     echo "Error: Ledger configuration not found: $ledger_config" >&2
     return 1
+  fi
+
+  # Handle 'l custom' command (reserved)
+  if [[ ${#args[@]} -gt 0 && "${args[0]}" == "custom" ]]; then
+    if [[ "$WW_SCOPE_MODE" == "global" ]]; then
+      echo "Error: 'l custom' is not available for global scope" >&2
+      return 1
+    fi
+    local remaining=("${args[@]:1}")
+    if command -v ww &>/dev/null; then
+      WORKWARRIOR_BASE="$WW_SCOPE_BASE" WARRIOR_PROFILE="$WW_SCOPE_PROFILE" ww custom ledgers "${remaining[@]}"
+    else
+      local ww_base="${WW_BASE:-$HOME/ww}"
+      WORKWARRIOR_BASE="$WW_SCOPE_BASE" WARRIOR_PROFILE="$WW_SCOPE_PROFILE" \
+        "$ww_base/services/custom/configure-ledgers.sh" "${remaining[@]}"
+    fi
+    return $?
   fi
 
   # Get default ledger path from ledgers.yaml
@@ -424,7 +635,137 @@ l() {
   fi
 
   # Execute hledger with default ledger
-  hledger -f "$default_ledger" "$@"
+  hledger -f "$default_ledger" "${args[@]}"
+  return $?
+}
+
+# Global list function - operates on active or global scope
+# Usage: list [--global|--profile <name>] [list-args]
+list() {
+  if ! ww_resolve_scope "$@"; then
+    return 1
+  fi
+  local args=("${WW_REMAINING_ARGS[@]}")
+
+  if [[ "$WW_SCOPE_MODE" == "global" ]]; then
+    ensure_global_workspace
+  fi
+
+  local list_dir="$WW_SCOPE_BASE/list"
+  local default_list_file="$list_dir/${WW_SCOPE_PROFILE}_default.list"
+
+  if [[ ! -f "$default_list_file" ]]; then
+    mkdir -p "$list_dir"
+    echo "# List: ${WW_SCOPE_PROFILE}_default" > "$default_list_file"
+  fi
+
+  python3 "${WW_BASE:-$HOME/ww}/tools/list/list.py" -t "$list_dir" "${args[@]}"
+  return $?
+}
+
+# TaskWarrior wrapper with scope support
+task() {
+  if ! ww_resolve_scope "$@"; then
+    return 1
+  fi
+  local args=("${WW_REMAINING_ARGS[@]}")
+
+  if [[ "$WW_SCOPE_MODE" == "global" ]]; then
+    ensure_global_workspace
+  fi
+
+  local base="$WW_SCOPE_BASE"
+  TASKRC="$base/.taskrc" TASKDATA="$base/.task" command task "${args[@]}"
+}
+
+# TimeWarrior wrapper with scope support
+timew() {
+  if ! ww_resolve_scope "$@"; then
+    return 1
+  fi
+  local args=("${WW_REMAINING_ARGS[@]}")
+
+  if [[ "$WW_SCOPE_MODE" == "global" ]]; then
+    ensure_global_workspace
+  fi
+
+  local base="$WW_SCOPE_BASE"
+  TIMEWARRIORDB="$base/.timewarrior" command timew "${args[@]}"
+}
+
+# Global issues function - operates on active profile's bugwarrior config
+# Checks WORKWARRIOR_BASE is set (profile must be active)
+# Routes "i custom" to configuration tool
+# Sets bugwarrior environment variables for profile isolation
+# Validates configuration exists before executing
+# Displays error if no profile active or configuration not found
+#
+# Usage: i [bugwarrior-args]
+# Examples:
+#   i pull                    - Pull issues from configured services
+#   i pull --dry-run          - Test configuration without syncing
+#   i uda                     - List bugwarrior UDAs
+#   i custom                  - Configure issue services
+# Returns: 0 on success, 1 on failure
+# Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5, 3.3
+i() {
+  if ! ww_resolve_scope "$@"; then
+    return 1
+  fi
+  local args=("${WW_REMAINING_ARGS[@]}")
+
+  # Global scope not supported for issues
+  if [[ "$WW_SCOPE_MODE" == "global" ]]; then
+    echo "Error: Issues service requires a profile" >&2
+    echo "Activate a profile with: p-<profile-name>" >&2
+    return 1
+  fi
+
+  # Handle 'i custom' command (reserved)
+  if [[ ${#args[@]} -gt 0 && "${args[0]}" == "custom" ]]; then
+    local remaining=("${args[@]:1}")
+    if command -v ww &>/dev/null; then
+      WORKWARRIOR_BASE="$WW_SCOPE_BASE" WARRIOR_PROFILE="$WW_SCOPE_PROFILE" ww custom issues "${remaining[@]}"
+    else
+      local ww_base="${WW_BASE:-$HOME/ww}"
+      WORKWARRIOR_BASE="$WW_SCOPE_BASE" WARRIOR_PROFILE="$WW_SCOPE_PROFILE" \
+        "$ww_base/services/custom/configure-issues.sh" "${remaining[@]}"
+    fi
+    return $?
+  fi
+
+  # Check if bugwarrior config exists
+  local bugwarrior_config="$WW_SCOPE_BASE/.config/bugwarrior/bugwarriorrc"
+  if [[ ! -f "$bugwarrior_config" ]]; then
+    # Try TOML format
+    bugwarrior_config="$WW_SCOPE_BASE/.config/bugwarrior/bugwarrior.toml"
+    if [[ ! -f "$bugwarrior_config" ]]; then
+      echo "Error: Bugwarrior configuration not found" >&2
+      echo "Run 'i custom' to configure the issues service" >&2
+      return 1
+    fi
+  fi
+
+  # Check if bugwarrior is installed
+  if ! command -v bugwarrior &> /dev/null; then
+    echo "Error: bugwarrior is not installed" >&2
+    echo "Install with: pip install bugwarrior" >&2
+    echo "Or: pipx install bugwarrior" >&2
+    return 1
+  fi
+
+  # Display sync direction message for pull command
+  if [[ ${#args[@]} -gt 0 && "${args[0]}" == "pull" ]]; then
+    echo "⚠️  One-way sync: External services → TaskWarrior"
+    echo "   Changes in TaskWarrior will NOT sync back to issue trackers"
+    echo ""
+  fi
+
+  # Execute bugwarrior with profile-specific config
+  BUGWARRIORRC="$bugwarrior_config" \
+  BUGWARRIOR_TASKRC="$WW_SCOPE_BASE/.taskrc" \
+  BUGWARRIOR_TASKDATA="$WW_SCOPE_BASE/.task" \
+    bugwarrior "${args[@]}"
   return $?
 }
 
@@ -506,18 +847,17 @@ ensure_shell_functions() {
         print
         if ($0 == marker && !added) {
           print ""
-          print "# Global journal function"
+          print "# Global journal function (delegates to shell-integration.sh)"
           print "j() {"
-          print "  if [[ -z \"$WORKWARRIOR_BASE\" ]]; then"
-          print "    echo \"Error: No profile is active\" >&2"
-          print "    return 1"
+          print "  local ww_base=\"${WW_BASE:-$HOME/ww}\""
+          print "  if [[ -f \"$ww_base/lib/shell-integration.sh\" ]]; then"
+          print "    unset -f j"
+          print "    source \"$ww_base/lib/shell-integration.sh\""
+          print "    j \"$@\""
+          print "    return $?"
           print "  fi"
-          print "  local jrnl_config=\"$WORKWARRIOR_BASE/jrnl.yaml\""
-          print "  if [[ ! -f \"$jrnl_config\" ]]; then"
-          print "    echo \"Error: Journal configuration not found\" >&2"
-          print "    return 1"
-          print "  fi"
-          print "  jrnl --config-file \"$jrnl_config\" \"$@\""
+          print "  echo \"Error: shell integration not found at $ww_base/lib/shell-integration.sh\" >&2"
+          print "  return 1"
           print "}"
           added = 1
         }
@@ -537,23 +877,163 @@ ensure_shell_functions() {
         print
         if ($0 == marker && !added) {
           print ""
-          print "# Global ledger function"
+          print "# Global ledger function (delegates to shell-integration.sh)"
           print "l() {"
-          print "  if [[ -z \"$WORKWARRIOR_BASE\" ]]; then"
-          print "    echo \"Error: No profile is active\" >&2"
-          print "    return 1"
+          print "  local ww_base=\"${WW_BASE:-$HOME/ww}\""
+          print "  if [[ -f \"$ww_base/lib/shell-integration.sh\" ]]; then"
+          print "    unset -f l"
+          print "    source \"$ww_base/lib/shell-integration.sh\""
+          print "    l \"$@\""
+          print "    return $?"
           print "  fi"
-          print "  local ledger_config=\"$WORKWARRIOR_BASE/ledgers.yaml\""
-          print "  if [[ ! -f \"$ledger_config\" ]]; then"
-          print "    echo \"Error: Ledger configuration not found\" >&2"
-          print "    return 1"
+          print "  echo \"Error: shell integration not found at $ww_base/lib/shell-integration.sh\" >&2"
+          print "  return 1"
+          print "}"
+          added = 1
+        }
+      }
+    ' "$SHELL_CONFIG" > "$SHELL_CONFIG.tmp"
+    
+    mv "$SHELL_CONFIG.tmp" "$SHELL_CONFIG"
+  fi
+
+  # Check if list function exists
+  if ! grep -q "^list()" "$SHELL_CONFIG" && ! grep -q "^function list[[:space:]]*{" "$SHELL_CONFIG"; then
+    log_info "Adding list function"
+    
+    awk -v marker="$SECTION_CORE_FUNCTIONS" '
+      {
+        print
+        if ($0 == marker && !added) {
+          print ""
+          print "# Global list function (delegates to shell-integration.sh)"
+          print "list() {"
+          print "  local ww_base=\"${WW_BASE:-$HOME/ww}\""
+          print "  if [[ -f \"$ww_base/lib/shell-integration.sh\" ]]; then"
+          print "    unset -f list"
+          print "    source \"$ww_base/lib/shell-integration.sh\""
+          print "    list \"$@\""
+          print "    return $?"
           print "  fi"
-          print "  local default_ledger=$(grep \"^  default:\" \"$ledger_config\" | awk '\''{print $2}'\'')"
-          print "  if [[ -z \"$default_ledger\" ]]; then"
-          print "    echo \"Error: Default ledger not found\" >&2"
-          print "    return 1"
+          print "  echo \"Error: shell integration not found at $ww_base/lib/shell-integration.sh\" >&2"
+          print "  return 1"
+          print "}"
+          added = 1
+        }
+      }
+    ' "$SHELL_CONFIG" > "$SHELL_CONFIG.tmp"
+    
+    mv "$SHELL_CONFIG.tmp" "$SHELL_CONFIG"
+  fi
+
+  # Check if task function exists
+  if ! grep -q "^task()" "$SHELL_CONFIG" && ! grep -q "^function task[[:space:]]*{" "$SHELL_CONFIG"; then
+    log_info "Adding task function"
+    
+    awk -v marker="$SECTION_CORE_FUNCTIONS" '
+      {
+        print
+        if ($0 == marker && !added) {
+          print ""
+          print "# TaskWarrior wrapper (delegates to shell-integration.sh)"
+          print "task() {"
+          print "  local ww_base=\"${WW_BASE:-$HOME/ww}\""
+          print "  if [[ -f \"$ww_base/lib/shell-integration.sh\" ]]; then"
+          print "    unset -f task"
+          print "    source \"$ww_base/lib/shell-integration.sh\""
+          print "    task \"$@\""
+          print "    return $?"
           print "  fi"
-          print "  hledger -f \"$default_ledger\" \"$@\""
+          print "  echo \"Error: shell integration not found at $ww_base/lib/shell-integration.sh\" >&2"
+          print "  return 1"
+          print "}"
+          added = 1
+        }
+      }
+    ' "$SHELL_CONFIG" > "$SHELL_CONFIG.tmp"
+    
+    mv "$SHELL_CONFIG.tmp" "$SHELL_CONFIG"
+  fi
+
+  # Check if timew function exists
+  if ! grep -q "^timew()" "$SHELL_CONFIG" && ! grep -q "^function timew[[:space:]]*{" "$SHELL_CONFIG"; then
+    log_info "Adding timew function"
+    
+    awk -v marker="$SECTION_CORE_FUNCTIONS" '
+      {
+        print
+        if ($0 == marker && !added) {
+          print ""
+          print "# TimeWarrior wrapper (delegates to shell-integration.sh)"
+          print "timew() {"
+          print "  local ww_base=\"${WW_BASE:-$HOME/ww}\""
+          print "  if [[ -f \"$ww_base/lib/shell-integration.sh\" ]]; then"
+          print "    unset -f timew"
+          print "    source \"$ww_base/lib/shell-integration.sh\""
+          print "    timew \"$@\""
+          print "    return $?"
+          print "  fi"
+          print "  echo \"Error: shell integration not found at $ww_base/lib/shell-integration.sh\" >&2"
+          print "  return 1"
+          print "}"
+          added = 1
+        }
+      }
+    ' "$SHELL_CONFIG" > "$SHELL_CONFIG.tmp"
+    
+    mv "$SHELL_CONFIG.tmp" "$SHELL_CONFIG"
+  fi
+
+  # Check if i function exists
+  if ! grep -q "^i()" "$SHELL_CONFIG" && ! grep -q "^function i[[:space:]]*{" "$SHELL_CONFIG"; then
+    log_info "Adding i function"
+    
+    awk -v marker="$SECTION_CORE_FUNCTIONS" '
+      {
+        print
+        if ($0 == marker && !added) {
+          print ""
+          print "# Global issues function (delegates to shell-integration.sh)"
+          print "i() {"
+          print "  local ww_base=\"${WW_BASE:-$HOME/ww}\""
+          print "  if [[ -f \"$ww_base/lib/shell-integration.sh\" ]]; then"
+          print "    unset -f i"
+          print "    source \"$ww_base/lib/shell-integration.sh\""
+          print "    i \"$@\""
+          print "    return $?"
+          print "  fi"
+          print "  echo \"Error: shell integration not found at $ww_base/lib/shell-integration.sh\" >&2"
+          print "  return 1"
+          print "}"
+          added = 1
+        }
+      }
+    ' "$SHELL_CONFIG" > "$SHELL_CONFIG.tmp"
+    
+    mv "$SHELL_CONFIG.tmp" "$SHELL_CONFIG"
+  fi
+
+  # Check if help function exists
+  if ! grep -q "^help()" "$SHELL_CONFIG" && ! grep -q "^function help[[:space:]]*{" "$SHELL_CONFIG"; then
+    log_info "Adding help function"
+    
+    awk -v marker="$SECTION_CORE_FUNCTIONS" '
+      {
+        print
+        if ($0 == marker && !added) {
+          print ""
+          print "# Help wrapper (delegates to ww help)"
+          print "help() {"
+          print "  if command -v ww &>/dev/null; then"
+          print "    if [[ -n \"$1\" ]]; then"
+          print "      ww help \"$1\""
+          print "    else"
+          print "      ww help"
+          print "    fi"
+          print "    return $?"
+          print "  fi"
+          print "  echo \"Error: ww command not found\" >&2"
+          print "  return 1"
           print "}"
           added = 1
         }

@@ -316,32 +316,41 @@ if ! grep -q 'function use_task_profile' "$SHELL_RC"; then
 
 # Global 'j' function for journaling
 function j() {
-  # Use WORKWARRIOR_BASE directly, which is set by use_task_profile
-  if [[ -z "$WORKWARRIOR_BASE" ]]; then
-    echo "Error: No Workwarrior profile is currently active. Please use 'p-<profile-name>' first." >&2
-    return 1
+  local ww_base="${WW_BASE:-$HOME/ww}"
+  if [[ -f "$ww_base/lib/shell-integration.sh" ]]; then
+    unset -f j
+    source "$ww_base/lib/shell-integration.sh"
+    j "$@"
+    return $?
   fi
-  local jrnl_config="$WORKWARRIOR_BASE/jrnl.yaml"
-  if [[ ! -f "$jrnl_config" ]]; then
-    echo "Error: jrnl.yaml not found for current profile at '$jrnl_config'." >&2
-    return 1
-  fi
-  jrnl --config-file "$jrnl_config" "$@"
+  echo "Error: shell integration not found at $ww_base/lib/shell-integration.sh" >&2
+  return 1
 }
 
-# Global 'hl' function for hledger
+# Global 'l' function for hledger
 function l() {
-  # Use WORKWARRIOR_BASE directly, which is set by use_task_profile
-  if [[ -z "$WORKWARRIOR_BASE" ]]; then
-    echo "Error: No Workwarrior profile is currently active. Please use 'p-<profile-name>' first." >&2
-    return 1
+  local ww_base="${WW_BASE:-$HOME/ww}"
+  if [[ -f "$ww_base/lib/shell-integration.sh" ]]; then
+    unset -f l
+    source "$ww_base/lib/shell-integration.sh"
+    l "$@"
+    return $?
   fi
-  local ledger_file="$WORKWARRIOR_BASE/ledgers/$(basename "$WORKWARRIOR_BASE").journal" # Derive ledger name from base
-  if [[ ! -f "$ledger_file" ]]; then
-    echo "Error: Default ledger file not found for current profile at '$ledger_file'." >&2
-    return 1
+  echo "Error: shell integration not found at $ww_base/lib/shell-integration.sh" >&2
+  return 1
+}
+
+# Global 'list' function for simple list tool
+function list() {
+  local ww_base="${WW_BASE:-$HOME/ww}"
+  if [[ -f "$ww_base/lib/shell-integration.sh" ]]; then
+    unset -f list
+    source "$ww_base/lib/shell-integration.sh"
+    list "$@"
+    return $?
   fi
-  hledger -f "$ledger_file" "$@"
+  echo "Error: shell integration not found at $ww_base/lib/shell-integration.sh" >&2
+  return 1
 }
 
 # Load a Taskwarrior + Timewarrior + Hledger profile
@@ -366,13 +375,15 @@ function use_task_profile() {
   export TIMEWARRIORDB="$base/.timewarrior"
 
   # These 'eval' lines are still useful to ensure the *function definitions*
-  # are refreshed in the current shell, but j/hl now rely directly on exported vars.
+  # are refreshed in the current shell, but j/l/list now rely directly on exported vars.
   eval "$(declare -f j)"
-  eval "$(declare -f hl)"
+  eval "$(declare -f l)"
+  eval "$(declare -f list)"
 
   echo "Now using Workwarrior profile: $profile"
   echo "✓ Global 'j' command now writes to $profile's default journal"
-  echo "✓ Global 'hl' command now uses $profile's default ledger"
+  echo "✓ Global 'l' command now uses $profile's default ledger"
+  echo "✓ Global 'list' command now uses $profile's default list directory"
   echo "✓ Use 'task start <id>' to start tasks with timewarrior integration"
 }
 EOF
@@ -391,5 +402,5 @@ echo "🗂  TaskRC: $TASKRC_DEST"
 echo
 echo "👉 Run: source $SHELL_RC"
 echo "👉 Then use: j-$PROFILE_NAME for direct journal access"
-echo "👉 Or: p-$PROFILE_NAME or $PROFILE_NAME to activate profile (enables simple 'j' and 'hl' commands)"
+echo "👉 Or: p-$PROFILE_NAME or $PROFILE_NAME to activate profile (enables simple 'j', 'l', and 'list' commands)"
 echo

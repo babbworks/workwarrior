@@ -1,0 +1,629 @@
+#!/usr/bin/env bash
+# Workwarrior CLI Entry Point
+# Usage: ww <command> [arguments]
+
+set -e
+
+# ============================================================================
+# CONFIGURATION
+# ============================================================================
+
+WW_BASE="${WW_BASE:-$HOME/ww}"
+WW_VERSION="1.0.0"
+
+# ============================================================================
+# SOURCE LIBRARIES
+# ============================================================================
+
+if [[ -f "$WW_BASE/lib/core-utils.sh" ]]; then
+  source "$WW_BASE/lib/core-utils.sh"
+else
+  # Fallback logging if core-utils not available
+  log_info() { echo "info $*"; }
+  log_success() { echo "ok $*"; }
+  log_warning() { echo "warn $*"; }
+  log_error() { echo "err $*" >&2; }
+  log_step() { echo ">> $*"; }
+fi
+
+# ============================================================================
+# HELP AND VERSION
+# ============================================================================
+
+show_usage() {
+  cat << EOF
+Workwarrior - Profile-based productivity system
+
+Usage: ww <command> [arguments]
+       ww help <command>
+
+Commands:
+  profile     Profile management (create, list, info, delete, backup)
+  service     Service management (list)
+  groups      Profile grouping (create, list, add, remove, show, delete)
+  models      LLM providers and model registry
+  find        Search across profiles and data types
+  custom      Custom services (journal configuration, etc.)
+  shortcut    Shortcut reference (list, info, compact)
+  deps        Dependency management (check, install)
+  version     Show version information
+  help        Show this help message
+
+Profile Commands:
+  ww profile create <name>    Create a new profile
+  ww profile list             List all profiles
+  ww profile info <name>      Show profile details
+  ww profile delete <name>    Delete a profile
+  ww profile backup <name>    Backup a profile
+
+Service Commands:
+  ww service list             List available services
+
+Groups Commands:
+  ww groups list               List all groups
+  ww groups show <name>        Show profiles in a group
+  ww groups create <name> [profiles...]
+  ww groups add <name> <profiles...>
+  ww groups remove <name> <profiles...>
+  ww groups delete <name>
+
+Models Commands:
+  ww models list               List models and default
+  ww models providers          List model providers
+  ww models env                Show provider environment variables
+  ww models check              Check required env vars
+  ww models show <model>       Show model details
+  ww models add-provider <name> <type> <base_url> [api_key_env]
+  ww models add-model <name> <provider> <model_id> [notes]
+  ww models set-default <name>
+  ww models remove-model <name>
+
+Find Commands:
+  ww find <term>               Search across profiles
+  ww find --type journal <t>   Search a specific data type
+  ww find --profile <name> <t> Search a specific profile
+  ww find --query <expr>       Advanced query syntax
+  ww find --case-sensitive <t> Case-sensitive matching
+  ww find --regex <t>          Treat bare terms as regex
+  ww find --exclude <glob> <t> Exclude matching paths (repeatable)
+  ww find --native <t>         Use native tool search where available
+
+Custom Services:
+  ww custom journals          Configure journal settings (requires active profile)
+  ww custom tasks             Configure TaskWarrior settings (requires active profile)
+  ww custom times             Configure TimeWarrior settings (requires active profile)
+  ww custom ledgers           Configure ledger settings (requires active profile)
+  ww custom list              List available custom services
+
+Shortcut Commands:
+  ww shortcut list            List available shortcuts
+  ww shortcut list <category> List shortcuts in a category
+  ww shortcut info <key>      Show shortcut details
+  ww shortcut compact         Compact shortcut list
+  ww shortcut add <key> <name> <category> <description> <command> [requires_profile]
+  ww shortcut remove <key>    Remove user shortcut override
+
+Dependency Commands:
+  ww deps check               Check installed dependencies
+  ww deps install             Install missing dependencies
+
+Examples:
+  ww profile create work      Create a profile named 'work'
+  ww profile list             Show all profiles
+  ww groups create focus work personal
+  ww groups show focus
+  ww models list
+  ww find invoice
+  ww deps check               Check dependency status
+  ww version                  Show version
+  ww help groups              Show groups help
+  ww help models              Show models help
+  ww help find                Show find help
+  ww shortcut list            Show available shortcuts
+  ww shortcut info <key>      Show details for a shortcut
+  ww shortcut add x "Example" global "Example command" "echo hi" false
+  ww shortcut remove x
+
+After creating a profile, activate it with:
+  p-<profile-name>            e.g., p-work
+
+For more information, see: $WW_BASE/docs/
+
+EOF
+}
+
+show_service_help() {
+  local topic="${1:-}"
+  case "$topic" in
+    profile)
+      cmd_profile help
+      ;;
+    service)
+      cmd_service help
+      ;;
+    groups)
+      cmd_group help
+      ;;
+    models)
+      cmd_models help
+      ;;
+    find)
+      cmd_find --help
+      ;;
+    custom)
+      cmd_custom help
+      ;;
+    shortcut)
+      cmd_shortcut help
+      ;;
+    deps)
+      cmd_deps help
+      ;;
+    ""|help|-h|--help)
+      show_usage
+      ;;
+    *)
+      log_error "Unknown help topic: $topic"
+      echo "Run 'ww help' for usage"
+      exit 1
+      ;;
+  esac
+}
+
+show_version() {
+  echo "Workwarrior version $WW_VERSION"
+  echo "Installation: $WW_BASE"
+
+  if [[ -f "$WW_BASE/VERSION" ]]; then
+    local installed_version
+    installed_version=$(cat "$WW_BASE/VERSION")
+    if [[ "$installed_version" != "$WW_VERSION" ]]; then
+      echo "Installed version: $installed_version"
+    fi
+  fi
+}
+
+# ============================================================================
+# PROFILE COMMAND
+# ============================================================================
+
+cmd_profile() {
+  local action="${1:-}"
+  shift 2>/dev/null || true
+
+  case "$action" in
+    create)
+      if [[ -z "$1" ]]; then
+        log_error "Profile name required"
+        echo "Usage: ww profile create <name>"
+        exit 1
+      fi
+      "$WW_BASE/scripts/create-ww-profile.sh" "$@"
+      ;;
+    list)
+      "$WW_BASE/scripts/manage-profiles.sh" list "$@"
+      ;;
+    info)
+      if [[ -z "$1" ]]; then
+        log_error "Profile name required"
+        echo "Usage: ww profile info <name>"
+        exit 1
+      fi
+      "$WW_BASE/scripts/manage-profiles.sh" info "$@"
+      ;;
+    delete)
+      if [[ -z "$1" ]]; then
+        log_error "Profile name required"
+        echo "Usage: ww profile delete <name>"
+        exit 1
+      fi
+      "$WW_BASE/scripts/manage-profiles.sh" delete "$@"
+      ;;
+    backup)
+      if [[ -z "$1" ]]; then
+        log_error "Profile name required"
+        echo "Usage: ww profile backup <name>"
+        exit 1
+      fi
+      "$WW_BASE/scripts/manage-profiles.sh" backup "$@"
+      ;;
+    ""|help|-h|--help)
+      cat << EOF
+Profile Management
+
+Usage: ww profile <action> [arguments]
+
+Actions:
+  create <name>    Create a new profile
+  list             List all profiles
+  info <name>      Show profile details
+  delete <name>    Delete a profile
+  backup <name>    Backup a profile to tar.gz
+
+Examples:
+  ww profile create work
+  ww profile list
+  ww profile info work
+  ww profile backup work
+
+EOF
+      ;;
+    *)
+      log_error "Unknown profile action: $action"
+      echo "Run 'ww profile help' for usage"
+      exit 1
+      ;;
+  esac
+}
+
+# ============================================================================
+# SERVICE COMMAND
+# ============================================================================
+
+cmd_service() {
+  local action="${1:-}"
+  shift 2>/dev/null || true
+
+  case "$action" in
+    list)
+      echo "Available service categories:"
+      echo ""
+      for dir in "$WW_BASE/services/"*/; do
+        if [[ -d "$dir" ]]; then
+          local category
+          category="$(basename "$dir")"
+          # Count services in category
+          local count
+          count=$(find "$dir" -maxdepth 1 -type f \( -executable -o -name "*.sh" \) 2>/dev/null | wc -l | tr -d ' ')
+          echo "  $category ($count services)"
+        fi
+      done
+      echo ""
+      ;;
+    ""|help|-h|--help)
+      cat << EOF
+Service Management
+
+Usage: ww service <action>
+
+Actions:
+  list    List available service categories
+
+Services are organized by category in $WW_BASE/services/
+
+EOF
+      ;;
+    *)
+      log_error "Unknown service action: $action"
+      echo "Run 'ww service help' for usage"
+      exit 1
+      ;;
+  esac
+}
+
+# ============================================================================
+# DEPS COMMAND
+# ============================================================================
+
+cmd_deps() {
+  local action="${1:-}"
+  shift 2>/dev/null || true
+
+  # Source dependency installer
+  if [[ -f "$WW_BASE/lib/dependency-installer.sh" ]]; then
+    source "$WW_BASE/lib/dependency-installer.sh"
+  else
+    log_error "Dependency installer not found"
+    exit 1
+  fi
+
+  case "$action" in
+    check)
+      check_all_dependencies
+      display_dependency_status
+      ;;
+    install)
+      run_dependency_installer
+      ;;
+    ""|help|-h|--help)
+      cat << EOF
+Dependency Management
+
+Usage: ww deps <action>
+
+Actions:
+  check       Check installed dependencies and their versions
+  install     Interactive dependency installation
+
+External Dependencies:
+  • TaskWarrior  - Task management (task)
+  • TimeWarrior  - Time tracking (timew)
+  • Hledger      - Ledger accounting (hledger)
+  • JRNL         - Journaling (jrnl)
+
+Examples:
+  ww deps check     Show dependency status
+  ww deps install   Install missing dependencies
+
+EOF
+      ;;
+    *)
+      log_error "Unknown deps action: $action"
+      echo "Run 'ww deps help' for usage"
+      exit 1
+      ;;
+  esac
+}
+
+# ============================================================================
+# GROUP COMMAND
+# ============================================================================
+
+cmd_group() {
+  local action="${1:-}"
+  shift 2>/dev/null || true
+
+  if [[ -f "$WW_BASE/services/groups/groups.sh" ]]; then
+    "$WW_BASE/services/groups/groups.sh" "${action}" "$@"
+  else
+    log_error "Groups service not found"
+    exit 1
+  fi
+}
+
+# ============================================================================
+# MODELS COMMAND
+# ============================================================================
+
+cmd_models() {
+  local action="${1:-}"
+  shift 2>/dev/null || true
+
+  if [[ -f "$WW_BASE/services/models/models.sh" ]]; then
+    "$WW_BASE/services/models/models.sh" "${action}" "$@"
+  else
+    log_error "Models service not found"
+    exit 1
+  fi
+}
+
+# ============================================================================
+# FIND COMMAND
+# ============================================================================
+
+cmd_find() {
+  if [[ -f "$WW_BASE/services/find/find.sh" ]]; then
+    "$WW_BASE/services/find/find.sh" "$@"
+  else
+    log_error "Find service not found"
+    exit 1
+  fi
+}
+
+# ============================================================================
+# CUSTOM COMMAND
+# ============================================================================
+
+cmd_custom() {
+  local action="${1:-}"
+  shift 2>/dev/null || true
+
+  case "$action" in
+    journals)
+      "$WW_BASE/services/custom/configure-journals.sh" "$@"
+      ;;
+    tasks)
+      "$WW_BASE/services/custom/configure-tasks.sh" "$@"
+      ;;
+    times)
+      "$WW_BASE/services/custom/configure-times.sh" "$@"
+      ;;
+    ledgers)
+      "$WW_BASE/services/custom/configure-ledgers.sh" "$@"
+      ;;
+    issues)
+      "$WW_BASE/services/custom/configure-issues.sh" "$@"
+      ;;
+    list)
+      echo "Available custom services:"
+      echo ""
+      for service in "$WW_BASE/services/custom/"*.sh; do
+        if [[ -f "$service" && -x "$service" ]]; then
+          local name
+          name="$(basename "$service" .sh)"
+          # Extract description from service file
+          local desc
+          desc=$(grep "^# Description:" "$service" | sed 's/# Description: //')
+          if [[ -n "$desc" ]]; then
+            echo "  $name - $desc"
+          else
+            echo "  $name"
+          fi
+        fi
+      done
+      echo ""
+      echo "Usage: ww custom <service-name>"
+      echo "   or: j custom (for journals configuration)"
+      echo "   or: custom journals (alternative)"
+      echo ""
+      ;;
+    ""|help|-h|--help)
+      cat << EOF
+Custom Services
+
+Usage: ww custom <service> [arguments]
+
+Available Services:
+  journals   Configure journal settings (requires active profile)
+  tasks      Configure TaskWarrior settings (requires active profile)
+  times      Configure TimeWarrior settings (requires active profile)
+  ledgers    Configure ledger settings (requires active profile)
+  issues     Configure bugwarrior issue synchronization (requires active profile)
+
+Shortcuts:
+  j custom              Same as 'ww custom journals'
+  t custom              Same as 'ww custom tasks'
+  a custom              Same as 'ww custom times'
+  l custom              Same as 'ww custom ledgers' (profile-scoped only)
+  i custom              Same as 'ww custom issues'
+  custom journals       Same as 'ww custom journals'
+  custom tasks          Same as 'ww custom tasks'
+  custom times          Same as 'ww custom times'
+  custom ledgers        Same as 'ww custom ledgers'
+  custom issues         Same as 'ww custom issues'
+
+Examples:
+  ww custom journals    Configure journal settings
+  ww custom tasks       Configure TaskWarrior settings
+  ww custom times       Configure TimeWarrior settings
+  ww custom ledgers     Configure ledger settings
+  ww custom issues      Configure issue synchronization
+  ww custom list        List available custom services
+  j custom              Quick access to journal configuration
+  l custom              Quick access to ledger configuration
+  i custom              Quick access to issues configuration
+
+Note: Most custom services require an active profile.
+Activate a profile with: p-<profile-name>
+
+EOF
+      ;;
+    *)
+      log_error "Unknown custom service: $action"
+      echo "Run 'ww custom list' to see available services"
+      exit 1
+      ;;
+  esac
+}
+
+# ============================================================================
+# SHORTCUT COMMAND
+# ============================================================================
+
+cmd_shortcut() {
+  local action="${1:-}"
+  shift 2>/dev/null || true
+
+  # Source shortcut registry library
+  if [[ -f "$WW_BASE/lib/shortcode-registry.sh" ]]; then
+    source "$WW_BASE/lib/shortcode-registry.sh"
+  else
+    log_error "Shortcut registry not found"
+    exit 1
+  fi
+
+  case "$action" in
+    list|"")
+      display_shortcuts "${1:-all}"
+      ;;
+    compact)
+      display_shortcuts_compact
+      ;;
+    info)
+      if [[ -z "${1:-}" ]]; then
+        log_error "Shortcut key required"
+        echo "Usage: ww shortcut info <key>"
+        exit 1
+      fi
+      display_shortcut_info "$1"
+      ;;
+    add)
+      if [[ -z "${1:-}" || -z "${2:-}" || -z "${3:-}" || -z "${4:-}" || -z "${5:-}" ]]; then
+        log_error "Missing arguments for shortcut add"
+        echo "Usage: ww shortcut add <key> <name> <category> <description> <command> [requires_profile]"
+        exit 1
+      fi
+      add_user_shortcut "$1" "$2" "$3" "$4" "$5" "${6:-false}"
+      ;;
+    remove|rm|delete)
+      if [[ -z "${1:-}" ]]; then
+        log_error "Shortcut key required"
+        echo "Usage: ww shortcut remove <key>"
+        exit 1
+      fi
+      remove_user_shortcut "$1"
+      ;;
+    help|-h|--help)
+      cat << EOF
+Shortcut Reference
+
+Usage: ww shortcut <action> [arguments]
+
+Actions:
+  list [category]   List shortcuts (categories: all, profile, function, service, global)
+  info <key>        Show details for a shortcut
+  compact           Compact list (for quick reference)
+  add <args>        Add or update a user shortcut override
+  remove <key>      Remove a user shortcut override
+
+Examples:
+  ww shortcut list
+  ww shortcut list profile
+  ww shortcut info j
+  ww shortcut compact
+  ww shortcut add x "Example" global "Example command" "echo hi" false
+  ww shortcut remove x
+
+EOF
+      ;;
+    *)
+      log_error "Unknown shortcut action: $action"
+      echo "Run 'ww shortcut help' for usage"
+      exit 1
+      ;;
+  esac
+}
+
+# ============================================================================
+# MAIN DISPATCHER
+# ============================================================================
+
+main() {
+  local command="${1:-}"
+  shift 2>/dev/null || true
+
+  case "$command" in
+    profile|p)
+      cmd_profile "$@"
+      ;;
+    service|s)
+      cmd_service "$@"
+      ;;
+    groups)
+      cmd_group "$@"
+      ;;
+    models)
+      cmd_models "$@"
+      ;;
+    find)
+      cmd_find "$@"
+      ;;
+    custom)
+      cmd_custom "$@"
+      ;;
+    shortcut)
+      cmd_shortcut "$@"
+      ;;
+    deps|d)
+      cmd_deps "$@"
+      ;;
+    version|--version|-v)
+      show_version
+      ;;
+    help|--help|-h|"")
+      if [[ -n "${1:-}" ]]; then
+        show_service_help "$1"
+      else
+        show_usage
+      fi
+      ;;
+    *)
+      log_error "Unknown command: $command"
+      echo ""
+      echo "Run 'ww help' for usage"
+      exit 1
+      ;;
+  esac
+}
+
+main "$@"
