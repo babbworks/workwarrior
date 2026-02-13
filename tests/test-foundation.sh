@@ -46,7 +46,7 @@ check_prerequisites() {
     # Check if profile is active
     if [[ -z "${WORKWARRIOR_BASE}" ]]; then
         echo -e "${RED}Error: No profile active. Please activate a profile first.${NC}"
-        echo "Run: source bin/ww && ww profile use <profile-name>"
+        echo "Run: source bin/ww && p-<profile-name> (or use_task_profile <profile-name>)"
         exit 1
     fi
     echo -e "${GREEN}✓${NC} Profile active: ${WORKWARRIOR_BASE}"

@@ -96,6 +96,73 @@ check_bugwarrior_installed() {
   fi
 }
 
+validate_service_name() {
+  local service_name="$1"
+  if [[ -z "$service_name" ]]; then
+    log_error "Service name cannot be empty"
+    return 1
+  fi
+  if [[ ! "$service_name" =~ ^[a-zA-Z0-9._-]+$ ]]; then
+    log_error "Invalid service name: '$service_name'"
+    log_error "Use only letters, numbers, dot, underscore, and hyphen"
+    return 1
+  fi
+  return 0
+}
+
+ensure_service_target() {
+  local service_name="$1"
+
+  # Ensure [general] section exists
+  if ! grep -q "^\[general\]" "$BUGWARRIORRC"; then
+    {
+      echo ""
+      echo "[general]"
+      echo "targets = $service_name"
+    } >> "$BUGWARRIORRC"
+    return 0
+  fi
+
+  # Add targets line if missing under [general]
+  if ! awk '
+    BEGIN { in_general=0; found=0 }
+    /^\[general\]$/ { in_general=1; next }
+    /^\[/ { in_general=0 }
+    in_general && /^targets[[:space:]]*=/ { found=1 }
+    END { exit(found ? 0 : 1) }
+  ' "$BUGWARRIORRC"; then
+    sed -i.bak "/^\[general\]/a\\
+targets = $service_name
+" "$BUGWARRIORRC"
+    rm -f "$BUGWARRIORRC.bak"
+    return 0
+  fi
+
+  # Append to existing targets line if not already present
+  awk -v service="$service_name" '
+    BEGIN { in_general=0 }
+    /^\[general\]$/ { in_general=1; print; next }
+    /^\[/ { in_general=0; print; next }
+    in_general && /^targets[[:space:]]*=/ {
+      split($0, kv, "=")
+      lhs=kv[1]
+      rhs=substr($0, index($0, "=") + 1)
+      n=split(rhs, arr, ",")
+      found=0
+      out=""
+      for (i=1; i<=n; i++) {
+        gsub(/^[ \t]+|[ \t]+$/, "", arr[i])
+        if (arr[i] == service) found=1
+        if (arr[i] != "") out = (out == "" ? arr[i] : out ", " arr[i])
+      }
+      if (!found) out = (out == "" ? service : out ", " service)
+      print lhs "= " out
+      next
+    }
+    { print }
+  ' "$BUGWARRIORRC" > "$BUGWARRIORRC.tmp" && mv "$BUGWARRIORRC.tmp" "$BUGWARRIORRC"
+}
+
 show_credential_security_info() {
   echo ""
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -223,8 +290,7 @@ configure_github() {
   echo ""
   
   read -p "Enter service name (e.g., my_github): " service_name
-  if [[ -z "$service_name" ]]; then
-    log_error "Service name cannot be empty"
+  if ! validate_service_name "$service_name"; then
     return 1
   fi
   
@@ -239,7 +305,8 @@ configure_github() {
   echo "  Create at: https://github.com/settings/tokens"
   echo "  Required scope: repo (read-only)"
   echo ""
-  read -p "Enter GitHub token: " github_token
+  read -s -p "Enter GitHub token: " github_token
+  echo ""
   if [[ -z "$github_token" ]]; then
     log_error "Token cannot be empty"
     return 1
@@ -254,18 +321,7 @@ configure_github() {
   echo ""
   read -p "Import labels as tags? [y/n]: " import_labels
   
-  # Add service to config
-  if ! grep -q "^\[general\]" "$BUGWARRIORRC"; then
-    echo "[general]" >> "$BUGWARRIORRC"
-    echo "targets = $service_name" >> "$BUGWARRIORRC"
-  else
-    # Update targets
-    if grep -q "^targets = " "$BUGWARRIORRC"; then
-      sed -i.bak "s/^targets = .*/&, $service_name/" "$BUGWARRIORRC"
-    else
-      sed -i.bak "/^\[general\]/a targets = $service_name" "$BUGWARRIORRC"
-    fi
-  fi
+  ensure_service_target "$service_name"
   
   # Add service configuration
   cat >> "$BUGWARRIORRC" << EOF
@@ -304,8 +360,7 @@ configure_gitlab() {
   echo ""
   
   read -p "Enter service name (e.g., my_gitlab): " service_name
-  if [[ -z "$service_name" ]]; then
-    log_error "Service name cannot be empty"
+  if ! validate_service_name "$service_name"; then
     return 1
   fi
   
@@ -323,7 +378,8 @@ configure_gitlab() {
   echo "  Create at: https://$gitlab_host/-/profile/personal_access_tokens"
   echo "  Required scope: read_api"
   echo ""
-  read -p "Enter GitLab token: " gitlab_token
+  read -s -p "Enter GitLab token: " gitlab_token
+  echo ""
   if [[ -z "$gitlab_token" ]]; then
     log_error "Token cannot be empty"
     return 1
@@ -332,17 +388,7 @@ configure_gitlab() {
   echo ""
   read -p "Enter project IDs to sync (comma-separated, e.g., 123, 456): " projects
   
-  # Add service to config
-  if ! grep -q "^\[general\]" "$BUGWARRIORRC"; then
-    echo "[general]" >> "$BUGWARRIORRC"
-    echo "targets = $service_name" >> "$BUGWARRIORRC"
-  else
-    if grep -q "^targets = " "$BUGWARRIORRC"; then
-      sed -i.bak "s/^targets = .*/&, $service_name/" "$BUGWARRIORRC"
-    else
-      sed -i.bak "/^\[general\]/a targets = $service_name" "$BUGWARRIORRC"
-    fi
-  fi
+  ensure_service_target "$service_name"
   
   # Add service configuration
   cat >> "$BUGWARRIORRC" << EOF
@@ -373,8 +419,7 @@ configure_jira() {
   echo ""
   
   read -p "Enter service name (e.g., my_jira): " service_name
-  if [[ -z "$service_name" ]]; then
-    log_error "Service name cannot be empty"
+  if ! validate_service_name "$service_name"; then
     return 1
   fi
   
@@ -394,7 +439,8 @@ configure_jira() {
   echo "Jira API Token:"
   echo "  Create at: https://id.atlassian.com/manage-profile/security/api-tokens"
   echo ""
-  read -p "Enter Jira API token: " jira_token
+  read -s -p "Enter Jira API token: " jira_token
+  echo ""
   if [[ -z "$jira_token" ]]; then
     log_error "Token cannot be empty"
     return 1
@@ -403,17 +449,7 @@ configure_jira() {
   echo ""
   read -p "Enter JQL query (e.g., assignee=currentUser() AND status!=Done): " jql_query
   
-  # Add service to config
-  if ! grep -q "^\[general\]" "$BUGWARRIORRC"; then
-    echo "[general]" >> "$BUGWARRIORRC"
-    echo "targets = $service_name" >> "$BUGWARRIORRC"
-  else
-    if grep -q "^targets = " "$BUGWARRIORRC"; then
-      sed -i.bak "s/^targets = .*/&, $service_name/" "$BUGWARRIORRC"
-    else
-      sed -i.bak "/^\[general\]/a targets = $service_name" "$BUGWARRIORRC"
-    fi
-  fi
+  ensure_service_target "$service_name"
   
   # Add service configuration
   cat >> "$BUGWARRIORRC" << EOF
@@ -444,8 +480,7 @@ configure_trello() {
   echo ""
   
   read -p "Enter service name (e.g., my_trello): " service_name
-  if [[ -z "$service_name" ]]; then
-    log_error "Service name cannot be empty"
+  if ! validate_service_name "$service_name"; then
     return 1
   fi
   
@@ -460,7 +495,8 @@ configure_trello() {
     return 1
   fi
   
-  read -p "Enter Trello token: " trello_token
+  read -s -p "Enter Trello token: " trello_token
+  echo ""
   if [[ -z "$trello_token" ]]; then
     log_error "Token cannot be empty"
     return 1
@@ -469,17 +505,7 @@ configure_trello() {
   echo ""
   read -p "Enter board IDs to sync (comma-separated): " boards
   
-  # Add service to config
-  if ! grep -q "^\[general\]" "$BUGWARRIORRC"; then
-    echo "[general]" >> "$BUGWARRIORRC"
-    echo "targets = $service_name" >> "$BUGWARRIORRC"
-  else
-    if grep -q "^targets = " "$BUGWARRIORRC"; then
-      sed -i.bak "s/^targets = .*/&, $service_name/" "$BUGWARRIORRC"
-    else
-      sed -i.bak "/^\[general\]/a targets = $service_name" "$BUGWARRIORRC"
-    fi
-  fi
+  ensure_service_target "$service_name"
   
   # Add service configuration
   cat >> "$BUGWARRIORRC" << EOF

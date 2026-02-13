@@ -160,9 +160,14 @@ tw_get_task_by_issue() {
         return 1
     fi
     
-    # Extract UUID from first matching task
+    # Extract UUID from most recently modified matching task.
+    # This makes behavior deterministic when multiple tasks share an issue number.
     local task_uuid
-    task_uuid=$(echo "${task_data}" | jq -r '.[0].uuid // empty' 2>/dev/null)
+    task_uuid=$(echo "${task_data}" | jq -r '
+        sort_by(.modified // .entry // "")
+        | reverse
+        | .[0].uuid // empty
+    ' 2>/dev/null)
     
     if [[ -z "${task_uuid}" ]]; then
         return 1

@@ -75,7 +75,7 @@ check_prerequisites() {
     
     # Check profile
     if [[ -z "${WORKWARRIOR_BASE}" ]]; then
-        log_error "No Workwarrior profile active. Run: source bin/ww && ww profile use <profile>"
+        log_error "No Workwarrior profile active. Run: source bin/ww && p-<profile> (or use_task_profile <profile>)"
         exit 1
     fi
     

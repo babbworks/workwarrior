@@ -61,7 +61,7 @@ GitHub Two-Way Sync enables bidirectional synchronization between TaskWarrior ta
 2. **Active Workwarrior Profile**
    ```bash
    source bin/ww
-   ww profile use my-profile
+   p-my-profile
    ```
 
 3. **GitHub Repository Access**
@@ -478,7 +478,7 @@ i push abc123de-f456-7890-abcd-ef1234567890
 **Solution**:
 ```bash
 source bin/ww
-ww profile use my-profile
+p-my-profile
 ```
 
 #### Title truncated

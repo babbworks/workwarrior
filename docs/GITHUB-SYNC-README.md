@@ -20,7 +20,7 @@ gh auth login
 
 # 2. Activate a profile
 source bin/ww
-ww profile use my-profile
+p-my-profile
 
 # 3. Enable sync for a task
 i enable-sync 1 42 myorg/myrepo

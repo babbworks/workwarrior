@@ -182,8 +182,8 @@ scan_and_init_bugwarrior_tasks() {
   local count=0
   local initialized=0
   
-  # Process each task
-  echo "${tasks}" | jq -c '.[]' | while read -r task_json; do
+  # Process each task (use process substitution to avoid subshell variable loss)
+  while read -r task_json; do
     count=$((count + 1))
     
     local task_uuid
@@ -196,7 +196,7 @@ scan_and_init_bugwarrior_tasks() {
         initialized=$((initialized + 1))
       fi
     fi
-  done
+  done < <(echo "${tasks}" | jq -c '.[]')
   
   echo "Scanned ${count} tasks, initialized ${initialized} bugwarrior tasks" >&2
   
@@ -286,7 +286,7 @@ show_bugwarrior_status() {
   tasks=$(task export 2>/dev/null)
   
   if [[ -n "${tasks}" ]]; then
-    echo "${tasks}" | jq -c '.[]' | while read -r task_json; do
+    while read -r task_json; do
       local task_uuid
       task_uuid=$(echo "${task_json}" | jq -r '.uuid')
       
@@ -298,7 +298,7 @@ show_bugwarrior_status() {
           synced_count=$((synced_count + 1))
         fi
       fi
-    done
+    done < <(echo "${tasks}" | jq -c '.[]')
   fi
   
   echo "Bugwarrior tasks: ${bugwarrior_count}"

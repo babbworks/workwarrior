@@ -21,7 +21,7 @@
 4. **Activate Test Profile**
    ```bash
    source bin/ww
-   ww profile use test-profile  # Or create new: ww profile create test-profile
+   p-test-profile  # Or create new: ww profile create test-profile
    ```
 
 ## Run Automated Tests

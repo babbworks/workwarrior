@@ -270,9 +270,26 @@ cmd_push() {
         esac
     done
     
-    if [[ "${dry_run}" == "true" ]]; then
-        echo "⚠ Dry-run mode not yet implemented" >&2
+    if [[ "${dry_run}" != "true" ]] && ! check_gh_cli; then
         return 1
+    fi
+
+    if [[ "${dry_run}" == "true" ]]; then
+        if [[ -n "${task_id}" ]]; then
+            local task_uuid state issue_number repo
+            task_uuid=$(task _get "${task_id}.uuid" 2>/dev/null)
+            [[ -z "${task_uuid}" ]] && { echo "Error: Task '${task_id}' not found" >&2; return 1; }
+            state=$(get_sync_state "${task_uuid}")
+            [[ -z "${state}" ]] && { echo "Error: Task ${task_uuid:0:8} is not synced" >&2; return 1; }
+            issue_number=$(echo "${state}" | jq -r '.github_issue // ""')
+            repo=$(echo "${state}" | jq -r '.github_repo // ""')
+            echo "DRY RUN: Would push task ${task_uuid:0:8} → ${repo}#${issue_number}" >&2
+        else
+            local synced_count
+            synced_count=$(get_all_synced_tasks | grep -c . || true)
+            echo "DRY RUN: Would push ${synced_count} synced task(s) to GitHub" >&2
+        fi
+        return 0
     fi
     
     if [[ -n "${task_id}" ]]; then
@@ -324,9 +341,26 @@ cmd_pull() {
         esac
     done
     
-    if [[ "${dry_run}" == "true" ]]; then
-        echo "⚠ Dry-run mode not yet implemented" >&2
+    if [[ "${dry_run}" != "true" ]] && ! check_gh_cli; then
         return 1
+    fi
+
+    if [[ "${dry_run}" == "true" ]]; then
+        if [[ -n "${task_id}" ]]; then
+            local task_uuid state issue_number repo
+            task_uuid=$(task _get "${task_id}.uuid" 2>/dev/null)
+            [[ -z "${task_uuid}" ]] && { echo "Error: Task '${task_id}' not found" >&2; return 1; }
+            state=$(get_sync_state "${task_uuid}")
+            [[ -z "${state}" ]] && { echo "Error: Task ${task_uuid:0:8} is not synced" >&2; return 1; }
+            issue_number=$(echo "${state}" | jq -r '.github_issue // ""')
+            repo=$(echo "${state}" | jq -r '.github_repo // ""')
+            echo "DRY RUN: Would pull ${repo}#${issue_number} → task ${task_uuid:0:8}" >&2
+        else
+            local synced_count
+            synced_count=$(get_all_synced_tasks | grep -c . || true)
+            echo "DRY RUN: Would pull updates for ${synced_count} synced task(s)" >&2
+        fi
+        return 0
     fi
     
     if [[ -n "${task_id}" ]]; then
@@ -378,9 +412,22 @@ cmd_sync() {
         esac
     done
     
-    if [[ "${dry_run}" == "true" ]]; then
-        echo "⚠ Dry-run mode not yet implemented" >&2
+    if [[ "${dry_run}" != "true" ]] && ! check_gh_cli; then
         return 1
+    fi
+
+    if [[ "${dry_run}" == "true" ]]; then
+        if [[ -n "${task_id}" ]]; then
+            local task_uuid
+            task_uuid=$(task _get "${task_id}.uuid" 2>/dev/null)
+            [[ -z "${task_uuid}" ]] && { echo "Error: Task '${task_id}' not found" >&2; return 1; }
+            echo "DRY RUN: Would bidirectionally sync task ${task_uuid:0:8}" >&2
+        else
+            local synced_count
+            synced_count=$(get_all_synced_tasks | grep -c . || true)
+            echo "DRY RUN: Would bidirectionally sync ${synced_count} synced task(s)" >&2
+        fi
+        return 0
     fi
     
     if [[ -n "${task_id}" ]]; then
@@ -461,7 +508,7 @@ main() {
     # Check for profile
     if [[ -z "${WORKWARRIOR_BASE}" ]]; then
         echo "Error: No profile active. Please activate a profile first." >&2
-        echo "Run: source bin/ww && ww profile use <profile-name>" >&2
+        echo "Run: p-<profile-name> (or use_task_profile <profile-name>)" >&2
         return 1
     fi
     
@@ -479,20 +526,18 @@ main() {
     # Rotate logs if needed
     rotate_logs
     
-    # Check for gh CLI
-    if ! check_gh_cli; then
-        return 1
-    fi
-    
     # Parse command
     local command="$1"
     shift
     
     case "${command}" in
-        enable)
+        enable|enable-sync)
+            if ! check_gh_cli; then
+                return 1
+            fi
             cmd_enable "$@"
             ;;
-        disable)
+        disable|disable-sync)
             cmd_disable "$@"
             ;;
         push)
@@ -504,7 +549,7 @@ main() {
         sync)
             cmd_sync "$@"
             ;;
-        status)
+        status|sync-status)
             cmd_status "$@"
             ;;
         help|--help|-h|"")

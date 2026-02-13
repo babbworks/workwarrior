@@ -22,7 +22,7 @@ This guide walks you through comprehensive integration testing of the GitHub two
 3. **Active Workwarrior Profile**
    ```bash
    source bin/ww
-   ww profile use test-profile  # Or create a new test profile
+   p-test-profile  # Or create a new test profile
    ```
 
 4. **Clean Test Environment**

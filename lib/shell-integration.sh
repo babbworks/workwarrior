@@ -774,7 +774,7 @@ services() {
 # Global issues function - operates on active profile's bugwarrior config
 # Checks WORKWARRIOR_BASE is set (profile must be active)
 # Routes "i custom" to configuration tool
-# Routes GitHub sync commands (push, pull, sync, enable-sync, disable-sync, sync-status) to github-sync.sh
+# Routes GitHub sync commands (push, sync, enable-sync/enable, disable-sync/disable, sync-status/status) to github-sync.sh
 # Sets bugwarrior environment variables for profile isolation
 # Validates configuration exists before executing
 # Displays error if no profile active or configuration not found
@@ -787,6 +787,7 @@ services() {
 #   i enable-sync <task> <issue> <repo>  - Enable GitHub sync for a task
 #   i disable-sync <task>     - Disable GitHub sync for a task
 #   i sync-status             - Show GitHub sync status
+#   i status                  - Alias for i sync-status
 #   i pull --dry-run          - Test configuration without syncing
 #   i uda                     - List bugwarrior UDAs
 #   i custom                  - Configure issue services
@@ -822,7 +823,7 @@ i() {
   if [[ ${#args[@]} -gt 0 ]]; then
     local first_arg="${args[0]}"
     case "$first_arg" in
-      push|sync|enable-sync|disable-sync|sync-status)
+      push|sync|enable-sync|disable-sync|sync-status|enable|disable|status)
         # Route to GitHub sync CLI
         local ww_base="${WW_BASE:-$HOME/ww}"
         local github_sync_cli="$ww_base/services/custom/github-sync.sh"
@@ -841,13 +842,13 @@ i() {
           sync)
             sync_command="sync"
             ;;
-          enable-sync)
+          enable-sync|enable)
             sync_command="enable"
             ;;
-          disable-sync)
+          disable-sync|disable)
             sync_command="disable"
             ;;
-          sync-status)
+          sync-status|status)
             sync_command="status"
             ;;
         esac

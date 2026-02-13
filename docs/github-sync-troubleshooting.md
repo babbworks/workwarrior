@@ -84,11 +84,11 @@ source bin/ww
 ww profile list
 
 # Use profile
-ww profile use my-profile
+p-my-profile
 
 # Or create new profile
 ww profile create test-profile
-ww profile use test-profile
+p-test-profile
 
 # Verify
 echo $WORKWARRIOR_BASE

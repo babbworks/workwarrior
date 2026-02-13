@@ -210,7 +210,7 @@ No additional installation needed - included in Workwarrior.
 ### Setup Steps
 1. Install prerequisites (gh, jq)
 2. Authenticate with GitHub: `gh auth login`
-3. Activate a profile: `ww profile use my-profile`
+3. Activate a profile: `p-my-profile` (or `use_task_profile my-profile`)
 4. Start syncing: `i enable-sync <task-id> <issue-number> <repo>`
 
 ## Usage Example

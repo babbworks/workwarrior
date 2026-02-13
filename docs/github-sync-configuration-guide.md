@@ -246,12 +246,12 @@ Each profile has its own configuration:
 
 ```bash
 # Profile 1: Work
-ww profile use work
+p-work
 vim $WORKWARRIOR_BASE/.config/github-sync/config.sh
 # Set GITHUB_SYNC_DEFAULT_REPO="myorg/work-project"
 
 # Profile 2: Personal
-ww profile use personal
+p-personal
 vim $WORKWARRIOR_BASE/.config/github-sync/config.sh
 # Set GITHUB_SYNC_DEFAULT_REPO="myusername/personal-project"
 ```
