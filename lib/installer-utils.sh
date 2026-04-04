@@ -166,13 +166,13 @@ add_ww_to_shell_rc() {
     return 0
   fi
 
-  # Append configuration block
-  cat >> "$rc_file" << 'EOF'
+  # Append configuration block (uses actual install dir, not hardcoded $HOME/ww)
+  cat >> "$rc_file" << EOF
 
 # --- Workwarrior Installation ---
 # Added by workwarrior installer
-if [[ -f "$HOME/ww/bin/ww-init.sh" ]]; then
-  source "$HOME/ww/bin/ww-init.sh"
+if [[ -f "${WW_INSTALL_DIR}/bin/ww-init.sh" ]]; then
+  source "${WW_INSTALL_DIR}/bin/ww-init.sh"
 fi
 # --- End Workwarrior Installation ---
 EOF

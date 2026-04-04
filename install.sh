@@ -89,6 +89,58 @@ show_banner() {
   echo ""
 }
 
+ask_install_dir() {
+  if (( NON_INTERACTIVE == 1 )); then
+    log_info "Install directory: $WW_INSTALL_DIR"
+    return 0
+  fi
+
+  local suggested="$HOME/ww"
+  local chosen=""
+
+  echo "Install location"
+  echo "────────────────"
+  echo ""
+  echo "  Suggested:  $suggested"
+  echo ""
+  echo "  Press Enter to use the suggested location,"
+  echo "  or type an absolute path to install elsewhere."
+  echo "  (The directory will be created if it does not exist.)"
+  echo ""
+  read -rp "  Install to [$suggested]: " chosen
+
+  # Empty input → use suggested
+  if [[ -z "$chosen" ]]; then
+    chosen="$suggested"
+  fi
+
+  # Expand leading ~ manually (read does not expand it)
+  chosen="${chosen/#\~/$HOME}"
+
+  # Require absolute path
+  if [[ "$chosen" != /* ]]; then
+    log_error "Path must be absolute (start with /). Got: $chosen"
+    exit 1
+  fi
+
+  # Warn if the directory already exists and contains files
+  if [[ -d "$chosen" ]] && [[ -n "$(ls -A "$chosen" 2>/dev/null)" ]]; then
+    echo ""
+    log_warning "$chosen already exists and is not empty."
+    read -rp "  Continue anyway? [y/n]: " ok
+    if [[ "$ok" != "y" && "$ok" != "Y" ]]; then
+      log_info "Installation cancelled"
+      exit 0
+    fi
+  fi
+
+  # Apply — export so all sourced functions see the updated value
+  export WW_INSTALL_DIR="$chosen"
+  echo ""
+  log_info "Install directory set to: $WW_INSTALL_DIR"
+  echo ""
+}
+
 confirm_installation() {
   if (( NON_INTERACTIVE == 1 )); then
     return 0
@@ -412,8 +464,8 @@ configure_shell_integration() {
 
   echo ""
   echo "Changes:"
-  echo "  • Source ~/ww/bin/ww-init.sh on shell startup"
-  echo "  • Add ~/ww/bin to PATH"
+  echo "  • Source $WW_INSTALL_DIR/bin/ww-init.sh on shell startup"
+  echo "  • Add $WW_INSTALL_DIR/bin to PATH"
   echo ""
 
   if (( NON_INTERACTIVE == 0 )); then
@@ -423,7 +475,7 @@ configure_shell_integration() {
       echo ""
       echo "To configure manually, add this to your shell config:"
       echo ""
-      echo '  source "$HOME/ww/bin/ww-init.sh"'
+      echo "  source \"$WW_INSTALL_DIR/bin/ww-init.sh\""
       echo ""
       return 0
     fi
@@ -434,6 +486,10 @@ configure_shell_integration() {
 
 main() {
   show_banner
+
+  # Ask for install directory before showing the overview (overview uses the path)
+  ask_install_dir
+
   show_installation_overview
 
   if (( NON_INTERACTIVE == 0 )); then
