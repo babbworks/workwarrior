@@ -458,7 +458,7 @@ format_relative_time() {
   if [[ "$timestamp" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T ]]; then
     # ISO format
     epoch_then=$(date -j -f "%Y-%m-%dT%H:%M:%S" "${timestamp%%.*}" "+%s" 2>/dev/null || echo "0")
-  elif [[ "$timestamp" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}\ ]]; then
+  elif [[ "$timestamp" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}[[:space:]] ]]; then
     # Date with space
     epoch_then=$(date -j -f "%Y-%m-%d %H:%M" "$timestamp" "+%s" 2>/dev/null || echo "0")
   elif [[ "$timestamp" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then

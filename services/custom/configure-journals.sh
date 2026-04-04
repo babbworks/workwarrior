@@ -3,7 +3,7 @@
 # Category: custom
 # Description: Interactive guide for configuring JRNL settings
 
-set -e
+set -euo pipefail
 
 # Source shared utilities
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -30,7 +30,7 @@ show_banner() {
 }
 
 check_active_profile() {
-  if [[ -z "$WORKWARRIOR_BASE" ]]; then
+  if [[ -z "${WORKWARRIOR_BASE:-}" ]]; then
     log_error "No active profile. Activate a profile first with: p-<profile-name>"
     exit 1
   fi
@@ -56,9 +56,7 @@ show_journal_management_info() {
   echo "   ww journal add <journal-name>     # Add new journal"
   echo "   ww journal list                   # List all journals"
   echo "   ww journal remove <journal-name>  # Remove journal"
-  echo ""
-  echo "   Note: These commands are planned but not yet implemented."
-  echo "   See OUTSTANDING.md for status."
+  echo "   ww journal rename <old> <new>     # Rename journal"
   echo ""
   echo "2. This configuration tool:"
   echo "   • Guided prompts for adding/editing journals"

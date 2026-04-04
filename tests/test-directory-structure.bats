@@ -146,7 +146,7 @@ teardown() {
 # Helper function to generate random alphanumeric string
 random_alphanumeric() {
   local length="$1"
-  tr -dc 'a-zA-Z0-9_-' < /dev/urandom | head -c "$length"
+  tr -dc 'a-zA-Z0-9_-' < /dev/urandom | head -c "$length" || true
 }
 
 @test "Property 1: Random valid profile names create complete structure (10 iterations)" {

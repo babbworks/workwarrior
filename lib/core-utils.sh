@@ -9,7 +9,7 @@
 
 # Base directories
 readonly WW_BASE="${WW_BASE:-$HOME/ww}"
-readonly PROFILES_DIR="${PROFILES_DIR:-$WW_BASE/profiles}"
+PROFILES_DIR="${PROFILES_DIR:-$WW_BASE/profiles}"
 readonly SERVICES_DIR="${SERVICES_DIR:-$WW_BASE/services}"
 readonly RESOURCES_DIR="${RESOURCES_DIR:-$WW_BASE/resources}"
 readonly FUNCTIONS_DIR="${FUNCTIONS_DIR:-$WW_BASE/functions}"
@@ -131,7 +131,7 @@ ensure_profile_exists() {
 # Returns: 0 if active profile exists, 1 if not
 # Validates: Requirements 4.10, 8.18, 9.9
 require_active_profile() {
-  if [[ -z "$WORKWARRIOR_BASE" ]]; then
+  if [[ -z "${WORKWARRIOR_BASE:-}" ]]; then
     log_error "No profile is currently active"
     log_info "Activate a profile with: p-<profile-name>"
     log_info "Available profiles:"
@@ -262,7 +262,7 @@ discover_services() {
   local seen_services=()
   
   # Check profile-specific services first (if profile is active)
-  if [[ -n "$WORKWARRIOR_BASE" ]]; then
+  if [[ -n "${WORKWARRIOR_BASE:-}" ]]; then
     local profile_service_dir="$WORKWARRIOR_BASE/services/$category"
     if [[ -d "$profile_service_dir" ]]; then
       while IFS= read -r -d '' file; do
@@ -323,7 +323,7 @@ get_service_path() {
   fi
   
   # Check profile-specific service first (if profile is active)
-  if [[ -n "$WORKWARRIOR_BASE" ]]; then
+  if [[ -n "${WORKWARRIOR_BASE:-}" ]]; then
     local profile_service_path="$WORKWARRIOR_BASE/services/$category/$service_name"
     if [[ -f "$profile_service_path" ]]; then
       echo "$profile_service_path"
@@ -356,7 +356,7 @@ service_exists() {
   fi
   
   # Check profile-specific service first (if profile is active)
-  if [[ -n "$WORKWARRIOR_BASE" ]]; then
+  if [[ -n "${WORKWARRIOR_BASE:-}" ]]; then
     local profile_service_path="$WORKWARRIOR_BASE/services/$category/$service_name"
     if [[ -f "$profile_service_path" ]]; then
       return 0

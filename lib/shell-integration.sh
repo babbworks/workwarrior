@@ -2,6 +2,12 @@
 # Shell Integration Library
 # Functions for managing shell aliases, functions, and environment
 # Source this file: source "$(dirname "$0")/../lib/shell-integration.sh"
+#
+# NOTE: set -euo pipefail intentionally omitted here.
+# This file is sourced into the user's interactive shell (.bashrc/.zshrc).
+# File-level set flags propagate to the caller — setting -u in an interactive
+# shell would cause unbound-variable errors on normal shell usage.
+# Individual functions handle errors via return codes and local variable checks.
 
 # Source core utilities if not already loaded
 if [[ -z "$CORE_UTILS_LOADED" ]]; then
@@ -105,7 +111,7 @@ add_alias_to_section() {
 # Returns: 0 on success, 1 on failure
 # Validates: Requirements 4.1, 4.2, 4.3, 4.4, 8.9, 9.6, 9.7
 create_profile_aliases() {
-  local profile_name="$1"
+  local profile_name="${1:-}"
 
   # Validate profile name
   if ! validate_profile_name "$profile_name"; then
@@ -210,7 +216,7 @@ create_profile_aliases() {
 # Returns: 0 on success, 1 on failure
 # Validates: Requirements 3.4
 remove_profile_aliases() {
-  local profile_name="$1"
+  local profile_name="${1:-}"
 
   # Validate profile name
   if ! validate_profile_name "$profile_name"; then
@@ -304,7 +310,7 @@ ww_resolve_scope() {
 
   if [[ -n "$scope_mode" ]]; then
     WW_SCOPE_MODE="$scope_mode"
-  elif [[ -n "$WORKWARRIOR_BASE" && -n "$WARRIOR_PROFILE" ]]; then
+  elif [[ -n "${WORKWARRIOR_BASE:-}" && -n "${WARRIOR_PROFILE:-}" ]]; then
     WW_SCOPE_MODE="active"
     WW_SCOPE_PROFILE="$WARRIOR_PROFILE"
     WW_SCOPE_BASE="$WORKWARRIOR_BASE"
@@ -432,7 +438,7 @@ EOF
 # Returns: 0 on success, 1 on failure
 # Validates: Requirements 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8
 use_task_profile() {
-  local profile_name="$1"
+  local profile_name="${1:-}"
 
   # Validate profile name
   if [[ -z "$profile_name" ]]; then

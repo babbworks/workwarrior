@@ -3,7 +3,7 @@
 # Category: custom
 # Description: Interactive guide for configuring Hledger settings
 
-set -e
+set -euo pipefail
 
 # Source shared utilities
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -27,6 +27,8 @@ show_banner() {
   echo "============================================================"
   echo "         Hledger Configuration Guide"
   echo "============================================================"
+  echo "Direct commands are also available:"
+  echo "  ww ledger add <name> | list | remove <name> | rename <old> <new>"
   echo ""
 }
 

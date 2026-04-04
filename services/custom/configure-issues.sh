@@ -3,7 +3,7 @@
 # Category: custom
 # Description: Interactive guide for configuring bugwarrior issue synchronization
 
-set -e
+set -euo pipefail
 
 # Source shared utilities
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -44,7 +44,7 @@ show_banner() {
 }
 
 check_active_profile() {
-  if [[ -z "$WORKWARRIOR_BASE" ]]; then
+  if [[ -z "${WORKWARRIOR_BASE:-}" ]]; then
     log_error "No active profile. Activate a profile first with: p-<profile-name>"
     exit 1
   fi

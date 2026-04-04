@@ -2,7 +2,7 @@
 # Workwarrior CLI Entry Point
 # Usage: ww <command> [arguments]
 
-set -e
+set -euo pipefail
 
 # ============================================================================
 # CONFIGURATION

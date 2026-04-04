@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -euo pipefail
 # GitHub Sync CLI Interface
 # Command-line interface for GitHub two-way sync
 
