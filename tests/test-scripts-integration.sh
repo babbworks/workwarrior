@@ -137,7 +137,9 @@ echo ""
 
 # Test 4: Backup profile using manage-profiles.sh
 echo "Test 4: Backing up profile with manage-profiles.sh..."
-if ./scripts/manage-profiles.sh backup test-profile "$BATS_TEST_TMPDIR" > /dev/null 2>&1; then
+backup_dest="${BATS_TEST_TMPDIR:-$PWD/test-backups-scripts}"
+mkdir -p "$backup_dest"
+if ./scripts/manage-profiles.sh backup test-profile "$backup_dest" > /dev/null 2>&1; then
   echo "✓ Backup command executed successfully"
 else
   echo "✗ Backup command failed"

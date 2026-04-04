@@ -6,6 +6,12 @@ The Services Registry provides an extensible architecture for adding functionali
 
 ## Service Categories
 
+Use the CLI discovery layer to inspect categories before running scripts:
+
+- `ww service list` - list categories with short descriptions
+- `ww service info <category>` - show scope, syntax hints, and resolved service counts
+- `ww service help <category-or-topic>` - route to command help where available
+
 ### profile/
 **Purpose:** Profile management services
 
@@ -239,11 +245,14 @@ You can access help for most built-in services via:
 ```bash
 ww help profile
 ww help service
-ww help groups
+ww help group
+ww help model
 ww help custom
 ww help shortcut
 ww help deps
 ```
+
+Plural help topics (`ww help groups`, `ww help models`, `ww help journals`, `ww help ledgers`) are accepted aliases.
 
 ## Best Practices
 

@@ -1,3 +1,36 @@
+_q_usage() {
+  cat << 'EOF'
+Questions Manager Service
+========================
+Available services:
+  task     - Task management questions
+  journal  - Journal entry questions
+  time     - Time tracking questions
+  list     - List questions
+  ledger   - Financial/ledger questions
+  custom   - Custom templates
+
+Usage:
+  q help                       Show this help
+  q <service>                  List templates for service
+  q <service> <template>       Use existing template
+  q new [service]              Create template (default: custom)
+  q list                       List all templates
+  q edit <template>            Edit existing template
+  q delete <template> [--yes]  Delete template (interactive unless --yes)
+EOF
+}
+
+_q_validate_service() {
+  local service="$1"
+  [[ "$service" =~ ^(task|journal|time|list|ledger|custom)$ ]]
+}
+
+_q_validate_template_name() {
+  local template_name="$1"
+  [[ "$template_name" =~ ^[a-zA-Z0-9._-]+$ ]]
+}
+
 function q() {
   # Check if Workwarrior profile is active
   if [[ -z "$WORKWARRIOR_BASE" ]]; then
@@ -20,30 +53,16 @@ function q() {
 
   # No arguments - show main menu
   if [[ $# -eq 0 ]]; then
-    echo "Questions Manager Service"
-    echo "========================"
-    echo "Available services:"
-    echo "  task     - Task management questions"
-    echo "  journal  - Journal entry questions"
-    echo "  time     - Time tracking questions"
-    echo "  list     - List questions"
-    echo "  ledger   - Financial/ledger questions"
-    echo "  custom   - Custom templates"
-    echo ""
-    echo "Usage:"
-    echo "  q <service>           - List templates for service"
-    echo "  q <service> <template> - Use existing template"
-    echo "  q new                 - Create new custom template"
-    echo "  q new <service>       - Create new template for service"
-    echo "  q list                - List all templates"
-    echo "  q edit <template>     - Edit existing template"
-    echo "  q delete <template>   - Delete template"
+    _q_usage
     return 0
   fi
 
   local command="$1"
   
   case "$command" in
+    "help"|"-h"|"--help")
+      _q_usage
+      ;;
     "new")
       if [[ $# -eq 1 ]]; then
         # Create custom template
@@ -51,10 +70,11 @@ function q() {
       else
         # Create template for specific service
         local service="$2"
-        if [[ "$service" =~ ^(task|journal|time|list|ledger|custom)$ ]]; then
+        if _q_validate_service "$service"; then
           _q_create_template "$service"
         else
           echo "Error: Invalid service '$service'. Valid services: task, journal, time, list, ledger, custom" >&2
+          echo "Try: q help" >&2
           return 1
         fi
       fi
@@ -82,12 +102,16 @@ function q() {
         _q_list_service_templates "$command"
       else
         # Use specific template
+        if ! _q_validate_template_name "$2"; then
+          echo "Error: Invalid template name '$2'. Use letters, numbers, dot, underscore, or hyphen." >&2
+          return 1
+        fi
         _q_use_template "$command" "$2"
       fi
       ;;
     *)
       echo "Error: Unknown command '$command'" >&2
-      echo "Run 'q' for help."
+      echo "Try: q help" >&2
       return 1
       ;;
   esac
@@ -105,6 +129,10 @@ _q_create_template() {
   read -p "Template filename (without .json): " template_name
   if [[ -z "$template_name" ]]; then
     echo "Error: Template name cannot be empty." >&2
+    return 1
+  fi
+  if ! _q_validate_template_name "$template_name"; then
+    echo "Error: Invalid template name '$template_name'. Use letters, numbers, dot, underscore, or hyphen." >&2
     return 1
   fi
   
@@ -139,6 +167,11 @@ _q_create_template() {
   
   # Create template file
   local template_file="$templates_dir/$service/${template_name}.json"
+  if [[ -f "$template_file" ]]; then
+    echo "Error: Template already exists: $template_file" >&2
+    echo "Use: q edit $template_name" >&2
+    return 1
+  fi
   _q_write_template_file "$template_file" "$display_name" "$description" "$service" "${questions[@]}"
   
   echo "Template created: $template_file"
@@ -201,18 +234,20 @@ _q_list_service_templates() {
     return 0
   fi
   
-  local found_templates=0
-  for template_file in "$templates_dir"/*.json; do
-    if [[ -f "$template_file" ]]; then
-      local template_name=$(basename "$template_file" .json)
-      echo "  $template_name"
-      found_templates=1
-    fi
-  done
-  
-  if [[ $found_templates -eq 0 ]]; then
+  local -a template_names=()
+  while IFS= read -r file; do
+    template_names+=("$(basename "$file" .json)")
+  done < <(command find "$templates_dir" -maxdepth 1 -type f -name "*.json" | sort)
+
+  if [[ ${#template_names[@]} -eq 0 ]]; then
     echo "No templates found for $service"
+    echo "Create one with: q new $service"
+    return 0
   fi
+
+  for template_name in "${template_names[@]}"; do
+    echo "  $template_name"
+  done
 }
 
 # Helper function to list all templates
@@ -222,22 +257,29 @@ _q_list_all_templates() {
   echo "All Templates:"
   echo "=============="
   
+  local listed_any=0
   for service in task journal time list ledger custom; do
     local service_dir="$templates_dir/$service"
     if [[ -d "$service_dir" ]]; then
-      local has_templates=0
-      for template_file in "$service_dir"/*.json; do
-        if [[ -f "$template_file" ]]; then
-          if [[ $has_templates -eq 0 ]]; then
-            echo "$service:"
-            has_templates=1
-          fi
-          local template_name=$(basename "$template_file" .json)
+      local -a service_templates=()
+      while IFS= read -r file; do
+        service_templates+=("$(basename "$file" .json)")
+      done < <(command find "$service_dir" -maxdepth 1 -type f -name "*.json" | sort)
+
+      if [[ ${#service_templates[@]} -gt 0 ]]; then
+        listed_any=1
+        echo "$service:"
+        for template_name in "${service_templates[@]}"; do
           echo "  $template_name"
-        fi
-      done
+        done
+      fi
     fi
   done
+
+  if [[ $listed_any -eq 0 ]]; then
+    echo "(no templates found)"
+    echo "Create one with: q new journal"
+  fi
 }
 
 # Helper function to use a template
@@ -461,6 +503,10 @@ _q_find_template() {
 # Helper function to edit an existing template
 _q_edit_template() {
   local template_name="$1"
+  if ! _q_validate_template_name "$template_name"; then
+    echo "Error: Invalid template name '$template_name'." >&2
+    return 1
+  fi
 
   # Find the template file
   local template_file
@@ -505,6 +551,11 @@ _q_edit_template() {
 # Helper function to delete a template
 _q_delete_template() {
   local template_name="$1"
+  local confirm_flag="${2:-}"
+  if ! _q_validate_template_name "$template_name"; then
+    echo "Error: Invalid template name '$template_name'." >&2
+    return 1
+  fi
 
   # Find the template file
   local template_file
@@ -523,8 +574,13 @@ _q_delete_template() {
   echo "Template found: $template_file"
   echo "Service: $service"
 
-  # Confirm deletion
-  read -p "Are you sure you want to delete template '$template_name'? (y/N): " confirm
+  # Confirm deletion (skip prompt with --yes)
+  local confirm="n"
+  if [[ "$confirm_flag" == "--yes" ]]; then
+    confirm="y"
+  else
+    read -p "Are you sure you want to delete template '$template_name'? (y/N): " confirm
+  fi
 
   if [[ "$confirm" =~ ^[Yy]$ ]]; then
     if rm -f "$template_file"; then

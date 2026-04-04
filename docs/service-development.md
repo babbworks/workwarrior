@@ -2,6 +2,14 @@
 
 This guide describes how to create and register services in Workwarrior.
 
+## CLI Discovery
+
+Before adding or changing a service category, inspect current registry state:
+
+- `ww service list` shows categories and brief intent.
+- `ww service info <category>` shows scope expectations and command syntax hints.
+- `ww service help <category-or-topic>` routes to detailed command help when a dedicated namespace exists.
+
 ## Service Locations
 
 Global services:

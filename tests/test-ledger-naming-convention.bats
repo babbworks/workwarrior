@@ -210,9 +210,7 @@ random_alphanumeric() {
     assert [ -f "$ledger_file" ]
     
     # Verify extension
-    run bash -c "echo '$ledger_file' | grep -o '\.journal$'"
-    assert_success
-    assert_equal "$output" ".journal"
+    [[ "$ledger_file" == *.journal ]]
   done
 }
 
