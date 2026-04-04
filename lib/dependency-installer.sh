@@ -589,167 +589,455 @@ EOF
 }
 
 # ============================================================================
+# TOOL METADATA
+# ============================================================================
+
+# One-line description of each tool's role in workwarrior
+get_tool_description() {
+  case "$1" in
+    task)       echo "Task management — the core engine powering all ww task operations" ;;
+    timew)      echo "Time tracking — starts/stops automatically when tasks are started/stopped" ;;
+    hledger)    echo "Plain-text accounting — per-profile ledger tracking" ;;
+    jrnl)       echo "Encrypted journalling — per-profile named journals" ;;
+    bugwarrior) echo "Issue sync — pulls GitHub/GitLab/Jira issues into TaskWarrior (optional)" ;;
+    python3)    echo "Python runtime — required for the TaskWarrior/TimeWarrior integration hook" ;;
+    pipx)       echo "Python app installer — required to safely install jrnl and bugwarrior" ;;
+    *)          echo "Unknown tool" ;;
+  esac
+}
+
+# Files each tool creates by default on first run
+get_tool_default_files() {
+  case "$1" in
+    task)
+      echo "  ~/.taskrc                  global task configuration"
+      echo "  ~/.task/                   global task database (SQLite)"
+      echo "  ~/.task/hooks/             global hook scripts directory"
+      ;;
+    timew)
+      echo "  ~/.timewarrior/            global timewarrior config and database"
+      echo "  ~/.timewarrior/timewarrior.cfg"
+      ;;
+    hledger)
+      echo "  ~/.hledger.journal         default journal (used only by bare 'hledger' command)"
+      ;;
+    jrnl)
+      echo "  ~/.config/jrnl/jrnl.yaml   global journal list and preferences"
+      echo "  ~/.local/share/jrnl/       default journal storage"
+      ;;
+    bugwarrior)
+      echo "  ~/.config/bugwarrior/bugwarrior.cfg   global sync configuration"
+      ;;
+    python3)
+      echo "  (system-managed runtime, no user-facing config files)"
+      ;;
+    pipx)
+      echo "  ~/.local/bin/              installed tool binaries"
+      echo "  ~/.local/share/pipx/       isolated Python environments"
+      ;;
+  esac
+}
+
+# How workwarrior manages each tool's integration
+get_tool_ww_integration() {
+  case "$1" in
+    task)
+      echo "  TASKRC env var        → redirects config to active profile's .taskrc"
+      echo "  TASKDATA env var      → redirects database to active profile's .task/"
+      echo "  ~/.taskrc             → backed up + replaced with a ww sentinel"
+      echo "  on-modify.timewarrior → hook installed in each profile's .task/hooks/"
+      ;;
+    timew)
+      echo "  TIMEWARRIORDB env var → redirects to active profile's .timewarrior/"
+      echo "  ~/.timewarrior/       → left in place; ignored while a profile is active"
+      ;;
+    hledger)
+      echo "  -f <ledger-file>      → passed explicitly by 'l' function per profile"
+      echo "  ~/.hledger.journal    → ignored during profile use (ww always passes -f)"
+      ;;
+    jrnl)
+      echo "  --config-file flag    → passed by 'j' function with per-profile jrnl.yaml"
+      echo "  ~/.config/jrnl/jrnl.yaml → backed up + stripped to default journal only"
+      ;;
+    bugwarrior)
+      echo "  BUGWARRIORRC env var  → redirects to active profile's bugwarriorrc"
+      echo "  'i pull' / 'ww issues pull' → triggers sync for the active profile"
+      ;;
+    python3)
+      echo "  Required runtime for on-modify.timewarrior hook (Python 3 script)"
+      ;;
+    pipx)
+      echo "  Installs jrnl and bugwarrior into isolated environments"
+      echo "  Binaries land in ~/.local/bin/ — ensure this is in your PATH"
+      ;;
+  esac
+}
+
+# ============================================================================
+# PER-TOOL INSTALL CARD
+# ============================================================================
+
+show_tool_card() {
+  local tool="$1"
+  local pm="$2"
+  local installed_version="$3"
+  local latest_version="${4:-unavailable}"
+  local min_version="$5"
+
+  local display_name
+  case "$tool" in
+    task)       display_name="TaskWarrior" ;;
+    timew)      display_name="TimeWarrior" ;;
+    hledger)    display_name="Hledger" ;;
+    jrnl)       display_name="JRNL" ;;
+    bugwarrior) display_name="Bugwarrior" ;;
+    python3)    display_name="Python 3" ;;
+    pipx)       display_name="pipx" ;;
+    *)          display_name="$tool" ;;
+  esac
+
+  local pm_name
+  pm_name=$(get_package_manager_name "$pm")
+  local install_cmd
+  install_cmd=$(get_install_command "$tool" "$pm")
+
+  echo ""
+  echo "┌─────────────────────────────────────────────────────────────"
+  printf "│  %-20s %s\n" "$display_name" "$(get_tool_description "$tool")"
+  echo "├─────────────────────────────────────────────────────────────"
+  echo "│  Versions"
+  if [[ "$installed_version" == "not_installed" ]]; then
+    printf "│    %-22s %s\n" "Installed:" "not installed"
+  else
+    printf "│    %-22s %s\n" "Installed:" "$installed_version"
+  fi
+  if [[ -z "$latest_version" || "$latest_version" == "—" ]]; then
+    printf "│    %-22s %s\n" "Latest available:" "unavailable (offline?)"
+  else
+    printf "│    %-22s %s\n" "Latest available:" "$latest_version"
+  fi
+  printf "│    %-22s %s\n" "WW supported minimum:" "$min_version"
+  echo "│"
+  printf "│  Install via %s:\n" "$pm_name"
+  echo "│    $install_cmd"
+  echo "│"
+  echo "│  Default files this tool creates:"
+  while IFS= read -r line; do
+    echo "│ $line"
+  done < <(get_tool_default_files "$tool")
+  echo "│"
+  echo "│  Workwarrior integration:"
+  while IFS= read -r line; do
+    echo "│ $line"
+  done < <(get_tool_ww_integration "$tool")
+  echo "└─────────────────────────────────────────────────────────────"
+}
+
+# ============================================================================
+# POST-INSTALL CONFLICT NEUTRALISATION
+# ============================================================================
+
+# Called immediately after each tool is installed.
+# Backs up and neutralises any global config that would conflict with
+# workwarrior's per-profile env-var redirection approach.
+neutralise_tool_defaults() {
+  local tool="$1"
+
+  case "$tool" in
+    task)
+      # Replace ~/.taskrc with a ww sentinel so bare 'task' fails clearly
+      # instead of silently writing to the wrong database.
+      if [[ -f "$HOME/.taskrc" ]]; then
+        local backup="$HOME/.taskrc.pre-ww-$(date +%Y%m%d%H%M%S)"
+        cp "$HOME/.taskrc" "$backup"
+        log_info "Backed up ~/.taskrc → $(basename "$backup")"
+      fi
+      cat > "$HOME/.taskrc" << 'SENTINEL'
+# Workwarrior-managed — do not edit directly
+# ─────────────────────────────────────────
+# TaskWarrior on this system is managed per-profile by Workwarrior.
+# Activate a profile before using task:
+#
+#   p-<profile-name>    e.g.  p-work
+#
+# The TASKRC and TASKDATA environment variables set by the profile
+# override this file. If you see task errors, no profile is active.
+
+data.location=/dev/null
+hooks=off
+SENTINEL
+      log_success "Created ww sentinel at ~/.taskrc"
+      ;;
+
+    timew)
+      # TIMEWARRIORDB env var handles redirection per profile.
+      # The global ~/.timewarrior/ is only reachable outside a profile.
+      if [[ -d "$HOME/.timewarrior" ]]; then
+        log_info "~/.timewarrior/ exists — ignored while a ww profile is active (TIMEWARRIORDB overrides)"
+      fi
+      ;;
+
+    jrnl)
+      local jrnl_config="$HOME/.config/jrnl/jrnl.yaml"
+      if [[ -f "$jrnl_config" ]]; then
+        local backup="${jrnl_config}.pre-ww-$(date +%Y%m%d%H%M%S)"
+        cp "$jrnl_config" "$backup"
+        log_info "Backed up jrnl config → $(basename "$backup")"
+        # Strip all journal entries except default; preserve preferences.
+        awk '
+          /^journals:/ { in_j=1; print; next }
+          in_j && /^  default:/ { print; in_d=1; next }
+          in_j && in_d && /^    / { print; next }
+          in_j && in_d && !/^    / { in_d=0 }
+          in_j && /^  [a-zA-Z]/ && !/^  default:/ { next }
+          in_j && /^[^ ]/ { in_j=0 }
+          { print }
+        ' "$backup" > "$jrnl_config"
+        log_success "Cleaned ~/.config/jrnl/jrnl.yaml (stripped old journal paths, kept preferences)"
+      else
+        # Pre-create minimal config so jrnl does not launch its interactive
+        # first-run wizard (which would block the install flow).
+        mkdir -p "$(dirname "$jrnl_config")"
+        cat > "$jrnl_config" << 'JRNLCFG'
+colors:
+  body: none
+  date: black
+  tags: yellow
+  title: cyan
+default_hour: 9
+default_minute: 0
+editor: ''
+encrypt: false
+highlight: true
+indent_character: '|'
+journals:
+  default:
+    journal: ~/.local/share/jrnl/journal.txt
+linewrap: 79
+tagsymbols: '#@'
+template: false
+timeformat: '%F %r'
+JRNLCFG
+        log_success "Pre-created minimal ~/.config/jrnl/jrnl.yaml"
+      fi
+      ;;
+
+    bugwarrior)
+      # BUGWARRIORRC env var handles per-profile redirection.
+      # Back up any pre-existing global config but do not delete it.
+      local bw_config="$HOME/.config/bugwarrior/bugwarrior.cfg"
+      if [[ -f "$bw_config" ]]; then
+        local backup="${bw_config}.pre-ww-$(date +%Y%m%d%H%M%S)"
+        cp "$bw_config" "$backup"
+        log_info "Backed up bugwarrior config → $(basename "$backup")"
+        log_info "BUGWARRIORRC env var will point to per-profile config when a profile is active"
+      fi
+      ;;
+
+    hledger|python3|pipx)
+      # No global config conflicts to neutralise.
+      ;;
+  esac
+}
+
+# ============================================================================
 # MAIN INSTALLATION FLOW
 # ============================================================================
 
-# Run the complete dependency installation flow
+# Interactive per-tool dependency installation.
+# For each tool: shows a card (versions, file locations, ww integration),
+# asks permission, installs, then immediately neutralises config conflicts.
 run_dependency_installer() {
-  local pm
-  local pm_name
+  local pm pm_name
 
   echo ""
   echo "============================================================"
-  echo "         Dependency Installation"
+  echo "       Workwarrior — Dependency Installation"
   echo "============================================================"
 
   # Step 1: Detect package manager
   pm=$(detect_package_manager)
   pm_name=$(get_package_manager_name "$pm")
-
   echo ""
-  log_info "Detected package manager: $pm_name"
+  log_info "Package manager detected: $pm_name"
 
   if [[ "$pm" == "unknown" ]]; then
-    log_warning "No supported package manager found"
-    log_info "You will need to install dependencies manually"
+    log_warning "No supported package manager found (brew / apt / dnf / pacman)"
     echo ""
-    echo "Required tools:"
-    echo "  • TaskWarrior (task)"
-    echo "  • TimeWarrior (timew)"
-    echo "  • Hledger (hledger)"
-    echo "  • JRNL (jrnl)"
-    echo "  • Python 3 (python3)"
+    echo "Install the following tools manually, then re-run 'ww deps install':"
+    echo ""
+    echo "  task        taskwarrior.org"
+    echo "  timew       timewarrior.org"
+    echo "  hledger     hledger.org"
+    echo "  jrnl        jrnl.sh  (via: pipx install jrnl)"
+    echo "  python3     python.org"
     echo ""
     return 1
   fi
 
-  # Step 2: Check current status
+  # Step 2: Check installed versions
+  echo ""
+  log_info "Checking installed tools..."
   check_all_dependencies
-  display_dependency_status
 
-  # Step 3: Offer online version check
-  echo "Would you like to check for latest versions online?"
-  show_online_check_endpoints "$pm"
-  read -p "[y] Yes, check online  [n] No, continue: " check_online
-
-  if [[ "$check_online" == "y" || "$check_online" == "Y" ]]; then
-    fetch_latest_versions "$pm"
-    display_latest_versions
-  fi
-
-  # Step 4: Determine what needs to be installed
-  local tools_to_install=()
-  local tool_names=("task" "timew" "hledger" "jrnl" "bugwarrior" "python3" "pipx")
-
-  for i in "${!DEP_STATUS[@]}"; do
-    if [[ "${DEP_STATUS[$i]}" == "missing" ]]; then
-      tools_to_install+=("${tool_names[$i]}")
-    fi
-  done
-
-  if [[ ${#tools_to_install[@]} -eq 0 ]]; then
-    log_success "All dependencies are installed"
-    echo ""
-    return 0
-  fi
-
-  # Step 5: Show installation plan
+  # Step 3: Fetch latest available versions (single batch network call)
   echo ""
-  echo "┌─────────────────────────────────────────────────────────────"
-  echo "│ Installation Plan"
-  echo "└─────────────────────────────────────────────────────────────"
+  echo "Fetching latest available versions online..."
+  echo "  Contacting: formulae.brew.sh / api.github.com / pypi.org"
   echo ""
-  echo "The following tools will be installed:"
-  echo ""
+  fetch_latest_versions "$pm"
 
-  # Ensure pipx is installed first if jrnl or bugwarrior is needed
-  local need_pipx=0
-  for tool in "${tools_to_install[@]}"; do
-    if [[ "$tool" == "jrnl" || "$tool" == "bugwarrior" ]]; then
-      need_pipx=1
-    fi
-  done
+  # Step 4: Show overview table
+  display_latest_versions
 
-  # Check if pipx is missing and needed
-  if [[ $need_pipx -eq 1 ]]; then
-    local pipx_version
-    pipx_version=$(get_tool_version "pipx")
-    if [[ "$pipx_version" == "not_installed" ]]; then
-      # Add pipx to front of list if not already there
-      local has_pipx=0
-      for tool in "${tools_to_install[@]}"; do
-        [[ "$tool" == "pipx" ]] && has_pipx=1
-      done
-      if [[ $has_pipx -eq 0 ]]; then
-        tools_to_install=("pipx" "${tools_to_install[@]}")
+  # Step 5: Per-tool interactive loop
+  # Order: pipx must come before jrnl and bugwarrior (they depend on it).
+  local tool_order=("pipx" "python3" "task" "timew" "hledger" "jrnl" "bugwarrior")
+
+  # Map tool name → index in DEP arrays (set by check_all_dependencies)
+  # DEP order: TaskWarrior TimeWarrior Hledger JRNL Bugwarrior Python3 pipx
+  declare -A tool_dep_index
+  tool_dep_index[task]=0
+  tool_dep_index[timew]=1
+  tool_dep_index[hledger]=2
+  tool_dep_index[jrnl]=3
+  tool_dep_index[bugwarrior]=4
+  tool_dep_index[python3]=5
+  tool_dep_index[pipx]=6
+
+  local installed_count=0 skipped_count=0 failed_count=0
+
+  for tool in "${tool_order[@]}"; do
+    local idx="${tool_dep_index[$tool]}"
+    local installed_version="${DEP_INSTALLED_VERSIONS[$idx]}"
+    local min_version="${DEP_MIN_VERSIONS[$idx]}"
+    local status="${DEP_STATUS[$idx]}"
+    local latest_version="${LATEST_VERSIONS[$idx]:-}"
+
+    # ── Already installed and up to date ──────────────────────────────────
+    if [[ "$status" == "ok" ]]; then
+      local needs_upgrade=0
+      if [[ -n "$latest_version" && "$latest_version" != "—" ]]; then
+        version_gte "$installed_version" "$latest_version" || needs_upgrade=1
       fi
+
+      if [[ $needs_upgrade -eq 0 ]]; then
+        printf "  ✓  %-12s %s — up to date\n" "$tool" "$installed_version"
+        continue
+      fi
+
+      # Upgrade available (not required — already meets minimum)
+      show_tool_card "$tool" "$pm" "$installed_version" "$latest_version" "$min_version"
+      echo ""
+      echo "  ✓  Already installed ($installed_version) and meets WW minimum ($min_version)."
+      echo "     Upgrade available: $latest_version"
+      echo ""
+      read -rp "  [u] Upgrade to $latest_version   [k] Keep $installed_version : " choice
+      case "$choice" in
+        u|U)
+          local upgrade_cmd
+          upgrade_cmd=$(get_upgrade_command "$tool" "$pm")
+          if execute_install "$tool" "$upgrade_cmd" "$tool"; then
+            ((installed_count++))
+            neutralise_tool_defaults "$tool"
+          else
+            ((failed_count++))
+          fi
+          ;;
+        *) echo "  Keeping $installed_version." ;;
+      esac
+      continue
     fi
-  fi
 
-  local step=1
-  for tool in "${tools_to_install[@]}"; do
-    local cmd
-    cmd=$(get_install_command "$tool" "$pm")
-    echo "  Step $step: $cmd"
-    ((step++))
-  done
-
-  echo ""
-  echo "Installation directory: System default (via $pm_name)"
-  echo ""
-  read -p "Proceed with installation? [y/n]: " confirm
-
-  if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
-    log_info "Installation cancelled"
-    return 1
-  fi
-
-  # Step 6: Execute installations
-  local failed=0
-  for tool in "${tools_to_install[@]}"; do
-    local cmd
-    cmd=$(get_install_command "$tool" "$pm")
-    if ! execute_install "$tool" "$cmd" "${DEP_NAMES[$i]:-$tool}"; then
-      ((failed++))
+    # ── Below minimum — upgrade required ──────────────────────────────────
+    if [[ "$status" == "update" ]]; then
+      show_tool_card "$tool" "$pm" "$installed_version" "$latest_version" "$min_version"
+      echo ""
+      echo "  ⚠  Version $installed_version is below WW minimum ($min_version)."
+      echo "     Full compatibility is not guaranteed without upgrading."
+      echo ""
+      read -rp "  [u] Upgrade   [s] Skip (risk incompatibility) : " choice
+      case "$choice" in
+        u|U)
+          local upgrade_cmd
+          upgrade_cmd=$(get_upgrade_command "$tool" "$pm")
+          if execute_install "$tool" "$upgrade_cmd" "$tool"; then
+            ((installed_count++))
+            neutralise_tool_defaults "$tool"
+          else
+            ((failed_count++))
+          fi
+          ;;
+        *) echo "  Skipped."; ((skipped_count++)) ;;
+      esac
+      continue
     fi
 
-    # Special handling for jrnl
-    if [[ "$tool" == "jrnl" ]]; then
-      show_jrnl_setup_guide
-      echo "Would you like to run jrnl now to complete initial setup?"
-      read -p "[y] Yes  [n] No, I'll do it later: " run_jrnl
-      if [[ "$run_jrnl" == "y" || "$run_jrnl" == "Y" ]]; then
+    # ── Not installed ──────────────────────────────────────────────────────
+    if [[ "$status" == "missing" ]]; then
+
+      # pipx: only needed if jrnl or bugwarrior will be installed
+      if [[ "$tool" == "pipx" ]]; then
+        local jrnl_s="${DEP_STATUS[${tool_dep_index[jrnl]}]}"
+        local bw_s="${DEP_STATUS[${tool_dep_index[bugwarrior]}]}"
+        if [[ "$jrnl_s" != "missing" && "$bw_s" != "missing" ]]; then
+          printf "  –  %-12s not needed (jrnl and bugwarrior already installed)\n" "$tool"
+          ((skipped_count++))
+          continue
+        fi
+      fi
+
+      show_tool_card "$tool" "$pm" "not installed" "$latest_version" "$min_version"
+      echo ""
+
+      if [[ "$tool" == "bugwarrior" ]]; then
+        echo "  Optional — only needed if you use GitHub/GitLab/Jira issue sync."
+        echo "  You can install it later with: ww deps install"
         echo ""
-        log_info "Running 'jrnl' for first-time setup..."
-        jrnl --diagnostic || true
       fi
+
+      read -rp "  [y] Install   [s] Skip : " choice
+      case "$choice" in
+        y|Y)
+          local install_cmd
+          install_cmd=$(get_install_command "$tool" "$pm")
+          if execute_install "$tool" "$install_cmd" "$tool"; then
+            ((installed_count++))
+            neutralise_tool_defaults "$tool"
+          else
+            ((failed_count++))
+          fi
+          ;;
+        *) echo "  Skipped."; ((skipped_count++)) ;;
+      esac
     fi
   done
 
-  # Step 7: Check PATH for pipx
+  # Step 6: PATH check for pipx-installed tools
   if ! check_local_bin_in_path; then
     show_path_configuration
-    read -p "Add ~/.local/bin to PATH? [y/n]: " add_path
-
+    read -rp "  Add ~/.local/bin to PATH in shell rc files? [y/n] : " add_path
     if [[ "$add_path" == "y" || "$add_path" == "Y" ]]; then
-      # Add to appropriate shell RC files
       [[ -f "$HOME/.bashrc" ]] && add_local_bin_to_path "$HOME/.bashrc"
-      [[ -f "$HOME/.zshrc" ]] && add_local_bin_to_path "$HOME/.zshrc"
+      [[ -f "$HOME/.zshrc" ]]  && add_local_bin_to_path "$HOME/.zshrc"
     fi
   fi
 
-  # Step 8: Summary
+  # Step 7: Summary
   echo ""
   echo "============================================================"
-  if [[ $failed -eq 0 ]]; then
-    log_success "All dependencies installed successfully"
+  echo "  Installed / upgraded : $installed_count"
+  echo "  Skipped              : $skipped_count"
+  [[ $failed_count -gt 0 ]] && echo "  Failed               : $failed_count"
+  echo "============================================================"
+  echo ""
+  if [[ $failed_count -eq 0 ]]; then
+    log_success "Done. Run 'ww deps check' to verify the full status."
   else
-    log_warning "$failed tool(s) failed to install"
+    log_warning "$failed_count installation(s) failed. Run 'ww deps check' to review."
   fi
-  echo "============================================================"
-  echo ""
 
-  return $failed
+  return $failed_count
 }
 
 # ============================================================================
