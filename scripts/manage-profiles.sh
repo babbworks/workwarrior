@@ -11,6 +11,7 @@ LIB_DIR="$(cd "$SCRIPT_DIR/../lib" && pwd)"
 
 # Source required libraries
 source "$LIB_DIR/core-utils.sh"
+source "$LIB_DIR/config-utils.sh"
 source "$LIB_DIR/profile-manager.sh"
 source "$LIB_DIR/shell-integration.sh"
 
@@ -22,30 +23,26 @@ show_usage() {
   cat << EOF
 Usage: manage-profiles.sh <command> [arguments]
 
-Manage Workwarrior profiles - list, delete, backup, and get information about profiles.
+Manage Workwarrior profiles - list, delete, backup, import, and restore profiles.
 
 Commands:
-  list                      List all existing profiles (sorted)
-  delete <profile-name>     Delete a profile and all its data
-  info <profile-name>       Display profile information (location, disk usage, counts)
-  backup <profile-name> [dest]  Create a backup archive of a profile
-  help                      Show this help message
+  list                           List all existing profiles (sorted)
+  delete <profile-name>          Delete a profile and all its data
+  info <profile-name>            Display profile information (location, disk usage, counts)
+  backup <profile-name> [dest]   Create a backup archive of a profile
+  import <archive> [new-name]    Create a new profile from a backup archive
+  restore <profile> <archive>    Replace an existing profile from a backup archive
+  help                           Show this help message
 
 Examples:
-  # List all profiles
   manage-profiles.sh list
-
-  # Delete a profile
   manage-profiles.sh delete old-project
-
-  # Show profile information
   manage-profiles.sh info work
-
-  # Backup a profile to home directory (default)
   manage-profiles.sh backup work
-
-  # Backup a profile to specific directory
   manage-profiles.sh backup work /path/to/backups
+  manage-profiles.sh import work-backup-20260101.tar.gz
+  manage-profiles.sh import work-backup-20260101.tar.gz work-restored
+  manage-profiles.sh restore work work-backup-20260101.tar.gz
 
 EOF
 }
@@ -66,7 +63,7 @@ cmd_list() {
   local profiles=()
   while IFS= read -r -d '' dir; do
     profiles+=( "$(basename "$dir")" )
-  done < <(find "$PROFILES_DIR" -mindepth 1 -maxdepth 1 -type d -print0)
+  done < <(command find "$PROFILES_DIR" -mindepth 1 -maxdepth 1 -type d -print0)
   
   if (( ${#profiles[@]} == 0 )); then
     log_info "No profiles found"
@@ -224,7 +221,7 @@ cmd_info() {
   echo "Journals:"
   local journal_count=0
   if [[ -d "$profile_base/journals" ]]; then
-    journal_count=$(find "$profile_base/journals" -name "*.txt" -type f 2>/dev/null | wc -l | tr -d ' ')
+    journal_count=$(command find "$profile_base/journals" -name "*.txt" -type f 2>/dev/null | wc -l | tr -d ' ')
   fi
   echo "  $journal_count journal file(s)"
   
@@ -238,7 +235,7 @@ cmd_info() {
   echo "Ledgers:"
   local ledger_count=0
   if [[ -d "$profile_base/ledgers" ]]; then
-    ledger_count=$(find "$profile_base/ledgers" -name "*.journal" -type f 2>/dev/null | wc -l | tr -d ' ')
+    ledger_count=$(command find "$profile_base/ledgers" -name "*.journal" -type f 2>/dev/null | wc -l | tr -d ' ')
   fi
   echo "  $ledger_count ledger file(s)"
   
@@ -280,7 +277,10 @@ cmd_info() {
 
 cmd_backup() {
   local profile_name="$1"
-  local dest_dir="${2:-$HOME}"
+  local dest_dir="${2:-}"
+  if [[ -z "$dest_dir" ]]; then
+    dest_dir="$HOME"
+  fi
   
   # Validate profile name
   if [[ -z "$profile_name" ]]; then
@@ -368,6 +368,48 @@ cmd_backup() {
 }
 
 # ============================================================================
+# IMPORT PROFILE COMMAND
+# ============================================================================
+
+cmd_import() {
+  local archive="$1"
+  local new_name="${2:-}"
+
+  if [[ -z "$archive" ]]; then
+    log_error "Archive path is required"
+    echo "Usage: manage-profiles.sh import <archive> [new-name]"
+    return 1
+  fi
+
+  import_profile "$archive" "$new_name"
+  return $?
+}
+
+# ============================================================================
+# RESTORE PROFILE COMMAND
+# ============================================================================
+
+cmd_restore() {
+  local profile_name="$1"
+  local archive="$2"
+
+  if [[ -z "$profile_name" ]]; then
+    log_error "Profile name is required"
+    echo "Usage: manage-profiles.sh restore <profile-name> <archive>"
+    return 1
+  fi
+
+  if [[ -z "$archive" ]]; then
+    log_error "Archive path is required"
+    echo "Usage: manage-profiles.sh restore <profile-name> <archive>"
+    return 1
+  fi
+
+  restore_profile "$profile_name" "$archive"
+  return $?
+}
+
+# ============================================================================
 # COMMAND DISPATCHER
 # ============================================================================
 
@@ -401,6 +443,16 @@ main() {
     backup)
       shift
       cmd_backup "$@"
+      exit $?
+      ;;
+    import)
+      shift
+      cmd_import "$@"
+      exit $?
+      ;;
+    restore)
+      shift
+      cmd_restore "$@"
       exit $?
       ;;
     help|--help|-h)

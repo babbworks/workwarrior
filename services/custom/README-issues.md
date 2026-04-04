@@ -1,125 +1,105 @@
-# Issues Service (Bugwarrior Integration)
+# Issues Service
 
-## Overview
+The `i` command (and its alias `ww issues`) routes issue and sync operations across two engines:
 
-The Issues service integrates [Bugwarrior](https://bugwarrior.readthedocs.io/) into Workwarrior, enabling synchronization of issues from 25+ external services (GitHub, GitLab, Jira, Trello, etc.) into TaskWarrior.
+- **github-sync** — bidirectional two-way sync with GitHub Issues
+- **bugwarrior** — one-way pull from GitHub, GitLab, Jira, Trello, and 20+ other services
 
-**⚠️ IMPORTANT: One-Way Sync Only**
+---
 
-Bugwarrior pulls issues FROM external services TO TaskWarrior. Changes made in TaskWarrior do NOT sync back to the external issue trackers. External services are authoritative.
+## Command Routing Matrix
 
-## Features
+| Command | Engine | Direction | Notes |
+|---|---|---|---|
+| `i pull [--dry-run] [--json]` | bugwarrior | External → TaskWarrior | One-way only |
+| `i uda` | bugwarrior | local | List TaskWarrior UDAs |
+| `i push [task-id]` | github-sync | TaskWarrior → GitHub | Two-way |
+| `i sync [task-id]` | github-sync | Bidirectional | Two-way |
+| `i enable-sync <task> <issue> <repo>` | github-sync | — | Link task to GitHub issue |
+| `i disable-sync <task>` | github-sync | — | Unlink task |
+| `i status [--json]` | github-sync | — | Show sync state |
+| `i custom` | configure-issues.sh | — | Interactive config |
+| `i help` | — | — | Show this routing matrix |
 
-- **Multi-Service Support**: GitHub, GitLab, Jira, Trello, Todoist, Bitbucket, and 20+ more
-- **Profile Isolation**: Each profile has its own bugwarrior configuration
-- **Secure Credentials**: Support for keyring, password prompts, and external password managers
-- **UDA Management**: Automatic generation and management of User Defined Attributes
-- **Configuration Tool**: Interactive setup for common services
-- **Format Support**: Both INI and TOML configuration formats
+`i` and `ww issues` are synonymous. Both require an active profile.
 
-## Quick Start
+---
 
-### 1. Install Bugwarrior
+## GitHub Quick Start
 
-```bash
-# Using pip
-pip install bugwarrior
+GitHub is the recommended starting point. It supports both sync engines.
 
-# Using pipx (recommended)
-pipx install bugwarrior
-
-# With service-specific extras
-pip install 'bugwarrior[jira]'
-```
-
-### 2. Activate a Profile
+### 1. Activate a profile
 
 ```bash
-p-work  # or p-<your-profile-name>
+p-work
 ```
 
-### 3. Configure Services
+### 2. Configure GitHub (interactive)
 
 ```bash
 i custom
+# Select: Add/configure external service → GitHub
+# Enter: personal access token, repos to watch, filters
+# Then: Generate/update UDAs
 ```
 
-This launches an interactive configuration tool where you can:
-- Add external services (GitHub, GitLab, Jira, etc.)
-- Configure credentials
-- Generate TaskWarrior UDAs
-- Test your configuration
-
-### 4. Sync Issues
+### 3. Pull GitHub issues into TaskWarrior
 
 ```bash
-i pull
+i pull             # one-way: GitHub Issues → TaskWarrior
+i pull --dry-run   # test without writing
 ```
 
-This pulls issues from all configured services into TaskWarrior.
-
-## Usage
-
-### Shell Function: `i`
-
-The `i` function provides access to bugwarrior commands:
+### 4. Two-way sync a task back to GitHub
 
 ```bash
-# Pull issues from configured services
-i pull
+i enable-sync <task-id> <issue-number> <owner/repo>
+i push             # push local changes to GitHub
+i status           # check sync state
+```
 
-# Test configuration without syncing
-i pull --dry-run
+---
 
-# List bugwarrior UDAs
-i uda
+## Other Services (bugwarrior pull only)
 
-# Open configuration tool
+GitLab, Jira, Trello, and 20+ other services are supported via bugwarrior (one-way pull only — no write-back).
+
+```bash
 i custom
+# Select: Add/configure external service → GitLab / Jira / Trello / etc.
+i pull
 ```
 
-### Configuration Tool
+**⚠️ Bugwarrior is one-way.** Changes made in TaskWarrior are not pushed back to external issue trackers. External services are the source of truth for bugwarrior-synced tasks.
 
-Launch with `i custom` to access:
+Supported services: GitHub, GitLab, Jira, Trello, Bitbucket, Pagure, Gerrit, Bugzilla, Redmine, YouTrack, Phabricator, Trac, Taiga, Pivotal Tracker, Teamwork, ClickUp, Linear, Todoist, Logseq, Nextcloud Deck, Kanboard, Gmail, Azure DevOps, Debian BTS.
 
-1. **Add/configure external service** - Set up GitHub, GitLab, Jira, Trello, or other services
-2. **List configured services** - View all configured services
-3. **Remove service** - Remove a service configuration
-4. **Generate/update UDAs** - Create TaskWarrior User Defined Attributes
-5. **Test configuration** - Run a dry-run to validate setup
-6. **View current configuration** - Display bugwarriorrc contents
-7. **Credential security information** - Learn about secure credential storage
+See [Bugwarrior documentation](https://bugwarrior.readthedocs.io/en/latest/services/) for the full list.
 
-## Supported Services
+---
 
-### Fully Supported (with templates)
-- **GitHub** - Issues and pull requests
-- **GitLab** - Issues and merge requests
-- **Jira** - Issues with JQL queries
-- **Trello** - Cards from boards
+## Installation
 
-### Also Supported (manual configuration)
-- Bitbucket, Pagure, Gerrit, Git-Bug
-- Bugzilla, Redmine, YouTrack, Phabricator, Trac
-- Taiga, Pivotal Tracker, Teamwork Projects, ClickUp, Linear
-- Todoist, Logseq, Nextcloud Deck, Kanboard
-- Gmail, Azure DevOps, Debian BTS
+```bash
+pipx install bugwarrior          # recommended
+pip install bugwarrior           # alternative
+pip install 'bugwarrior[jira]'   # with Jira extras
+```
 
-See [Bugwarrior documentation](https://bugwarrior.readthedocs.io/en/latest/services/) for complete list.
+---
 
-## Configuration
-
-### Configuration Files
+## Configuration Files
 
 Each profile has its own bugwarrior configuration:
 
 ```
-profiles/<profile-name>/.config/bugwarrior/
+profiles/<name>/.config/bugwarrior/
 ├── bugwarriorrc        # INI format (default)
 └── bugwarrior.toml     # TOML format (alternative)
 ```
 
-### Example Configuration (INI)
+### Example (INI)
 
 ```ini
 [general]
@@ -142,246 +122,110 @@ jira.password = @oracle:use_keyring
 jira.query = assignee=currentUser() AND status!=Done
 ```
 
+---
+
 ## Credential Security
 
-**⚠️ Security Warning**: By default, credentials are stored in plain text in `bugwarriorrc`.
+**⚠️ Warning**: Credentials stored in plain text in `bugwarriorrc` without `@oracle` directives.
 
-### Secure Storage Options
-
-Bugwarrior supports secure credential storage using `@oracle` directives:
-
-#### 1. System Keyring (Recommended)
 ```ini
+# System keyring (recommended)
 github.token = @oracle:use_keyring
-```
 
-#### 2. Password Prompt
-```ini
+# Password prompt
 github.token = @oracle:ask_password
-```
 
-#### 3. External Password Manager
-```ini
+# External password manager
 github.token = @oracle:eval:pass github/token
-```
 
-#### 4. Environment Variable
-```ini
+# Environment variable
 github.token = @oracle:eval:echo $GITHUB_TOKEN
 ```
 
-### File Permissions
+Configuration files are created with restrictive permissions (600).
 
-Configuration files are automatically created with restrictive permissions (600) to prevent unauthorized access.
+---
 
 ## User Defined Attributes (UDAs)
 
-Bugwarrior creates TaskWarrior UDAs for each service to store metadata (issue URLs, IDs, etc.).
-
-### Generate UDAs
+Bugwarrior creates TaskWarrior UDAs for each service (issue URLs, IDs, types, etc.).
 
 ```bash
-i custom
-# Select option 4: Generate/update UDAs
-```
-
-Or manually:
-```bash
+i custom              # Select: Generate/update UDAs
+# or manually:
 bugwarrior uda >> ~/.taskrc
 ```
 
-### UDA Examples
+After syncing GitHub, tasks will have: `githuburl`, `githubtitle`, `githubtype`, `githubstate`, and more.
 
-After syncing GitHub issues, tasks will have:
-- `githuburl` - Issue URL
-- `githubtitle` - Issue title
-- `githubtype` - Issue or PR
-- `githubstate` - Open/closed status
-- And more...
+---
 
-## Workflow Examples
+## Profile Isolation
 
-### GitHub Issues
+Each profile has independent bugwarrior config. Switch profiles to switch contexts:
 
 ```bash
-# Configure GitHub
-i custom
-# Select: Add/configure external service → GitHub
-# Enter: token, repos, filters
-
-# Generate UDAs
-i custom
-# Select: Generate/update UDAs
-
-# Sync issues
-i pull
-
-# View synced tasks
-task list
-
-# Filter by GitHub issues
-task project:github list
+p-work     && i pull   # work Jira + GitHub
+p-personal && i pull   # personal GitHub only
 ```
 
-### Multiple Services
+---
+
+## AI Agent Usage
+
+Workwarrior profiles are designed for AI agent use. An agent managing its own profile can use the issues service to:
 
 ```bash
-# Configure multiple services
-i custom
-# Add GitHub, GitLab, Jira
-
-# Sync all services
+# Pull assigned issues from GitHub into TaskWarrior
 i pull
 
-# View tasks from specific service
-task +github list
-task +jira list
+# Link a TaskWarrior task to a GitHub issue for two-way tracking
+i enable-sync <task-id> <issue-number> owner/repo
+
+# Push task status updates back to GitHub
+i push
+
+# Check sync state in machine-readable format
+i status --json
+
+# Pull and emit result as JSON (useful in scripts/pipelines)
+i pull --json
 ```
 
-### Profile Switching
+The `--json` flag on `i pull` and `i status` suppresses human-readable output and emits a structured result:
 
-```bash
-# Work profile with Jira
-p-work
-i pull
-task list
-
-# Personal profile with GitHub
-p-personal
-i pull
-task list
+```json
+{"command": "pull", "status": "success"}
+{"command": "status", "status": "success", "output": "..."}
 ```
+
+---
 
 ## Troubleshooting
 
-### Bugwarrior Not Found
-
+**bugwarrior not found:**
 ```bash
-# Check installation
-which bugwarrior
-
-# Install if missing
 pipx install bugwarrior
 ```
 
-### Configuration Not Found
-
+**No configuration found:**
 ```bash
-# Ensure profile is active
-echo $WORKWARRIOR_BASE
-
-# Create configuration
-i custom
+echo $WORKWARRIOR_BASE   # must be non-empty (profile active)
+i custom                 # create configuration
 ```
 
-### Authentication Errors
+**Authentication errors:**
+- Verify credentials in `bugwarriorrc`
+- Check token permissions/scopes
+- Test: `i pull --dry-run`
 
-1. Verify credentials in `bugwarriorrc`
-2. Check token permissions/scopes
-3. Test with dry-run: `i pull --dry-run`
-
-### UDA Errors
-
+**UDA errors:**
 ```bash
-# Regenerate UDAs
-i custom
-# Select: Generate/update UDAs
-
-# Or manually
-bugwarrior uda >> ~/.taskrc
+i custom   # Select: Generate/update UDAs
 ```
 
-### Network Issues
-
-- Check internet connectivity
-- Verify service URLs are accessible
-- Check firewall/proxy settings
-
-## Advanced Configuration
-
-### Filtering
-
+**Filtering (advanced):**
 ```ini
-# GitHub: Only assigned issues
 github.only_if_assigned = username
-
-# Jira: Custom JQL
 jira.query = project=PROJ AND assignee=currentUser()
-
-# GitLab: Specific projects
-gitlab.include_repos = 123, 456
 ```
-
-### Metadata
-
-```ini
-# Add tags to synced tasks
-github.add_tags = github, external
-
-# Set default project
-github.default_priority = M
-```
-
-### Templates
-
-```ini
-# Custom task description template
-github.description_template = {{githubtitle}} - {{githuburl}}
-```
-
-See [Bugwarrior documentation](https://bugwarrior.readthedocs.io/) for complete configuration options.
-
-## CLI Integration
-
-### Via `ww` Command
-
-```bash
-ww custom issues    # Open configuration tool
-ww i pull           # Sync issues
-```
-
-### Via `custom` Command
-
-```bash
-custom issues       # Open configuration tool
-```
-
-## Files and Locations
-
-```
-~/ww/
-├── services/custom/
-│   └── configure-issues.sh          # Configuration tool
-├── resources/config-files/
-│   └── bugwarriorrc.template        # Template file
-└── lib/
-    └── shell-integration.sh         # i() function
-
-profiles/<profile-name>/
-├── .config/bugwarrior/
-│   └── bugwarriorrc                 # Profile configuration
-└── .taskrc                          # TaskWarrior config (with UDAs)
-```
-
-## Best Practices
-
-1. **Use Secure Credentials**: Replace plain text tokens with `@oracle` directives
-2. **Test First**: Use `i pull --dry-run` before syncing
-3. **Filter Wisely**: Only sync issues you need to reduce clutter
-4. **Regular Syncs**: Run `i pull` regularly to stay updated
-5. **Profile Isolation**: Use separate profiles for work/personal projects
-6. **Backup Configs**: Keep backups of `bugwarriorrc` and `.taskrc`
-
-## Resources
-
-- [Bugwarrior Documentation](https://bugwarrior.readthedocs.io/)
-- [Bugwarrior GitHub](https://github.com/ralphbean/bugwarrior)
-- [TaskWarrior UDAs](https://taskwarrior.org/docs/udas.html)
-- [Workwarrior Documentation](../../readme.md)
-
-## Support
-
-For issues specific to:
-- **Bugwarrior**: See [Bugwarrior issues](https://github.com/ralphbean/bugwarrior/issues)
-- **Workwarrior integration**: Check Workwarrior documentation
-- **Service-specific**: Consult service API documentation

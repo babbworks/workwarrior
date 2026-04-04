@@ -10,6 +10,12 @@ p-work
 ## Journal Workflows
 
 ```bash
+# Manage journals via ww lifecycle commands
+ww journal add work-log
+ww journal rename work-log client-work
+ww journal list
+ww journal remove client-work
+
 # Default journal
 j "Wrapped up feature X"
 
@@ -21,6 +27,12 @@ j work-log "Meeting notes"
 ## Ledger Workflows
 
 ```bash
+# Manage ledgers via ww lifecycle commands
+ww ledger add business
+ww ledger rename business biz-main
+ww ledger list
+ww ledger remove biz-main
+
 # Default ledger
 l balance
 l add
@@ -57,49 +69,82 @@ l --profile work custom
 ```bash
 # Show help and available services
 q
+q help
 
 # Create a new journal template
 q new journal
 
 # List templates for journal
 q journal
+q list
 
 # Use a template
 q journal daily_reflection
+
+# Non-interactive delete (automation-friendly)
+q delete daily_reflection --yes
 ```
 
 ## Profile Groups
 
 ```bash
-# Create a group
-ww groups create focus work personal
+# Preferred singular namespace for actions
+ww group create focus work personal
 
 # Add a profile to a group
-ww groups add focus client-x
+ww group add focus client-x
 
 # Show a group
-ww groups show focus
+ww group show focus
 
-# List all groups
-ww groups list
+# List all groups (both forms supported)
+ww group list
+ww groups
 ```
 
 ## Models Service
 
 ```bash
-# List configured models
-ww models list
+# Preferred singular namespace for actions
+ww model list
 
 # Add a provider and model
-ww models add-provider openai openai https://api.openai.com/v1 OPENAI_API_KEY
-ww models add-model gpt-4o-mini openai gpt-4o-mini "fast"
-ww models set-default gpt-4o-mini
+ww model add-provider openai openai https://api.openai.com/v1 OPENAI_API_KEY
+ww model add-model gpt-4o-mini openai gpt-4o-mini "fast"
+ww model set-default gpt-4o-mini
 
 # Show required env vars
-ww models env
+ww model env
 
 # Check required env vars
-ww models check
+ww model check
+
+# Plural bare call lists models
+ww models
+```
+
+## Journal and Ledger List UX
+
+```bash
+# Both forms list journals
+ww journal list
+ww journals
+
+# Both forms list ledgers
+ww ledger list
+ww ledgers
+```
+
+## Compatibility Nudges (Legacy Forms Still Work)
+
+```bash
+# Legacy plural form still runs, but warns with preferred replacement
+ww journals list      # prefer: ww journal list
+ww ledgers list       # prefer: ww ledger list
+ww groups list        # prefer: ww group list
+ww models list        # prefer: ww model list
+ww profiles           # prefer: ww profile list
+ww services           # prefer: ww service list
 ```
 
 ## Find Service
@@ -151,6 +196,9 @@ times
 ## Standalone Help
 
 ```bash
+ww help
+ww help profile
+ww help custom
 ww help standalone
 ```
 
@@ -178,13 +226,29 @@ ww shortcut add x "Example" global "Example command" "echo hi" false
 ww shortcut remove x
 ```
 
-## Profile Backup and Restore
+## Profile Backup, Import, and Restore
 
 ```bash
-# Backup
-scripts/manage-profiles.sh backup work ~/backups
+# Backup a profile to home directory (default)
+ww profile backup work
 
-# Restore (example)
-tar -xzf work-backup-YYYYMMDDHHMMSS.tar.gz
-mv profiles/work ~/ww/profiles/
+# Backup to a specific directory
+ww profile backup work ~/backups
+
+# Import a backup as a new profile (profile must not already exist)
+ww profile import ~/work-backup-20260101120000.tar.gz
+
+# Import under a different name (useful for cloning or migration)
+ww profile import ~/work-backup-20260101120000.tar.gz work-copy
+
+# Restore an existing profile from backup (overwrites current data)
+# A safety backup is created automatically before any changes are made
+ww profile restore work ~/work-backup-20260101120000.tar.gz
+
+# Rolling back after a restore — use the safety backup printed during restore
+ww profile restore work ~/work-pre-restore-20260404153000.tar.gz
 ```
+
+**Import vs restore:**
+- `import` — archive becomes a *new* profile; errors if profile already exists
+- `restore` — archive *replaces* an existing profile; always creates a safety backup first

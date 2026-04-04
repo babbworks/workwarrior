@@ -674,6 +674,201 @@ EOF
   return 0
 }
 
+# Remove a journal from an existing profile
+# Removes journal entry from jrnl.yaml and deletes the journal file if present
+#
+# Usage: remove_journal_from_profile "profile-name" "journal-name"
+# Returns: 0 on success, 1 on failure
+remove_journal_from_profile() {
+  local profile_name="$1"
+  local journal_name="$2"
+
+  if ! validate_profile_name "$profile_name"; then
+    return 1
+  fi
+
+  if [[ -z "$journal_name" ]]; then
+    log_error "Journal name cannot be empty"
+    return 1
+  fi
+
+  if [[ "$journal_name" == "default" ]]; then
+    log_error "Cannot remove reserved journal key 'default'"
+    return 1
+  fi
+
+  if [[ ! "$journal_name" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+    log_error "Journal name must contain only letters, numbers, hyphens, and underscores"
+    log_error "Invalid name: '$journal_name'"
+    return 1
+  fi
+
+  local profile_base="$PROFILES_DIR/$profile_name"
+  local jrnl_config="$profile_base/jrnl.yaml"
+  local journal_file=""
+
+  log_step "Removing journal '$journal_name' from profile '$profile_name'"
+
+  if [[ ! -d "$profile_base" ]]; then
+    log_error "Profile directory does not exist: $profile_base"
+    return 1
+  fi
+
+  if [[ ! -f "$jrnl_config" ]]; then
+    log_error "Journal configuration not found: $jrnl_config"
+    return 1
+  fi
+
+  journal_file="$(awk -v journal="$journal_name" '
+    $1 == journal ":" {
+      sub($1 FS, "", $0)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", $0)
+      print $0
+      exit
+    }
+  ' "$jrnl_config")"
+
+  if [[ -z "$journal_file" ]]; then
+    log_error "Journal '$journal_name' not found in configuration"
+    return 1
+  fi
+
+  if ! awk -v journal="$journal_name" '$1 != journal ":" { print }' "$jrnl_config" > "$jrnl_config.tmp"; then
+    log_error "Failed to update jrnl.yaml"
+    rm -f "$jrnl_config.tmp"
+    return 1
+  fi
+
+  if ! mv "$jrnl_config.tmp" "$jrnl_config"; then
+    log_error "Failed to save updated jrnl.yaml"
+    rm -f "$jrnl_config.tmp"
+    return 1
+  fi
+
+  if [[ -n "$journal_file" && -f "$journal_file" ]]; then
+    if rm -f "$journal_file"; then
+      log_info "Removed journal file: $journal_file"
+    else
+      log_warning "Failed to remove journal file: $journal_file"
+    fi
+  fi
+
+  log_success "Journal '$journal_name' removed from profile '$profile_name'"
+  return 0
+}
+
+# Rename a journal in an existing profile
+# Renames both the jrnl.yaml key and its associated file path
+#
+# Usage: rename_journal_in_profile "profile-name" "old-name" "new-name"
+# Returns: 0 on success, 1 on failure
+rename_journal_in_profile() {
+  local profile_name="$1"
+  local old_name="$2"
+  local new_name="$3"
+
+  if ! validate_profile_name "$profile_name"; then
+    return 1
+  fi
+
+  if [[ -z "$old_name" || -z "$new_name" ]]; then
+    log_error "Both old and new journal names are required"
+    return 1
+  fi
+
+  if [[ "$old_name" == "default" || "$new_name" == "default" ]]; then
+    log_error "Cannot rename to or from reserved journal key 'default'"
+    return 1
+  fi
+
+  if [[ ! "$old_name" =~ ^[a-zA-Z0-9_-]+$ || ! "$new_name" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+    log_error "Journal names must contain only letters, numbers, hyphens, and underscores"
+    return 1
+  fi
+
+  if [[ "$old_name" == "$new_name" ]]; then
+    log_error "Old and new journal names are identical"
+    return 1
+  fi
+
+  local profile_base="$PROFILES_DIR/$profile_name"
+  local jrnl_config="$profile_base/jrnl.yaml"
+  local old_path=""
+  local new_path=""
+
+  log_step "Renaming journal '$old_name' to '$new_name' in profile '$profile_name'"
+
+  if [[ ! -d "$profile_base" ]]; then
+    log_error "Profile directory does not exist: $profile_base"
+    return 1
+  fi
+
+  if [[ ! -f "$jrnl_config" ]]; then
+    log_error "Journal configuration not found: $jrnl_config"
+    return 1
+  fi
+
+  old_path="$(awk -v journal="$old_name" '
+    $1 == journal ":" {
+      sub($1 FS, "", $0)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", $0)
+      print $0
+      exit
+    }
+  ' "$jrnl_config")"
+
+  if [[ -z "$old_path" ]]; then
+    log_error "Journal '$old_name' not found in configuration"
+    return 1
+  fi
+
+  if grep -q "^  $new_name:" "$jrnl_config"; then
+    log_error "Journal '$new_name' already exists in configuration"
+    return 1
+  fi
+
+  new_path="$profile_base/journals/${new_name}.txt"
+  if [[ -f "$new_path" ]]; then
+    log_error "Target journal file already exists: $new_path"
+    return 1
+  fi
+
+  if [[ -f "$old_path" ]]; then
+    if ! mv "$old_path" "$new_path"; then
+      log_error "Failed to rename journal file: $old_path -> $new_path"
+      return 1
+    fi
+  else
+    log_warning "Source journal file not found, creating target file: $new_path"
+    touch "$new_path" || {
+      log_error "Failed to create target journal file: $new_path"
+      return 1
+    }
+  fi
+
+  if ! awk -v old="$old_name" -v new="$new_name" -v new_path="$new_path" '
+    $1 == old ":" {
+      print "  " new ": " new_path
+      next
+    }
+    { print }
+  ' "$jrnl_config" > "$jrnl_config.tmp"; then
+    log_error "Failed to update jrnl.yaml"
+    rm -f "$jrnl_config.tmp"
+    return 1
+  fi
+
+  if ! mv "$jrnl_config.tmp" "$jrnl_config"; then
+    log_error "Failed to save updated jrnl.yaml"
+    rm -f "$jrnl_config.tmp"
+    return 1
+  fi
+
+  log_success "Journal '$old_name' renamed to '$new_name' in profile '$profile_name'"
+  log_info "Journal file: $new_path"
+  return 0
+}
+
 # Copy journal configuration from an existing profile to a new profile
 # Copies journal text files from source profile
 # Updates file paths in jrnl.yaml to point to destination profile
@@ -895,6 +1090,309 @@ EOF
   return 0
 }
 
+# Add a new ledger to an existing profile
+# Creates a new ledger file and updates ledgers.yaml
+#
+# Usage: add_ledger_to_profile "profile-name" "ledger-name"
+# Returns: 0 on success, 1 on failure
+add_ledger_to_profile() {
+  local profile_name="$1"
+  local ledger_name="$2"
+
+  if ! validate_profile_name "$profile_name"; then
+    return 1
+  fi
+
+  if [[ -z "$ledger_name" ]]; then
+    log_error "Ledger name cannot be empty"
+    return 1
+  fi
+
+  if [[ ! "$ledger_name" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+    log_error "Ledger name must contain only letters, numbers, hyphens, and underscores"
+    log_error "Invalid name: '$ledger_name'"
+    return 1
+  fi
+
+  local profile_base="$PROFILES_DIR/$profile_name"
+  local ledgers_dir="$profile_base/ledgers"
+  local ledger_file="$ledgers_dir/$ledger_name.journal"
+  local ledger_config="$profile_base/ledgers.yaml"
+
+  log_step "Adding ledger '$ledger_name' to profile '$profile_name'"
+
+  if [[ ! -d "$profile_base" ]]; then
+    log_error "Profile directory does not exist: $profile_base"
+    return 1
+  fi
+
+  if [[ ! -f "$ledger_config" ]]; then
+    log_error "Ledger configuration not found: $ledger_config"
+    return 1
+  fi
+
+  if grep -q "^  $ledger_name:" "$ledger_config"; then
+    log_error "Ledger '$ledger_name' already exists in configuration"
+    return 1
+  fi
+
+  if [[ -f "$ledger_file" ]]; then
+    log_warning "Ledger file already exists: $ledger_file"
+  else
+    cat > "$ledger_file" << EOF
+; Hledger Journal for ledger: $ledger_name
+; Profile: $profile_name
+; Created: $(date)
+
+EOF
+    if [[ ! -f "$ledger_file" ]]; then
+      log_error "Failed to create ledger file: $ledger_file"
+      return 1
+    fi
+    log_info "Created ledger file: $ledger_file"
+  fi
+
+  if ! awk -v ledger="$ledger_name" -v path="$ledger_file" '
+    /^ledgers:/ {
+      print
+      print "  " ledger ": " path
+      next
+    }
+    { print }
+  ' "$ledger_config" > "$ledger_config.tmp"; then
+    log_error "Failed to update ledgers.yaml"
+    rm -f "$ledger_config.tmp"
+    return 1
+  fi
+
+  if ! mv "$ledger_config.tmp" "$ledger_config"; then
+    log_error "Failed to save updated ledgers.yaml"
+    rm -f "$ledger_config.tmp"
+    return 1
+  fi
+
+  log_success "Ledger '$ledger_name' added to profile '$profile_name'"
+  log_info "Ledger file: $ledger_file"
+  return 0
+}
+
+# Remove a ledger from an existing profile
+# Removes entry from ledgers.yaml and deletes the ledger file if present
+#
+# Usage: remove_ledger_from_profile "profile-name" "ledger-name"
+# Returns: 0 on success, 1 on failure
+remove_ledger_from_profile() {
+  local profile_name="$1"
+  local ledger_name="$2"
+
+  if ! validate_profile_name "$profile_name"; then
+    return 1
+  fi
+
+  if [[ -z "$ledger_name" ]]; then
+    log_error "Ledger name cannot be empty"
+    return 1
+  fi
+
+  if [[ "$ledger_name" == "default" ]]; then
+    log_error "Cannot remove reserved ledger key 'default'"
+    return 1
+  fi
+
+  if [[ ! "$ledger_name" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+    log_error "Ledger name must contain only letters, numbers, hyphens, and underscores"
+    log_error "Invalid name: '$ledger_name'"
+    return 1
+  fi
+
+  local profile_base="$PROFILES_DIR/$profile_name"
+  local ledger_config="$profile_base/ledgers.yaml"
+  local ledger_path=""
+  local default_path=""
+
+  log_step "Removing ledger '$ledger_name' from profile '$profile_name'"
+
+  if [[ ! -d "$profile_base" ]]; then
+    log_error "Profile directory does not exist: $profile_base"
+    return 1
+  fi
+
+  if [[ ! -f "$ledger_config" ]]; then
+    log_error "Ledger configuration not found: $ledger_config"
+    return 1
+  fi
+
+  ledger_path="$(awk -v ledger="$ledger_name" '
+    $1 == ledger ":" {
+      sub($1 FS, "", $0)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", $0)
+      print $0
+      exit
+    }
+  ' "$ledger_config")"
+
+  if [[ -z "$ledger_path" ]]; then
+    log_error "Ledger '$ledger_name' not found in configuration"
+    return 1
+  fi
+
+  default_path="$(awk '$1 == "default:" { sub($1 FS, "", $0); gsub(/^[[:space:]]+|[[:space:]]+$/, "", $0); print; exit }' "$ledger_config")"
+  if [[ -n "$default_path" && "$default_path" == "$ledger_path" ]]; then
+    log_error "Cannot remove the current default ledger"
+    return 1
+  fi
+
+  if ! awk -v ledger="$ledger_name" '$1 != ledger ":" { print }' "$ledger_config" > "$ledger_config.tmp"; then
+    log_error "Failed to update ledgers.yaml"
+    rm -f "$ledger_config.tmp"
+    return 1
+  fi
+
+  if ! mv "$ledger_config.tmp" "$ledger_config"; then
+    log_error "Failed to save updated ledgers.yaml"
+    rm -f "$ledger_config.tmp"
+    return 1
+  fi
+
+  if [[ -n "$ledger_path" && -f "$ledger_path" ]]; then
+    if rm -f "$ledger_path"; then
+      log_info "Removed ledger file: $ledger_path"
+    else
+      log_warning "Failed to remove ledger file: $ledger_path"
+    fi
+  fi
+
+  log_success "Ledger '$ledger_name' removed from profile '$profile_name'"
+  return 0
+}
+
+# Rename a ledger in an existing profile
+# Renames both ledgers.yaml key and ledger file path
+#
+# Usage: rename_ledger_in_profile "profile-name" "old-name" "new-name"
+# Returns: 0 on success, 1 on failure
+rename_ledger_in_profile() {
+  local profile_name="$1"
+  local old_name="$2"
+  local new_name="$3"
+
+  if ! validate_profile_name "$profile_name"; then
+    return 1
+  fi
+
+  if [[ -z "$old_name" || -z "$new_name" ]]; then
+    log_error "Both old and new ledger names are required"
+    return 1
+  fi
+
+  if [[ "$old_name" == "default" || "$new_name" == "default" ]]; then
+    log_error "Cannot rename to or from reserved ledger key 'default'"
+    return 1
+  fi
+
+  if [[ ! "$old_name" =~ ^[a-zA-Z0-9_-]+$ || ! "$new_name" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+    log_error "Ledger names must contain only letters, numbers, hyphens, and underscores"
+    return 1
+  fi
+
+  if [[ "$old_name" == "$new_name" ]]; then
+    log_error "Old and new ledger names are identical"
+    return 1
+  fi
+
+  local profile_base="$PROFILES_DIR/$profile_name"
+  local ledger_config="$profile_base/ledgers.yaml"
+  local old_path=""
+  local new_path=""
+  local default_path=""
+  local was_default=0
+
+  log_step "Renaming ledger '$old_name' to '$new_name' in profile '$profile_name'"
+
+  if [[ ! -d "$profile_base" ]]; then
+    log_error "Profile directory does not exist: $profile_base"
+    return 1
+  fi
+
+  if [[ ! -f "$ledger_config" ]]; then
+    log_error "Ledger configuration not found: $ledger_config"
+    return 1
+  fi
+
+  old_path="$(awk -v ledger="$old_name" '
+    $1 == ledger ":" {
+      sub($1 FS, "", $0)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", $0)
+      print $0
+      exit
+    }
+  ' "$ledger_config")"
+
+  if [[ -z "$old_path" ]]; then
+    log_error "Ledger '$old_name' not found in configuration"
+    return 1
+  fi
+
+  if grep -q "^  $new_name:" "$ledger_config"; then
+    log_error "Ledger '$new_name' already exists in configuration"
+    return 1
+  fi
+
+  new_path="$profile_base/ledgers/${new_name}.journal"
+  if [[ -f "$new_path" ]]; then
+    log_error "Target ledger file already exists: $new_path"
+    return 1
+  fi
+
+  default_path="$(awk '$1 == "default:" { sub($1 FS, "", $0); gsub(/^[[:space:]]+|[[:space:]]+$/, "", $0); print; exit }' "$ledger_config")"
+  if [[ -n "$default_path" && "$default_path" == "$old_path" ]]; then
+    was_default=1
+  fi
+
+  if [[ -f "$old_path" ]]; then
+    if ! mv "$old_path" "$new_path"; then
+      log_error "Failed to rename ledger file: $old_path -> $new_path"
+      return 1
+    fi
+  else
+    log_warning "Source ledger file not found, creating target file: $new_path"
+    touch "$new_path" || {
+      log_error "Failed to create target ledger file: $new_path"
+      return 1
+    }
+  fi
+
+  if ! awk -v old="$old_name" -v new="$new_name" -v new_path="$new_path" '
+    $1 == old ":" {
+      print "  " new ": " new_path
+      next
+    }
+    { print }
+  ' "$ledger_config" > "$ledger_config.tmp"; then
+    log_error "Failed to update ledgers.yaml"
+    rm -f "$ledger_config.tmp"
+    return 1
+  fi
+
+  if ! mv "$ledger_config.tmp" "$ledger_config"; then
+    log_error "Failed to save updated ledgers.yaml"
+    rm -f "$ledger_config.tmp"
+    return 1
+  fi
+
+  if [[ $was_default -eq 1 ]]; then
+    if ! sed -i.bak "s|^  default:.*|  default: $new_path|" "$ledger_config"; then
+      log_error "Failed to update default ledger path after rename"
+      return 1
+    fi
+    rm -f "$ledger_config.bak"
+  fi
+
+  log_success "Ledger '$old_name' renamed to '$new_name' in profile '$profile_name'"
+  log_info "Ledger file: $new_path"
+  return 0
+}
+
 # Copy ledger configuration from an existing profile to a new profile
 # Copies ledger journal files from source profile
 # Updates file paths in ledgers.yaml to point to destination profile
@@ -997,6 +1495,309 @@ copy_ledger_from_profile() {
 
   log_success "Ledger configuration copied and updated"
   log_info "Updated paths in: $dest_ledger_config"
-  
+
+  return 0
+}
+
+# ============================================================================
+# PROFILE IMPORT
+# ============================================================================
+
+# Import a profile from a backup archive into this system.
+# The profile must NOT already exist. Use restore_profile to overwrite.
+#
+# Usage: import_profile "archive-path" ["new-profile-name"]
+# Returns: 0 on success, 1 on failure
+import_profile() {
+  local archive="$1"
+  local new_name="${2:-}"
+
+  # Source config-utils if not already loaded
+  if [[ -z "${CONFIG_UTILS_LOADED:-}" ]]; then
+    local _lib_dir
+    _lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    source "$_lib_dir/config-utils.sh"
+  fi
+
+  if [[ -z "$archive" ]]; then
+    log_error "Archive path is required"
+    return 1
+  fi
+
+  if [[ ! -f "$archive" ]]; then
+    log_error "Archive not found: $archive"
+    return 1
+  fi
+
+  # Detect profile name from archive structure (profiles/<name>/...)
+  local archived_name
+  archived_name=$(tar -tzf "$archive" 2>/dev/null | grep -E '^profiles/[^/]+/$' | head -1 | cut -d/ -f2)
+  if [[ -z "$archived_name" ]]; then
+    archived_name=$(tar -tzf "$archive" 2>/dev/null | head -1 | cut -d/ -f2)
+  fi
+
+  if [[ -z "$archived_name" ]]; then
+    log_error "Cannot detect profile name from archive. Expected: profiles/<name>/..."
+    return 1
+  fi
+
+  local target_name="${new_name:-$archived_name}"
+
+  if ! validate_profile_name "$target_name"; then
+    return 1
+  fi
+
+  if profile_exists "$target_name"; then
+    log_error "Profile '$target_name' already exists."
+    log_info "Use 'ww profile restore $target_name <archive>' to overwrite it."
+    return 1
+  fi
+
+  log_step "Importing profile '$archived_name' as '$target_name'"
+  log_info "Archive: $archive"
+
+  # Extract to temp dir
+  local tmp_dir
+  tmp_dir=$(mktemp -d)
+
+  if ! tar -xzf "$archive" -C "$tmp_dir" 2>/dev/null; then
+    log_error "Failed to extract archive"
+    rm -rf "$tmp_dir"
+    return 1
+  fi
+
+  # Locate extracted profile dir
+  local extracted_profile="$tmp_dir/profiles/$archived_name"
+  if [[ ! -d "$extracted_profile" ]]; then
+    extracted_profile="$tmp_dir/$archived_name"
+    if [[ ! -d "$extracted_profile" ]]; then
+      log_error "Could not locate profile directory in extracted archive"
+      rm -rf "$tmp_dir"
+      return 1
+    fi
+  fi
+
+  # Ensure profiles dir exists
+  if ! ensure_directory "$PROFILES_DIR"; then
+    rm -rf "$tmp_dir"
+    return 1
+  fi
+
+  local target_base="$PROFILES_DIR/$target_name"
+
+  # Move extracted profile to final location
+  if ! mv "$extracted_profile" "$target_base"; then
+    log_error "Failed to move profile to: $target_base"
+    rm -rf "$tmp_dir"
+    return 1
+  fi
+
+  rm -rf "$tmp_dir"
+
+  # Detect old base from .taskrc data.location (strip /.task suffix)
+  local old_base=""
+  if [[ -f "$target_base/.taskrc" ]]; then
+    old_base=$(grep "^data\.location=" "$target_base/.taskrc" | cut -d= -f2 | sed 's|/\.task$||')
+  fi
+
+  log_step "Updating configuration paths"
+
+  # .taskrc — update_paths_in_config handles this without old_base
+  if [[ -f "$target_base/.taskrc" ]]; then
+    if update_paths_in_config "$target_base/.taskrc" "" "$target_base"; then
+      log_info "Updated .taskrc paths"
+    else
+      log_warning ".taskrc paths may need manual review"
+    fi
+  fi
+
+  # YAML configs — require old_base for sed substitution
+  if [[ -n "$old_base" ]]; then
+    for yaml_config in "$target_base/jrnl.yaml" "$target_base/ledgers.yaml"; do
+      if [[ -f "$yaml_config" ]]; then
+        if update_paths_in_config "$yaml_config" "$old_base" "$target_base"; then
+          log_info "Updated $(basename "$yaml_config") paths"
+        else
+          log_warning "$(basename "$yaml_config") paths may need manual review"
+        fi
+      fi
+    done
+  else
+    log_warning "Could not detect old path base — jrnl.yaml/ledgers.yaml paths may need manual update"
+  fi
+
+  echo ""
+  log_success "Profile '$target_name' imported at: $target_base"
+  log_info "Activate with: p-${target_name} (reload shell first if alias is new)"
+  echo ""
+
+  return 0
+}
+
+# ============================================================================
+# PROFILE RESTORE
+# ============================================================================
+
+# Restore an existing profile from a backup archive.
+# Profile must already exist. Creates a safety backup first, then replaces.
+#
+# Usage: restore_profile "profile-name" "archive-path"
+# Returns: 0 on success, 1 on failure
+restore_profile() {
+  local profile_name="$1"
+  local archive="$2"
+
+  # Source config-utils if not already loaded
+  if [[ -z "${CONFIG_UTILS_LOADED:-}" ]]; then
+    local _lib_dir
+    _lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    source "$_lib_dir/config-utils.sh"
+  fi
+
+  if [[ -z "$profile_name" ]]; then
+    log_error "Profile name is required"
+    return 1
+  fi
+
+  if [[ -z "$archive" ]]; then
+    log_error "Archive path is required"
+    return 1
+  fi
+
+  if ! validate_profile_name "$profile_name"; then
+    return 1
+  fi
+
+  if [[ ! -f "$archive" ]]; then
+    log_error "Archive not found: $archive"
+    return 1
+  fi
+
+  if ! profile_exists "$profile_name"; then
+    log_error "Profile '$profile_name' does not exist."
+    log_info "Use 'ww profile import <archive>' to create a new profile from archive."
+    return 1
+  fi
+
+  # Detect archived profile name
+  local archived_name
+  archived_name=$(tar -tzf "$archive" 2>/dev/null | grep -E '^profiles/[^/]+/$' | head -1 | cut -d/ -f2)
+  if [[ -z "$archived_name" ]]; then
+    archived_name=$(tar -tzf "$archive" 2>/dev/null | head -1 | cut -d/ -f2)
+  fi
+
+  if [[ -z "$archived_name" ]]; then
+    log_error "Cannot detect profile name from archive"
+    return 1
+  fi
+
+  local profile_base="$PROFILES_DIR/$profile_name"
+
+  # Preflight: show what will be replaced and require confirmation
+  echo ""
+  log_warning "This will REPLACE all data in profile '$profile_name' with the archive contents."
+  log_info "Current profile location: $profile_base"
+  log_info "Archive:                  $archive"
+  log_info "Archived profile name:    $archived_name"
+  echo ""
+  log_info "A safety backup will be created before any changes are made."
+  echo ""
+  read -r -p "Proceed with restore? (yes/no): " confirm
+
+  if [[ "$confirm" != "yes" ]]; then
+    log_info "Restore cancelled"
+    return 0
+  fi
+
+  # Create safety backup — abort if it fails
+  log_step "Creating safety backup"
+  local timestamp
+  timestamp=$(date "+%Y%m%d%H%M%S")
+  local safety_backup_path="$HOME/${profile_name}-pre-restore-${timestamp}.tar.gz"
+  local profiles_parent
+  profiles_parent=$(dirname "$PROFILES_DIR")
+  local profiles_basename
+  profiles_basename=$(basename "$PROFILES_DIR")
+
+  if ! tar -czf "$safety_backup_path" -C "$profiles_parent" "$profiles_basename/$profile_name" 2>/dev/null; then
+    log_error "Failed to create safety backup. Aborting — profile is unchanged."
+    return 1
+  fi
+
+  log_success "Safety backup: $safety_backup_path"
+
+  # Extract archive to temp dir
+  local tmp_dir
+  tmp_dir=$(mktemp -d)
+
+  if ! tar -xzf "$archive" -C "$tmp_dir" 2>/dev/null; then
+    log_error "Failed to extract archive. Profile is unchanged."
+    rm -rf "$tmp_dir"
+    return 1
+  fi
+
+  # Locate extracted profile
+  local extracted_profile="$tmp_dir/profiles/$archived_name"
+  if [[ ! -d "$extracted_profile" ]]; then
+    extracted_profile="$tmp_dir/$archived_name"
+    if [[ ! -d "$extracted_profile" ]]; then
+      log_error "Could not locate profile in extracted archive. Profile is unchanged."
+      rm -rf "$tmp_dir"
+      return 1
+    fi
+  fi
+
+  # Replace profile: remove current, move extracted into place
+  log_step "Replacing profile '$profile_name'"
+
+  if ! rm -rf "$profile_base"; then
+    log_error "Failed to remove existing profile. Rollback: $safety_backup_path"
+    rm -rf "$tmp_dir"
+    return 1
+  fi
+
+  if ! mv "$extracted_profile" "$profile_base"; then
+    log_error "Failed to place restored profile."
+    log_error "Rollback: ww profile restore $profile_name $safety_backup_path"
+    rm -rf "$tmp_dir"
+    return 1
+  fi
+
+  rm -rf "$tmp_dir"
+
+  # Detect old base path from restored .taskrc for YAML path updates
+  local old_base=""
+  if [[ -f "$profile_base/.taskrc" ]]; then
+    old_base=$(grep "^data\.location=" "$profile_base/.taskrc" | cut -d= -f2 | sed 's|/\.task$||')
+  fi
+
+  log_step "Updating configuration paths"
+
+  if [[ -f "$profile_base/.taskrc" ]]; then
+    if update_paths_in_config "$profile_base/.taskrc" "" "$profile_base"; then
+      log_info "Updated .taskrc paths"
+    else
+      log_warning ".taskrc paths may need manual review"
+    fi
+  fi
+
+  if [[ -n "$old_base" && "$old_base" != "$profile_base" ]]; then
+    for yaml_config in "$profile_base/jrnl.yaml" "$profile_base/ledgers.yaml"; do
+      if [[ -f "$yaml_config" ]]; then
+        if update_paths_in_config "$yaml_config" "$old_base" "$profile_base"; then
+          log_info "Updated $(basename "$yaml_config") paths"
+        else
+          log_warning "$(basename "$yaml_config") paths may need manual review"
+        fi
+      fi
+    done
+  fi
+
+  echo ""
+  log_success "Profile '$profile_name' restored"
+  log_info "Safety backup retained at: $safety_backup_path"
+  log_info "To roll back: ww profile restore $profile_name \"$safety_backup_path\""
+  echo ""
+
   return 0
 }

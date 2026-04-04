@@ -10,6 +10,14 @@ set -e
 
 WW_BASE="${WW_BASE:-$HOME/ww}"
 WW_VERSION="1.0.0"
+WW_OUTPUT_MODE="human"
+WW_VERBOSE=0
+WW_FLAG_PROFILE=""
+WW_FLAG_GLOBAL=0
+WW_FLAG_JSON=0
+WW_FLAG_COMPACT=0
+WW_FLAG_HELP=0
+WW_MAIN_ARGS=()
 
 # ============================================================================
 # SOURCE LIBRARIES
@@ -24,6 +32,11 @@ else
   log_warning() { echo "warn $*"; }
   log_error() { echo "err $*" >&2; }
   log_step() { echo ">> $*"; }
+  log_deprecation() { echo "deprecated $*" >&2; }
+fi
+
+if [[ -f "$WW_BASE/lib/profile-manager.sh" ]]; then
+  source "$WW_BASE/lib/profile-manager.sh"
 fi
 
 # ============================================================================
@@ -35,13 +48,22 @@ show_usage() {
 Workwarrior - Profile-based productivity system
 
 Usage: ww <command> [arguments]
+       ww [--profile <name> | --global] [--json|--compact] [--verbose] <command> [arguments]
        ww help <command>
 
 Commands:
   profile     Profile management (create, list, info, delete, backup)
-  service     Service management (list)
-  groups      Profile grouping (create, list, add, remove, show, delete)
-  models      LLM providers and model registry
+  profiles    List profiles (shortcut for 'ww profile list')
+  service     Service management (list, info, help)
+  services    List services (shortcut for 'ww service list')
+  group       Preferred group namespace (create, list, add, remove, show, delete)
+  groups      Alias for group namespace (bare form lists groups)
+  model       Preferred model namespace (providers and model registry)
+  models      Alias for model namespace (bare form lists models)
+  journal     Preferred journal namespace (add, list, remove, rename)
+  journals    Alias for journal namespace (bare form lists journals)
+  ledger      Preferred ledger namespace (add, list, remove, rename)
+  ledgers     Alias for ledger namespace (bare form lists ledgers)
   extensions  External tool extensions registry
   find        Search across profiles and data types
   custom      Custom services (journal configuration, etc.)
@@ -52,6 +74,18 @@ Commands:
   version     Show version information
   help        Show this help message
 
+Global Options:
+  --profile <name>  Override active/last profile for this invocation
+  --global          Force global context (no profile scope)
+  --json            Machine-readable output for supported list/read commands
+  --compact         Terse human-readable output
+  --verbose         Expanded human-readable output
+  --help            Show command usage (same as 'ww help')
+
+Compatibility:
+  Plural command aliases remain supported (`groups`, `models`, `journals`, `ledgers`,
+  plus `profiles` and `services`) and emit a nudge toward preferred singular syntax.
+
 Profile Commands:
   ww profile create <name>    Create a new profile
   ww profile list             List all profiles
@@ -60,26 +94,44 @@ Profile Commands:
   ww profile backup <name>    Backup a profile
 
 Service Commands:
-  ww service list             List available services
+  ww service list             List available service categories
+  ww service info <name>      Show category details and usage hints
+  ww service help <name>      Route to detailed help for a category/topic
 
 Groups Commands:
-  ww groups list               List all groups
-  ww groups show <name>        Show profiles in a group
-  ww groups create <name> [profiles...]
-  ww groups add <name> <profiles...>
-  ww groups remove <name> <profiles...>
-  ww groups delete <name>
+  ww group list                List all groups
+  ww groups                    List all groups (shortcut)
+  ww group show <name>         Show profiles in a group
+  ww group create <name> [profiles...]
+  ww group add <name> <profiles...>
+  ww group remove <name> <profiles...>
+  ww group delete <name>
 
 Models Commands:
-  ww models list               List models and default
-  ww models providers          List model providers
-  ww models env                Show provider environment variables
-  ww models check              Check required env vars
-  ww models show <model>       Show model details
-  ww models add-provider <name> <type> <base_url> [api_key_env]
-  ww models add-model <name> <provider> <model_id> [notes]
-  ww models set-default <name>
-  ww models remove-model <name>
+  ww model list                List models and default
+  ww models                    List models and default (shortcut)
+  ww model providers           List model providers
+  ww model env                 Show provider environment variables
+  ww model check               Check required env vars
+  ww model show <model>        Show model details
+  ww model add-provider <name> <type> <base_url> [api_key_env]
+  ww model add-model <name> <provider> <model_id> [notes]
+  ww model set-default <name>
+  ww model remove-model <name>
+
+Journal Commands:
+  ww journal add <name>        Add journal to active profile
+  ww journal list              List journals in active profile
+  ww journal remove <name>     Remove journal from active profile
+  ww journal rename <old> <new> Rename journal in active profile
+  ww journals                  Same as 'ww journal list'
+
+Ledger Commands:
+  ww ledger add <name>         Add ledger to active profile
+  ww ledger list               List ledgers in active profile
+  ww ledger remove <name>      Remove ledger from active profile
+  ww ledger rename <old> <new> Rename ledger in active profile
+  ww ledgers                   Same as 'ww ledger list'
 
 Extensions Commands:
   ww extensions taskwarrior refresh
@@ -120,9 +172,13 @@ Dependency Commands:
 Examples:
   ww profile create work      Create a profile named 'work'
   ww profile list             Show all profiles
-  ww groups create focus work personal
-  ww groups show focus
-  ww models list
+  ww --profile work journal list
+  ww --json service list
+  ww --compact profile list
+  ww group create focus work personal
+  ww groups                   List groups (shortcut)
+  ww model list
+  ww models                   List models (shortcut)
   ww extensions taskwarrior list --status active
   ww find invoice
   extensions taskwarrior list --status active
@@ -144,8 +200,8 @@ Examples:
 
 Standalone Commands:
   extensions     Alias for 'ww extensions'
-  models         Alias for 'ww models'
-  groups         Alias for 'ww groups'
+  models         Alias for 'ww model list'
+  groups         Alias for 'ww group list'
   journals       List journals for active profile
   ledgers        List ledgers for active profile
   find           Alias for 'ww find'
@@ -161,20 +217,210 @@ For more information, see: $WW_BASE/docs/
 EOF
 }
 
+show_help_profile() {
+  cat << EOF
+Profile Management
+
+Usage: ww profile <action> [arguments]
+
+Actions:
+  create <name>              Create a new profile
+  list                       List all profiles
+  info <name>                Show profile details
+  delete <name>              Delete a profile
+  backup <name> [dest]       Backup a profile to tar.gz
+  import <archive> [name]    Create a new profile from a backup archive
+  restore <name> <archive>   Replace an existing profile from a backup archive
+
+Global Options:
+  --json           Supported for: list
+  --compact        Supported for: list
+  --verbose        Add detail where supported
+
+Examples:
+  ww profile create work
+  ww profile list
+  ww --json profile list
+  ww profile info work
+  ww profile backup work
+  ww profile import work-backup-20260101.tar.gz
+  ww profile import work-backup-20260101.tar.gz work-copy
+  ww profile restore work work-backup-20260101.tar.gz
+EOF
+}
+
+show_help_service() {
+  cat << EOF
+Service Management
+
+Usage: ww service <action> [name]
+
+Actions:
+  list             List available service categories with descriptions
+  info <name>      Show category details, scope, and command syntax
+  help <name>      Route to detailed help for a category/topic
+
+Global Options:
+  --json           Supported for: list, info
+  --compact        Supported for: list
+
+Examples:
+  ww service list
+  ww service info custom
+  ww service help groups
+  ww --json service list
+  ww --compact service list
+EOF
+}
+
+show_help_group() {
+  cat << EOF
+Group Management
+
+Usage: ww group <action> [arguments]
+Alias: ww groups (bare alias defaults to list)
+
+Actions:
+  list                          List all groups
+  show <group>                  Show profiles in a group
+  create <group> [profiles...]  Create a group with optional profiles
+  add <group> <profiles...>     Add profiles to a group
+  remove <group> <profiles...>  Remove profiles from a group
+  delete <group>                Delete a group
+
+Examples:
+  ww group create focus work personal
+  ww group add focus client-x
+  ww group show focus
+  ww group list
+  ww groups
+EOF
+}
+
+show_help_model() {
+  cat << EOF
+Model Registry
+
+Usage: ww model <action> [arguments]
+Alias: ww models (bare alias defaults to list)
+
+Actions:
+  list                         List models and default
+  providers                    List providers
+  env                          Show provider environment variables
+  check                        Check if required env vars are set
+  show <model>                 Show model details
+  add-provider <name> <type> <base_url> [api_key_env]
+  add-model <name> <provider> <model_id> [notes]
+  set-default <name>           Set default model
+  remove-model <name>          Remove model
+
+Examples:
+  ww model list
+  ww models
+  ww model providers
+  ww model env
+  ww model check
+  ww model set-default gpt-4o-mini
+EOF
+}
+
+show_help_journal() {
+  cat << EOF
+Journal Commands
+
+Usage: ww journal <action> [arguments]
+Alias: ww journals (bare alias defaults to list)
+
+Actions:
+  add <name>      Add journal to active profile
+  list            List journals in active profile
+  remove <name>   Remove journal from active profile
+  rename <old> <new> Rename journal in active profile
+
+Global Options:
+  --profile <name>  Override profile for this invocation
+  --json            Machine-readable list output
+  --compact         Terse list output
+
+Examples:
+  ww journal add work-log
+  ww journal list
+  ww journals
+  ww journal remove work-log
+  ww journal rename work-log client-work
+  ww --profile work journal list
+  ww --json journal list
+
+Notes:
+  'ww custom journals' remains available for guided interactive management.
+EOF
+}
+
+show_help_ledger() {
+  cat << EOF
+Ledger Commands
+
+Usage: ww ledger <action> [arguments]
+Alias: ww ledgers (bare alias defaults to list)
+
+Actions:
+  add <name>      Add ledger to active profile
+  list            List ledgers in active profile
+  remove <name>   Remove ledger from active profile
+  rename <old> <new> Rename ledger in active profile
+
+Global Options:
+  --profile <name>  Override profile for this invocation
+  --json            Machine-readable list output
+  --compact         Terse list output
+
+Examples:
+  ww ledger add business
+  ww ledger list
+  ww ledgers
+  ww ledger remove business
+  ww ledger rename business biz-main
+  ww --profile work ledger list
+  ww --json ledger list
+
+Notes:
+  'ww custom ledgers' remains available for guided interactive management.
+EOF
+}
+
 show_service_help() {
   local topic="${1:-}"
   case "$topic" in
     profile)
-      cmd_profile help
+      show_help_profile
       ;;
-    service)
-      cmd_service help
+    service|services)
+      show_help_service
       ;;
-    groups)
-      cmd_group help
+    group|groups)
+      if [[ "$topic" == "groups" ]]; then
+        nudge_preferred_syntax "ww help groups" "ww help group"
+      fi
+      show_help_group
       ;;
-    models)
-      cmd_models help
+    model|models)
+      if [[ "$topic" == "models" ]]; then
+        nudge_preferred_syntax "ww help models" "ww help model"
+      fi
+      show_help_model
+      ;;
+    journal|journals)
+      if [[ "$topic" == "journals" ]]; then
+        nudge_preferred_syntax "ww help journals" "ww help journal"
+      fi
+      show_help_journal
+      ;;
+    ledger|ledgers)
+      if [[ "$topic" == "ledgers" ]]; then
+        nudge_preferred_syntax "ww help ledgers" "ww help ledger"
+      fi
+      show_help_ledger
       ;;
     extensions)
       cmd_extensions help
@@ -200,8 +446,8 @@ Standalone Commands
 
 These commands can be run without the ww prefix:
   extensions     Alias for 'ww extensions'
-  models         Alias for 'ww models'
-  groups         Alias for 'ww groups'
+  models         Alias for 'ww model list'
+  groups         Alias for 'ww group list'
   journals       List journals for active profile
   ledgers        List ledgers for active profile
   find           Alias for 'ww find'
@@ -231,6 +477,130 @@ show_version() {
   fi
 }
 
+print_json_array() {
+  local items=("$@")
+  local first=1
+  printf '['
+  for item in "${items[@]}"; do
+    if [[ $first -eq 0 ]]; then
+      printf ','
+    fi
+    first=0
+    printf '"%s"' "$item"
+  done
+  printf ']'
+}
+
+nudge_preferred_syntax() {
+  local legacy="$1"
+  local preferred="$2"
+  log_deprecation "'$legacy' still works; prefer '$preferred'"
+}
+
+parse_global_flags() {
+  local args=("$@")
+
+  while [[ ${#args[@]} -gt 0 ]]; do
+    case "${args[0]}" in
+      --profile)
+        if [[ ${#args[@]} -lt 2 || -z "${args[1]}" ]]; then
+          log_error "--profile requires a profile name"
+          exit 1
+        fi
+        WW_FLAG_PROFILE="${args[1]}"
+        args=("${args[@]:2}")
+        ;;
+      --global)
+        WW_FLAG_GLOBAL=1
+        args=("${args[@]:1}")
+        ;;
+      --json)
+        WW_FLAG_JSON=1
+        args=("${args[@]:1}")
+        ;;
+      --compact)
+        WW_FLAG_COMPACT=1
+        args=("${args[@]:1}")
+        ;;
+      --verbose)
+        WW_VERBOSE=1
+        args=("${args[@]:1}")
+        ;;
+      --help|-h)
+        WW_FLAG_HELP=1
+        args=("${args[@]:1}")
+        ;;
+      --)
+        args=("${args[@]:1}")
+        break
+        ;;
+      -*)
+        break
+        ;;
+      *)
+        break
+        ;;
+    esac
+  done
+
+  if [[ $WW_FLAG_GLOBAL -eq 1 && -n "$WW_FLAG_PROFILE" ]]; then
+    log_error "Invalid flags: --profile and --global cannot be used together"
+    exit 1
+  fi
+  if [[ $WW_FLAG_JSON -eq 1 && $WW_FLAG_COMPACT -eq 1 ]]; then
+    log_error "Invalid flags: --json and --compact cannot be used together"
+    exit 1
+  fi
+
+  if [[ $WW_FLAG_JSON -eq 1 ]]; then
+    WW_OUTPUT_MODE="json"
+  elif [[ $WW_FLAG_COMPACT -eq 1 ]]; then
+    WW_OUTPUT_MODE="compact"
+  else
+    WW_OUTPUT_MODE="human"
+  fi
+
+  WW_MAIN_ARGS=("${args[@]}")
+}
+
+resolve_scope_context() {
+  if [[ $WW_FLAG_GLOBAL -eq 1 ]]; then
+    unset WARRIOR_PROFILE WORKWARRIOR_BASE TASKRC TASKDATA TIMEWARRIORDB
+    return 0
+  fi
+
+  local selected_profile=""
+  if [[ -n "$WW_FLAG_PROFILE" ]]; then
+    selected_profile="$WW_FLAG_PROFILE"
+  elif [[ -n "${WARRIOR_PROFILE:-}" && -d "${WORKWARRIOR_BASE:-}" ]]; then
+    selected_profile="$WARRIOR_PROFILE"
+  else
+    selected_profile="$(get_last_profile 2>/dev/null || true)"
+  fi
+
+  if [[ -z "$selected_profile" ]]; then
+    return 0
+  fi
+
+  if ! validate_profile_name "$selected_profile" >/dev/null 2>&1; then
+    log_error "Invalid profile name: $selected_profile"
+    exit 1
+  fi
+
+  local selected_base="$WW_BASE/profiles/$selected_profile"
+  if [[ ! -d "$selected_base" ]]; then
+    log_error "Profile '$selected_profile' does not exist at $selected_base"
+    exit 1
+  fi
+
+  export WARRIOR_PROFILE="$selected_profile"
+  export WORKWARRIOR_BASE="$selected_base"
+  export TASKRC="$selected_base/.taskrc"
+  export TASKDATA="$selected_base/.task"
+  export TIMEWARRIORDB="$selected_base/.timewarrior"
+  set_last_profile "$selected_profile" >/dev/null 2>&1 || true
+}
+
 # ============================================================================
 # PROFILE COMMAND
 # ============================================================================
@@ -249,7 +619,25 @@ cmd_profile() {
       "$WW_BASE/scripts/create-ww-profile.sh" "$@"
       ;;
     list)
-      "$WW_BASE/scripts/manage-profiles.sh" list "$@"
+      if [[ "$WW_OUTPUT_MODE" == "json" || "$WW_OUTPUT_MODE" == "compact" ]]; then
+        local profiles=()
+        while IFS= read -r -d '' dir; do
+          profiles+=( "$(basename "$dir")" )
+        done < <(command find "$WW_BASE/profiles" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null)
+        if (( ${#profiles[@]} > 0 )); then
+          mapfile -t profiles < <(printf '%s\n' "${profiles[@]}" | sort)
+        fi
+        if [[ "$WW_OUTPUT_MODE" == "json" ]]; then
+          print_json_array "${profiles[@]}"
+          echo ""
+        else
+          if (( ${#profiles[@]} > 0 )); then
+            printf '%s\n' "${profiles[@]}"
+          fi
+        fi
+      else
+        "$WW_BASE/scripts/manage-profiles.sh" list "$@"
+      fi
       ;;
     info)
       if [[ -z "$1" ]]; then
@@ -270,31 +658,29 @@ cmd_profile() {
     backup)
       if [[ -z "$1" ]]; then
         log_error "Profile name required"
-        echo "Usage: ww profile backup <name>"
+        echo "Usage: ww profile backup <name> [dest]"
         exit 1
       fi
       "$WW_BASE/scripts/manage-profiles.sh" backup "$@"
       ;;
+    import)
+      if [[ -z "$1" ]]; then
+        log_error "Archive path required"
+        echo "Usage: ww profile import <archive> [new-name]"
+        exit 1
+      fi
+      "$WW_BASE/scripts/manage-profiles.sh" import "$@"
+      ;;
+    restore)
+      if [[ -z "$1" || -z "$2" ]]; then
+        log_error "Profile name and archive path required"
+        echo "Usage: ww profile restore <name> <archive>"
+        exit 1
+      fi
+      "$WW_BASE/scripts/manage-profiles.sh" restore "$@"
+      ;;
     ""|help|-h|--help)
-      cat << EOF
-Profile Management
-
-Usage: ww profile <action> [arguments]
-
-Actions:
-  create <name>    Create a new profile
-  list             List all profiles
-  info <name>      Show profile details
-  delete <name>    Delete a profile
-  backup <name>    Backup a profile to tar.gz
-
-Examples:
-  ww profile create work
-  ww profile list
-  ww profile info work
-  ww profile backup work
-
-EOF
+      show_help_profile
       ;;
     *)
       log_error "Unknown profile action: $action"
@@ -308,38 +694,241 @@ EOF
 # SERVICE COMMAND
 # ============================================================================
 
+service_category_description() {
+  local category="$1"
+  case "$category" in
+    profile) echo "Profile lifecycle and activation tooling" ;;
+    questions) echo "Prompt templates and structured intake workflows" ;;
+    scripts) echo "General utility scripts and one-off automations" ;;
+    export) echo "Export data from tools into standard formats" ;;
+    diagnostic) echo "System checks and troubleshooting helpers" ;;
+    find) echo "Cross-profile search and discovery utilities" ;;
+    verify) echo "Validation scripts for integrity and config checks" ;;
+    custom) echo "Interactive profile configuration helpers" ;;
+    groups) echo "Profile grouping and membership management" ;;
+    models) echo "LLM provider/model registry configuration" ;;
+    extensions) echo "External tool extension registries" ;;
+    x-delete) echo "Profile/data deletion workflows" ;;
+    *) echo "Service category" ;;
+  esac
+}
+
+service_category_scope() {
+  local category="$1"
+  case "$category" in
+    groups|models|extensions|x-delete)
+      echo "Global scope (active profile not required)"
+      ;;
+    *)
+      echo "Profile-aware (active profile may override global service scripts)"
+      ;;
+  esac
+}
+
+service_category_syntax() {
+  local category="$1"
+  case "$category" in
+    profile) echo "ww profile <create|list|info|delete|backup>" ;;
+    groups) echo "ww group <list|show|create|add|remove|delete>" ;;
+    models) echo "ww model <list|providers|env|check|show|add-provider|add-model|set-default|remove-model>" ;;
+    extensions) echo "ww extensions <tool> <action>" ;;
+    custom) echo "ww custom <journals|tasks|times|ledgers|issues|list>" ;;
+    find) echo "ww find <term> [--type <type>] [--profile <name>]" ;;
+    x-delete) echo "ww x <action> (destructive; review help first)" ;;
+    *)
+      echo "No dedicated ww namespace; run scripts from services/$category/ directly"
+      ;;
+  esac
+}
+
+collect_service_categories() {
+  local categories=()
+
+  if [[ -d "$WW_BASE/services" ]]; then
+    while IFS= read -r -d '' dir; do
+      categories+=( "$(basename "$dir")" )
+    done < <(command find "$WW_BASE/services" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null)
+  fi
+
+  if [[ -n "${WORKWARRIOR_BASE:-}" ]] && [[ -d "$WORKWARRIOR_BASE/services" ]]; then
+    while IFS= read -r -d '' dir; do
+      categories+=( "$(basename "$dir")" )
+    done < <(command find "$WORKWARRIOR_BASE/services" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null)
+  fi
+
+  if (( ${#categories[@]} > 0 )); then
+    printf '%s\n' "${categories[@]}" | sort -u
+  fi
+}
+
+count_service_files_in_dir() {
+  local dir="$1"
+  if [[ -z "$dir" || ! -d "$dir" ]]; then
+    echo "0"
+    return 0
+  fi
+
+  local count=0
+  while IFS= read -r -d '' file; do
+    if [[ -x "$file" || "$file" == *.sh ]]; then
+      count=$((count + 1))
+    fi
+  done < <(command find "$dir" -maxdepth 1 -type f -print0 2>/dev/null)
+  echo "$count"
+}
+
+service_help_topic_alias() {
+  local name="${1:-}"
+  case "$name" in
+    groups) echo "group" ;;
+    models) echo "model" ;;
+    journals) echo "journal" ;;
+    ledgers) echo "ledger" ;;
+    service|services|profile|group|model|journal|ledger|extensions|find|custom|shortcut|deps)
+      echo "$name"
+      ;;
+    *) echo "" ;;
+  esac
+}
+
 cmd_service() {
   local action="${1:-}"
   shift 2>/dev/null || true
 
   case "$action" in
     list)
-      echo "Available service categories:"
-      echo ""
-      for dir in "$WW_BASE/services/"*/; do
-        if [[ -d "$dir" ]]; then
-          local category
-          category="$(basename "$dir")"
-          # Count services in category
-          local count
-          count=$(find "$dir" -maxdepth 1 -type f \( -executable -o -name "*.sh" \) 2>/dev/null | wc -l | tr -d ' ')
-          echo "  $category ($count services)"
+      local categories=()
+      mapfile -t categories < <(collect_service_categories)
+      local service_rows=()
+      local category
+      for category in "${categories[@]}"; do
+        local services
+        services="$(discover_services "$category" 2>/dev/null || true)"
+        local count=0
+        if [[ -n "$services" ]]; then
+          count="$(printf '%s\n' "$services" | sed '/^$/d' | wc -l | tr -d ' ')"
         fi
+        if [[ "$count" -eq 0 ]]; then
+          continue
+        fi
+        local desc
+        desc="$(service_category_description "$category")"
+        service_rows+=( "$category:$count:$desc" )
       done
-      echo ""
+      if [[ "$WW_OUTPUT_MODE" == "json" ]]; then
+        local first=1
+        printf '['
+        for row in "${service_rows[@]}"; do
+          local category="${row%%:*}"
+          local tail="${row#*:}"
+          local count="${tail%%:*}"
+          local desc="${tail#*:}"
+          if [[ $first -eq 0 ]]; then
+            printf ','
+          fi
+          first=0
+          printf '{"category":"%s","count":%s,"description":"%s"}' "$category" "$count" "$desc"
+        done
+        printf ']\n'
+      elif [[ "$WW_OUTPUT_MODE" == "compact" ]]; then
+        for row in "${service_rows[@]}"; do
+          local category="${row%%:*}"
+          local tail="${row#*:}"
+          local count="${tail%%:*}"
+          echo "$category $count"
+        done
+      else
+        echo "Available service categories:"
+        echo ""
+        for row in "${service_rows[@]}"; do
+          local category="${row%%:*}"
+          local tail="${row#*:}"
+          local count="${tail%%:*}"
+          local desc="${tail#*:}"
+          echo "  $category ($count services) - $desc"
+        done
+        echo ""
+      fi
+      ;;
+    info)
+      local category="${1:-}"
+      if [[ -z "$category" ]]; then
+        log_error "Service category required"
+        echo "Usage: ww service info <name>"
+        exit 1
+      fi
+
+      local global_dir="$WW_BASE/services/$category"
+      local profile_dir=""
+      if [[ -n "${WORKWARRIOR_BASE:-}" ]]; then
+        profile_dir="$WORKWARRIOR_BASE/services/$category"
+      fi
+
+      if [[ ! -d "$global_dir" && ( -z "$profile_dir" || ! -d "$profile_dir" ) ]]; then
+        log_error "Unknown service category: $category"
+        echo "Run 'ww service list' to see available categories."
+        exit 1
+      fi
+
+      local merged_count=0
+      local merged_services
+      merged_services="$(discover_services "$category" 2>/dev/null || true)"
+      if [[ -n "$merged_services" ]]; then
+        merged_count="$(printf '%s\n' "$merged_services" | sed '/^$/d' | wc -l | tr -d ' ')"
+      fi
+
+      local global_count=0
+      if [[ -d "$global_dir" ]]; then
+        global_count="$(count_service_files_in_dir "$global_dir")"
+      fi
+
+      local profile_count=0
+      if [[ -n "$profile_dir" && -d "$profile_dir" ]]; then
+        profile_count="$(count_service_files_in_dir "$profile_dir")"
+      fi
+
+      local desc
+      desc="$(service_category_description "$category")"
+      local scope
+      scope="$(service_category_scope "$category")"
+      local syntax
+      syntax="$(service_category_syntax "$category")"
+
+      if [[ "$WW_OUTPUT_MODE" == "json" ]]; then
+        printf '{"category":"%s","description":"%s","scope":"%s","syntax":"%s","services":{"resolved":%s,"global":%s,"profile":%s}' \
+          "$category" "$desc" "$scope" "$syntax" "$merged_count" "$global_count" "$profile_count"
+        if [[ -n "${WARRIOR_PROFILE:-}" ]]; then
+          printf ',"active_profile":"%s"' "$WARRIOR_PROFILE"
+        fi
+        printf '}\n'
+      else
+        echo "Service category: $category"
+        echo "Description: $desc"
+        echo "Scope: $scope"
+        echo "Primary syntax: $syntax"
+        echo "Service files: $merged_count resolved ($global_count global, $profile_count profile)"
+        if [[ -n "${WARRIOR_PROFILE:-}" ]]; then
+          echo "Active profile context: $WARRIOR_PROFILE"
+        fi
+      fi
+      ;;
+    help)
+      local topic="${1:-}"
+      if [[ -z "$topic" ]]; then
+        show_help_service
+        return 0
+      fi
+
+      local mapped
+      mapped="$(service_help_topic_alias "$topic")"
+      if [[ -n "$mapped" ]]; then
+        show_service_help "$mapped"
+        return 0
+      fi
+      cmd_service info "$topic"
       ;;
     ""|help|-h|--help)
-      cat << EOF
-Service Management
-
-Usage: ww service <action>
-
-Actions:
-  list    List available service categories
-
-Services are organized by category in $WW_BASE/services/
-
-EOF
+      show_help_service
       ;;
     *)
       log_error "Unknown service action: $action"
@@ -411,6 +1000,13 @@ cmd_group() {
   local action="${1:-}"
   shift 2>/dev/null || true
 
+  case "$action" in
+    ""|help|-h|--help)
+      show_help_group
+      return 0
+      ;;
+  esac
+
   if [[ -f "$WW_BASE/services/groups/groups.sh" ]]; then
     "$WW_BASE/services/groups/groups.sh" "${action}" "$@"
   else
@@ -426,6 +1022,13 @@ cmd_group() {
 cmd_models() {
   local action="${1:-}"
   shift 2>/dev/null || true
+
+  case "$action" in
+    ""|help|-h|--help)
+      show_help_model
+      return 0
+      ;;
+  esac
 
   if [[ -f "$WW_BASE/services/models/models.sh" ]]; then
     "$WW_BASE/services/models/models.sh" "${action}" "$@"
@@ -636,31 +1239,460 @@ EOF
 }
 
 # ============================================================================
+# JOURNAL COMMAND (list-first UX)
+# ============================================================================
+
+cmd_journal() {
+  local action="${1:-}"
+  shift 2>/dev/null || true
+
+  case "$action" in
+    list|"")
+      if [[ -z "${WORKWARRIOR_BASE:-}" ]]; then
+        log_error "No active profile. Activate one with p-<profile-name>."
+        exit 1
+      fi
+      local cfg="$WORKWARRIOR_BASE/jrnl.yaml"
+      if [[ ! -f "$cfg" ]]; then
+        log_error "jrnl.yaml not found: $cfg"
+        exit 1
+      fi
+      local names=()
+      mapfile -t names < <(awk '
+        /^journals:/ { in_j=1; next }
+        in_j && /^[^ ]/ { in_j=0 }
+        in_j && /^  [a-zA-Z0-9_-]+:/ {
+          name=$1; sub(":", "", name);
+          if (name != "default") print "  • " name
+        }
+      ' "$cfg"
+      )
+      local clean=()
+      for entry in "${names[@]}"; do
+        clean+=( "${entry#  • }" )
+      done
+      if [[ "$WW_OUTPUT_MODE" == "json" ]]; then
+        printf '{"profile":"%s","journals":' "${WARRIOR_PROFILE:-active}"
+        print_json_array "${clean[@]}"
+        printf '}\n'
+      elif [[ "$WW_OUTPUT_MODE" == "compact" ]]; then
+        if (( ${#clean[@]} > 0 )); then
+          printf '%s\n' "${clean[@]}"
+        fi
+      else
+        echo "Journals (${WARRIOR_PROFILE:-active}):"
+        if (( ${#clean[@]} > 0 )); then
+          printf '  • %s\n' "${clean[@]}"
+        else
+          echo "  (none)"
+        fi
+      fi
+      ;;
+    add|create)
+      if [[ -z "${WARRIOR_PROFILE:-}" ]]; then
+        log_error "No active profile. Activate one with p-<profile-name> or use --profile."
+        exit 1
+      fi
+      if [[ -z "${1:-}" ]]; then
+        log_error "Journal name required"
+        echo "Usage: ww journal add <name>"
+        exit 1
+      fi
+      if ! add_journal_to_profile "$WARRIOR_PROFILE" "$1"; then
+        exit 1
+      fi
+      ;;
+    remove|delete|rm)
+      if [[ -z "${WARRIOR_PROFILE:-}" ]]; then
+        log_error "No active profile. Activate one with p-<profile-name> or use --profile."
+        exit 1
+      fi
+      if [[ -z "${1:-}" ]]; then
+        log_error "Journal name required"
+        echo "Usage: ww journal remove <name>"
+        exit 1
+      fi
+      if ! remove_journal_from_profile "$WARRIOR_PROFILE" "$1"; then
+        exit 1
+      fi
+      ;;
+    rename)
+      if [[ -z "${WARRIOR_PROFILE:-}" ]]; then
+        log_error "No active profile. Activate one with p-<profile-name> or use --profile."
+        exit 1
+      fi
+      if [[ -z "${1:-}" || -z "${2:-}" ]]; then
+        log_error "Old and new journal names required"
+        echo "Usage: ww journal rename <old> <new>"
+        exit 1
+      fi
+      if ! rename_journal_in_profile "$WARRIOR_PROFILE" "$1" "$2"; then
+        exit 1
+      fi
+      ;;
+    help|-h|--help)
+      show_help_journal
+      ;;
+    *)
+      log_error "Unknown journal action: $action"
+      echo "Run 'ww journal help' for usage"
+      exit 1
+      ;;
+  esac
+}
+
+# ============================================================================
+# LEDGER COMMAND (list-first UX)
+# ============================================================================
+
+cmd_ledger() {
+  local action="${1:-}"
+  shift 2>/dev/null || true
+
+  case "$action" in
+    list|"")
+      if [[ -z "${WORKWARRIOR_BASE:-}" ]]; then
+        log_error "No active profile. Activate one with p-<profile-name>."
+        exit 1
+      fi
+      local cfg="$WORKWARRIOR_BASE/ledgers.yaml"
+      if [[ ! -f "$cfg" ]]; then
+        log_error "ledgers.yaml not found: $cfg"
+        exit 1
+      fi
+      local names=()
+      mapfile -t names < <(awk '
+        /^ledgers:/ { in_l=1; next }
+        in_l && /^[^ ]/ { in_l=0 }
+        in_l && /^  [a-zA-Z0-9_-]+:/ {
+          name=$1; sub(":", "", name);
+          if (name != "default") print "  • " name
+        }
+      ' "$cfg"
+      )
+      local clean=()
+      for entry in "${names[@]}"; do
+        clean+=( "${entry#  • }" )
+      done
+      if [[ "$WW_OUTPUT_MODE" == "json" ]]; then
+        printf '{"profile":"%s","ledgers":' "${WARRIOR_PROFILE:-active}"
+        print_json_array "${clean[@]}"
+        printf '}\n'
+      elif [[ "$WW_OUTPUT_MODE" == "compact" ]]; then
+        if (( ${#clean[@]} > 0 )); then
+          printf '%s\n' "${clean[@]}"
+        fi
+      else
+        echo "Ledgers (${WARRIOR_PROFILE:-active}):"
+        if (( ${#clean[@]} > 0 )); then
+          printf '  • %s\n' "${clean[@]}"
+        else
+          echo "  (none)"
+        fi
+      fi
+      ;;
+    add|create)
+      if [[ -z "${WARRIOR_PROFILE:-}" ]]; then
+        log_error "No active profile. Activate one with p-<profile-name> or use --profile."
+        exit 1
+      fi
+      if [[ -z "${1:-}" ]]; then
+        log_error "Ledger name required"
+        echo "Usage: ww ledger add <name>"
+        exit 1
+      fi
+      if ! add_ledger_to_profile "$WARRIOR_PROFILE" "$1"; then
+        exit 1
+      fi
+      ;;
+    remove|delete|rm)
+      if [[ -z "${WARRIOR_PROFILE:-}" ]]; then
+        log_error "No active profile. Activate one with p-<profile-name> or use --profile."
+        exit 1
+      fi
+      if [[ -z "${1:-}" ]]; then
+        log_error "Ledger name required"
+        echo "Usage: ww ledger remove <name>"
+        exit 1
+      fi
+      if ! remove_ledger_from_profile "$WARRIOR_PROFILE" "$1"; then
+        exit 1
+      fi
+      ;;
+    rename)
+      if [[ -z "${WARRIOR_PROFILE:-}" ]]; then
+        log_error "No active profile. Activate one with p-<profile-name> or use --profile."
+        exit 1
+      fi
+      if [[ -z "${1:-}" || -z "${2:-}" ]]; then
+        log_error "Old and new ledger names required"
+        echo "Usage: ww ledger rename <old> <new>"
+        exit 1
+      fi
+      if ! rename_ledger_in_profile "$WARRIOR_PROFILE" "$1" "$2"; then
+        exit 1
+      fi
+      ;;
+    help|-h|--help)
+      show_help_ledger
+      ;;
+    *)
+      log_error "Unknown ledger action: $action"
+      echo "Run 'ww ledger help' for usage"
+      exit 1
+      ;;
+  esac
+}
+
+# ============================================================================
+# ISSUES COMMAND
+# ============================================================================
+
+cmd_issues() {
+  # Parse all args: first non-flag is the subcommand; strip --json from remaining
+  local json_mode=0
+  local subcommand=""
+  local remaining=()
+  for arg in "$@"; do
+    if [[ "$arg" == "--json" ]]; then
+      json_mode=1
+    elif [[ -z "$subcommand" && "$arg" != --* ]]; then
+      subcommand="$arg"
+    else
+      remaining+=("$arg")
+    fi
+  done
+  set -- "${remaining[@]+"${remaining[@]}"}"
+
+  case "$subcommand" in
+    ""|help|--help|-h)
+      cat << 'EOF'
+Issues Service
+
+Routes to bugwarrior (one-way pull) or github-sync (two-way):
+
+  ww issues pull [--dry-run] [--json]              Pull issues from all configured services
+  ww issues uda                                     List TaskWarrior UDAs for configured services
+
+  ww issues push [task-id]                          Push task changes to GitHub
+  ww issues sync [task-id]                          Bidirectional sync with GitHub
+  ww issues enable-sync <task-id> <issue> <repo>    Enable GitHub sync for a task
+  ww issues disable-sync <task-id>                  Disable GitHub sync for a task
+  ww issues status [--json]                         Show GitHub sync status
+
+  ww issues custom                                  Configure issue services interactively
+  ww issues help                                    Show this help
+
+Note: 'ww issues' and 'i' are synonymous.
+Requires an active profile: p-<profile-name>
+
+Bugwarrior is one-way only (external services → TaskWarrior).
+For two-way GitHub sync, use: ww issues push / sync / enable-sync
+
+EOF
+      ;;
+    custom)
+      if [[ -z "${WORKWARRIOR_BASE:-}" ]]; then
+        log_error "Issues service requires an active profile"
+        echo "Activate a profile with: p-<profile-name>" >&2
+        exit 1
+      fi
+      WORKWARRIOR_BASE="$WORKWARRIOR_BASE" WARRIOR_PROFILE="$WARRIOR_PROFILE" \
+        "$WW_BASE/services/custom/configure-issues.sh" "$@"
+      ;;
+    push|sync|enable-sync|enable|disable-sync|disable|status|sync-status)
+      if [[ -z "${WORKWARRIOR_BASE:-}" ]]; then
+        log_error "Issues service requires an active profile"
+        echo "Activate a profile with: p-<profile-name>" >&2
+        exit 1
+      fi
+      local github_sync_cli="$WW_BASE/services/custom/github-sync.sh"
+      if [[ ! -f "$github_sync_cli" ]]; then
+        log_error "GitHub sync CLI not found at $github_sync_cli"
+        exit 1
+      fi
+      local sync_command
+      case "$subcommand" in
+        enable-sync|enable) sync_command="enable" ;;
+        disable-sync|disable) sync_command="disable" ;;
+        sync-status|status) sync_command="status" ;;
+        *) sync_command="$subcommand" ;;
+      esac
+      if [[ "$sync_command" == "status" && "$json_mode" -eq 1 ]]; then
+        local sync_output sync_exit=0
+        sync_output=$(WORKWARRIOR_BASE="$WORKWARRIOR_BASE" WARRIOR_PROFILE="$WARRIOR_PROFILE" \
+          "$github_sync_cli" "$sync_command" "$@" 2>&1) || sync_exit=$?
+        local escaped="${sync_output//\\/\\\\}"
+        escaped="${escaped//\"/\\\"}"
+        escaped="${escaped//$'\n'/\\n}"
+        if [[ "$sync_exit" -eq 0 ]]; then
+          echo "{\"command\":\"status\",\"status\":\"success\",\"output\":\"${escaped}\"}"
+        else
+          echo "{\"command\":\"status\",\"status\":\"failed\",\"exit_code\":${sync_exit},\"output\":\"${escaped}\"}"
+        fi
+        exit "$sync_exit"
+      fi
+      WORKWARRIOR_BASE="$WORKWARRIOR_BASE" WARRIOR_PROFILE="$WARRIOR_PROFILE" \
+        "$github_sync_cli" "$sync_command" "$@"
+      ;;
+    pull|uda|*)
+      if [[ -z "${WORKWARRIOR_BASE:-}" ]]; then
+        log_error "Issues service requires an active profile"
+        echo "Activate a profile with: p-<profile-name>" >&2
+        exit 1
+      fi
+      local bugwarrior_config="$WORKWARRIOR_BASE/.config/bugwarrior/bugwarriorrc"
+      if [[ ! -f "$bugwarrior_config" ]]; then
+        bugwarrior_config="$WORKWARRIOR_BASE/.config/bugwarrior/bugwarrior.toml"
+        if [[ ! -f "$bugwarrior_config" ]]; then
+          log_error "Bugwarrior configuration not found"
+          echo "Run 'ww issues custom' to configure the issues service" >&2
+          exit 1
+        fi
+      fi
+      if ! command -v bugwarrior &>/dev/null; then
+        log_error "bugwarrior is not installed"
+        echo "Install with: pipx install bugwarrior" >&2
+        exit 1
+      fi
+      if [[ "$subcommand" == "pull" && "$json_mode" -eq 0 ]]; then
+        echo "⚠️  One-way sync: External services → TaskWarrior"
+        echo "   Changes in TaskWarrior will NOT sync back to issue trackers"
+        echo "   For two-way GitHub sync, use: ww issues push / sync / enable-sync"
+        echo ""
+      fi
+      if [[ "$json_mode" -eq 1 ]]; then
+        local bw_exit=0
+        BUGWARRIORRC="$bugwarrior_config" \
+        BUGWARRIOR_TASKRC="$WORKWARRIOR_BASE/.taskrc" \
+        BUGWARRIOR_TASKDATA="$WORKWARRIOR_BASE/.task" \
+          bugwarrior "$subcommand" "$@" >/dev/null 2>&1 || bw_exit=$?
+        if [[ "$bw_exit" -eq 0 ]]; then
+          echo "{\"command\":\"${subcommand}\",\"status\":\"success\"}"
+        else
+          echo "{\"command\":\"${subcommand}\",\"status\":\"failed\",\"exit_code\":${bw_exit}}"
+        fi
+        exit "$bw_exit"
+      fi
+      BUGWARRIORRC="$bugwarrior_config" \
+      BUGWARRIOR_TASKRC="$WORKWARRIOR_BASE/.taskrc" \
+      BUGWARRIOR_TASKDATA="$WORKWARRIOR_BASE/.task" \
+        bugwarrior "$subcommand" "$@"
+      ;;
+  esac
+}
+
+# ============================================================================
 # MAIN DISPATCHER
 # ============================================================================
 
 main() {
+  parse_global_flags "$@"
+  set -- "${WW_MAIN_ARGS[@]}"
   local command="${1:-}"
   shift 2>/dev/null || true
+
+  export WW_OUTPUT_MODE
+  export WW_VERBOSE
+
+  if [[ $WW_FLAG_HELP -eq 1 ]]; then
+    if [[ -n "$command" ]]; then
+      show_service_help "$command"
+    else
+      show_usage
+    fi
+    return 0
+  fi
+
+  resolve_scope_context
 
   case "$command" in
     profile|p)
       cmd_profile "$@"
       ;;
+    profiles)
+      nudge_preferred_syntax "ww profiles" "ww profile list"
+      cmd_profile list "$@"
+      ;;
     service|s)
       cmd_service "$@"
       ;;
-    groups)
+    services)
+      nudge_preferred_syntax "ww services" "ww service list"
+      if [[ $# -eq 0 ]]; then
+        cmd_service list
+      else
+        cmd_service "$@"
+      fi
+      ;;
+    group)
       cmd_group "$@"
       ;;
-    models)
+    groups)
+      if [[ $# -eq 0 ]]; then
+        nudge_preferred_syntax "ww groups" "ww group list"
+      else
+        nudge_preferred_syntax "ww groups <action>" "ww group <action>"
+      fi
+      if [[ $# -eq 0 ]]; then
+        cmd_group list
+      else
+        cmd_group "$@"
+      fi
+      ;;
+    model)
       cmd_models "$@"
+      ;;
+    models)
+      if [[ $# -eq 0 ]]; then
+        nudge_preferred_syntax "ww models" "ww model list"
+      else
+        nudge_preferred_syntax "ww models <action>" "ww model <action>"
+      fi
+      if [[ $# -eq 0 ]]; then
+        cmd_models list
+      else
+        cmd_models "$@"
+      fi
+      ;;
+    journal)
+      cmd_journal "$@"
+      ;;
+    journals)
+      if [[ $# -eq 0 ]]; then
+        nudge_preferred_syntax "ww journals" "ww journal list"
+      else
+        nudge_preferred_syntax "ww journals <action>" "ww journal <action>"
+      fi
+      if [[ $# -eq 0 ]]; then
+        cmd_journal list
+      else
+        cmd_journal "$@"
+      fi
+      ;;
+    ledger)
+      cmd_ledger "$@"
+      ;;
+    ledgers)
+      if [[ $# -eq 0 ]]; then
+        nudge_preferred_syntax "ww ledgers" "ww ledger list"
+      else
+        nudge_preferred_syntax "ww ledgers <action>" "ww ledger <action>"
+      fi
+      if [[ $# -eq 0 ]]; then
+        cmd_ledger list
+      else
+        cmd_ledger "$@"
+      fi
       ;;
     extensions)
       cmd_extensions "$@"
       ;;
     find)
       cmd_find "$@"
+      ;;
+    issues)
+      cmd_issues "$@"
       ;;
     custom)
       cmd_custom "$@"

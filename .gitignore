@@ -1,0 +1,16 @@
+# macOS metadata
+.DS_Store
+**/.DS_Store
+
+# TaskWarrior data
+*.sqlite3
+profiles/*/.task/taskchampion.sqlite3
+profiles/*/.task/github-sync/*.log
+profiles/*/.task/github-sync/errors.log
+
+# Profile runtime data (never commit)
+profiles/*/.config/
+profiles/*/list/
+
+# Logs
+*.log

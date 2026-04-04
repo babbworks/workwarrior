@@ -20,7 +20,8 @@ readonly SECTION_LEDGER_ALIASES="# -- Direct Aliases for Hledger ---"
 readonly SECTION_CORE_FUNCTIONS="# --- Workwarrior Core Functions ---"
 
 # Default shell configuration file
-readonly SHELL_CONFIG="${HOME}/.bashrc"
+# Honor explicit overrides from callers/tests before falling back to ~/.bashrc.
+readonly SHELL_CONFIG="${SHELL_CONFIG:-${SHELL_RC:-${HOME}/.bashrc}}"
 
 # Global workspace defaults
 readonly WW_GLOBAL_BASE="${WW_GLOBAL_BASE:-${WW_BASE:-$HOME/ww}/global}"
@@ -462,6 +463,7 @@ use_task_profile() {
   export TASKRC="$profile_base/.taskrc"
   export TASKDATA="$profile_base/.task"
   export TIMEWARRIORDB="$profile_base/.timewarrior"
+  set_last_profile "$profile_name" >/dev/null 2>&1 || true
 
   # Display confirmation message
   echo "✓ Activated profile: $profile_name"
@@ -773,24 +775,26 @@ services() {
 }
 # Global issues function - operates on active profile's bugwarrior config
 # Checks WORKWARRIOR_BASE is set (profile must be active)
+# Routes "i help"   to command routing matrix
 # Routes "i custom" to configuration tool
 # Routes GitHub sync commands (push, sync, enable-sync/enable, disable-sync/disable, sync-status/status) to github-sync.sh
+# Routes bugwarrior commands (pull, uda) to bugwarrior
+# Supports --json for pull (suppresses banner, emits JSON result) and status (captures output as JSON)
 # Sets bugwarrior environment variables for profile isolation
 # Validates configuration exists before executing
 # Displays error if no profile active or configuration not found
 #
-# Usage: i [bugwarrior-args | github-sync-commands]
-# Examples:
-#   i pull                    - Pull issues from configured services (bugwarrior)
-#   i push                    - Push task changes to GitHub (two-way sync)
-#   i sync                    - Bidirectional sync with GitHub (two-way sync)
-#   i enable-sync <task> <issue> <repo>  - Enable GitHub sync for a task
-#   i disable-sync <task>     - Disable GitHub sync for a task
-#   i sync-status             - Show GitHub sync status
-#   i status                  - Alias for i sync-status
-#   i pull --dry-run          - Test configuration without syncing
-#   i uda                     - List bugwarrior UDAs
-#   i custom                  - Configure issue services
+# Usage: i [subcommand] [--json] [args...]
+# Subcommands:
+#   help                      - Show this command routing matrix
+#   pull [--dry-run] [--json] - Pull issues from configured services (bugwarrior, one-way)
+#   push [task-id]            - Push task changes to GitHub (github-sync, two-way)
+#   sync [task-id]            - Bidirectional sync with GitHub (github-sync)
+#   enable-sync <task> <issue> <repo> - Enable GitHub sync for a task
+#   disable-sync <task>       - Disable GitHub sync for a task
+#   status [--json]           - Show GitHub sync status
+#   uda                       - List bugwarrior UDAs
+#   custom                    - Configure issue services interactively
 # Returns: 0 on success, 1 on failure
 # Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5, 3.3, 14.4, 14.5, 14.6, 19.1, 19.2, 19.3, 19.4, 19.5
 i() {
@@ -804,6 +808,47 @@ i() {
     echo "Error: Issues service requires a profile" >&2
     echo "Activate a profile with: p-<profile-name>" >&2
     return 1
+  fi
+
+  # Parse --json flag (strip from args before routing)
+  local json_mode=0
+  local filtered_args=()
+  for arg in "${args[@]}"; do
+    if [[ "$arg" == "--json" ]]; then
+      json_mode=1
+    else
+      filtered_args+=("$arg")
+    fi
+  done
+  args=("${filtered_args[@]}")
+
+  # Handle 'i help' command
+  if [[ ${#args[@]} -eq 0 || "${args[0]}" == "help" || "${args[0]}" == "--help" || "${args[0]}" == "-h" ]]; then
+    cat << 'EOF'
+Issues Service
+
+Routes to bugwarrior (one-way pull) or github-sync (two-way):
+
+  i pull [--dry-run] [--json]              Pull issues from all configured services into TaskWarrior
+  i uda                                     List TaskWarrior UDAs for configured services
+
+  i push [task-id]                          Push task changes to GitHub
+  i sync [task-id]                          Bidirectional sync with GitHub
+  i enable-sync <task-id> <issue> <repo>    Enable GitHub sync for a task
+  i disable-sync <task-id>                  Disable GitHub sync for a task
+  i status [--json]                         Show GitHub sync status
+
+  i custom                                  Configure issue services interactively
+  i help                                    Show this help
+
+Note: 'i' and 'ww issues' are synonymous.
+Requires an active profile: p-<profile-name>
+
+Bugwarrior is one-way only (external services → TaskWarrior).
+For two-way GitHub sync, use: i push / i sync / i enable-sync
+
+EOF
+    return 0
   fi
 
   # Handle 'i custom' command (reserved)
@@ -855,6 +900,22 @@ i() {
         
         # Execute github-sync with remaining arguments
         local remaining=("${args[@]:1}")
+        if [[ "$sync_command" == "status" && "$json_mode" -eq 1 ]]; then
+          local sync_output
+          local sync_exit=0
+          sync_output=$(WORKWARRIOR_BASE="$WW_SCOPE_BASE" WARRIOR_PROFILE="$WW_SCOPE_PROFILE" \
+            "$github_sync_cli" "$sync_command" "${remaining[@]}" 2>&1) || sync_exit=$?
+          local escaped_output
+          escaped_output="${sync_output//\\/\\\\}"
+          escaped_output="${escaped_output//\"/\\\"}"
+          escaped_output="${escaped_output//$'\n'/\\n}"
+          if [[ "$sync_exit" -eq 0 ]]; then
+            echo "{\"command\":\"status\",\"status\":\"success\",\"output\":\"${escaped_output}\"}"
+          else
+            echo "{\"command\":\"status\",\"status\":\"failed\",\"exit_code\":${sync_exit},\"output\":\"${escaped_output}\"}"
+          fi
+          return "$sync_exit"
+        fi
         WORKWARRIOR_BASE="$WW_SCOPE_BASE" WARRIOR_PROFILE="$WW_SCOPE_PROFILE" \
           "$github_sync_cli" "$sync_command" "${remaining[@]}"
         return $?
@@ -882,8 +943,8 @@ i() {
     return 1
   fi
 
-  # Display sync direction message for pull command
-  if [[ ${#args[@]} -gt 0 && "${args[0]}" == "pull" ]]; then
+  # Display sync direction message for pull command (suppressed in --json mode)
+  if [[ ${#args[@]} -gt 0 && "${args[0]}" == "pull" && "$json_mode" -eq 0 ]]; then
     echo "⚠️  One-way sync: External services → TaskWarrior"
     echo "   Changes in TaskWarrior will NOT sync back to issue trackers"
     echo "   For two-way GitHub sync, use: i push, i sync, or i enable-sync"
@@ -891,6 +952,21 @@ i() {
   fi
 
   # Execute bugwarrior with profile-specific config
+  if [[ "$json_mode" -eq 1 ]]; then
+    local bw_exit=0
+    BUGWARRIORRC="$bugwarrior_config" \
+    BUGWARRIOR_TASKRC="$WW_SCOPE_BASE/.taskrc" \
+    BUGWARRIOR_TASKDATA="$WW_SCOPE_BASE/.task" \
+      bugwarrior "${args[@]}" >/dev/null 2>&1 || bw_exit=$?
+    local subcmd="${args[0]:-run}"
+    if [[ "$bw_exit" -eq 0 ]]; then
+      echo "{\"command\":\"${subcmd}\",\"status\":\"success\"}"
+    else
+      echo "{\"command\":\"${subcmd}\",\"status\":\"failed\",\"exit_code\":${bw_exit}}"
+    fi
+    return "$bw_exit"
+  fi
+
   BUGWARRIORRC="$bugwarrior_config" \
   BUGWARRIOR_TASKRC="$WW_SCOPE_BASE/.taskrc" \
   BUGWARRIOR_TASKDATA="$WW_SCOPE_BASE/.task" \
@@ -954,6 +1030,9 @@ ensure_shell_functions() {
           print "  export TASKRC=\"$profile_base/.taskrc\""
           print "  export TASKDATA=\"$profile_base/.task\""
           print "  export TIMEWARRIORDB=\"$profile_base/.timewarrior\""
+          print "  local ww_state_dir=\"${WW_BASE:-$HOME/ww}/.state\""
+          print "  mkdir -p \"$ww_state_dir\" >/dev/null 2>&1 || true"
+          print "  printf \"%s\\n\" \"$profile_name\" > \"$ww_state_dir/last_profile\" 2>/dev/null || true"
           print ""
           print "  echo \"✓ Activated profile: $profile_name\""
           print "  echo \"  Location: $profile_base\""

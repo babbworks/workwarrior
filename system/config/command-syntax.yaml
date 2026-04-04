@@ -1,0 +1,299 @@
+version: 1
+updated: "2026-04-04"
+policy:
+  canonical_source: "/Users/mp/ww/system/config/command-syntax.yaml"
+  update_required_on:
+    - "any CLI command/subcommand addition, rename, or removal"
+    - "any flag/scope/output behavior change"
+    - "any help/docs examples update for commands"
+  defaults:
+    profile_resolution: "active-or-last-profile"
+    output_mode: "human-compact"
+    json_mode: "opt-in --json only"
+    noun_policy:
+      singular: "primary action namespace"
+      plural_bare: "list shortcut when no subcommand is provided"
+    verb_policy:
+      canonical: "CRUD"
+      supports_natural_synonyms: true
+  aliases:
+    journal:
+      preferred: "journal"
+      accepted:
+        - "journal"
+        - "journals"
+    ledger:
+      preferred: "ledger"
+      accepted:
+        - "ledger"
+        - "ledgers"
+    group:
+      preferred: "group"
+      accepted:
+        - "group"
+        - "groups"
+    model:
+      preferred: "model"
+      accepted:
+        - "model"
+        - "models"
+  help_contract:
+    required_sections:
+      - "Usage"
+      - "Actions"
+      - "Examples"
+    alias_rule: "when singular and plural forms exist, help must mark singular as preferred and plural as alias"
+    global_flag_doc_rule: "commands that support --profile/--json/--compact must document them in help"
+
+global_flags:
+  - name: "--profile"
+    args: "<name>"
+    semantics: "override active/last profile for this command only"
+  - name: "--global"
+    args: ""
+    semantics: "force global context when command supports global mode"
+  - name: "--json"
+    args: ""
+    semantics: "machine-readable output for supported read/list/status/check commands"
+  - name: "--compact"
+    args: ""
+    semantics: "terse human output"
+  - name: "--verbose"
+    args: ""
+    semantics: "expanded human output with additional detail"
+  - name: "--help"
+    args: ""
+    semantics: "show command usage and examples"
+  - name: "--profile + --global"
+    args: ""
+    semantics: "invalid combination (must choose exactly one scope override)"
+  - name: "--json + --compact"
+    args: ""
+    semantics: "invalid combination (machine output and compact human output are mutually exclusive)"
+
+global_flag_application:
+  parser_order: "flags are parsed only before the domain token"
+  default_scope_resolution:
+    - "explicit --profile override"
+    - "explicit --global override"
+    - "active shell profile env (WARRIOR_PROFILE/WORKWARRIOR_BASE)"
+    - "last active profile from $WW_BASE/.state/last_profile"
+  exported_runtime_env:
+    - "WW_OUTPUT_MODE=human|compact|json"
+    - "WW_VERBOSE=0|1"
+
+compatibility_layer:
+  warnings_policy: "compatibility warnings are optional; if dual syntax remains first-class, warnings may be removed while retaining alias support"
+  warning_env_override: "WW_NO_DEPRECATION_WARNINGS=1 disables alias nudges"
+  deprecated_alias_matrix:
+    - legacy: "ww profiles"
+      preferred: "ww profile list"
+      behavior: "legacy still executes; warning emitted"
+    - legacy: "ww services"
+      preferred: "ww service list"
+      behavior: "legacy still executes; warning emitted"
+    - legacy: "ww groups <action>"
+      preferred: "ww group <action>"
+      behavior: "legacy still executes; nudge emitted (bare 'ww groups' defaults to list, no nudge)"
+    - legacy: "ww models <action>"
+      preferred: "ww model <action>"
+      behavior: "legacy still executes; nudge emitted (bare 'ww models' defaults to list, no nudge)"
+    - legacy: "ww journals [action]"
+      preferred: "ww journal [action]"
+      behavior: "legacy still executes; warning emitted"
+    - legacy: "ww ledgers [action]"
+      preferred: "ww ledger [action]"
+      behavior: "legacy still executes; warning emitted"
+    - legacy: "ww help groups|models|journals|ledgers"
+      preferred: "ww help group|model|journal|ledger"
+      behavior: "legacy still executes; warning emitted"
+
+commands:
+  - domain: "profile"
+    syntax:
+      - "ww profile create <name>"
+      - "ww profile list"
+      - "ww profile info <name>"
+      - "ww profile delete <name>"
+      - "ww profile backup <name> [dest]"
+      - "ww profile import <archive> [new-name]"
+      - "ww profile restore <profile> <archive>"
+    output_modes:
+      default: "human-compact"
+      supports_json: true
+    scope:
+      default: "active-or-last-profile where applicable"
+      override: "--profile"
+    status: "active"
+
+  - domain: "journal"
+    syntax:
+      - "ww journal add <journal>"
+      - "ww journal list"
+      - "ww journal remove <journal>"
+      - "ww journal rename <old> <new>"
+    aliases:
+      - "ww journals ..."
+    output_modes:
+      default: "human-compact"
+      supports_json: true
+    scope:
+      default: "active-or-last-profile"
+      override: "--profile"
+    status: "active"
+
+  - domain: "ledger"
+    syntax:
+      - "ww ledger add <ledger>"
+      - "ww ledger list"
+      - "ww ledger remove <ledger>"
+      - "ww ledger rename <old> <new>"
+    output_modes:
+      default: "human-compact"
+      supports_json: true
+    scope:
+      default: "active-or-last-profile"
+      override: "--profile"
+    status: "active"
+
+  - domain: "service"
+    syntax:
+      - "ww service list"
+      - "ww service info <name>"
+      - "ww service help <name>"
+    output_modes:
+      default: "human-compact"
+      supports_json: true
+    scope:
+      default: "global"
+      override: "--profile (where relevant)"
+    status: "active"
+
+  - domain: "issues"
+    implementation_note: >
+      'i' is a bash shell function defined in lib/shell-integration.sh and injected
+      into the user's shell at profile setup. It is NOT a bin/ww domain.
+      'ww issues' is the bin/ww synonym — use it in scripts that invoke ww directly.
+    syntax:
+      - "i help"
+      - "i pull [--dry-run] [--json]"
+      - "i uda"
+      - "i push [task-id]"
+      - "i sync [task-id]"
+      - "i enable-sync <task-id> <issue> <repo>"
+      - "i disable-sync <task-id>"
+      - "i status [--json]"
+      - "i custom"
+    aliases:
+      - "ww issues <subcommand>  # bin/ww synonym for use in scripts"
+    routing:
+      bugwarrior: "pull, uda  (one-way: external services → TaskWarrior)"
+      github_sync: "push, sync, enable-sync, disable-sync, status  (two-way)"
+      configure: "custom  (interactive config wizard)"
+    output_modes:
+      default: "human-compact"
+      supports_json: true
+      json_commands: "pull, status"
+    scope:
+      default: "active profile required"
+      override: "--profile via ww wrappers where supported"
+    status: "active"
+
+  - domain: "find"
+    syntax:
+      - "ww find <term>"
+      - "ww find --type <type> <term>"
+      - "ww find --profile <name> <term>"
+      - "ww find --query <expr>"
+    output_modes:
+      default: "human-compact"
+      supports_json: true
+    scope:
+      default: "active-or-last-profile unless explicitly cross-profile"
+      override: "--profile"
+    status: "active"
+
+  - domain: "group"
+    syntax:
+      - "ww group list"
+      - "ww group show <name>"
+      - "ww group create <name> [profiles...]"
+      - "ww group add <name> <profiles...>"
+      - "ww group remove <name> <profiles...>"
+      - "ww group delete <name>"
+    aliases:
+      - "ww groups ...  # bare 'ww groups' defaults to list; action forms nudge to singular"
+    output_modes:
+      default: "human-compact"
+      supports_json: true
+    scope:
+      default: "global"
+      override: "n/a"
+    status: "active"
+
+  - domain: "model"
+    syntax:
+      - "ww model list"
+      - "ww model providers"
+      - "ww model env"
+      - "ww model check"
+      - "ww model show <name>"
+      - "ww model add-provider <name> <type> <base_url> [api_key_env]"
+      - "ww model add-model <name> <provider> <model_id> [notes]"
+      - "ww model set-default <name>"
+      - "ww model remove-model <name>"
+    aliases:
+      - "ww models ...  # bare 'ww models' defaults to list; action forms nudge to singular"
+    output_modes:
+      default: "human-compact"
+      supports_json: true
+    scope:
+      default: "global"
+      override: "n/a"
+    status: "active"
+
+  - domain: "extensions"
+    syntax:
+      - "ww extensions taskwarrior list --status active"
+      - "ww extensions taskwarrior search <term>"
+      - "ww extensions taskwarrior info <name>"
+    output_modes:
+      default: "human-compact"
+      supports_json: true
+    scope:
+      default: "global"
+      override: "n/a"
+    status: "active"
+
+  - domain: "custom"
+    syntax:
+      - "ww custom journals"
+      - "ww custom ledgers"
+      - "ww custom tasks"
+      - "ww custom times"
+      - "ww custom list"
+    output_modes:
+      default: "human-compact"
+      supports_json: false
+    scope:
+      default: "active profile required except custom list"
+      override: "--profile where supported"
+    status: "active"
+
+  - domain: "questions"
+    syntax:
+      - "q"
+      - "q help"
+      - "q list"
+      - "q <service>"
+      - "q <service> <template>"
+      - "q new [service]"
+      - "q edit <template>"
+      - "q delete <template> [--yes]"
+    output_modes:
+      default: "human-compact"
+      supports_json: false
+    scope:
+      default: "active profile required"
+      override: "n/a"
+    status: "active"
