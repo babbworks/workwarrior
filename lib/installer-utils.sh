@@ -14,7 +14,8 @@ fi
 # ============================================================================
 
 readonly WW_VERSION="1.0.0"
-readonly WW_INSTALL_DIR="$HOME/ww"
+# Allow override via environment variable for testing (e.g. WW_INSTALL_DIR=/tmp/ww-test ./install.sh)
+WW_INSTALL_DIR="${WW_INSTALL_DIR:-$HOME/ww}"
 
 # Section markers for shell configuration
 readonly SECTION_WW_INSTALL="# --- Workwarrior Installation ---"
@@ -245,6 +246,7 @@ create_install_structure() {
     "$WW_INSTALL_DIR/resources"
     "$WW_INSTALL_DIR/config"
     "$WW_INSTALL_DIR/functions"
+    "$WW_INSTALL_DIR/tools"
   )
 
   for dir in "${dirs[@]}"; do
