@@ -32,4 +32,14 @@ Risk notes:           Explorer B findings:
                         profile-manager.sh:1753-1762 — rm -rf original before mv succeeds; if mv fails, profile is gone
                       Rollback verification: file restore reverts all three fixes independently.
 
-Status:               pending
+Resolution:
+  Bug 1 (github-sync-state.sh): Both save_sync_state and remove_sync_state now check mv exit
+    code, clean up temp file on failure, and return 1. Test: test-sync-state.bats #14.
+  Bug 2 (sync-detector.sh): Added JSON input validation (jq empty) at start of both
+    detect_task_changes() and detect_github_changes(). Returns exit code 2 on invalid input.
+    Tests: test-github-sync.bats #8, #9, #17, #18.
+  Bug 3 (profile-manager.sh): Replaced rm-then-mv with two-phase commit. Current profile
+    moved to .restore-displaced, new profile moved in. If mv fails, displaced original
+    is recovered. Critical error message if recovery also fails.
+
+Status:               complete

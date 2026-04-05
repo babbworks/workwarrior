@@ -1,0 +1,19 @@
+; Hledger Journal for profile: ww
+; Created: Sat  4 Apr 2026 22:27:09 EDT
+
+; Account declarations
+account Assets:Checking
+account Assets:Savings
+account Expenses:Food
+account Expenses:Transportation
+account Expenses:Utilities
+account Expenses:Entertainment
+account Income:Salary
+account Liabilities:CreditCard
+account Equity:Opening Balances
+
+; Opening entry
+2026-04-04 * Opening Balance
+    Assets:Checking                 $0.00
+    Equity:Opening Balances
+

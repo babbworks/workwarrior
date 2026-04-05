@@ -178,8 +178,12 @@ save_sync_state() {
         rm -f "${temp_file}"
         return 1
     }
-    
-    mv "${temp_file}" "${state_file}"
+
+    if ! mv "${temp_file}" "${state_file}"; then
+        echo "Error: Failed to commit state update to ${state_file}" >&2
+        rm -f "${temp_file}"
+        return 1
+    fi
     chmod 600 "${state_file}"
     return 0
 }
@@ -238,8 +242,12 @@ remove_sync_state() {
         rm -f "${temp_file}"
         return 1
     }
-    
-    mv "${temp_file}" "${state_file}"
+
+    if ! mv "${temp_file}" "${state_file}"; then
+        echo "Error: Failed to commit state removal to ${state_file}" >&2
+        rm -f "${temp_file}"
+        return 1
+    fi
     chmod 600 "${state_file}"
     return 0
 }

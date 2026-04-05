@@ -4,7 +4,7 @@
 **Orchestrator is the only agent that updates status fields.**
 `pending/` is archive-only. Nothing new is written there.
 
-Last updated: 2026-04-04
+Last updated: 2026-04-04 (session 4)
 Current phase: Phase 1 — Foundation (exit criteria met — see Phase Boundary Rules)
 
 ---
@@ -33,15 +33,21 @@ Current phase: Phase 1 — Foundation (exit criteria met — see Phase Boundary 
 | [TASK-SVC-005](tasks/cards/TASK-SVC-005.md) | complete | Harden questions service CLI UX |
 | [TASK-SVC-006](tasks/cards/TASK-SVC-006.md) | complete | Normalize issues service command contract |
 | [TASK-TEST-001](tasks/cards/TASK-TEST-001.md) | complete | Enforce test baseline by change type |
-| [TASK-SHELL-001](tasks/cards/TASK-SHELL-001.md) | pending | Add set -euo pipefail to all lib/ and services/ scripts |
-| [TASK-SYNC-001](tasks/cards/TASK-SYNC-001.md) | pending | Add test coverage for GitHub sync engine |
-| [TASK-SYNC-002](tasks/cards/TASK-SYNC-002.md) | pending | Fix critical state integrity bugs in sync engine |
+| [TASK-SHELL-001](tasks/cards/TASK-SHELL-001.md) | complete | Add set -euo pipefail to all lib/ and services/ scripts |
+| [TASK-SYNC-001](tasks/cards/TASK-SYNC-001.md) | complete | Add test coverage for GitHub sync engine |
+| [TASK-SYNC-002](tasks/cards/TASK-SYNC-002.md) | complete | Fix critical state integrity bugs in sync engine |
 | [TASK-SYNC-003](tasks/cards/TASK-SYNC-003.md) | pending | Harden sync pre-flight validation and error surfacing |
-| [TASK-SYNC-004](tasks/cards/TASK-SYNC-004.md) | pending | Resolve tag sync TODO in sync-pull.sh (Gate E) |
+| [TASK-SYNC-004](tasks/cards/TASK-SYNC-004.md) | complete | Resolve tag sync TODO in sync-pull.sh (Gate E) |
+| [TASK-SYNC-005](tasks/cards/TASK-SYNC-005.md) | pending | Implement GitHub label → TaskWarrior tag sync |
 | [TASK-TEST-002](tasks/cards/TASK-TEST-002.md) | pending | Add CI gate for BATS + integration tests |
 | [TASK-QUAL-001](tasks/cards/TASK-QUAL-001.md) | pending | Enforce artifact hygiene across repo |
 | [TASK-QUAL-002](tasks/cards/TASK-QUAL-002.md) | pending | Automate docs/help parity checks |
-| [TASK-QUAL-003](tasks/cards/TASK-QUAL-003.md) | pending | Audit and clean functions/ directory dead code |
+| [TASK-ISSUES-001](tasks/cards/TASK-ISSUES-001.md) | pending | Improve `ww issues uda` CLI and uda-manager service |
+| [TASK-ISSUES-002](tasks/cards/TASK-ISSUES-002.md) | pending | Configure bugwarrior for john and mark profiles |
+| [TASK-QUAL-003](tasks/cards/TASK-QUAL-003.md) | complete | Audit and clean functions/ directory dead code |
+| [TASK-INSTALL-001](tasks/cards/TASK-INSTALL-001.md) | complete | Per-tool interactive installer with version cards, platform detection, conflict neutralisation |
+| [TASK-INSTALL-002](tasks/cards/TASK-INSTALL-002.md) | complete | Fix journals() function — grep matches all YAML keys, not just journal names under journals: section |
+| [TASK-SHELL-UX-001](tasks/cards/TASK-SHELL-UX-001.md) | complete | Shell integration overhaul — re-source safety, dual-rc writes, bare commands, profile creation output cleanup |
 | [TASK-UX-001](tasks/cards/TASK-UX-001.md) | pending | Standardize human/compact/json output behavior |
 | [TASK-UX-002](tasks/cards/TASK-UX-002.md) | pending | Build command examples library per service |
 | [TASK-REL-001](tasks/cards/TASK-REL-001.md) | pending | Operationalize release checklist gate |
@@ -53,11 +59,12 @@ Current phase: Phase 1 — Foundation (exit criteria met — see Phase Boundary 
 
 | Priority | ID | Goal | Depends On |
 |---|---|---|---|
-| 1 | [TASK-SHELL-001](tasks/cards/TASK-SHELL-001.md) | set -euo pipefail sweep | none |
-| 2 | [TASK-SYNC-002](tasks/cards/TASK-SYNC-002.md) | Fix critical state integrity bugs | none (independent of tests) |
-| 3 | [TASK-SYNC-001](tasks/cards/TASK-SYNC-001.md) | Add sync test coverage | SYNC-002 preferred first |
-| 4 | [TASK-SYNC-004](tasks/cards/TASK-SYNC-004.md) | Resolve tag sync Gate E violation | none |
-| 5 | [TASK-QUAL-003](tasks/cards/TASK-QUAL-003.md) | Dead code cleanup in functions/ | none |
+| 1 | [TASK-SYNC-003](tasks/cards/TASK-SYNC-003.md) | Harden sync pre-flight validation and error surfacing | SYNC-001, SYNC-002 done |
+| 2 | [TASK-SYNC-005](tasks/cards/TASK-SYNC-005.md) | Implement label → tag sync | SYNC-001 done |
+| 3 | [TASK-TEST-002](tasks/cards/TASK-TEST-002.md) | Add CI gate for BATS + integration tests | Wave B |
+| 4 | [TASK-QUAL-001](tasks/cards/TASK-QUAL-001.md) | Enforce artifact hygiene across repo | none |
+| 5 | [TASK-ISSUES-001](tasks/cards/TASK-ISSUES-001.md) | Improve `ww issues uda` CLI and uda-manager | none |
+| 6 | [TASK-ISSUES-002](tasks/cards/TASK-ISSUES-002.md) | Configure bugwarrior for john and mark profiles | none |
 
 ---
 
@@ -65,8 +72,8 @@ Current phase: Phase 1 — Foundation (exit criteria met — see Phase Boundary 
 
 | Wave | Tasks | Depends On |
 |---|---|---|
-| A (safety floor) | `TASK-SHELL-001`, `TASK-SYNC-002`, `TASK-SYNC-004` | none — run now |
-| B (test coverage) | `TASK-SYNC-001`, `TASK-TEST-002` | Wave A |
+| A (safety floor) | ~~`TASK-SHELL-001`~~ ~~`TASK-SHELL-UX-001`~~ ~~`TASK-INSTALL-002`~~ ~~`TASK-SYNC-002`~~ ~~`TASK-SYNC-004`~~ (all done) | — |
+| B (test coverage) | ~~`TASK-SYNC-001`~~ (done), `TASK-TEST-002` | Wave A ✓ |
 | C (sync hardening) | `TASK-SYNC-003` | Waves A + B |
 | D (quality/CI) | `TASK-QUAL-001..003`, `TASK-UX-001` | Wave A |
 | E (release) | `TASK-REL-001..002`, `TASK-UX-002`, `TASK-QUAL-002` | Waves A-D |
@@ -84,6 +91,15 @@ Current phase: Phase 1 — Foundation (exit criteria met — see Phase Boundary 
 | TASK-1.3a | Explorer A — docs/status drift audit |
 | TASK-1.3b | Explorer B — code/test reality audit |
 | TASK-1.5 | Artifact cleanup (.gitignore + untrack 24 files) |
+| TASK-SHELL-001 | set -euo pipefail sweep (sourced libs use defensive guards; flags in executed scripts only) |
+| TASK-INSTALL-001 | Per-tool interactive installer with version cards, platform detection, conflict neutralisation, uninstall |
+| TASK-INSTALL-002 | Fix journals() YAML grep bug — awk section-scoped reader |
+| TASK-SHELL-UX-001 | Shell integration overhaul: re-source safety, dual-rc writes, bare commands, profile creation output cleanup |
+| TASK-SYNC-001 | Add BATS test coverage for GitHub sync engine (42 tests: state, detection, API) |
+| TASK-SYNC-002 | Fix 3 critical data-integrity bugs: mv error checks in state, JSON input validation in detector, two-phase commit in profile restore |
+| TASK-SYNC-004 | Gate E: remove TODO from sync-pull.sh, create TASK-SYNC-005 for deferred tag sync |
+| TASK-QUAL-003 | Dead code audit: removed 8 unreferenced scripts from functions/ |
+| TASK-ISSUES-† | Session 4: bugwarrior installed (pipx + setuptools); babb profile configured; GitHub UDAs added to babb .taskrc; configure-issues.sh GitHub wizard overhauled (gh auth token, login/org split, project_template, UDA auto-generate); dependency-installer.sh + bin/ww install hints corrected; uda-manager.sh service-source display; test-shell-functions Property 12 assertion fixed |
 
 ---
 

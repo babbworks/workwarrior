@@ -95,9 +95,9 @@ sync_pull_issue() {
         echo "Warning: Failed to update priority" >&2
     fi
     
-    # Update tags (remove all non-system tags, then add new ones)
-    # This is complex - for now, we'll skip tag sync in pull
-    # TODO: Implement proper tag sync
+    # Tag sync: explicitly deferred (TASK-SYNC-005).
+    # GitHub labels → TaskWarrior tags requires careful non-system tag management.
+    # Tracked for future implementation; skipped here intentionally.
     
     # Populate metadata UDAs
     local issue_num url author created_at closed_at

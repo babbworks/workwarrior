@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git:*)",
+      "Bash(bats tests/test-profile-management-properties.bats)",
+      "Bash(bash tests/test-scripts-integration.sh)",
+      "Bash(bin/ww profile:*)"
+    ]
+  }
+}

@@ -112,7 +112,7 @@ random_alphanumeric() {
   assert_success
   
   # Verify WARRIOR_PROFILE is exported (in subshell, check output)
-  assert_output --partial "Activated profile: $profile_name"
+  assert_output --partial "✓ $profile_name"
 }
 
 @test "Property 12: use_task_profile exports all five environment variables" {

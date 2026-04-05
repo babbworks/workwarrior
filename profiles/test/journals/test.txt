@@ -1,5 +1,0 @@
-[2026-02-11 00:20] Welcome to your journal!
-
-This is the default journal for the 'test' profile.
-You can add entries using the 'j' command when this profile is active.
-

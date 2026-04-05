@@ -1747,22 +1747,32 @@ restore_profile() {
     fi
   fi
 
-  # Replace profile: remove current, move extracted into place
+  # Replace profile: two-phase commit — move current aside, place new, then remove old.
+  # If the final mv fails, original is still intact and can be recovered.
   log_step "Replacing profile '$profile_name'"
 
-  if ! rm -rf "$profile_base"; then
-    log_error "Failed to remove existing profile. Rollback: $safety_backup_path"
+  local profile_displaced="${profile_base}.restore-displaced"
+  if ! mv "$profile_base" "$profile_displaced"; then
+    log_error "Failed to prepare restore location. Profile is unchanged."
     rm -rf "$tmp_dir"
     return 1
   fi
 
   if ! mv "$extracted_profile" "$profile_base"; then
-    log_error "Failed to place restored profile."
-    log_error "Rollback: ww profile restore $profile_name $safety_backup_path"
+    log_error "Failed to place restored profile. Attempting recovery..."
+    if mv "$profile_displaced" "$profile_base"; then
+      log_info "Recovery successful — original profile restored."
+    else
+      log_error "CRITICAL: Original profile recovery failed. Manual steps required:"
+      log_error "  Displaced original: $profile_displaced"
+      log_error "  Safety backup:      $safety_backup_path"
+    fi
     rm -rf "$tmp_dir"
     return 1
   fi
 
+  # Both moves succeeded — clean up the displaced original
+  rm -rf "$profile_displaced"
   rm -rf "$tmp_dir"
 
   # Detect old base path from restored .taskrc for YAML path updates

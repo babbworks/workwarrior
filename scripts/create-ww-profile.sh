@@ -119,46 +119,60 @@ prompt_for_customization() {
     return 0
   fi
 
-  echo ""
-  log_info "Profile customization options"
+  # Collect existing profiles (excluding the one being created)
+  local existing_profiles=()
+  while IFS= read -r name; do
+    [[ -n "$name" && "$name" != "$PROFILE_NAME" ]] && existing_profiles+=("$name")
+  done < <(list_profiles 2>/dev/null)
+
   echo ""
 
-  # Prompt for TaskRC source if not specified
+  # First profile — no copy prompts, just confirm fresh defaults
+  if [[ ${#existing_profiles[@]} -eq 0 ]]; then
+    log_info "No existing profiles to copy from — fresh defaults will be used"
+    echo ""
+    return 0
+  fi
+
+  # Existing profiles available — offer to copy configs
+  log_info "Profile customization (press Enter to use fresh defaults)"
+  echo ""
+  echo "  Available profiles to copy from:"
+  printf '    • %s\n' "${existing_profiles[@]}"
+  echo ""
+
+  # Helper: prompt for a source profile, validate against existing list
+  prompt_copy_source() {
+    local label="$1"
+    local input=""
+    read -rp "  Copy $label from profile (Enter to skip): " input
+    if [[ -z "$input" ]]; then
+      echo ""
+      return 0
+    fi
+    # Validate against known profiles
+    local valid=0
+    for p in "${existing_profiles[@]}"; do
+      [[ "$p" == "$input" ]] && valid=1 && break
+    done
+    if [[ $valid -eq 0 ]]; then
+      log_warning "'$input' is not an existing profile — skipping $label copy"
+      echo ""
+      return 0
+    fi
+    echo "$input"
+  }
+
   if [[ -z "$TASKRC_SOURCE" ]]; then
-    echo "Would you like to copy TaskRC configuration from an existing profile?"
-    echo "Available profiles:"
-    list_profiles | sed 's/^/  /'
-    echo ""
-    read -p "Enter profile name (or press Enter to use default): " taskrc_input
-    if [[ -n "$taskrc_input" ]]; then
-      TASKRC_SOURCE="$taskrc_input"
-    fi
+    TASKRC_SOURCE="$(prompt_copy_source "TaskRC")"
   fi
 
-  # Prompt for journal source if not specified
   if [[ -z "$JOURNAL_SOURCE" ]]; then
-    echo ""
-    echo "Would you like to copy journal configuration from an existing profile?"
-    echo "Available profiles:"
-    list_profiles | sed 's/^/  /'
-    echo ""
-    read -p "Enter profile name (or press Enter to use default): " journal_input
-    if [[ -n "$journal_input" ]]; then
-      JOURNAL_SOURCE="$journal_input"
-    fi
+    JOURNAL_SOURCE="$(prompt_copy_source "journal config")"
   fi
 
-  # Prompt for ledger source if not specified
   if [[ -z "$LEDGER_SOURCE" ]]; then
-    echo ""
-    echo "Would you like to copy ledger configuration from an existing profile?"
-    echo "Available profiles:"
-    list_profiles | sed 's/^/  /'
-    echo ""
-    read -p "Enter profile name (or press Enter to use default): " ledger_input
-    if [[ -n "$ledger_input" ]]; then
-      LEDGER_SOURCE="$ledger_input"
-    fi
+    LEDGER_SOURCE="$(prompt_copy_source "ledger config")"
   fi
 
   echo ""
@@ -267,11 +281,8 @@ create_profile() {
     return 1
   fi
 
-  # Step 9: Ensure global shell functions are defined
-  log_step "Ensuring global shell functions"
-  if ! ensure_shell_functions; then
-    log_warning "Failed to ensure shell functions (non-fatal)"
-  fi
+  # Step 9: Ensure global shell functions are defined (silent no-op if already set up)
+  ensure_shell_functions || true
 
   return 0
 }
@@ -285,40 +296,10 @@ show_success_message() {
   local profile_base="$PROFILES_DIR/$profile_name"
 
   echo ""
-  echo "═══════════════════════════════════════════════════════════════"
-  log_success "Profile '$profile_name' created successfully!"
-  echo "═══════════════════════════════════════════════════════════════"
+  log_success "Profile '$profile_name' created  ·  $profile_base"
   echo ""
-  echo "Profile location: $profile_base"
-  echo ""
-  echo "Next steps:"
-  echo ""
-  echo "  1. Reload your shell configuration:"
-  echo "     source ~/.bashrc"
-  echo ""
-  echo "  2. Activate the profile:"
-  echo "     p-$profile_name"
-  echo "     or"
-  echo "     $profile_name"
-  echo ""
-  echo "  3. Start using the tools:"
-  echo "     task add \"My first task\""
-  echo "     j \"My first journal entry\""
-  echo "     l balance"
-  echo ""
-  echo "Available commands:"
-  echo "  • p-$profile_name          - Activate this profile"
-  echo "  • $profile_name            - Shorthand activation"
-  echo "  • j-$profile_name          - Direct journal access"
-  echo "  • l-$profile_name          - Direct ledger access"
-  echo ""
-  echo "Global commands (when profile is active):"
-  echo "  • j [journal] <entry>  - Write to journal"
-  echo "  • l [args]             - Access default ledger"
-  echo "  • task                 - TaskWarrior"
-  echo "  • timew                - TimeWarrior"
-  echo ""
-  echo "═══════════════════════════════════════════════════════════════"
+  echo "  Activate:  p-$profile_name   (or just: $profile_name)"
+  echo "  Reload:    open a new terminal  (or: source ~/.zshrc / source ~/.bashrc)"
   echo ""
 }
 

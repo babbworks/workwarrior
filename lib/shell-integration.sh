@@ -10,44 +10,63 @@
 # Individual functions handle errors via return codes and local variable checks.
 
 # Source core utilities if not already loaded
-if [[ -z "$CORE_UTILS_LOADED" ]]; then
+if [[ -z "${CORE_UTILS_LOADED:-}" ]]; then
   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   source "$SCRIPT_DIR/core-utils.sh"
 fi
+
+# Skip re-initialization within the same shell session
+[[ -n "${SHELL_INTEGRATION_LOADED:-}" ]] && return 0
 
 # ============================================================================
 # SHELL CONFIGURATION CONSTANTS
 # ============================================================================
 
-# Section markers for ~/.bashrc organization
-readonly SECTION_PROFILE_ALIASES="# -- Workwarrior Profile Aliases ---"
-readonly SECTION_JOURNAL_ALIASES="# -- Direct Alias for Journals ---"
-readonly SECTION_LEDGER_ALIASES="# -- Direct Aliases for Hledger ---"
-readonly SECTION_CORE_FUNCTIONS="# --- Workwarrior Core Functions ---"
+# Section markers for ~/.bashrc organization — plain vars, not readonly,
+# so re-sourcing this file in the same shell does not error.
+SECTION_PROFILE_ALIASES="# -- Workwarrior Profile Aliases ---"
+SECTION_JOURNAL_ALIASES="# -- Direct Alias for Journals ---"
+SECTION_LEDGER_ALIASES="# -- Direct Aliases for Hledger ---"
+SECTION_CORE_FUNCTIONS="# --- Workwarrior Core Functions ---"
 
 # Default shell configuration file
-# Honor explicit overrides from callers/tests before falling back to ~/.bashrc.
-readonly SHELL_CONFIG="${SHELL_CONFIG:-${SHELL_RC:-${HOME}/.bashrc}}"
+SHELL_CONFIG="${SHELL_CONFIG:-${SHELL_RC:-${HOME}/.bashrc}}"
 
 # Global workspace defaults
-readonly WW_GLOBAL_BASE="${WW_GLOBAL_BASE:-${WW_BASE:-$HOME/ww}/global}"
+WW_GLOBAL_BASE="${WW_GLOBAL_BASE:-${WW_BASE:-$HOME/ww}/global}"
+
+# Return all active shell rc files (bashrc and/or zshrc if they exist).
+# This is the single source of truth used by all functions that write to shell config.
+# Creates ~/.bashrc as default if neither exists.
+get_ww_rc_files() {
+  local rc_files=()
+  [[ -f "$HOME/.bashrc" ]] && rc_files+=("$HOME/.bashrc")
+  [[ -f "$HOME/.zshrc" ]]  && rc_files+=("$HOME/.zshrc")
+  if [[ ${#rc_files[@]} -eq 0 ]]; then
+    touch "$HOME/.bashrc"
+    rc_files+=("$HOME/.bashrc")
+  fi
+  printf '%s\n' "${rc_files[@]}"
+}
 
 # ============================================================================
 # ALIAS MANAGEMENT FUNCTIONS
 # ============================================================================
 
-# Add an alias to a specific section in ~/.bashrc
+# Add an alias to a specific section in a shell rc file
 # Checks if alias already exists (prevents duplicates)
-# Ensures section marker exists in ~/.bashrc
+# Ensures section marker exists in the target file
 # Adds alias after section marker using awk for precise insertion
 #
-# Usage: add_alias_to_section "alias_line" "section_marker"
+# Usage: add_alias_to_section "alias_line" "section_marker" [rc_file]
 # Example: add_alias_to_section "alias p-work='use_task_profile work'" "$SECTION_PROFILE_ALIASES"
+# Example: add_alias_to_section "alias p-work='use_task_profile work'" "$SECTION_PROFILE_ALIASES" "$HOME/.zshrc"
 # Returns: 0 on success, 1 on failure
 # Validates: Requirements 4.5, 4.6, 17.1, 17.2, 17.3, 17.4, 17.5, 17.6, 17.7, 17.8, 17.9, 17.10
 add_alias_to_section() {
   local alias_line="$1"
   local section_marker="$2"
+  local target_file="${3:-$SHELL_CONFIG}"
 
   # Validate inputs
   if [[ -z "$alias_line" ]]; then
@@ -61,22 +80,20 @@ add_alias_to_section() {
   fi
 
   # Ensure shell config file exists
-  if [[ ! -f "$SHELL_CONFIG" ]]; then
-    log_info "Creating $SHELL_CONFIG"
-    touch "$SHELL_CONFIG"
+  if [[ ! -f "$target_file" ]]; then
+    log_info "Creating $target_file"
+    touch "$target_file"
   fi
 
-  # Check if alias already exists (idempotence)
-  if grep -Fxq "$alias_line" "$SHELL_CONFIG"; then
-    log_info "Alias already exists in $SHELL_CONFIG, skipping"
+  # Check if alias already exists (idempotence — silent if already present)
+  if grep -Fxq "$alias_line" "$target_file"; then
     return 0
   fi
 
   # Ensure section marker exists
-  if ! grep -Fxq "$section_marker" "$SHELL_CONFIG"; then
-    log_info "Section marker not found, adding: $section_marker"
-    echo "" >> "$SHELL_CONFIG"
-    echo "$section_marker" >> "$SHELL_CONFIG"
+  if ! grep -Fxq "$section_marker" "$target_file"; then
+    echo "" >> "$target_file"
+    echo "$section_marker" >> "$target_file"
   fi
 
   # Add alias after section marker using awk
@@ -88,16 +105,15 @@ add_alias_to_section() {
         print alias
       }
     }
-  ' "$SHELL_CONFIG" > "$SHELL_CONFIG.tmp"
+  ' "$target_file" > "$target_file.tmp"
 
   # Replace original with updated version
-  if ! mv "$SHELL_CONFIG.tmp" "$SHELL_CONFIG"; then
-    log_error "Failed to update $SHELL_CONFIG"
-    rm -f "$SHELL_CONFIG.tmp"
+  if ! mv "$target_file.tmp" "$target_file"; then
+    log_error "Failed to update $target_file"
+    rm -f "$target_file.tmp"
     return 1
   fi
 
-  log_success "Added alias to $SHELL_CONFIG"
   return 0
 }
 
@@ -122,42 +138,49 @@ create_profile_aliases() {
   local jrnl_config="$profile_base/jrnl.yaml"
   local ledger_config="$profile_base/ledgers.yaml"
 
-  log_step "Creating shell aliases for profile '$profile_name'"
-
   # Check if profile exists
   if [[ ! -d "$profile_base" ]]; then
     log_error "Profile directory does not exist: $profile_base"
     return 1
   fi
 
-  # Create p-<profile-name> alias for profile activation
+  # Collect all active rc files to write aliases into
+  local rc_files=()
+  while IFS= read -r _f; do rc_files+=("$_f"); done < <(get_ww_rc_files)
+
+  # Build alias strings
   local p_alias="alias p-${profile_name}='use_task_profile ${profile_name}'"
-  if ! add_alias_to_section "$p_alias" "$SECTION_PROFILE_ALIASES"; then
-    log_error "Failed to add p-${profile_name} alias"
-    return 1
-  fi
-  log_info "Added alias: p-${profile_name}"
-
-  # Create <profile-name> alias as shorthand
   local shorthand_alias="alias ${profile_name}='use_task_profile ${profile_name}'"
-  if ! add_alias_to_section "$shorthand_alias" "$SECTION_PROFILE_ALIASES"; then
-    log_error "Failed to add ${profile_name} alias"
-    return 1
-  fi
-  log_info "Added alias: ${profile_name}"
 
-  # Create j-<profile-name> alias for journal access
+  local j_alias=""
   if [[ -f "$jrnl_config" ]]; then
-    local j_alias="alias j-${profile_name}='jrnl --config-file ${jrnl_config}'"
-    if ! add_alias_to_section "$j_alias" "$SECTION_JOURNAL_ALIASES"; then
-      log_error "Failed to add j-${profile_name} alias"
-      return 1
-    fi
-    log_info "Added alias: j-${profile_name}"
+    j_alias="alias j-${profile_name}='jrnl --config-file ${jrnl_config}'"
   else
     log_warning "jrnl.yaml not found, skipping journal alias"
   fi
 
+  # Write p-alias, shorthand, and j-alias to each rc file
+  for _rc in "${rc_files[@]}"; do
+    # Create p-<profile-name> alias for profile activation
+    if ! add_alias_to_section "$p_alias" "$SECTION_PROFILE_ALIASES" "$_rc"; then
+      log_error "Failed to add p-${profile_name} alias to $_rc"
+      return 1
+    fi
+
+    # Create <profile-name> alias as shorthand
+    if ! add_alias_to_section "$shorthand_alias" "$SECTION_PROFILE_ALIASES" "$_rc"; then
+      log_error "Failed to add ${profile_name} alias to $_rc"
+      return 1
+    fi
+
+    # Create j-<profile-name> alias for journal access
+    if [[ -n "$j_alias" ]]; then
+      if ! add_alias_to_section "$j_alias" "$SECTION_JOURNAL_ALIASES" "$_rc"; then
+        log_error "Failed to add j-${profile_name} alias to $_rc"
+        return 1
+      fi
+    fi
+  done
   # Create l-<ledger-name> aliases for each ledger
   if [[ -f "$ledger_config" ]]; then
     # Parse ledgers.yaml to get ledger names and paths
@@ -167,42 +190,42 @@ create_profile_aliases() {
       if [[ "$ledger_name" =~ ^[[:space:]]*ledgers[[:space:]]*$ ]] || [[ -z "$ledger_name" ]]; then
         continue
       fi
-      
+
       # Trim whitespace from ledger name
       ledger_name=$(echo "$ledger_name" | xargs)
       ledger_path=$(echo "$ledger_path" | xargs)
-      
+
       # Skip if ledger_path is empty
       if [[ -z "$ledger_path" ]]; then
         continue
       fi
-      
+
       # Create alias for this ledger
       # If ledger name is "default", use profile name
       if [[ "$ledger_name" == "default" ]]; then
         local l_alias="alias l-${profile_name}='hledger -f ${ledger_path}'"
-        if ! add_alias_to_section "$l_alias" "$SECTION_LEDGER_ALIASES"; then
-          log_warning "Failed to add l-${profile_name} alias"
-        else
-          log_info "Added alias: l-${profile_name}"
-        fi
+        for _rc in "${rc_files[@]}"; do
+          add_alias_to_section "$l_alias" "$SECTION_LEDGER_ALIASES" "$_rc" \
+            || log_warning "Failed to add l-${profile_name} alias to $_rc"
+        done
       else
         # For named ledgers, use l-<profile-name>-<ledger-name>
         local l_alias="alias l-${profile_name}-${ledger_name}='hledger -f ${ledger_path}'"
-        if ! add_alias_to_section "$l_alias" "$SECTION_LEDGER_ALIASES"; then
-          log_warning "Failed to add l-${profile_name}-${ledger_name} alias"
-        else
-          log_info "Added alias: l-${profile_name}-${ledger_name}"
-        fi
+        for _rc in "${rc_files[@]}"; do
+          add_alias_to_section "$l_alias" "$SECTION_LEDGER_ALIASES" "$_rc" \
+            || log_warning "Failed to add l-${profile_name}-${ledger_name} alias to $_rc"
+        done
       fi
     done < "$ledger_config"
   else
     log_warning "ledgers.yaml not found, skipping ledger aliases"
   fi
 
-  log_success "Shell aliases created for profile '$profile_name'"
-  log_info "Reload your shell or run: source ~/.bashrc"
-  
+  local rc_names=()
+  local _rc
+  for _rc in "${rc_files[@]}"; do rc_names+=("$(basename "$_rc")"); done
+  log_success "Aliases written  →  ${rc_names[*]}"
+
   return 0
 }
 
@@ -225,41 +248,60 @@ remove_profile_aliases() {
 
   log_step "Removing shell aliases for profile '$profile_name'"
 
-  # Check if shell config exists
-  if [[ ! -f "$SHELL_CONFIG" ]]; then
-    log_warning "$SHELL_CONFIG not found, nothing to remove"
+  # Collect all active rc files
+  local rc_files=()
+  while IFS= read -r _f; do rc_files+=("$_f"); done < <(get_ww_rc_files)
+
+  local timestamp
+  timestamp=$(date '+%Y%m%d%H%M%S')
+  local any_found=0
+
+  for _rc in "${rc_files[@]}"; do
+    # Skip if the file does not exist
+    if [[ ! -f "$_rc" ]]; then
+      log_warning "$_rc not found, skipping"
+      continue
+    fi
+
+    any_found=1
+
+    # Create a timestamped backup for this file
+    local backup_file="${_rc}.ww-backup.${timestamp}"
+    if ! cp "$_rc" "$backup_file"; then
+      log_error "Failed to create backup of $_rc"
+      return 1
+    fi
+
+    # Remove aliases using a portable approach (BSD/GNU sed compatible)
+    local tmp_file="${_rc}.tmp"
+    if ! sed \
+      -e "/^alias p-${profile_name}=/d" \
+      -e "/^alias ${profile_name}='use_task_profile ${profile_name}'/d" \
+      -e "/^alias j-${profile_name}=/d" \
+      -e "/^alias l-${profile_name}/d" \
+      "$_rc" > "$tmp_file"; then
+      log_error "Failed to update $_rc"
+      rm -f "$tmp_file"
+      return 1
+    fi
+
+    if ! mv "$tmp_file" "$_rc"; then
+      log_error "Failed to save updated $_rc"
+      rm -f "$tmp_file"
+      return 1
+    fi
+
+    log_info "Backup saved to: $backup_file"
+  done
+
+  if [[ "$any_found" -eq 0 ]]; then
+    log_warning "No rc files found, nothing to remove"
     return 0
   fi
 
-  # Create a backup
-  if ! cp "$SHELL_CONFIG" "$SHELL_CONFIG.bak"; then
-    log_error "Failed to create backup of $SHELL_CONFIG"
-    return 1
-  fi
-
-  # Remove aliases using a portable approach (BSD/GNU sed compatible)
-  local tmp_file="$SHELL_CONFIG.tmp"
-  if ! sed \
-    -e "/^alias p-${profile_name}=/d" \
-    -e "/^alias ${profile_name}='use_task_profile ${profile_name}'/d" \
-    -e "/^alias j-${profile_name}=/d" \
-    -e "/^alias l-${profile_name}/d" \
-    "$SHELL_CONFIG" > "$tmp_file"; then
-    log_error "Failed to update $SHELL_CONFIG"
-    rm -f "$tmp_file"
-    return 1
-  fi
-
-  if ! mv "$tmp_file" "$SHELL_CONFIG"; then
-    log_error "Failed to save updated $SHELL_CONFIG"
-    rm -f "$tmp_file"
-    return 1
-  fi
-
   log_success "Removed aliases for profile '$profile_name'"
-  log_info "Backup saved to: $SHELL_CONFIG.bak"
-  log_info "Reload your shell or run: source ~/.bashrc"
-  
+  log_info "Reload your shell or run: source ${rc_files[0]}"
+
   return 0
 }
 
@@ -469,21 +511,16 @@ use_task_profile() {
   export TASKRC="$profile_base/.taskrc"
   export TASKDATA="$profile_base/.task"
   export TIMEWARRIORDB="$profile_base/.timewarrior"
+  # Point bugwarrior to profile-specific config (toml takes precedence over ini)
+  if [[ -f "$profile_base/.config/bugwarrior/bugwarrior.toml" ]]; then
+    export BUGWARRIORRC="$profile_base/.config/bugwarrior/bugwarrior.toml"
+  else
+    export BUGWARRIORRC="$profile_base/.config/bugwarrior/bugwarriorrc"
+  fi
   set_last_profile "$profile_name" >/dev/null 2>&1 || true
 
   # Display confirmation message
-  echo "✓ Activated profile: $profile_name"
-  echo "  Location: $profile_base"
-  echo ""
-  echo "Global commands now available:"
-  echo "  j [journal-name] <entry>  - Write to journal"
-  echo "  l [args]                  - Access default ledger"
-  echo ""
-  echo "Profile-specific commands:"
-  echo "  task                      - TaskWarrior"
-  echo "  timew                     - TimeWarrior"
-  echo "  j-${profile_name}         - Direct journal access"
-  echo "  l-${profile_name}         - Direct ledger access"
+  echo "  ✓ ${profile_name}  ·  ${profile_base}"
 
   return 0
 }
@@ -701,23 +738,106 @@ timew() {
   TIMEWARRIORDB="$base/.timewarrior" command timew "${args[@]}"
 }
 
-# Standalone wrappers (no ww prefix)
-extensions() {
+# ============================================================================
+# STANDALONE WRAPPERS — no ww prefix required
+# Each function: bare call = sensible default; subcommands pass through to ww.
+# Subcommands marked "# future" route correctly but are not yet implemented in ww.
+# ============================================================================
+
+# Profile management
+profile() {
+  local cmd="${1:-}"
+  case "$cmd" in
+    "")
+      # Bare: show current profile card if active, else list profiles
+      if [[ -n "${WARRIOR_PROFILE:-}" ]]; then
+        ww profile info "$WARRIOR_PROFILE"
+      else
+        ww profile list
+      fi
+      ;;
+    create|list|delete|backup|restore|import|info|stats|meta|help|--help|-h)
+      ww profile "$@"
+      ;;
+    *)
+      echo "Unknown profile command: $cmd" >&2
+      echo "Usage: profile <create|list|delete|backup|restore|import|info|stats>" >&2
+      return 1
+      ;;
+  esac
+}
+
+# Shorthand: list all profiles
+profiles() {
+  ww profile list "$@"
+}
+
+# Journal namespace management (list/create/delete/rename journals within a profile)
+# Bare form lists journal names from the active profile's jrnl.yaml.
+# Bug fix: reads only keys under the 'journals:' section, not all YAML keys.
+journals() {
+  local cmd="${1:-}"
+  case "$cmd" in
+    "")
+      if [[ -z "${WORKWARRIOR_BASE:-}" ]]; then
+        echo "Error: No profile is active" >&2
+        return 1
+      fi
+      local jrnl_config="$WORKWARRIOR_BASE/jrnl.yaml"
+      if [[ ! -f "$jrnl_config" ]]; then
+        echo "Error: Journal configuration not found: $jrnl_config" >&2
+        return 1
+      fi
+      awk '/^journals:/{f=1;next} f && /^[^ ]/{f=0} f && /^  [a-zA-Z0-9_-]+:/{match($0,/[a-zA-Z0-9_-]+/); print "  • " substr($0,RSTART,RLENGTH)}' "$jrnl_config"
+      ;;
+    create|list|delete|rename|add|remove|help|--help|-h)
+      ww journal "$@"  # future: ww journal create/delete/rename not yet implemented
+      ;;
+    *)
+      echo "Unknown journals command: $cmd" >&2
+      echo "Usage: journals <create|list|delete|rename>" >&2
+      return 1
+      ;;
+  esac
+}
+
+# Ledger namespace management (list/create/delete/rename ledgers within a profile)
+ledgers() {
+  local cmd="${1:-}"
+  case "$cmd" in
+    "")
+      if [[ -z "${WORKWARRIOR_BASE:-}" ]]; then
+        echo "Error: No profile is active" >&2
+        return 1
+      fi
+      local ledger_config="$WORKWARRIOR_BASE/ledgers.yaml"
+      if [[ ! -f "$ledger_config" ]]; then
+        echo "Error: Ledger configuration not found: $ledger_config" >&2
+        return 1
+      fi
+      awk '/^ledgers:/{f=1;next} f && /^[^ ]/{f=0} f && /^  [a-zA-Z0-9_-]+:/{match($0,/[a-zA-Z0-9_-]+/); print "  • " substr($0,RSTART,RLENGTH)}' "$ledger_config"
+      ;;
+    create|list|delete|rename|add|remove|help|--help|-h)
+      ww ledger "$@"  # future: ww ledger create/delete/rename not yet implemented
+      ;;
+    *)
+      echo "Unknown ledgers command: $cmd" >&2
+      echo "Usage: ledgers <create|list|delete|rename>" >&2
+      return 1
+      ;;
+  esac
+}
+
+# Service browser
+services() {
   if [[ $# -eq 0 ]]; then
-    ww extensions taskwarrior list
+    ww service list
   else
-    ww extensions "$@"
+    ww service "$@"
   fi
 }
 
-models() {
-  if [[ $# -eq 0 ]]; then
-    ww models list
-  else
-    ww models "$@"
-  fi
-}
-
+# Groups registry
 groups() {
   if [[ $# -eq 0 ]]; then
     if [[ -n "${WARRIOR_PROFILE:-}" ]]; then
@@ -730,33 +850,69 @@ groups() {
   fi
 }
 
-journals() {
-  if [[ -z "${WORKWARRIOR_BASE:-}" ]]; then
-    echo "Error: No profile is active" >&2
-    return 1
+# Models registry
+models() {
+  if [[ $# -eq 0 ]]; then
+    ww models list
+  else
+    ww models "$@"
   fi
-  local jrnl_config="$WORKWARRIOR_BASE/jrnl.yaml"
-  if [[ ! -f "$jrnl_config" ]]; then
-    echo "Error: Journal configuration not found: $jrnl_config" >&2
-    return 1
-  fi
-  grep "^  [a-zA-Z0-9_-]\+:" "$jrnl_config" | sed 's/^  /  • /'
 }
 
-ledgers() {
-  if [[ -z "${WORKWARRIOR_BASE:-}" ]]; then
-    echo "Error: No profile is active" >&2
-    return 1
+# Extensions registry
+extensions() {
+  if [[ $# -eq 0 ]]; then
+    ww extensions taskwarrior list
+  else
+    ww extensions "$@"
   fi
-  local ledger_config="$WORKWARRIOR_BASE/ledgers.yaml"
-  if [[ ! -f "$ledger_config" ]]; then
-    echo "Error: Ledger configuration not found: $ledger_config" >&2
-    return 1
-  fi
-  grep "^  [a-zA-Z0-9_-]\+:" "$ledger_config" | sed 's/^  /  • /'
 }
 
-find() {
+# Interactive service configuration (journals, tasks, times, ledgers, issues)
+custom() {
+  local cmd="${1:-}"
+  case "$cmd" in
+    "")
+      ww custom
+      ;;
+    journals|tasks|times|ledgers|issues|help|--help|-h)
+      ww custom "$@"
+      ;;
+    *)
+      echo "Unknown custom command: $cmd" >&2
+      echo "Usage: custom <journals|tasks|times|ledgers|issues>" >&2
+      return 1
+      ;;
+  esac
+}
+
+# Shortcut reference
+shortcuts() {
+  local cmd="${1:-}"
+  case "$cmd" in
+    "")       ww shortcut list ;;
+    list|info|compact|help|--help|-h) ww shortcut "$@" ;;
+    *)        ww shortcut "$@" ;;
+  esac
+}
+
+# Dependency management
+deps() {
+  local cmd="${1:-}"
+  case "$cmd" in
+    "")       ww deps check ;;
+    check|install|list|help|--help|-h) ww deps "$@" ;;
+    *)        ww deps "$@" ;;
+  esac
+}
+
+# Version info
+version() {
+  ww version "$@"
+}
+
+# Search / find queries (renamed from find to avoid shadowing system find)
+search() {
   if [[ $# -eq 0 ]]; then
     ww find --list-queries
   else
@@ -764,21 +920,16 @@ find() {
   fi
 }
 
+# Task passthrough (profile-scoped)
 tasks() {
   task "$@"
 }
 
+# Time tracking passthrough (profile-scoped)
 times() {
   timew "$@"
 }
 
-services() {
-  if [[ $# -eq 0 ]]; then
-    ww service list
-  else
-    ww service "$@"
-  fi
-}
 # Global issues function - operates on active profile's bugwarrior config
 # Checks WORKWARRIOR_BASE is set (profile must be active)
 # Routes "i help"   to command routing matrix
@@ -944,7 +1095,7 @@ EOF
   # Check if bugwarrior is installed
   if ! command -v bugwarrior &> /dev/null; then
     echo "Error: bugwarrior is not installed" >&2
-    echo "Install with: pip install bugwarrior" >&2
+    echo "Install with: pipx install bugwarrior && pipx inject bugwarrior setuptools" >&2
     echo "Or: pipx install bugwarrior" >&2
     return 1
   fi
@@ -980,491 +1131,48 @@ EOF
   return $?
 }
 
-# Ensure global shell functions are defined in ~/.bashrc
-# Checks if functions exist in ~/.bashrc
-# Adds functions to "# --- Workwarrior Core Functions ---" section
-# Prevents duplicate function definitions
+# Ensure ww-init.sh is sourced in the user's shell config.
+# All functions live in shell-integration.sh (sourced by ww-init.sh) — there is
+# no need to inject per-function stubs into the rc file. A single source line
+# is the only thing that needs to be present.
 #
 # Usage: ensure_shell_functions
 # Returns: 0 on success, 1 on failure
-# Validates: Requirements 17.5
 ensure_shell_functions() {
-  log_step "Ensuring global shell functions are defined in ~/.bashrc"
 
-  # Ensure shell config file exists
-  if [[ ! -f "$SHELL_CONFIG" ]]; then
-    log_info "Creating $SHELL_CONFIG"
-    touch "$SHELL_CONFIG"
-  fi
+  local ww_base="${WW_BASE:-$HOME/ww}"
+  local ww_init="$ww_base/bin/ww-init.sh"
 
-  # Ensure section marker exists
-  if ! grep -Fxq "$SECTION_CORE_FUNCTIONS" "$SHELL_CONFIG"; then
-    log_info "Adding core functions section marker"
-    echo "" >> "$SHELL_CONFIG"
-    echo "$SECTION_CORE_FUNCTIONS" >> "$SHELL_CONFIG"
-  fi
+  # Collect all active rc files
+  local rc_files=()
+  while IFS= read -r _f; do rc_files+=("$_f"); done < <(get_ww_rc_files)
 
-  # Check if use_task_profile function exists
-  if ! grep -q "^use_task_profile()" "$SHELL_CONFIG" && ! grep -q "^function use_task_profile" "$SHELL_CONFIG"; then
-    log_info "Adding use_task_profile function"
-    
-    # Add function after section marker
-    awk -v marker="$SECTION_CORE_FUNCTIONS" '
-      {
-        print
-        if ($0 == marker && !added) {
-          print ""
-          print "# Activate a Workwarrior profile"
-          print "use_task_profile() {"
-          print "  local profile_name=\"$1\""
-          print "  local profile_base=\"$HOME/ww/profiles/$profile_name\""
-          print ""
-          print "  if [[ -z \"$profile_name\" ]]; then"
-          print "    echo \"Error: Profile name required\" >&2"
-          print "    echo \"Usage: use_task_profile <profile-name>\" >&2"
-          print "    return 1"
-          print "  fi"
-          print ""
-          print "  if [[ ! -d \"$profile_base\" ]]; then"
-          print "    echo \"Error: Profile '\''$profile_name'\'' does not exist\" >&2"
-          print "    echo \"Profile directory not found: $profile_base\" >&2"
-          print "    return 1"
-          print "  fi"
-          print ""
-          print "  export WARRIOR_PROFILE=\"$profile_name\""
-          print "  export WORKWARRIOR_BASE=\"$profile_base\""
-          print "  export TASKRC=\"$profile_base/.taskrc\""
-          print "  export TASKDATA=\"$profile_base/.task\""
-          print "  export TIMEWARRIORDB=\"$profile_base/.timewarrior\""
-          print "  local ww_state_dir=\"${WW_BASE:-$HOME/ww}/.state\""
-          print "  mkdir -p \"$ww_state_dir\" >/dev/null 2>&1 || true"
-          print "  printf \"%s\\n\" \"$profile_name\" > \"$ww_state_dir/last_profile\" 2>/dev/null || true"
-          print ""
-          print "  echo \"✓ Activated profile: $profile_name\""
-          print "  echo \"  Location: $profile_base\""
-          print "}"
-          added = 1
-        }
-      }
-    ' "$SHELL_CONFIG" > "$SHELL_CONFIG.tmp"
-    
-    mv "$SHELL_CONFIG.tmp" "$SHELL_CONFIG"
-  fi
+  for _rc in "${rc_files[@]}"; do
+    if [[ ! -f "$_rc" ]]; then
+      log_info "Creating $_rc"
+      touch "$_rc" || { log_error "Cannot create $_rc"; return 1; }
+    fi
 
-  # Check if j function exists
-  if ! grep -q "^j()" "$SHELL_CONFIG" && ! grep -q "^function j[[:space:]]*{" "$SHELL_CONFIG"; then
-    log_info "Adding j function"
-    
-    # Add function to core functions section
-    awk -v marker="$SECTION_CORE_FUNCTIONS" '
-      {
-        print
-        if ($0 == marker && !added) {
-          print ""
-          print "# Global journal function (delegates to shell-integration.sh)"
-          print "j() {"
-          print "  local ww_base=\"${WW_BASE:-$HOME/ww}\""
-          print "  if [[ -f \"$ww_base/lib/shell-integration.sh\" ]]; then"
-          print "    unset -f j"
-          print "    source \"$ww_base/lib/shell-integration.sh\""
-          print "    j \"$@\""
-          print "    return $?"
-          print "  fi"
-          print "  echo \"Error: shell integration not found at $ww_base/lib/shell-integration.sh\" >&2"
-          print "  return 1"
-          print "}"
-          added = 1
-        }
-      }
-    ' "$SHELL_CONFIG" > "$SHELL_CONFIG.tmp"
-    
-    mv "$SHELL_CONFIG.tmp" "$SHELL_CONFIG"
-  fi
+    # If ww-init.sh is already referenced, nothing to do for this file
+    if grep -qF "ww-init.sh" "$_rc" 2>/dev/null; then
+      continue
+    fi
 
-  # Check if l function exists
-  if ! grep -q "^l()" "$SHELL_CONFIG" && ! grep -q "^function l[[:space:]]*{" "$SHELL_CONFIG"; then
-    log_info "Adding l function"
-    
-    # Add function to core functions section
-    awk -v marker="$SECTION_CORE_FUNCTIONS" '
-      {
-        print
-        if ($0 == marker && !added) {
-          print ""
-          print "# Global ledger function (delegates to shell-integration.sh)"
-          print "l() {"
-          print "  local ww_base=\"${WW_BASE:-$HOME/ww}\""
-          print "  if [[ -f \"$ww_base/lib/shell-integration.sh\" ]]; then"
-          print "    unset -f l"
-          print "    source \"$ww_base/lib/shell-integration.sh\""
-          print "    l \"$@\""
-          print "    return $?"
-          print "  fi"
-          print "  echo \"Error: shell integration not found at $ww_base/lib/shell-integration.sh\" >&2"
-          print "  return 1"
-          print "}"
-          added = 1
-        }
-      }
-    ' "$SHELL_CONFIG" > "$SHELL_CONFIG.tmp"
-    
-    mv "$SHELL_CONFIG.tmp" "$SHELL_CONFIG"
-  fi
+    # Add source block — uses the same section markers as installer-utils.sh
+    cat >> "$_rc" << EOF
 
-  # Check if list function exists
-  if ! grep -q "^list()" "$SHELL_CONFIG" && ! grep -q "^function list[[:space:]]*{" "$SHELL_CONFIG"; then
-    log_info "Adding list function"
-    
-    awk -v marker="$SECTION_CORE_FUNCTIONS" '
-      {
-        print
-        if ($0 == marker && !added) {
-          print ""
-          print "# Global list function (delegates to shell-integration.sh)"
-          print "list() {"
-          print "  local ww_base=\"${WW_BASE:-$HOME/ww}\""
-          print "  if [[ -f \"$ww_base/lib/shell-integration.sh\" ]]; then"
-          print "    unset -f list"
-          print "    source \"$ww_base/lib/shell-integration.sh\""
-          print "    list \"$@\""
-          print "    return $?"
-          print "  fi"
-          print "  echo \"Error: shell integration not found at $ww_base/lib/shell-integration.sh\" >&2"
-          print "  return 1"
-          print "}"
-          added = 1
-        }
-      }
-    ' "$SHELL_CONFIG" > "$SHELL_CONFIG.tmp"
-    
-    mv "$SHELL_CONFIG.tmp" "$SHELL_CONFIG"
-  fi
+# --- Workwarrior Installation ---
+# Added by workwarrior profile creation
+if [[ -f "${ww_init}" ]]; then
+  source "${ww_init}"
+fi
+# --- End Workwarrior Installation ---
+EOF
 
-  # Check if task function exists
-  if ! grep -q "^task()" "$SHELL_CONFIG" && ! grep -q "^function task[[:space:]]*{" "$SHELL_CONFIG"; then
-    log_info "Adding task function"
-    
-    awk -v marker="$SECTION_CORE_FUNCTIONS" '
-      {
-        print
-        if ($0 == marker && !added) {
-          print ""
-          print "# TaskWarrior wrapper (delegates to shell-integration.sh)"
-          print "task() {"
-          print "  local ww_base=\"${WW_BASE:-$HOME/ww}\""
-          print "  if [[ -f \"$ww_base/lib/shell-integration.sh\" ]]; then"
-          print "    unset -f task"
-          print "    source \"$ww_base/lib/shell-integration.sh\""
-          print "    task \"$@\""
-          print "    return $?"
-          print "  fi"
-          print "  echo \"Error: shell integration not found at $ww_base/lib/shell-integration.sh\" >&2"
-          print "  return 1"
-          print "}"
-          added = 1
-        }
-      }
-    ' "$SHELL_CONFIG" > "$SHELL_CONFIG.tmp"
-    
-    mv "$SHELL_CONFIG.tmp" "$SHELL_CONFIG"
-  fi
+    log_success "Shell integration added to $(basename "$_rc")"
+    log_info "Reload your shell or run: source $_rc"
+  done
 
-  # Check if timew function exists
-  if ! grep -q "^timew()" "$SHELL_CONFIG" && ! grep -q "^function timew[[:space:]]*{" "$SHELL_CONFIG"; then
-    log_info "Adding timew function"
-    
-    awk -v marker="$SECTION_CORE_FUNCTIONS" '
-      {
-        print
-        if ($0 == marker && !added) {
-          print ""
-          print "# TimeWarrior wrapper (delegates to shell-integration.sh)"
-          print "timew() {"
-          print "  local ww_base=\"${WW_BASE:-$HOME/ww}\""
-          print "  if [[ -f \"$ww_base/lib/shell-integration.sh\" ]]; then"
-          print "    unset -f timew"
-          print "    source \"$ww_base/lib/shell-integration.sh\""
-          print "    timew \"$@\""
-          print "    return $?"
-          print "  fi"
-          print "  echo \"Error: shell integration not found at $ww_base/lib/shell-integration.sh\" >&2"
-          print "  return 1"
-          print "}"
-          added = 1
-        }
-      }
-    ' "$SHELL_CONFIG" > "$SHELL_CONFIG.tmp"
-    
-    mv "$SHELL_CONFIG.tmp" "$SHELL_CONFIG"
-  fi
-
-  # Check if i function exists
-  if ! grep -q "^i()" "$SHELL_CONFIG" && ! grep -q "^function i[[:space:]]*{" "$SHELL_CONFIG"; then
-    log_info "Adding i function"
-    
-    awk -v marker="$SECTION_CORE_FUNCTIONS" '
-      {
-        print
-        if ($0 == marker && !added) {
-          print ""
-          print "# Global issues function (delegates to shell-integration.sh)"
-          print "i() {"
-          print "  local ww_base=\"${WW_BASE:-$HOME/ww}\""
-          print "  if [[ -f \"$ww_base/lib/shell-integration.sh\" ]]; then"
-          print "    unset -f i"
-          print "    source \"$ww_base/lib/shell-integration.sh\""
-          print "    i \"$@\""
-          print "    return $?"
-          print "  fi"
-          print "  echo \"Error: shell integration not found at $ww_base/lib/shell-integration.sh\" >&2"
-          print "  return 1"
-          print "}"
-          added = 1
-        }
-      }
-    ' "$SHELL_CONFIG" > "$SHELL_CONFIG.tmp"
-    
-    mv "$SHELL_CONFIG.tmp" "$SHELL_CONFIG"
-  fi
-
-  # Check if help function exists
-  if ! grep -q "^help()" "$SHELL_CONFIG" && ! grep -q "^function help[[:space:]]*{" "$SHELL_CONFIG"; then
-    log_info "Adding help function"
-    
-    awk -v marker="$SECTION_CORE_FUNCTIONS" '
-      {
-        print
-        if ($0 == marker && !added) {
-          print ""
-          print "# Help wrapper (delegates to ww help)"
-          print "help() {"
-          print "  if command -v ww &>/dev/null; then"
-          print "    if [[ -n \"$1\" ]]; then"
-          print "      ww help \"$1\""
-          print "    else"
-          print "      ww help"
-          print "    fi"
-          print "    return $?"
-          print "  fi"
-          print "  echo \"Error: ww command not found\" >&2"
-          print "  return 1"
-          print "}"
-          added = 1
-        }
-      }
-    ' "$SHELL_CONFIG" > "$SHELL_CONFIG.tmp"
-    
-    mv "$SHELL_CONFIG.tmp" "$SHELL_CONFIG"
-  fi
-
-  # Standalone wrappers
-  if ! grep -q "^extensions()" "$SHELL_CONFIG" && ! grep -q "^function extensions[[:space:]]*{" "$SHELL_CONFIG"; then
-    log_info "Adding extensions function"
-    awk -v marker="$SECTION_CORE_FUNCTIONS" '
-      {
-        print
-        if ($0 == marker && !added) {
-          print ""
-          print "# Extensions wrapper"
-          print "extensions() {"
-          print "  if [[ $# -eq 0 ]]; then"
-          print "    ww extensions taskwarrior list"
-          print "  else"
-          print "    ww extensions \"$@\""
-          print "  fi"
-          print "}"
-          added = 1
-        }
-      }
-    ' "$SHELL_CONFIG" > "$SHELL_CONFIG.tmp"
-    mv "$SHELL_CONFIG.tmp" "$SHELL_CONFIG"
-  fi
-
-  if ! grep -q "^models()" "$SHELL_CONFIG" && ! grep -q "^function models[[:space:]]*{" "$SHELL_CONFIG"; then
-    log_info "Adding models function"
-    awk -v marker="$SECTION_CORE_FUNCTIONS" '
-      {
-        print
-        if ($0 == marker && !added) {
-          print ""
-          print "# Models wrapper"
-          print "models() {"
-          print "  if [[ $# -eq 0 ]]; then"
-          print "    ww models list"
-          print "  else"
-          print "    ww models \"$@\""
-          print "  fi"
-          print "}"
-          added = 1
-        }
-      }
-    ' "$SHELL_CONFIG" > "$SHELL_CONFIG.tmp"
-    mv "$SHELL_CONFIG.tmp" "$SHELL_CONFIG"
-  fi
-
-  if ! grep -q "^groups()" "$SHELL_CONFIG" && ! grep -q "^function groups[[:space:]]*{" "$SHELL_CONFIG"; then
-    log_info "Adding groups function"
-    awk -v marker="$SECTION_CORE_FUNCTIONS" '
-      {
-        print
-        if ($0 == marker && !added) {
-          print ""
-          print "# Groups wrapper"
-          print "groups() {"
-          print "  if [[ $# -eq 0 ]]; then"
-          print "    if [[ -n \"$WARRIOR_PROFILE\" ]]; then"
-          print "      ww groups list --profile \"$WARRIOR_PROFILE\""
-          print "    else"
-          print "      ww groups list"
-          print "    fi"
-          print "  else"
-          print "    ww groups \"$@\""
-          print "  fi"
-          print "}"
-          added = 1
-        }
-      }
-    ' "$SHELL_CONFIG" > "$SHELL_CONFIG.tmp"
-    mv "$SHELL_CONFIG.tmp" "$SHELL_CONFIG"
-  fi
-
-  if ! grep -q "^journals()" "$SHELL_CONFIG" && ! grep -q "^function journals[[:space:]]*{" "$SHELL_CONFIG"; then
-    log_info "Adding journals function"
-    awk -v marker="$SECTION_CORE_FUNCTIONS" '
-      {
-        print
-        if ($0 == marker && !added) {
-          print ""
-          print "# Journals wrapper"
-          print "journals() {"
-          print "  if [[ -z \"$WORKWARRIOR_BASE\" ]]; then"
-          print "    echo \"Error: No profile is active\" >&2"
-          print "    return 1"
-          print "  fi"
-          print "  local jrnl_config=\"$WORKWARRIOR_BASE/jrnl.yaml\""
-          print "  if [[ ! -f \"$jrnl_config\" ]]; then"
-          print "    echo \"Error: Journal configuration not found: $jrnl_config\" >&2"
-          print "    return 1"
-          print "  fi"
-          print "  grep \"^  [a-zA-Z0-9_-]\\+:\" \"$jrnl_config\" | sed \"s/^  /  • /\""
-          print "}"
-          added = 1
-        }
-      }
-    ' "$SHELL_CONFIG" > "$SHELL_CONFIG.tmp"
-    mv "$SHELL_CONFIG.tmp" "$SHELL_CONFIG"
-  fi
-
-  if ! grep -q "^ledgers()" "$SHELL_CONFIG" && ! grep -q "^function ledgers[[:space:]]*{" "$SHELL_CONFIG"; then
-    log_info "Adding ledgers function"
-    awk -v marker="$SECTION_CORE_FUNCTIONS" '
-      {
-        print
-        if ($0 == marker && !added) {
-          print ""
-          print "# Ledgers wrapper"
-          print "ledgers() {"
-          print "  if [[ -z \"$WORKWARRIOR_BASE\" ]]; then"
-          print "    echo \"Error: No profile is active\" >&2"
-          print "    return 1"
-          print "  fi"
-          print "  local ledger_config=\"$WORKWARRIOR_BASE/ledgers.yaml\""
-          print "  if [[ ! -f \"$ledger_config\" ]]; then"
-          print "    echo \"Error: Ledger configuration not found: $ledger_config\" >&2"
-          print "    return 1"
-          print "  fi"
-          print "  grep \"^  [a-zA-Z0-9_-]\\+:\" \"$ledger_config\" | sed \"s/^  /  • /\""
-          print "}"
-          added = 1
-        }
-      }
-    ' "$SHELL_CONFIG" > "$SHELL_CONFIG.tmp"
-    mv "$SHELL_CONFIG.tmp" "$SHELL_CONFIG"
-  fi
-
-  if ! grep -q "^find()" "$SHELL_CONFIG" && ! grep -q "^function find[[:space:]]*{" "$SHELL_CONFIG"; then
-    log_info "Adding find function"
-    awk -v marker="$SECTION_CORE_FUNCTIONS" '
-      {
-        print
-        if ($0 == marker && !added) {
-          print ""
-          print "# Find wrapper"
-          print "find() {"
-          print "  if [[ $# -eq 0 ]]; then"
-          print "    ww find --list-queries"
-          print "  else"
-          print "    ww find \"$@\""
-          print "  fi"
-          print "}"
-          added = 1
-        }
-      }
-    ' "$SHELL_CONFIG" > "$SHELL_CONFIG.tmp"
-    mv "$SHELL_CONFIG.tmp" "$SHELL_CONFIG"
-  fi
-
-  if ! grep -q "^tasks()" "$SHELL_CONFIG" && ! grep -q "^function tasks[[:space:]]*{" "$SHELL_CONFIG"; then
-    log_info "Adding tasks function"
-    awk -v marker="$SECTION_CORE_FUNCTIONS" '
-      {
-        print
-        if ($0 == marker && !added) {
-          print ""
-          print "# Tasks wrapper"
-          print "tasks() {"
-          print "  task \"$@\""
-          print "}"
-          added = 1
-        }
-      }
-    ' "$SHELL_CONFIG" > "$SHELL_CONFIG.tmp"
-    mv "$SHELL_CONFIG.tmp" "$SHELL_CONFIG"
-  fi
-
-  if ! grep -q "^times()" "$SHELL_CONFIG" && ! grep -q "^function times[[:space:]]*{" "$SHELL_CONFIG"; then
-    log_info "Adding times function"
-    awk -v marker="$SECTION_CORE_FUNCTIONS" '
-      {
-        print
-        if ($0 == marker && !added) {
-          print ""
-          print "# Times wrapper"
-          print "times() {"
-          print "  timew \"$@\""
-          print "}"
-          added = 1
-        }
-      }
-    ' "$SHELL_CONFIG" > "$SHELL_CONFIG.tmp"
-    mv "$SHELL_CONFIG.tmp" "$SHELL_CONFIG"
-  fi
-
-  if ! grep -q "^services()" "$SHELL_CONFIG" && ! grep -q "^function services[[:space:]]*{" "$SHELL_CONFIG"; then
-    log_info "Adding services function"
-    awk -v marker="$SECTION_CORE_FUNCTIONS" '
-      {
-        print
-        if ($0 == marker && !added) {
-          print ""
-          print "# Services wrapper"
-          print "services() {"
-          print "  if [[ $# -eq 0 ]]; then"
-          print "    ww service list"
-          print "  else"
-          print "    ww service \"$@\""
-          print "  fi"
-          print "}"
-          added = 1
-        }
-      }
-    ' "$SHELL_CONFIG" > "$SHELL_CONFIG.tmp"
-    mv "$SHELL_CONFIG.tmp" "$SHELL_CONFIG"
-  fi
-
-  log_success "Global shell functions ensured in ~/.bashrc"
-  log_info "Reload your shell or run: source ~/.bashrc"
-  
   return 0
 }
 
@@ -1472,4 +1180,4 @@ ensure_shell_functions() {
 # LIBRARY LOADED INDICATOR
 # ============================================================================
 
-readonly SHELL_INTEGRATION_LOADED=1
+SHELL_INTEGRATION_LOADED=1

@@ -393,7 +393,7 @@ get_install_command() {
         timew)      echo "brew install timewarrior" ;;
         hledger)    echo "brew install hledger" ;;
         jrnl)       echo "pipx install jrnl" ;;
-        bugwarrior) echo "pipx install bugwarrior" ;;
+        bugwarrior) echo "pipx install bugwarrior && pipx inject bugwarrior setuptools" ;;
         python3)    echo "brew install python3" ;;
         pipx)       echo "brew install pipx" ;;
       esac
@@ -404,7 +404,7 @@ get_install_command() {
         timew)      echo "sudo apt install timewarrior" ;;
         hledger)    echo "sudo apt install hledger" ;;
         jrnl)       echo "pipx install jrnl" ;;
-        bugwarrior) echo "pipx install bugwarrior" ;;
+        bugwarrior) echo "pipx install bugwarrior && pipx inject bugwarrior setuptools" ;;
         python3)    echo "sudo apt install python3 python3-pip" ;;
         pipx)       echo "sudo apt install pipx" ;;
       esac
@@ -415,7 +415,7 @@ get_install_command() {
         timew)      echo "sudo dnf install timew" ;;
         hledger)    echo "sudo dnf install hledger" ;;
         jrnl)       echo "pipx install jrnl" ;;
-        bugwarrior) echo "pipx install bugwarrior" ;;
+        bugwarrior) echo "pipx install bugwarrior && pipx inject bugwarrior setuptools" ;;
         python3)    echo "sudo dnf install python3 python3-pip" ;;
         pipx)       echo "sudo dnf install pipx" ;;
       esac
@@ -426,7 +426,7 @@ get_install_command() {
         timew)      echo "sudo pacman -S timew" ;;
         hledger)    echo "sudo pacman -S hledger" ;;
         jrnl)       echo "pipx install jrnl" ;;
-        bugwarrior) echo "pipx install bugwarrior" ;;
+        bugwarrior) echo "pipx install bugwarrior && pipx inject bugwarrior setuptools" ;;
         python3)    echo "sudo pacman -S python python-pip" ;;
         pipx)       echo "sudo pacman -S python-pipx" ;;
       esac

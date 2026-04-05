@@ -1552,7 +1552,7 @@ EOF
       fi
       if ! command -v bugwarrior &>/dev/null; then
         log_error "bugwarrior is not installed"
-        echo "Install with: pipx install bugwarrior" >&2
+        echo "Install with: pipx install bugwarrior && pipx inject bugwarrior setuptools" >&2
         exit 1
       fi
       if [[ "$subcommand" == "pull" && "$json_mode" -eq 0 ]]; then

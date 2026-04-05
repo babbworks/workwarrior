@@ -1,0 +1,44 @@
+change_type:
+  lib:
+    required:
+      - "bats tests/"
+    notes:
+      - "Full suite. Every lib change can have cascading effects on sourcing scripts."
+      - "Add or update focused tests for modified lib behavior."
+  service:
+    required:
+      - "bats tests/test-service-discovery.sh"
+      - "bats tests/"
+    notes:
+      - "Service discovery and help/dispatch behavior must be validated."
+      - "Verify --help responds correctly."
+  profile:
+    required:
+      - "bats tests/test-foundation.sh"
+      - "bats tests/"
+    notes:
+      - "Verify environment variable isolation."
+      - "Verify data directories remain isolated across profiles."
+  bin_ww:
+    required:
+      - "bats tests/"
+      - "manual: ww help"
+      - "manual: ww profile list"
+    notes:
+      - "Smoke test all major command categories after any bin/ww change."
+      - "bin/ww is serialized — confirm no parallel task is touching it."
+  github_sync:
+    required:
+      - "bash tests/run-integration-tests.sh"
+      - "bats tests/"
+    subtests:
+      - "24.1: Full Push Cycle"
+      - "24.2: Full Pull Cycle"
+      - "24.3: Conflict Resolution"
+      - "24.4: Error Handling"
+      - "24.5: Batch Operations"
+    notes:
+      - "HIGH FRAGILITY path — run integration suite on test profile, not work profile."
+      - "Requires GitHub CLI authenticated to test account."
+      - "Run baseline BEFORE the change to confirm pre-existing green state."
+      - "Verifier must produce explicit sync behavior sign-off."

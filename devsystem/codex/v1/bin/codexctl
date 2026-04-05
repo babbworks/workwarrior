@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+usage() {
+  cat << 'EOF'
+Usage: codexctl <command> [args]
+
+Commands:
+  status
+  verify-phase1
+  new-task <TASK-ID> <goal>
+  dispatch <role> <topic> <task-card-path>
+
+Examples:
+  codexctl status
+  codexctl verify-phase1
+  codexctl new-task TASK-001 "Reconcile status docs"
+  codexctl dispatch builder status-reconcile tasks/cards/TASK-001.md
+EOF
+}
+
+cmd="${1:-}"
+shift || true
+
+case "${cmd}" in
+  status)
+    "${ROOT}/scripts/system-status.sh" "$@"
+    ;;
+  verify-phase1)
+    "${ROOT}/scripts/verify-phase1.sh" "$@"
+    ;;
+  new-task)
+    "${ROOT}/scripts/new-task.sh" "$@"
+    ;;
+  dispatch)
+    "${ROOT}/scripts/dispatch-worktree.sh" "$@"
+    ;;
+  ""|-h|--help|help)
+    usage
+    ;;
+  *)
+    echo "Unknown command: ${cmd}" >&2
+    usage
+    exit 1
+    ;;
+esac
+

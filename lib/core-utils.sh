@@ -7,27 +7,29 @@
 # CONSTANTS - Standard paths used throughout the system
 # ============================================================================
 
-# Base directories
-readonly WW_BASE="${WW_BASE:-$HOME/ww}"
-PROFILES_DIR="${PROFILES_DIR:-$WW_BASE/profiles}"
-readonly SERVICES_DIR="${SERVICES_DIR:-$WW_BASE/services}"
-readonly RESOURCES_DIR="${RESOURCES_DIR:-$WW_BASE/resources}"
-readonly FUNCTIONS_DIR="${FUNCTIONS_DIR:-$WW_BASE/functions}"
+# Base directories — guarded so re-sourcing (e.g. source ~/.bashrc) doesn't error on readonly
+if [[ -z "${CORE_UTILS_LOADED:-}" ]]; then
+  readonly WW_BASE="${WW_BASE:-$HOME/ww}"
+  PROFILES_DIR="${PROFILES_DIR:-$WW_BASE/profiles}"
+  readonly SERVICES_DIR="${SERVICES_DIR:-$WW_BASE/services}"
+  readonly RESOURCES_DIR="${RESOURCES_DIR:-$WW_BASE/resources}"
+  readonly FUNCTIONS_DIR="${FUNCTIONS_DIR:-$WW_BASE/functions}"
 
-# Configuration paths
-readonly SHELL_RC="${SHELL_RC:-$HOME/.bashrc}"
-readonly DEFAULT_TASKRC="$FUNCTIONS_DIR/tasks/default-taskrc/.taskrc"
-readonly CONFIG_TEMPLATES_DIR="$RESOURCES_DIR/config-files"
+  # Configuration paths
+  readonly SHELL_RC="${SHELL_RC:-$HOME/.bashrc}"
+  readonly DEFAULT_TASKRC="$FUNCTIONS_DIR/tasks/default-taskrc/.taskrc"
+  readonly CONFIG_TEMPLATES_DIR="$RESOURCES_DIR/config-files"
 
-# Service categories
-readonly PROFILE_SERVICE_DIR="$SERVICES_DIR/profile"
-readonly QUESTIONS_SERVICE_DIR="$SERVICES_DIR/questions"
-readonly SCRIPTS_SERVICE_DIR="$SERVICES_DIR/scripts"
-readonly EXPORT_SERVICE_DIR="$SERVICES_DIR/export"
-readonly DIAGNOSTIC_SERVICE_DIR="$SERVICES_DIR/diagnostic"
-readonly FIND_SERVICE_DIR="$SERVICES_DIR/find"
-readonly VERIFY_SERVICE_DIR="$SERVICES_DIR/verify"
-readonly CUSTOM_SERVICE_DIR="$SERVICES_DIR/custom"
+  # Service categories
+  readonly PROFILE_SERVICE_DIR="$SERVICES_DIR/profile"
+  readonly QUESTIONS_SERVICE_DIR="$SERVICES_DIR/questions"
+  readonly SCRIPTS_SERVICE_DIR="$SERVICES_DIR/scripts"
+  readonly EXPORT_SERVICE_DIR="$SERVICES_DIR/export"
+  readonly DIAGNOSTIC_SERVICE_DIR="$SERVICES_DIR/diagnostic"
+  readonly FIND_SERVICE_DIR="$SERVICES_DIR/find"
+  readonly VERIFY_SERVICE_DIR="$SERVICES_DIR/verify"
+  readonly CUSTOM_SERVICE_DIR="$SERVICES_DIR/custom"
+fi
 
 # ============================================================================
 # LOGGING UTILITIES
@@ -377,4 +379,4 @@ service_exists() {
 # ============================================================================
 
 # Set a variable to indicate this library has been loaded
-readonly CORE_UTILS_LOADED=1
+CORE_UTILS_LOADED=1

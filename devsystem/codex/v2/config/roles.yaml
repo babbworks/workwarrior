@@ -1,0 +1,28 @@
+always_active:
+  - orchestrator
+  - builder
+  - verifier
+  - docs
+
+conditional:
+  - explorer
+  - simplifier
+
+phase_role_profile:
+  phase_1:
+    active:
+      - orchestrator
+      - explorer
+      - builder
+      - verifier
+      - docs
+  phase_2_plus:
+    active:
+      - orchestrator
+      - builder
+      - verifier
+      - docs
+    conditional:
+      - explorer
+      - simplifier
+

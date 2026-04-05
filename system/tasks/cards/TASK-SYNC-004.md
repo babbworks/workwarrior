@@ -26,4 +26,10 @@ Risk notes:           Gate E: every TODO in production code needs a TASKS.md car
                       Explorer A source: lib/sync-pull.sh:100.
                       Recommend option B unless tag sync is in active roadmap.
 
-Status:               pending
+Resolution:           Option B — explicit defer.
+  Removed TODO comment from lib/sync-pull.sh:100.
+  Replaced with: "Tag sync: explicitly deferred (TASK-SYNC-005)."
+  TASK-SYNC-005 card created and added to TASKS.md backlog.
+  Gate E violation cleared.
+
+Status:               complete

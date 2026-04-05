@@ -1,9 +1,0 @@
-[2026-02-11 00:25] Welcome to your journal!
-This is the default journal for the 'work' profile.
-You can add entries using the 'j' command when this profile is active.
-
-[2026-02-11 00:28] olympics
-
-[2026-02-11 00:56] Nano but not~
-
-[2026-02-11 01:01] secondjournal hello

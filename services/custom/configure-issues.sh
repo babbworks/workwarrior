@@ -88,13 +88,12 @@ check_bugwarrior_installed() {
   if ! command -v bugwarrior &> /dev/null; then
     log_error "Bugwarrior is not installed"
     echo ""
-    echo "Install bugwarrior with one of these methods:"
-    echo "  pip install bugwarrior"
-    echo "  pipx install bugwarrior"
+    echo "Install bugwarrior:"
+    echo "  pipx install bugwarrior && pipx inject bugwarrior setuptools"
     echo ""
     echo "For service-specific extras:"
-    echo "  pip install 'bugwarrior[jira]'     # Jira support"
-    echo "  pip install 'bugwarrior[gmail]'    # Gmail support"
+    echo "  pipx inject bugwarrior bugwarrior[jira]    # Jira support"
+    echo "  pipx inject bugwarrior bugwarrior[gmail]   # Gmail support"
     echo ""
     exit 1
   fi
@@ -292,68 +291,154 @@ configure_github() {
   echo ""
   log_step "Configuring GitHub Service"
   echo ""
-  
+
   read -p "Enter service name (e.g., my_github): " service_name
   if ! validate_service_name "$service_name"; then
     return 1
   fi
-  
-  read -p "Enter GitHub username: " github_username
-  if [[ -z "$github_username" ]]; then
-    log_error "Username cannot be empty"
+
+  # --- Login (authenticated GitHub user) ---
+  local gh_login_default=""
+  if command -v gh &>/dev/null && gh auth status &>/dev/null 2>&1; then
+    gh_login_default=$(gh api user --jq '.login' 2>/dev/null || true)
+  fi
+
+  if [[ -n "$gh_login_default" ]]; then
+    read -p "GitHub login username [${gh_login_default}]: " github_login
+    github_login="${github_login:-$gh_login_default}"
+  else
+    read -p "GitHub login username (your personal account): " github_login
+  fi
+  if [[ -z "$github_login" ]]; then
+    log_error "Login username cannot be empty"
     return 1
   fi
-  
+
+  # --- Org/namespace to pull from ---
   echo ""
-  echo "GitHub Personal Access Token:"
-  echo "  Create at: https://github.com/settings/tokens"
-  echo "  Required scope: repo (read-only)"
+  echo "GitHub namespace to pull issues from:"
+  echo "  • For your own repos: enter your username (${github_login})"
+  echo "  • For an org: enter the org name (e.g., mycompany)"
   echo ""
-  read -s -p "Enter GitHub token: " github_token
+  read -p "Username or org [${github_login}]: " github_username
+  github_username="${github_username:-$github_login}"
+
+  # --- Token ---
   echo ""
-  if [[ -z "$github_token" ]]; then
-    log_error "Token cannot be empty"
-    return 1
+  local token_value=""
+  local token_config_line=""
+
+  if command -v gh &>/dev/null && gh auth status &>/dev/null 2>&1; then
+    echo "gh CLI is authenticated. Options:"
+    echo "  1. Use gh CLI auth (recommended — token never stored in config)"
+    echo "  2. Enter a Personal Access Token manually"
+    echo ""
+    read -p "Token source [1]: " token_choice
+    token_choice="${token_choice:-1}"
+
+    if [[ "$token_choice" == "1" ]]; then
+      token_config_line="github.token = @oracle:eval:gh auth token"
+      echo "  → Will use: @oracle:eval:gh auth token"
+    else
+      echo ""
+      echo "Personal Access Token:"
+      echo "  Create at: https://github.com/settings/tokens"
+      echo "  Required scope: repo (read-only)"
+      echo ""
+      read -s -p "Enter GitHub token: " token_value
+      echo ""
+      if [[ -z "$token_value" ]]; then
+        log_error "Token cannot be empty"
+        return 1
+      fi
+      token_config_line="github.token = $token_value"
+    fi
+  else
+    echo "Personal Access Token:"
+    echo "  Create at: https://github.com/settings/tokens"
+    echo "  Required scope: repo (read-only)"
+    echo "  Tip: install gh CLI (brew install gh && gh auth login) to avoid storing tokens"
+    echo ""
+    read -s -p "Enter GitHub token: " token_value
+    echo ""
+    if [[ -z "$token_value" ]]; then
+      log_error "Token cannot be empty"
+      return 1
+    fi
+    token_config_line="github.token = $token_value"
   fi
-  
+
+  # --- Repo filter ---
   echo ""
-  read -p "Enter repositories to sync (comma-separated, e.g., owner/repo1, owner/repo2): " repos
-  
+  read -p "Limit to specific repos? (comma-separated owner/repo, leave blank for all): " repos
+
+  # --- Assignment filter ---
   echo ""
-  read -p "Only sync issues assigned to you? [y/n]: " only_assigned
-  
+  echo "Issue assignment filter:"
+  echo "  • Leave blank to pull all open issues (recommended for orgs)"
+  echo "  • Enter your username to pull only issues assigned to you"
+  echo "  ⚠️  For org repos, 'only assigned' often returns 0 results"
   echo ""
-  read -p "Import labels as tags? [y/n]: " import_labels
-  
+  read -p "Only pull issues assigned to [leave blank for all]: " only_assigned
+
+  # --- Labels as tags ---
+  echo ""
+  read -p "Import GitHub labels as TaskWarrior tags? [y/n]: " import_labels
+
+  # --- Project template ---
+  echo ""
+  echo "Project grouping template (organises tasks by source repo):"
+  echo "  {{label}}   — use the repo name as project label (recommended)"
+  echo "  Leave blank — no project grouping"
+  echo ""
+  read -p "Project template [{{label}}]: " project_template
+  project_template="${project_template:-{{label\}\}}"
+
+  # --- Write config ---
   ensure_service_target "$service_name"
-  
-  # Add service configuration
+
   cat >> "$BUGWARRIORRC" << EOF
 
 [$service_name]
 service = github
-github.login = $github_username
-github.token = $github_token
+github.login = $github_login
+$token_config_line
 github.username = $github_username
+github.project_template = $project_template
+github.default_priority = M
 EOF
-  
+
   if [[ -n "$repos" ]]; then
     echo "github.include_repos = $repos" >> "$BUGWARRIORRC"
   fi
-  
-  if [[ "$only_assigned" == "y" || "$only_assigned" == "Y" ]]; then
-    echo "github.only_if_assigned = $github_username" >> "$BUGWARRIORRC"
+
+  if [[ -n "$only_assigned" ]]; then
+    echo "github.only_if_assigned = $only_assigned" >> "$BUGWARRIORRC"
   fi
-  
+
   if [[ "$import_labels" == "y" || "$import_labels" == "Y" ]]; then
     echo "github.import_labels_as_tags = True" >> "$BUGWARRIORRC"
   fi
-  
+
   log_success "GitHub service '$service_name' configured"
+
+  if [[ "$token_config_line" == *"plain"* ]] || [[ -n "$token_value" ]]; then
+    echo ""
+    log_warning "⚠️  Token stored in plain text in: $BUGWARRIORRC"
+    echo "For better security, replace with: github.token = @oracle:use_keyring"
+  fi
+
+  # --- Offer UDA generation immediately ---
   echo ""
-  log_warning "⚠️  Security: Your token is stored in plain text"
-  echo "For better security, consider using keyring:"
-  echo "  github.token = @oracle:use_keyring"
+  read -p "Generate TaskWarrior UDAs for this service now? [y/n]: " gen_udas
+  if [[ "$gen_udas" == "y" || "$gen_udas" == "Y" ]]; then
+    generate_udas
+  else
+    echo ""
+    echo "Remember to run option 4 (Generate UDAs) before your first 'i pull'"
+    echo "to avoid TaskWarrior warnings about unknown fields."
+  fi
+
   echo ""
   read -p "Press Enter to continue..."
 }

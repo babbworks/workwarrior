@@ -1,0 +1,2 @@
+bin/ww
+lib/shell-integration.sh

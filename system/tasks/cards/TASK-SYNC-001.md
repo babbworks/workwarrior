@@ -25,4 +25,12 @@ Risk notes:           Existing behavior affected: none (tests only).
                       Rollback verification: delete new test files.
                       Explorer B source: all sync libs have 0 BATS tests.
 
-Status:               pending
+Resolution:
+  Created tests/test-sync-state.bats (21 tests) and tests/test-github-sync.bats (21 tests).
+  All 42 tests pass. Coverage: init_state_database, save_sync_state (including mv failure path),
+  get_sync_state, remove_sync_state, check_gh_cli (not installed, not authed, authenticated),
+  github_get_issue (missing args, auth failure, success), detect_task_changes (malformed JSON,
+  identical states, description/status/tags/annotation changes, tag order invariance),
+  detect_github_changes (malformed JSON, identical states, title/state changes).
+
+Status:               complete

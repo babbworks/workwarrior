@@ -110,26 +110,65 @@ get_udas() {
   done
 }
 
+classify_uda() {
+  local name="$1"
+  case "$name" in
+    github*)   echo "github" ;;
+    gitlab*)   echo "gitlab" ;;
+    jira*)     echo "jira" ;;
+    trello*)   echo "trello" ;;
+    bw*)       echo "bugwarrior" ;;
+    *)         echo "user" ;;
+  esac
+}
+
 display_udas() {
   if [ ${#UDA_NAMES[@]} -eq 0 ]; then
     echo "No UDAs defined."
     return
   fi
 
-  local cols=3
   local count=${#UDA_NAMES[@]}
   local i=0
 
-  while [ $i -lt $count ]; do
-    local row=""
-    local j=0
-    while [ $j -lt $cols ] && [ $i -lt $count ]; do
-      row="$row$(printf "%2d. %-20s" $((i+1)) "${UDA_NAMES[$i]}")"
-      i=$((i + 1))
-      j=$((j + 1))
-    done
-    echo "$row"
+  # Group: service-managed first, then user-defined
+  local has_service=0
+  for name in "${UDA_NAMES[@]}"; do
+    [ "$(classify_uda "$name")" != "user" ] && has_service=1 && break
   done
+
+  if [ "$has_service" -eq 1 ]; then
+    echo "  Service-managed (do not rename or delete):"
+    i=0
+    while [ $i -lt $count ]; do
+      local name="${UDA_NAMES[$i]}"
+      local source
+      source=$(classify_uda "$name")
+      if [ "$source" != "user" ]; then
+        printf "    %2d. %-22s [%s]\n" $((i+1)) "$name" "$source"
+      fi
+      i=$((i + 1))
+    done
+    echo ""
+    echo "  User-defined:"
+    local any_user=0
+    i=0
+    while [ $i -lt $count ]; do
+      local name="${UDA_NAMES[$i]}"
+      if [ "$(classify_uda "$name")" = "user" ]; then
+        printf "    %2d. %-22s (%s)\n" $((i+1)) "$name" "${UDA_TYPES[$i]}"
+        any_user=1
+      fi
+      i=$((i + 1))
+    done
+    [ "$any_user" -eq 0 ] && echo "    (none)"
+  else
+    i=0
+    while [ $i -lt $count ]; do
+      printf "  %2d. %-22s (%s)\n" $((i+1)) "${UDA_NAMES[$i]}" "${UDA_TYPES[$i]}"
+      i=$((i + 1))
+    done
+  fi
 }
 
 prompt_for_uda_properties() {

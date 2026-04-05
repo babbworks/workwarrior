@@ -1,0 +1,10 @@
+[ ] Root CLAUDE.md created and cold-read usable
+[ ] services/CLAUDE.md created and cold-read usable
+[ ] Explorer A audit completed (status/docs contradictions)
+[ ] Explorer B audit completed (code/test reality + baselines)
+[ ] Orchestrator synthesis completed
+[ ] Canonical TASKS.md populated with dispatchable cards
+[ ] pending/ marked archive-only
+[ ] Baseline required tests by change type documented
+[ ] Artifact noise cleanup completed (.DS_Store, sqlite/log/config noise)
+

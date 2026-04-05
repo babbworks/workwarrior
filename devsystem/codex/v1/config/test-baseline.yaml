@@ -1,0 +1,25 @@
+change_type:
+  lib:
+    required:
+      - "bats tests/*.bats"
+    notes:
+      - "Add or update focused tests for modified lib behavior."
+  service:
+    required:
+      - "bats tests/*.bats"
+      - "bash tests/test-service-discovery.sh"
+    notes:
+      - "Service help/dispatch behavior must be validated."
+  profile:
+    required:
+      - "bats tests/test-profile-*.bats"
+      - "bats tests/test-data-isolation.bats"
+    notes:
+      - "Verify environment and data isolation."
+  github_sync:
+    required:
+      - "bash tests/run-integration-tests.sh"
+      - "bats tests/*.bats"
+    notes:
+      - "High-fragility path; include dedicated verifier signoff for sync behavior."
+

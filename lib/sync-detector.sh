@@ -19,10 +19,20 @@ detect_task_changes() {
         echo "Error: current_state and last_state required" >&2
         return 1
     fi
-    
+
+    # Validate inputs are parseable JSON — prevents silent jq failures and empty changes
+    if ! echo "${current_state}" | jq empty >/dev/null 2>&1; then
+        echo "Error: current_state is not valid JSON" >&2
+        return 2
+    fi
+    if ! echo "${last_state}" | jq empty >/dev/null 2>&1; then
+        echo "Error: last_state is not valid JSON" >&2
+        return 2
+    fi
+
     local changes="{}"
     local has_changes=false
-    
+
     # Extract current values
     local curr_desc curr_status curr_priority curr_tags curr_ann_count
     curr_desc=$(echo "${current_state}" | jq -r '.description // ""')
@@ -100,10 +110,20 @@ detect_github_changes() {
         echo "Error: current_state and last_state required" >&2
         return 1
     fi
-    
+
+    # Validate inputs are parseable JSON — prevents silent jq failures and empty changes
+    if ! echo "${current_state}" | jq empty >/dev/null 2>&1; then
+        echo "Error: current_state is not valid JSON" >&2
+        return 2
+    fi
+    if ! echo "${last_state}" | jq empty >/dev/null 2>&1; then
+        echo "Error: last_state is not valid JSON" >&2
+        return 2
+    fi
+
     local changes="{}"
     local has_changes=false
-    
+
     # Extract current values
     local curr_title curr_state curr_labels curr_comment_count
     curr_title=$(echo "${current_state}" | jq -r '.title // ""')

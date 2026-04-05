@@ -1,0 +1,5 @@
+[2026-04-04 22:27] Welcome to your journal!
+
+This is the default journal for the 'ww' profile.
+You can add entries using the 'j' command when this profile is active.
+
