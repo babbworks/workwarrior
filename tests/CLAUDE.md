@@ -54,25 +54,28 @@ Change types: `lib` | `service` | `profile` | `shell_integration` | `bin_ww` | `
 
 ---
 
-## Known Baseline Failures (~50)
+## Known Baseline Failures (~67)
 
 These are **pre-existing, not regressions**. Do not chase them.
 
 | Test file | Failing tests | Reason |
 |---|---|---|
-| `test-taskrc-properties.bats` | ~12 | taskrc property assertions not yet enforced |
-| `test-timewarrior-hook-installation.bats` | ~9 | Hook install edge cases not covered |
-| `test-timewarrior-hook-environment.bats` | ~8 | Hook environment edge cases not covered |
-| `test-profile-management-properties.bats` | ~7 | Profile property edge cases not enforced |
-| `test-default-configuration.bats` | ~4 | Default config property assertions |
-| `test-directory-structure.bats` | ~3 | Directory structure edge cases |
-| `test-profile-name-validation.bats` | ~2 | Strict name validation not yet enforced |
-| `test-journal-multiple-support.bats` | ~2 | Multiple journal edge cases |
-| `test-taskrc-path-configuration.bats` | ~1 | Path config edge case |
-| `test-journal-addition.bats` | ~1 | Journal addition edge case |
-| `test-data-isolation.bats` | ~1 | Data isolation edge case |
+| `test-timewarrior-hook-installation.bats` | 13 | Hook install edge cases not covered |
+| `test-timewarrior-hook-environment.bats` | 10 | Hook environment edge cases not covered |
+| `test-taskrc-properties.bats` | 11 | taskrc property assertions not yet enforced |
+| `test-taskrc-copy.bats` | 8 | taskrc copy edge cases |
+| `test-profile-management-properties.bats` | 7 | Profile property edge cases not enforced |
+| `test-default-configuration.bats` | 4 | Default config property assertions |
+| `test-taskrc-copy-path-update.bats` | 4 | Path rewrite on taskrc copy not implemented |
+| `test-taskrc-creation.bats` | 2 | taskrc creation edge cases |
+| `test-profile-name-validation.bats` | 2 | Strict name validation not yet enforced |
+| `test-journal-multiple-support.bats` | 2 | Multiple journal edge cases |
+| `test-data-isolation.bats` | 1 | Data isolation edge case |
+| `test-directory-structure.bats` | 1 | Directory structure edge case |
+| `test-journal-addition.bats` | 1 | Journal addition edge case |
+| `test-taskrc-path-configuration.bats` | 1 | Path config edge case |
 
-When running the suite, a clean run will show these ~50 failures. Any new failures on top of this baseline are regressions and must be fixed before merge.
+When running the suite, a clean run will show these ~67 failures. Any new failures on top of this baseline are regressions and must be fixed before merge.
 
 ---
 
