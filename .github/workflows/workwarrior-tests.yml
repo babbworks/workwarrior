@@ -36,7 +36,7 @@ jobs:
 
   # ── Informational ────────────────────────────────────────────────────────────
   # Full BATS suite across all test files. Does not block merge.
-  # ~33 baseline failures are pre-existing and tracked in tests/CLAUDE.md.
+  # ~50 baseline failures are pre-existing and tracked in tests/CLAUDE.md.
   # As baseline failures are fixed, move those test files into the strict gate above.
   full-suite:
     name: Full BATS Suite
