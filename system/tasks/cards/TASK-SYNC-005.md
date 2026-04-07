@@ -27,4 +27,4 @@ Risk notes:           Must not modify system tags. Consult SYSTEM_TAGS in field-
                       Non-destructive pull: only update tags if they differ from current state.
                       Requires mocked tw_update_task / task CLI in tests.
 
-Status:               pending
+Status:               complete

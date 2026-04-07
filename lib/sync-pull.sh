@@ -12,6 +12,59 @@ source "${SCRIPT_DIR}/sync-detector.sh"
 source "${SCRIPT_DIR}/annotation-sync.sh"
 source "${SCRIPT_DIR}/logging.sh"
 
+# Sync GitHub labels to TaskWarrior tags for a single task.
+# Non-system tags on the task are replaced by the mapped label set.
+# System tags (defined in SYSTEM_TAGS from field-mapper.sh) are never removed or added.
+# Input: task_uuid (string), new_tags (JSON array of tag strings)
+# Output: nothing on success; warning to stderr on tw failure
+# Returns: 0 on success or when no change is needed, 1 on tw_update_task_fields failure
+_sync_tags_to_task() {
+    local task_uuid="${1}"
+    local new_tags="${2:-[]}"
+
+    # Deduplicate incoming tags
+    new_tags=$(echo "${new_tags}" | jq -c 'unique')
+
+    # Fetch current tags; null/missing → empty array
+    local current_tags
+    current_tags=$(tw_get_field "${task_uuid}" "tags")
+    [[ -z "${current_tags}" ]] && current_tags="[]"
+
+    # Build a JSON array from SYSTEM_TAGS (space-separated bash variable from field-mapper.sh)
+    # shellcheck disable=SC2086
+    local sys_array
+    sys_array=$(printf '"%s"\n' ${SYSTEM_TAGS} | jq -sc '.')
+
+    # Current non-system tags: the set we are authorised to replace
+    local current_nonsys
+    current_nonsys=$(echo "${current_tags}" | jq -c \
+        --argjson sys "${sys_array}" \
+        '[.[] | . as $t | select(($sys | index($t)) == null) | select(test("^sync:") | not)]')
+
+    # Build +tag / -tag modify args
+    local tag_args=()
+
+    # Remove: managed tags that are absent from the new set
+    while IFS= read -r tag; do
+        [[ -n "${tag}" ]] && tag_args+=("-${tag}")
+    done < <(jq -rn --argjson cur "${current_nonsys}" --argjson new "${new_tags}" \
+        '($cur - $new)[]')
+
+    # Add: new tags not already present on the task (guards against re-adding system tags)
+    while IFS= read -r tag; do
+        [[ -n "${tag}" ]] && tag_args+=("+${tag}")
+    done < <(jq -rn --argjson cur "${current_tags}" --argjson new "${new_tags}" \
+        '($new - $cur)[]')
+
+    # No-op when nothing changed
+    [[ ${#tag_args[@]} -eq 0 ]] && return 0
+
+    if ! tw_update_task_fields "${task_uuid}" "${tag_args[@]}"; then
+        return 1
+    fi
+    return 0
+}
+
 # Pull single issue from GitHub to TaskWarrior
 # Input: task_uuid, issue_number, repo
 # Output: Success/error message
@@ -95,9 +148,11 @@ sync_pull_issue() {
         echo "Warning: Failed to update priority" >&2
     fi
     
-    # Tag sync: explicitly deferred (TASK-SYNC-005).
-    # GitHub labels → TaskWarrior tags requires careful non-system tag management.
-    # Tracked for future implementation; skipped here intentionally.
+    # Sync GitHub labels → TaskWarrior tags (non-system tags replaced by label set)
+    if ! _sync_tags_to_task "${task_uuid}" "${tags}"; then
+        echo "Warning: Failed to update tags for task ${task_uuid:0:8}" >&2
+        uda_failures=$((uda_failures + 1))
+    fi
     
     # Populate metadata UDAs — track failures rather than silently discarding them
     local issue_num url author created_at closed_at

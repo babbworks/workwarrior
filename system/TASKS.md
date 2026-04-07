@@ -38,7 +38,7 @@ Current phase: Phase 1 — Foundation (exit criteria met — see Phase Boundary 
 | [TASK-SYNC-002](tasks/cards/TASK-SYNC-002.md) | complete | Fix critical state integrity bugs in sync engine |
 | [TASK-SYNC-003](tasks/cards/TASK-SYNC-003.md) | complete | Harden sync pre-flight validation and error surfacing |
 | [TASK-SYNC-004](tasks/cards/TASK-SYNC-004.md) | complete | Resolve tag sync TODO in sync-pull.sh (Gate E) |
-| [TASK-SYNC-005](tasks/cards/TASK-SYNC-005.md) | pending | Implement GitHub label → TaskWarrior tag sync |
+| [TASK-SYNC-005](tasks/cards/TASK-SYNC-005.md) | complete | Implement GitHub label → TaskWarrior tag sync |
 | [TASK-TEST-002](tasks/cards/TASK-TEST-002.md) | pending | Add CI gate for BATS + integration tests |
 | [TASK-QUAL-001](tasks/cards/TASK-QUAL-001.md) | pending | Enforce artifact hygiene across repo |
 | [TASK-QUAL-002](tasks/cards/TASK-QUAL-002.md) | pending | Automate docs/help parity checks |

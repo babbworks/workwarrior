@@ -375,3 +375,76 @@ GHEOF
     run _check_rate_limit ""
     assert_failure
 }
+
+# ============================================================================
+# _sync_tags_to_task — TASK-SYNC-005 GitHub label → TaskWarrior tag sync
+#
+# Each test runs _sync_tags_to_task in a subprocess with mocked tw API functions
+# so the full sync-pull.sh dependency chain is not sourced. SYSTEM_TAGS is
+# extracted from field-mapper.sh so the exclusion logic mirrors production.
+# ============================================================================
+
+# Helper: run _sync_tags_to_task in a fresh bash subprocess.
+# Args: current_tags_json  new_tags_json  [tw_update_exit_code]
+_run_sync_tags() {
+    local current_tags="${1:-[]}"
+    local new_tags="${2:-[]}"
+    local update_exit="${3:-0}"
+
+    local func_body sys_tags_line
+    func_body=$(sed -n '/^_sync_tags_to_task()/,/^}/p' \
+        "${BATS_TEST_DIRNAME}/../lib/sync-pull.sh")
+    sys_tags_line=$(grep '^SYSTEM_TAGS=' \
+        "${BATS_TEST_DIRNAME}/../lib/field-mapper.sh")
+
+    run bash -c "
+        ${sys_tags_line}
+        tw_get_field() { echo '${current_tags}'; }
+        tw_update_task_fields() {
+            shift  # skip task_uuid
+            for arg in \"\$@\"; do echo \"ARG:\${arg}\"; done
+            return ${update_exit}
+        }
+        ${func_body}
+        _sync_tags_to_task 'test-uuid-1234' '${new_tags}'
+    "
+}
+
+@test "_sync_tags_to_task: maps GitHub labels to tags on task with no existing tags" {
+    _run_sync_tags '[]' '["bug","feature"]'
+    assert_success
+    assert_output --partial "ARG:+bug"
+    assert_output --partial "ARG:+feature"
+}
+
+@test "_sync_tags_to_task: preserves system tags when replacing non-system tags" {
+    _run_sync_tags '["ACTIVE","bug"]' '["feature"]'
+    assert_success
+    assert_output --partial "ARG:-bug"
+    assert_output --partial "ARG:+feature"
+    refute_output --partial "ARG:-ACTIVE"
+}
+
+@test "_sync_tags_to_task: empty label set removes non-system tags only" {
+    _run_sync_tags '["bug","ACTIVE"]' '[]'
+    assert_success
+    assert_output --partial "ARG:-bug"
+    refute_output --partial "ARG:-ACTIVE"
+}
+
+@test "_sync_tags_to_task: deduplicates labels before applying tag changes" {
+    _run_sync_tags '[]' '["bug","bug"]'
+    assert_success
+    assert_output "ARG:+bug"
+}
+
+@test "_sync_tags_to_task: no-op when current tags already match label set" {
+    _run_sync_tags '["bug"]' '["bug"]'
+    assert_success
+    refute_output --partial "ARG:"
+}
+
+@test "_sync_tags_to_task: returns failure when tw_update_task_fields fails" {
+    _run_sync_tags '[]' '["bug"]' 1
+    assert_failure
+}
