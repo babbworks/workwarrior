@@ -44,7 +44,7 @@ Current phase: Phase 1 — Foundation (exit criteria met — see Phase Boundary 
 | [TASK-QUAL-004](tasks/cards/TASK-QUAL-004.md) | pending | Fix filter_system_tags() jq iterator bug in field-mapper.sh |
 | [TASK-QUAL-002](tasks/cards/TASK-QUAL-002.md) | pending | Automate docs/help parity checks |
 | [TASK-ISSUES-001](tasks/cards/TASK-ISSUES-001.md) | pending | Improve `ww issues uda` CLI and uda-manager service |
-| [TASK-ISSUES-002](tasks/cards/TASK-ISSUES-002.md) | pending | Configure bugwarrior for john and mark profiles |
+| [TASK-ISSUES-002](tasks/cards/TASK-ISSUES-002.md) | deferred | Configure bugwarrior for john and mark profiles |
 | [TASK-QUAL-003](tasks/cards/TASK-QUAL-003.md) | complete | Audit and clean functions/ directory dead code |
 | [TASK-INSTALL-001](tasks/cards/TASK-INSTALL-001.md) | complete | Per-tool interactive installer with version cards, platform detection, conflict neutralisation |
 | [TASK-INSTALL-002](tasks/cards/TASK-INSTALL-002.md) | complete | Fix journals() function — grep matches all YAML keys, not just journal names under journals: section |

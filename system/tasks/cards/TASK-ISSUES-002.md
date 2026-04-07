@@ -27,4 +27,8 @@ Fragility:            Low — profile data only, no lib or service changes.
 Risk notes:           Determine correct GitHub login/org/token for each profile before writing config.
                       Use @oracle:eval:gh auth token if the same gh auth covers all profiles.
 
-Status:               pending
+Status:               deferred
+
+Deferral reason:      john and mark do not currently have GitHub issue sync needs.
+                      Strategic direction changed: babb is now the exemplar profile.
+                      Reopen if john/mark require independent GitHub auth in future.

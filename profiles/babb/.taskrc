@@ -38,7 +38,7 @@ uda.timetracked.label=Time-Tracked
 
 # Modifying Timewarrior Behaviour
 uda.crosstrack.type=string
-Uda.crosstrack.label=Cross-Track
+uda.crosstrack.label=Cross-Track
 
 # Added via Work on: WORKWARRIOR
 uda.license.type=string
@@ -48,11 +48,11 @@ uda.languages.label=Languages
 uda.taskserver.type=string
 uda.taskserver.label=Taskserver
 uda.taskversion.type=string
-uda.taskverison.label=Taskwarrior-Version
+uda.taskversion.label=Taskwarrior-Version
 uda.desc.type=string
 uda.desc.label=Description
 uda.startedon.type=date
-uda.started on.label=Started-On
+uda.startedon.label=Started-On
 uda.pathways.type=string
 uda.pathways.label=Pathways
 uda.codedby.type=string
@@ -156,7 +156,7 @@ uda.engineering.type=string
 uda.engineering.label=Engineering
 uda.design.type=string
 uda.design.label=Design-Needs
-uda.prot.type=string
+uda.prototyping.type=string
 uda.prototyping.label=Prototyping-Notes
 uda.deployment.type=string
 uda.deployment.label=Deployment-Needs
@@ -188,8 +188,8 @@ uda.reqs.type=string
 uda.reqs.label=Requirements
 uda.code.type=string
 uda.code.label=Code
-uda.languages.type=string
-uda.languages.label=Coding-Languages
+uda.codinglanguages.type=string
+uda.codinglanguages.label=Coding-Languages
 uda.approvals.type=string
 uda.approvals.label=Approvals
 uda.meetings.type=string
@@ -394,3 +394,11 @@ uda.githubstate.type=string
 uda.githubstate.label=GitHub State
 uda.githubdraft.type=numeric
 uda.githubdraft.label=GitHub Draft
+
+# ww github-sync UDAs (two-way sync engine — distinct from bugwarrior pull UDAs)
+uda.githubissue.type=numeric
+uda.githubissue.label=GitHub Issue
+uda.githubauthor.type=string
+uda.githubauthor.label=GitHub Author
+uda.githubsync.type=string
+uda.githubsync.label=GitHub Sync
