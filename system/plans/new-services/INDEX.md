@@ -23,6 +23,7 @@ adds the task to `system/TASKS.md`.
 | Systems | [systems.md](systems.md) | System/environment config management — **parked, research required** |
 | Worlds | [worlds.md](worlds.md) | Meta-workspaces grouping profiles — **parked, research required** |
 | Definitions | [definitions.md](definitions.md) | Profile-scoped glossary for terms, abbreviations, and concepts |
+| Projects | [projects.md](projects.md) | External project management integration — UDA ↔ field sync, GitHub Projects V2, multi-backend lifecycle |
 
 ---
 
