@@ -68,7 +68,7 @@ github_get_issue() {
     local issue_data
     issue_data=$(gh issue view "${issue_number}" \
         --repo "${repo}" \
-        --json number,title,state,stateReason,labels,comments,createdAt,updatedAt,closedAt,url,author \
+        --json number,title,body,state,stateReason,labels,comments,createdAt,updatedAt,closedAt,url,author \
         2>&1)
     
     local exit_code=$?
@@ -246,6 +246,56 @@ github_add_comment() {
         echo "${comment_id}"
     fi
     
+    return 0
+}
+
+# Update issue body — replace or append the ww-metadata block (SYNC-007)
+# Input: repo, issue_number, new_block (ww-metadata block string, may be empty),
+#        current_body (current full issue body text)
+# Output: nothing on success; error to stderr on failure
+# Returns: 0 on success, 1 on failure
+github_update_issue_body() {
+    local repo="$1"
+    local issue_number="$2"
+    local new_block="$3"
+    local current_body="$4"
+
+    if [[ -z "${repo}" || -z "${issue_number}" ]]; then
+        echo "Error: repo and issue_number required" >&2
+        return 1
+    fi
+
+    check_gh_cli || return 1
+
+    local updated_body
+    if echo "${current_body}" | grep -q '<!-- ww-metadata -->'; then
+        # Remove existing block (delete from open marker to close marker inclusive)
+        updated_body=$(echo "${current_body}" | \
+            sed '/<!-- ww-metadata -->/,/<!-- \/ww-metadata -->/d')
+        # Strip any trailing blank lines left by the removal
+        updated_body="${updated_body%$'\n'}"
+        if [[ -n "${new_block}" ]]; then
+            updated_body="${updated_body}"$'\n\n'"${new_block}"
+        fi
+    else
+        if [[ -z "${new_block}" ]]; then
+            return 0  # nothing to do
+        fi
+        updated_body="${current_body}"$'\n\n'"${new_block}"
+    fi
+
+    local result
+    result=$(gh issue edit "${issue_number}" \
+        --repo "${repo}" \
+        --body "${updated_body}" \
+        2>&1)
+
+    local exit_code=$?
+    if [[ ${exit_code} -ne 0 ]]; then
+        _check_rate_limit "${result}" || echo "Error: Failed to update issue body: ${result}" >&2
+        return 1
+    fi
+
     return 0
 }
 

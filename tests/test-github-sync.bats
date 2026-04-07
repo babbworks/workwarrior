@@ -448,3 +448,176 @@ _run_sync_tags() {
     _run_sync_tags '[]' '["bug"]' 1
     assert_failure
 }
+
+# ============================================================================
+# map_uda_to_labels — TASK-SYNC-006 categorical UDA → namespaced label encoding
+#
+# Tests source field-mapper.sh directly (already loaded in setup()).
+# LABEL_UDA_MAP is overridden to a temp file so production config is not required.
+# ============================================================================
+
+_make_label_map() {
+    local tmp="${BATS_TEST_TMPDIR}/label-uda-map-$$.yaml"
+    cat > "${tmp}" << 'YAML'
+# test label map
+type: type
+phase: phase
+scope: scope
+YAML
+    echo "${tmp}"
+}
+
+@test "map_uda_to_labels: serialises UDA value to prefix:value label" {
+    export LABEL_UDA_MAP
+    LABEL_UDA_MAP=$(_make_label_map)
+    local task='{"type":"bug","phase":"dev","scope":""}'
+    run map_uda_to_labels "${task}"
+    assert_success
+    assert_output --partial "type:bug"
+    assert_output --partial "phase:dev"
+}
+
+@test "map_uda_to_labels: skips empty UDA values" {
+    export LABEL_UDA_MAP
+    LABEL_UDA_MAP=$(_make_label_map)
+    local task='{"type":"","phase":"","scope":""}'
+    run map_uda_to_labels "${task}"
+    assert_success
+    assert_output ""
+}
+
+@test "map_uda_to_labels: produces comma-separated list for multiple populated UDAs" {
+    export LABEL_UDA_MAP
+    LABEL_UDA_MAP=$(_make_label_map)
+    local task='{"type":"feature","phase":"design","scope":"large"}'
+    run map_uda_to_labels "${task}"
+    assert_success
+    assert_output --partial "type:feature"
+    assert_output --partial "phase:design"
+    assert_output --partial "scope:large"
+}
+
+@test "map_uda_to_labels: returns empty when map file absent" {
+    export LABEL_UDA_MAP="/nonexistent/label-uda-map.yaml"
+    run map_uda_to_labels '{"type":"bug"}'
+    assert_success
+    assert_output ""
+}
+
+@test "map_labels_to_udas: parses prefix:value label to uda name and value" {
+    export LABEL_UDA_MAP
+    LABEL_UDA_MAP=$(_make_label_map)
+    local labels='["type:bug","phase:dev","other:thing"]'
+    run map_labels_to_udas "${labels}"
+    assert_success
+    assert_output --partial "type bug"
+    assert_output --partial "phase dev"
+}
+
+@test "map_labels_to_udas: ignores unknown label prefixes" {
+    export LABEL_UDA_MAP
+    LABEL_UDA_MAP=$(_make_label_map)
+    local labels='["unknown:foo","priority:high"]'
+    run map_labels_to_udas "${labels}"
+    assert_success
+    assert_output ""
+}
+
+@test "map_labels_to_udas: returns empty when no labels match map" {
+    export LABEL_UDA_MAP
+    LABEL_UDA_MAP=$(_make_label_map)
+    run map_labels_to_udas '[]'
+    assert_success
+    assert_output ""
+}
+
+# ============================================================================
+# serialize_udas_to_body_block / parse_body_block_to_udas — TASK-SYNC-007
+#
+# BODY_UDA_MAP overridden to a temp file per test.
+# ============================================================================
+
+_make_body_map() {
+    local tmp="${BATS_TEST_TMPDIR}/body-uda-map-$$.yaml"
+    cat > "${tmp}" << 'YAML'
+# test body map
+goals: Goals
+deliverables: Deliverables
+YAML
+    echo "${tmp}"
+}
+
+@test "serialize_udas_to_body_block: produces correct fenced block" {
+    export BODY_UDA_MAP
+    BODY_UDA_MAP=$(_make_body_map)
+    local task='{"goals":"Ship v2","deliverables":"API docs"}'
+    run serialize_udas_to_body_block "${task}"
+    assert_success
+    assert_output --partial "<!-- ww-metadata -->"
+    assert_output --partial '```yaml'
+    assert_output --partial 'goals: "Ship v2"'
+    assert_output --partial 'deliverables: "API docs"'
+    assert_output --partial "<!-- /ww-metadata -->"
+}
+
+@test "serialize_udas_to_body_block: returns empty when all UDAs absent" {
+    export BODY_UDA_MAP
+    BODY_UDA_MAP=$(_make_body_map)
+    local task='{"goals":"","deliverables":""}'
+    run serialize_udas_to_body_block "${task}"
+    assert_success
+    assert_output ""
+}
+
+@test "serialize_udas_to_body_block: returns empty when map file absent" {
+    export BODY_UDA_MAP="/nonexistent/body-uda-map.yaml"
+    run serialize_udas_to_body_block '{"goals":"something"}'
+    assert_success
+    assert_output ""
+}
+
+@test "parse_body_block_to_udas: extracts uda values from block" {
+    export BODY_UDA_MAP
+    BODY_UDA_MAP=$(_make_body_map)
+    local body
+    body=$(printf '<!-- ww-metadata -->\n```yaml\ngoals: "Ship v2"\ndeliverables: "API docs"\n```\n<!-- /ww-metadata -->')
+    run parse_body_block_to_udas "${body}"
+    assert_success
+    assert_output --partial "goals Ship v2"
+    assert_output --partial "deliverables API docs"
+}
+
+@test "parse_body_block_to_udas: returns empty (not error) when block absent" {
+    run parse_body_block_to_udas "Just a regular issue body with no metadata block."
+    assert_success
+    assert_output ""
+}
+
+@test "parse_body_block_to_udas: preserves existing body content outside the block" {
+    export BODY_UDA_MAP
+    BODY_UDA_MAP=$(_make_body_map)
+    # Verify that non-block content does not appear in parse output
+    local body
+    body=$(printf 'This is the real description.\n\n<!-- ww-metadata -->\n```yaml\ngoals: "Target"\n```\n<!-- /ww-metadata -->\n\nMore text here.')
+    run parse_body_block_to_udas "${body}"
+    assert_success
+    assert_output --partial "goals Target"
+    refute_output --partial "real description"
+    refute_output --partial "More text here"
+}
+
+@test "serialize/parse round-trip: push then parse produces identical UDA values" {
+    export BODY_UDA_MAP
+    BODY_UDA_MAP=$(_make_body_map)
+    local task='{"goals":"Deliver feature X","deliverables":"PR merged"}'
+
+    # Serialize to block
+    local block
+    block=$(serialize_udas_to_body_block "${task}")
+
+    # Parse it back
+    run parse_body_block_to_udas "${block}"
+    assert_success
+    assert_output --partial "goals Deliver feature X"
+    assert_output --partial "deliverables PR merged"
+}

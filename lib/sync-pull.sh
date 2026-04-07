@@ -115,6 +115,7 @@ sync_pull_issue() {
     
     # Map GitHub fields to TaskWarrior format
     local title state state_reason labels priority tags
+    local uda_failures=0
     title=$(echo "${github_data}" | jq -r '.title // ""')
     state=$(echo "${github_data}" | jq -r '.state // ""')
     state_reason=$(echo "${github_data}" | jq -r '.stateReason // ""')
@@ -154,6 +155,18 @@ sync_pull_issue() {
         uda_failures=$((uda_failures + 1))
     fi
     
+    # Map namespaced labels back to categorical UDAs (SYNC-006)
+    while IFS= read -r pair; do
+        [[ -z "${pair}" ]] && continue
+        local uda_name uda_val
+        uda_name="${pair%% *}"
+        uda_val="${pair#* }"
+        if ! tw_update_task "${task_uuid}" "${uda_name}" "${uda_val}"; then
+            echo "Warning: Failed to update UDA ${uda_name} for task ${task_uuid:0:8}" >&2
+            uda_failures=$((uda_failures + 1))
+        fi
+    done < <(map_labels_to_udas "${labels}")
+
     # Populate metadata UDAs — track failures rather than silently discarding them
     local issue_num url author created_at closed_at
     issue_num=$(echo "${github_data}" | jq -r '.number // ""')
@@ -161,8 +174,6 @@ sync_pull_issue() {
     author=$(echo "${github_data}" | jq -r '.author.login // ""')
     created_at=$(echo "${github_data}" | jq -r '.createdAt // ""')
     closed_at=$(echo "${github_data}" | jq -r '.closedAt // ""')
-
-    local uda_failures=0
 
     if ! tw_update_task "${task_uuid}" "githubissue" "${issue_num}"; then
         echo "Warning: Failed to update UDA githubissue for task ${task_uuid:0:8}" >&2
@@ -208,6 +219,20 @@ sync_pull_issue() {
         echo "Warning: ${uda_failures} UDA update(s) failed for task ${task_uuid:0:8}" >&2
     fi
     
+    # Parse ww-metadata block from issue body and update participating UDAs (SYNC-007)
+    local body
+    body=$(echo "${github_data}" | jq -r '.body // ""')
+    while IFS= read -r pair; do
+        [[ -z "${pair}" ]] && continue
+        local buda_name buda_val
+        buda_name="${pair%% *}"
+        buda_val="${pair#* }"
+        if ! tw_update_task "${task_uuid}" "${buda_name}" "${buda_val}"; then
+            echo "Warning: Failed to update UDA ${buda_name} from body block for task ${task_uuid:0:8}" >&2
+            uda_failures=$((uda_failures + 1))
+        fi
+    done < <(parse_body_block_to_udas "${body}")
+
     # Sync comments to annotations
     sync_comments_to_annotations "${task_uuid}" "${issue_number}" "${repo}"
 

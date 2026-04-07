@@ -5,6 +5,11 @@
 # System tags to exclude from syncing
 SYSTEM_TAGS="ACTIVE READY PENDING COMPLETED DELETED WAITING RECURRING PARENT CHILD BLOCKED UNBLOCKED OVERDUE TODAY TOMORROW WEEK MONTH YEAR"
 
+# Resolve config file locations relative to this library (overridable via env for tests)
+_FM_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LABEL_UDA_MAP="${LABEL_UDA_MAP:-${_FM_DIR}/../system/config/label-uda-map.yaml}"
+BODY_UDA_MAP="${BODY_UDA_MAP:-${_FM_DIR}/../system/config/body-uda-map.yaml}"
+
 # Map TaskWarrior status to GitHub state
 # Input: status (pending|started|waiting|completed|deleted|recurring)
 # Output: state (OPEN|CLOSED) to stdout
@@ -132,16 +137,12 @@ map_labels_to_priority() {
 # Returns: 0 on success
 filter_system_tags() {
     local tags="$1"
-    
-    # Build jq filter to exclude system tags and sync:* tags
-    local filter='['
-    for tag in ${SYSTEM_TAGS}; do
-        filter+=". | select(. != \"${tag}\") | "
-    done
-    # Also exclude sync:* tags
-    filter+='select(test("^sync:") | not)]'
-    
-    echo "${tags}" | jq -c "${filter}"
+    # shellcheck disable=SC2086
+    local sys_array
+    sys_array=$(printf '"%s"\n' ${SYSTEM_TAGS} | jq -sc '.')
+    echo "${tags}" | jq -c \
+        --argjson sys "${sys_array}" \
+        '[.[] | select(($sys | index(.)) == null) | select(test("^sync:") | not)]'
     return 0
 }
 
@@ -285,11 +286,168 @@ format_timestamp() {
 # Returns: 0 on success
 get_priority_labels() {
     local labels="$1"
-    
+
     # Find all priority:* labels
     local priority_labels
     priority_labels=$(echo "${labels}" | jq -r '.[] | select(test("^priority:"; "i"))' | tr '\n' ',' | sed 's/,$//')
-    
+
     echo "${priority_labels}"
+    return 0
+}
+
+# Map categorical UDA values to namespaced GitHub labels (SYNC-006)
+# Reads LABEL_UDA_MAP for participating UDAs and their label prefix.
+# Multi-value UDAs (comma-separated) produce one label per value.
+# Input: task_data (JSON)
+# Output: comma-separated label string to stdout (empty if no values)
+# Returns: 0 on success
+map_uda_to_labels() {
+    local task_data="$1"
+    local map_file="${LABEL_UDA_MAP}"
+
+    [[ ! -f "${map_file}" ]] && return 0
+
+    local labels=()
+    while IFS= read -r line; do
+        [[ "${line}" =~ ^[[:space:]]*# ]] && continue
+        [[ -z "${line// }" ]] && continue
+        local uda prefix
+        uda="${line%%:*}"
+        prefix="${line#*:}"
+        prefix="${prefix# }"
+        uda="${uda// /}"
+        [[ -z "${uda}" || -z "${prefix}" ]] && continue
+
+        local value
+        value=$(echo "${task_data}" | jq -r --arg u "${uda}" '.[$u] // ""')
+        [[ -z "${value}" ]] && continue
+
+        # One label per comma-separated value
+        local IFS_SAVE="${IFS}"
+        IFS=',' read -ra vals <<< "${value}"
+        IFS="${IFS_SAVE}"
+        for v in "${vals[@]}"; do
+            v="${v# }"; v="${v% }"
+            [[ -n "${v}" ]] && labels+=("${prefix}:${v}")
+        done
+    done < "${map_file}"
+
+    local result
+    result=$(IFS=','; echo "${labels[*]:-}")
+    echo "${result}"
+    return 0
+}
+
+# Map namespaced GitHub labels back to categorical UDA values (SYNC-006)
+# For each label matching a known prefix in LABEL_UDA_MAP, emits one line:
+#   uda_name value
+# Multi-value UDAs (multiple labels with same prefix) are joined with commas.
+# Unknown prefixes are silently ignored.
+# Input: labels (JSON array of label name strings)
+# Output: "uda_name value" per line (empty output if no matches)
+# Returns: 0 on success
+map_labels_to_udas() {
+    local labels="$1"
+    local map_file="${LABEL_UDA_MAP}"
+
+    [[ ! -f "${map_file}" ]] && return 0
+
+    while IFS= read -r line; do
+        [[ "${line}" =~ ^[[:space:]]*# ]] && continue
+        [[ -z "${line// }" ]] && continue
+        local uda prefix
+        uda="${line%%:*}"
+        prefix="${line#*:}"
+        prefix="${prefix# }"
+        uda="${uda// /}"
+        [[ -z "${uda}" || -z "${prefix}" ]] && continue
+
+        local matches
+        matches=$(echo "${labels}" | jq -r \
+            --arg pfx "${prefix}:" \
+            '.[] | select(startswith($pfx)) | ltrimstr($pfx)')
+        [[ -z "${matches}" ]] && continue
+
+        local value
+        value=$(echo "${matches}" | tr '\n' ',' | sed 's/,$//')
+        echo "${uda} ${value}"
+    done < "${map_file}"
+
+    return 0
+}
+
+# Serialize participating UDAs to a fenced YAML block for the GitHub issue body (SYNC-007)
+# Uses BODY_UDA_MAP to determine which UDAs to include.
+# If all participating UDAs are empty, returns empty output (block is omitted).
+# Input: task_data (JSON)
+# Output: the ww-metadata block string to stdout (may be empty)
+# Returns: 0 on success
+serialize_udas_to_body_block() {
+    local task_data="$1"
+    local map_file="${BODY_UDA_MAP}"
+
+    [[ ! -f "${map_file}" ]] && return 0
+
+    local yaml_lines=()
+    while IFS= read -r line; do
+        [[ "${line}" =~ ^[[:space:]]*# ]] && continue
+        [[ -z "${line// }" ]] && continue
+        local uda
+        uda="${line%%:*}"
+        uda="${uda// /}"
+        [[ -z "${uda}" ]] && continue
+
+        local value
+        value=$(echo "${task_data}" | jq -r --arg u "${uda}" '.[$u] // ""')
+        [[ -z "${value}" ]] && continue
+
+        # Escape double-quotes inside the value
+        local quoted="${value//\"/\\\"}"
+        yaml_lines+=("${uda}: \"${quoted}\"")
+    done < "${map_file}"
+
+    [[ ${#yaml_lines[@]} -eq 0 ]] && return 0
+
+    printf '<!-- ww-metadata -->\n```yaml\n'
+    printf '%s\n' "${yaml_lines[@]}"
+    printf '```\n<!-- /ww-metadata -->'
+    return 0
+}
+
+# Parse the ww-metadata block from a GitHub issue body (SYNC-007)
+# Extracts UDA key/value pairs from the fenced YAML block.
+# Non-participating body content is ignored entirely.
+# If the block is absent, returns empty output — not an error.
+# Input: body (string — full GitHub issue body)
+# Output: "uda_name value" per line (may be empty)
+# Returns: 0 on success
+parse_body_block_to_udas() {
+    local body="$1"
+
+    # Check for block markers before doing heavier sed work
+    echo "${body}" | grep -q '<!-- ww-metadata -->' || return 0
+
+    # Extract content between markers, strip marker lines and backtick fences
+    local block
+    block=$(echo "${body}" | \
+        sed -n '/<!-- ww-metadata -->/,/<!-- \/ww-metadata -->/p' | \
+        sed '1d;$d' | \
+        sed '/^```/d')
+
+    [[ -z "${block}" ]] && return 0
+
+    while IFS= read -r line; do
+        [[ -z "${line}" ]] && continue
+        local key raw_value value
+        key="${line%%:*}"
+        raw_value="${line#*: }"
+        # Strip surrounding double-quotes if present
+        value="${raw_value#\"}"
+        value="${value%\"}"
+        # Unescape internal quotes
+        value="${value//\\\"/\"}"
+        [[ -n "${key}" && -n "${value}" ]] && echo "${key} ${value}"
+    done <<< "${block}"
+
     return 0
 }

@@ -82,6 +82,17 @@ sync_push_task() {
     # Map tags to labels
     local gh_labels
     gh_labels=$(map_tags_to_labels "${tags}")
+
+    # Map categorical UDAs to namespaced labels (SYNC-006)
+    local uda_labels
+    uda_labels=$(map_uda_to_labels "${task_data}")
+    if [[ -n "${uda_labels}" ]]; then
+        if [[ -n "${gh_labels}" ]]; then
+            gh_labels="${gh_labels},${uda_labels}"
+        else
+            gh_labels="${uda_labels}"
+        fi
+    fi
     
     # Update issue on GitHub
     echo "Pushing task ${task_uuid:0:8} → issue #${issue_number}..." >&2
@@ -147,7 +158,15 @@ sync_push_task() {
     
     # Sync annotations to comments
     sync_annotations_to_comments "${task_uuid}" "${issue_number}" "${repo}"
-    
+
+    # Serialize UDAs to body block and write to issue body (SYNC-007)
+    local body_block current_body
+    body_block=$(serialize_udas_to_body_block "${task_data}")
+    current_body=$(echo "${github_data}" | jq -r '.body // ""')
+    if ! github_update_issue_body "${repo}" "${issue_number}" "${body_block}" "${current_body}"; then
+        echo "Warning: Failed to update issue body metadata block" >&2
+    fi
+
     # Update sync state
     github_data=$(github_get_issue "${repo}" "${issue_number}")
     save_sync_state "${task_uuid}" "${task_data}" "${github_data}"
