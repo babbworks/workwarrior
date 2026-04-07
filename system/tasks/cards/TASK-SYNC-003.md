@@ -36,4 +36,4 @@ Risk notes:           Depends on SYNC-001 (tests) and SYNC-002 (critical bugs fi
                         no rate-limit detection, orphaned state entries cause repeated errors.
                       Rollback verification: revert all five files independently.
 
-Status:               pending
+Status:               complete

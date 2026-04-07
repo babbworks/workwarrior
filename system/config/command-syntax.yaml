@@ -197,6 +197,11 @@ commands:
     scope:
       default: "active profile required"
       override: "--profile via ww wrappers where supported"
+    error_categories:
+      not-installed: "gh CLI or jq binary not found"
+      not-authenticated: "gh CLI present but not logged in (gh auth login required)"
+      env-missing: "WORKWARRIOR_BASE not set (no active profile)"
+      rate-limited: "GitHub API HTTP 429 — retry after waiting"
     status: "active"
 
   - domain: "find"

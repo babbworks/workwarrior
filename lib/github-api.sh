@@ -14,15 +14,35 @@ check_gh_cli() {
         echo "  or visit: https://cli.github.com/" >&2
         return 1
     fi
-    
+
     # Check if gh is authenticated
     if ! gh auth status &>/dev/null; then
         echo "Error: gh CLI not authenticated. Please run:" >&2
         echo "  gh auth login" >&2
         return 1
     fi
-    
+
     return 0
+}
+
+# Detect whether a gh CLI error response indicates an HTTP 429 rate limit.
+# Input: error_output (string — captured stderr/stdout from a gh invocation)
+# Output: Retry-after advice to stderr if rate-limited
+# Returns: 0 if rate-limited (caller should abort), 1 if not rate-limited
+_check_rate_limit() {
+    local error_output="${1:-}"
+
+    # gh CLI surfaces rate-limit responses in several ways:
+    #   "API rate limit exceeded"
+    #   "rate limit"
+    #   HTTP status 429
+    if echo "${error_output}" | grep -qiE '(rate.limit|429)'; then
+        echo "Error: GitHub API rate limit exceeded (HTTP 429)." >&2
+        echo "  Wait a few minutes before retrying, or check your rate-limit status:" >&2
+        echo "  gh api rate_limit" >&2
+        return 0
+    fi
+    return 1
 }
 
 # Get issue details
@@ -54,7 +74,9 @@ github_get_issue() {
     local exit_code=$?
     
     if [[ ${exit_code} -ne 0 ]]; then
-        if echo "${issue_data}" | grep -q "Could not resolve to an Issue"; then
+        if _check_rate_limit "${issue_data}"; then
+            return 1
+        elif echo "${issue_data}" | grep -q "Could not resolve to an Issue"; then
             echo "Error: Issue #${issue_number} not found in ${repo}" >&2
         elif echo "${issue_data}" | grep -q "permission"; then
             echo "Error: Permission denied accessing ${repo}" >&2
@@ -122,10 +144,10 @@ github_update_issue() {
     local exit_code=$?
     
     if [[ ${exit_code} -ne 0 ]]; then
-        echo "Error: Failed to update issue: ${result}" >&2
+        _check_rate_limit "${result}" || echo "Error: Failed to update issue: ${result}" >&2
         return 1
     fi
-    
+
     return 0
 }
 
@@ -172,10 +194,10 @@ github_update_labels() {
     local exit_code=$?
     
     if [[ ${exit_code} -ne 0 ]]; then
-        echo "Error: Failed to update labels: ${result}" >&2
+        _check_rate_limit "${result}" || echo "Error: Failed to update labels: ${result}" >&2
         return 1
     fi
-    
+
     return 0
 }
 

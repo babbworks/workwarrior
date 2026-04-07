@@ -239,3 +239,139 @@ EOF
     assert_equal "0" "${status}"
     assert_output --partial "state"
 }
+
+# ============================================================================
+# preflight_check — TASK-SYNC-003 pre-flight validation
+#
+# preflight_check lives in services/custom/github-sync.sh (a service, not a lib).
+# To keep the test isolated from sourcing the full service dependency chain,
+# each test invokes preflight_check via a bash subprocess that sources only the
+# function definition extracted inline. This avoids set -euo pipefail propagation
+# from the service file into the BATS runner context.
+# ============================================================================
+
+# Helper: run preflight_check in a fresh bash subprocess with full PATH control.
+# This avoids sourcing the full service file (which carries set -euo pipefail).
+# Args: --mock-gh <exit_code>  install a mock gh that exits with <exit_code>
+#       --no-gh                do not install gh at all (tests not-installed path)
+#       --no-jq                do not install jq at all (tests not-installed path)
+#       --unset-base           run without WORKWARRIOR_BASE set
+#
+# All other system binaries (sed, grep, etc.) are accessible via /usr/bin:/bin.
+_run_preflight_check() {
+    local mock_gh_exit=0
+    local include_gh=true
+    local include_jq=true
+    local set_base=true
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --mock-gh)   mock_gh_exit="$2"; shift 2 ;;
+            --no-gh)     include_gh=false; shift ;;
+            --no-jq)     include_jq=false; shift ;;
+            --unset-base) set_base=false; shift ;;
+            *)            shift ;;
+        esac
+    done
+
+    local tmp_bin
+    tmp_bin="$(mktemp -d)"
+
+    if [[ "${include_gh}" == "true" ]]; then
+        cat > "${tmp_bin}/gh" << GHEOF
+#!/usr/bin/env bash
+exit ${mock_gh_exit}
+GHEOF
+        chmod +x "${tmp_bin}/gh"
+    fi
+
+    # Provide a real jq via symlink to the system binary if available
+    if [[ "${include_jq}" == "true" ]]; then
+        local real_jq
+        real_jq=$(command -v jq 2>/dev/null || true)
+        if [[ -n "${real_jq}" ]]; then
+            ln -s "${real_jq}" "${tmp_bin}/jq"
+        fi
+    fi
+    # When --no-jq: jq is not placed in tmp_bin, so PATH will not find it
+    # (tmp_bin is the only directory in PATH that we control)
+
+    local base_val=""
+    if [[ "${set_base}" == "true" ]]; then
+        base_val="${WORKWARRIOR_BASE}"
+    fi
+
+    # Extract just the preflight_check function body — avoids sourcing the full
+    # service file and propagating its set -euo pipefail into BATS.
+    local func_body
+    func_body=$(sed -n '/^preflight_check()/,/^}/p' \
+        "${BATS_TEST_DIRNAME}/../services/custom/github-sync.sh")
+
+    run bash -c "
+        export PATH='${tmp_bin}:/usr/bin:/bin'
+        export WORKWARRIOR_BASE='${base_val}'
+        ${func_body}
+        preflight_check
+    "
+
+    rm -rf "${tmp_bin}"
+}
+
+@test "preflight_check: fails with category env-missing when WORKWARRIOR_BASE is unset" {
+    _run_preflight_check --unset-base
+    assert_failure
+    assert_output --partial "env-missing"
+    assert_output --partial "WORKWARRIOR_BASE"
+}
+
+@test "preflight_check: fails with category not-installed when jq is absent" {
+    _run_preflight_check --no-jq
+    assert_failure
+    assert_output --partial "not-installed"
+    assert_output --partial "jq"
+}
+
+@test "preflight_check: fails with category not-installed when gh is absent" {
+    _run_preflight_check --no-gh
+    assert_failure
+    assert_output --partial "not-installed"
+    assert_output --partial "gh"
+}
+
+@test "preflight_check: fails with category not-authenticated when gh auth fails" {
+    _run_preflight_check --mock-gh 1
+    assert_failure
+    assert_output --partial "not-authenticated"
+    assert_output --partial "gh auth login"
+}
+
+@test "preflight_check: succeeds when all dependencies present and gh authenticated" {
+    _run_preflight_check --mock-gh 0
+    assert_success
+}
+
+# ============================================================================
+# _check_rate_limit — TASK-SYNC-003 rate-limit detection
+# ============================================================================
+
+@test "_check_rate_limit: detects 'API rate limit exceeded' string" {
+    run _check_rate_limit "API rate limit exceeded for this resource"
+    assert_success
+    assert_output --partial "rate limit"
+}
+
+@test "_check_rate_limit: detects HTTP 429 in error output" {
+    run _check_rate_limit "HTTP 429 Too Many Requests"
+    assert_success
+    assert_output --partial "rate limit"
+}
+
+@test "_check_rate_limit: returns non-zero (not rate-limited) for generic errors" {
+    run _check_rate_limit "Could not resolve to an Issue"
+    assert_failure
+}
+
+@test "_check_rate_limit: returns non-zero for empty error output" {
+    run _check_rate_limit ""
+    assert_failure
+}

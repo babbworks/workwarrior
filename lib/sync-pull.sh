@@ -99,19 +99,33 @@ sync_pull_issue() {
     # GitHub labels → TaskWarrior tags requires careful non-system tag management.
     # Tracked for future implementation; skipped here intentionally.
     
-    # Populate metadata UDAs
+    # Populate metadata UDAs — track failures rather than silently discarding them
     local issue_num url author created_at closed_at
     issue_num=$(echo "${github_data}" | jq -r '.number // ""')
     url=$(echo "${github_data}" | jq -r '.url // ""')
     author=$(echo "${github_data}" | jq -r '.author.login // ""')
     created_at=$(echo "${github_data}" | jq -r '.createdAt // ""')
     closed_at=$(echo "${github_data}" | jq -r '.closedAt // ""')
-    
-    tw_update_task "${task_uuid}" "githubissue" "${issue_num}" 2>/dev/null
-    tw_update_task "${task_uuid}" "githuburl" "${url}" 2>/dev/null
-    tw_update_task "${task_uuid}" "githubrepo" "${repo}" 2>/dev/null
-    tw_update_task "${task_uuid}" "githubauthor" "${author}" 2>/dev/null
-    
+
+    local uda_failures=0
+
+    if ! tw_update_task "${task_uuid}" "githubissue" "${issue_num}"; then
+        echo "Warning: Failed to update UDA githubissue for task ${task_uuid:0:8}" >&2
+        uda_failures=$((uda_failures + 1))
+    fi
+    if ! tw_update_task "${task_uuid}" "githuburl" "${url}"; then
+        echo "Warning: Failed to update UDA githuburl for task ${task_uuid:0:8}" >&2
+        uda_failures=$((uda_failures + 1))
+    fi
+    if ! tw_update_task "${task_uuid}" "githubrepo" "${repo}"; then
+        echo "Warning: Failed to update UDA githubrepo for task ${task_uuid:0:8}" >&2
+        uda_failures=$((uda_failures + 1))
+    fi
+    if ! tw_update_task "${task_uuid}" "githubauthor" "${author}"; then
+        echo "Warning: Failed to update UDA githubauthor for task ${task_uuid:0:8}" >&2
+        uda_failures=$((uda_failures + 1))
+    fi
+
     # Set entry date on first sync (if not already set)
     local current_entry
     current_entry=$(tw_get_field "${task_uuid}" "entry")
@@ -119,24 +133,38 @@ sync_pull_issue() {
         # Convert ISO 8601 to TaskWarrior format
         local tw_entry
         tw_entry=$(echo "${created_at}" | sed 's/[-:]//g' | sed 's/\.[0-9]*Z/Z/')
-        tw_update_task "${task_uuid}" "entry" "${tw_entry}" 2>/dev/null
+        if ! tw_update_task "${task_uuid}" "entry" "${tw_entry}"; then
+            echo "Warning: Failed to update UDA entry for task ${task_uuid:0:8}" >&2
+            uda_failures=$((uda_failures + 1))
+        fi
     fi
-    
+
     # Set end date if issue is closed
     if [[ "${tw_status}" == "completed" && -n "${closed_at}" ]]; then
         local tw_end
         tw_end=$(echo "${closed_at}" | sed 's/[-:]//g' | sed 's/\.[0-9]*Z/Z/')
-        tw_update_task "${task_uuid}" "end" "${tw_end}" 2>/dev/null
+        if ! tw_update_task "${task_uuid}" "end" "${tw_end}"; then
+            echo "Warning: Failed to update UDA end for task ${task_uuid:0:8}" >&2
+            uda_failures=$((uda_failures + 1))
+        fi
+    fi
+
+    if [[ "${uda_failures}" -gt 0 ]]; then
+        echo "Warning: ${uda_failures} UDA update(s) failed for task ${task_uuid:0:8}" >&2
     fi
     
     # Sync comments to annotations
     sync_comments_to_annotations "${task_uuid}" "${issue_number}" "${repo}"
-    
+
     # Update sync state
     task_data=$(tw_get_task "${task_uuid}")
     save_sync_state "${task_uuid}" "${task_data}" "${github_data}"
-    
+
     echo "✓ Pulled issue #${issue_number}" >&2
+
+    if [[ "${uda_failures}" -gt 0 ]]; then
+        return 1
+    fi
     return 0
 }
 
@@ -162,51 +190,78 @@ sync_pull_all() {
     local total=0
     local success=0
     local failed=0
-    
+    local orphaned=0
+
     while IFS= read -r task_uuid; do
         if [[ -z "${task_uuid}" ]]; then
             continue
         fi
-        
+
         total=$((total + 1))
-        
+
         # Get sync state to find issue number and repo
         local state
         state=$(get_sync_state "${task_uuid}")
-        
+
         if [[ -z "${state}" ]]; then
             echo "⊘ Skipping ${task_uuid:0:8}: No sync state" >&2
             failed=$((failed + 1))
             continue
         fi
-        
+
         local issue_number repo
         issue_number=$(echo "${state}" | jq -r '.github_issue // ""')
         repo=$(echo "${state}" | jq -r '.github_repo // ""')
-        
+
         if [[ -z "${issue_number}" || -z "${repo}" ]]; then
             echo "⊘ Skipping ${task_uuid:0:8}: Missing issue number or repo" >&2
             failed=$((failed + 1))
             continue
         fi
-        
-        # Pull the issue
+
+        # Check whether the issue still exists before attempting a full pull.
+        # If it has been deleted on GitHub (orphaned state entry), flag it
+        # to the user rather than failing every sync with an opaque error.
+        local probe_result
+        probe_result=$(github_get_issue "${repo}" "${issue_number}" 2>&1)
+        local probe_exit=$?
+        if [[ ${probe_exit} -ne 0 ]]; then
+            if echo "${probe_result}" | grep -q "not found"; then
+                echo "⚠ Orphaned: task ${task_uuid:0:8} references ${repo}#${issue_number} which no longer exists on GitHub" >&2
+                echo "  Run: github-sync disable ${task_uuid:0:8}  to remove the stale sync entry" >&2
+                orphaned=$((orphaned + 1))
+            else
+                echo "✗ Failed to fetch ${repo}#${issue_number} for task ${task_uuid:0:8}: ${probe_result}" >&2
+                failed=$((failed + 1))
+            fi
+            continue
+        fi
+
+        # Pull the issue (pass pre-fetched data is not possible via current API;
+        # sync_pull_issue will re-fetch — that's acceptable, orphan check above
+        # guards the common deleted-issue case before the more expensive pull)
         if sync_pull_issue "${task_uuid}" "${issue_number}" "${repo}"; then
             success=$((success + 1))
         else
             failed=$((failed + 1))
         fi
-        
+
     done <<< "${synced_tasks}"
-    
+
     echo "" >&2
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&2
     echo "Pull Summary" >&2
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&2
     echo "Total: ${total}" >&2
     echo "Success: ${success}" >&2
+    echo "Orphaned (issue deleted on GitHub): ${orphaned}" >&2
     echo "Failed: ${failed}" >&2
     echo "" >&2
-    
+
+    # Return non-zero if any hard failures occurred (orphaned entries are
+    # a user-action item, not a system error; they do not set non-zero)
+    if [[ "${failed}" -gt 0 ]]; then
+        return 1
+    fi
     return 0
 }

@@ -36,7 +36,7 @@ Current phase: Phase 1 — Foundation (exit criteria met — see Phase Boundary 
 | [TASK-SHELL-001](tasks/cards/TASK-SHELL-001.md) | complete | Add set -euo pipefail to all lib/ and services/ scripts |
 | [TASK-SYNC-001](tasks/cards/TASK-SYNC-001.md) | complete | Add test coverage for GitHub sync engine |
 | [TASK-SYNC-002](tasks/cards/TASK-SYNC-002.md) | complete | Fix critical state integrity bugs in sync engine |
-| [TASK-SYNC-003](tasks/cards/TASK-SYNC-003.md) | pending | Harden sync pre-flight validation and error surfacing |
+| [TASK-SYNC-003](tasks/cards/TASK-SYNC-003.md) | complete | Harden sync pre-flight validation and error surfacing |
 | [TASK-SYNC-004](tasks/cards/TASK-SYNC-004.md) | complete | Resolve tag sync TODO in sync-pull.sh (Gate E) |
 | [TASK-SYNC-005](tasks/cards/TASK-SYNC-005.md) | pending | Implement GitHub label → TaskWarrior tag sync |
 | [TASK-TEST-002](tasks/cards/TASK-TEST-002.md) | pending | Add CI gate for BATS + integration tests |

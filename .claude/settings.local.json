@@ -4,7 +4,10 @@
       "Bash(git:*)",
       "Bash(bats tests/test-profile-management-properties.bats)",
       "Bash(bash tests/test-scripts-integration.sh)",
-      "Bash(bin/ww profile:*)"
+      "Bash(bin/ww profile:*)",
+      "Bash(bats tests/test-github-sync.bats)",
+      "Bash(bats tests/)",
+      "Bash(wait)"
     ]
   }
 }

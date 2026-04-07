@@ -106,15 +106,17 @@ sync_push_task() {
     
     # Add priority label if set
     if [[ -n "${priority_label}" ]]; then
-        # Ensure priority label exists
-        github_ensure_label "${repo}" "${priority_label}" 2>/dev/null
-        
+        # Ensure priority label exists (failure is a warning, not fatal — label may already exist)
+        if ! github_ensure_label "${repo}" "${priority_label}"; then
+            echo "Warning: Failed to ensure priority label '${priority_label}' exists in ${repo}" >&2
+        fi
+
         if [[ -n "${labels_to_add}" ]]; then
             labels_to_add="${labels_to_add},${priority_label}"
         else
             labels_to_add="${priority_label}"
         fi
-        
+
         # Remove old priority labels if different
         if [[ -n "${current_priority_labels}" && "${current_priority_labels}" != "${priority_label}" ]]; then
             labels_to_remove="${current_priority_labels}"
@@ -125,12 +127,14 @@ sync_push_task() {
             labels_to_remove="${current_priority_labels}"
         fi
     fi
-    
+
     # Ensure all labels exist before adding
     if [[ -n "${gh_labels}" ]]; then
         IFS=',' read -ra label_array <<< "${gh_labels}"
         for label in "${label_array[@]}"; do
-            github_ensure_label "${repo}" "${label}" 2>/dev/null
+            if ! github_ensure_label "${repo}" "${label}"; then
+                echo "Warning: Failed to ensure label '${label}' exists in ${repo}" >&2
+            fi
         done
     fi
     
@@ -219,6 +223,9 @@ sync_push_all() {
     echo "Success: ${success}" >&2
     echo "Failed: ${failed}" >&2
     echo "" >&2
-    
+
+    if [[ "${failed}" -gt 0 ]]; then
+        return 1
+    fi
     return 0
 }

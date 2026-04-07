@@ -17,6 +17,49 @@ source "${LIB_DIR}/sync-pull.sh"
 source "${LIB_DIR}/sync-push.sh"
 source "${LIB_DIR}/sync-bidirectional.sh"
 
+# Pre-flight check: validate all external dependencies and env before any sync operation.
+# Input: None
+# Output: Categorised error messages to stderr
+# Returns: 0 if all checks pass
+#          1 (error category: not-installed)     — gh or jq is missing
+#          1 (error category: not-authenticated) — gh is present but not authed
+#          1 (error category: env-missing)        — WORKWARRIOR_BASE is unset
+preflight_check() {
+    local category=""
+
+    # Check WORKWARRIOR_BASE first (env-missing is the most actionable early error)
+    if [[ -z "${WORKWARRIOR_BASE:-}" ]]; then
+        echo "Error [env-missing]: WORKWARRIOR_BASE is not set." >&2
+        echo "  Activate a profile first: p-<profile-name>" >&2
+        return 1
+    fi
+
+    # Check jq (required for all JSON parsing throughout the sync engine)
+    if ! command -v jq &>/dev/null; then
+        echo "Error [not-installed]: jq not found. Please install it:" >&2
+        echo "  brew install jq" >&2
+        echo "  or visit: https://stedolan.github.io/jq/" >&2
+        return 1
+    fi
+
+    # Check gh CLI presence
+    if ! command -v gh &>/dev/null; then
+        echo "Error [not-installed]: gh CLI not found. Please install it:" >&2
+        echo "  brew install gh" >&2
+        echo "  or visit: https://cli.github.com/" >&2
+        return 1
+    fi
+
+    # Check gh authentication (separate from presence check so category is accurate)
+    if ! gh auth status &>/dev/null; then
+        echo "Error [not-authenticated]: gh CLI is not authenticated. Please run:" >&2
+        echo "  gh auth login" >&2
+        return 1
+    fi
+
+    return 0
+}
+
 # Display help
 cmd_help() {
     local subcommand="$1"
@@ -174,6 +217,12 @@ Examples:
 
 For detailed help on a command:
   github-sync help <command>
+
+Error categories (shown in square brackets in error messages):
+  [not-installed]     gh CLI or jq is missing — install the tool listed
+  [not-authenticated] gh CLI is present but not logged in — run: gh auth login
+  [env-missing]       WORKWARRIOR_BASE is not set — activate a profile first
+  [rate-limited]      GitHub API rate limit hit (HTTP 429) — wait and retry
 
 Documentation:
   See docs/manual-testing-guide.md for more information
@@ -506,13 +555,22 @@ cmd_status() {
 
 # Main entry point
 main() {
-    # Check for profile
-    if [[ -z "${WORKWARRIOR_BASE}" ]]; then
-        echo "Error: No profile active. Please activate a profile first." >&2
-        echo "Run: p-<profile-name> (or use_task_profile <profile-name>)" >&2
+    # Parse command early so help/status can bypass preflight where appropriate
+    local command="${1:-}"
+
+    # Help and status do not require GitHub auth — skip preflight for them
+    case "${command}" in
+        help|--help|-h|"")
+            cmd_help "${@:2}"
+            return $?
+            ;;
+    esac
+
+    # All other commands require a valid environment
+    if ! preflight_check; then
         return 1
     fi
-    
+
     # Load configuration
     if ! init_github_sync_config; then
         echo "Error: Failed to load configuration" >&2
@@ -523,19 +581,15 @@ main() {
     if ! init_logging; then
         echo "Warning: Failed to initialize logging" >&2
     fi
-    
+
     # Rotate logs if needed
     rotate_logs
-    
-    # Parse command
-    local command="$1"
+
+    # Shift past the command token already captured in ${command}
     shift
-    
+
     case "${command}" in
         enable|enable-sync)
-            if ! check_gh_cli; then
-                return 1
-            fi
             cmd_enable "$@"
             ;;
         disable|disable-sync)
@@ -552,9 +606,6 @@ main() {
             ;;
         status|sync-status)
             cmd_status "$@"
-            ;;
-        help|--help|-h|"")
-            cmd_help "$@"
             ;;
         *)
             echo "Error: Unknown command '${command}'" >&2
