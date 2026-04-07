@@ -26,4 +26,10 @@ Risk notes:           Mechanical change but -u flag may expose previously hidden
                       Run bats tests/ immediately after each file group and fix failures before proceeding.
                       Explorer B: all 24 lib/ files and 6 services/custom/ scripts missing -u and pipefail.
 
-Status:               pending
+Status:               complete
+
+Completion note:      Approach revised — set -euo pipefail added to executed scripts only
+                      (bin/ww, services/custom/*.sh). Sourced lib/ files use ${var:-} defensive
+                      guards instead. Adding set flags to sourced libs propagates to callers and
+                      broke 109 BATS tests. See system/logs/decisions.md for full rationale.
+                      Final test baseline: 23 failures (down from 37). Not regressions.

@@ -26,4 +26,7 @@ Risk notes:           Items to add to .gitignore:
                         system/reports/
                         system/logs/
                       Already tracked: .DS_Store files in root, profiles/, services/
-Status:               pending
+Status:               complete
+
+Completion note:      .gitignore updated and artifacts untracked in session 4. Hygiene checks
+                      pass in verify-phase1.sh.

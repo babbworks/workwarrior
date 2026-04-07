@@ -12,4 +12,8 @@ Tests required:       Manual cold-read validation by Orchestrator
 Rollback:             rm /Users/mp/ww/services/CLAUDE.md
 Fragility:            None
 Risk notes:           Source: system/services-CLAUDE.md (copy, do not edit in place)
-Status:               pending
+Status:               closed
+
+Closure note:         Design correction — system/services-CLAUDE.md is authoritative and is
+                      read directly by agents. Deploying a copy to services/ creates a maintenance
+                      split. See system/logs/decisions.md.

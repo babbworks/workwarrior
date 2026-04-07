@@ -1,3 +1,9 @@
+# Git worktrees (linked, not meant to be committed)
+.worktrees/
+
+# Node dependencies
+node_modules/
+
 # macOS metadata
 .DS_Store
 **/.DS_Store

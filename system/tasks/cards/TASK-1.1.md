@@ -12,4 +12,8 @@ Tests required:       Manual cold-read validation by Orchestrator
 Rollback:             rm /Users/mp/ww/CLAUDE.md
 Fragility:            None
 Risk notes:           Source: system/CLAUDE.md (copy, do not edit in place)
-Status:               pending
+Status:               closed
+
+Closure note:         Design correction — /Users/mp/ww is a hybrid user-data/software directory.
+                      Dev/agent files do not belong at the project root. system/CLAUDE.md is
+                      authoritative and is read directly by agents. See system/logs/decisions.md.

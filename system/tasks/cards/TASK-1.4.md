@@ -18,4 +18,7 @@ Fragility:            None
 Risk notes:           Depends on TASK-1.3a and TASK-1.3b both complete.
                       Orchestrator synthesizes both Explorer reports.
                       Test baseline from Explorer B goes into CLAUDE.md testing section.
-Status:               pending
+Status:               closed
+
+Closure note:         Design correction — system/TASKS.md is authoritative. Project root is
+                      user data space. See system/logs/decisions.md.

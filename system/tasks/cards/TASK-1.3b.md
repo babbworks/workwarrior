@@ -18,4 +18,6 @@ Risk notes:           Read: all lib/github-*.sh, lib/sync-*.sh (TODOs + dry-run 
                       all tests/ files (what they cover); all services/ --help responses.
                       Use template: system/templates/explorer-b-output.md
                       Run in parallel with TASK-1.3a
-Status:               pending
+Status:               complete
+
+Completion note:      Output written to system/audits/explorer-b-output.md.
