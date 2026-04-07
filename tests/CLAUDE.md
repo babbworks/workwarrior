@@ -39,7 +39,7 @@ bash tests/run-integration-tests.sh
 |---|---|
 | Any `lib/` change | `bats tests/` |
 | Any `services/` change | `bats tests/test-service-discovery.bats` + `bash tests/test-service-discovery.sh` + `bats tests/` |
-| Profile behavior | `bats tests/test-directory-structure.bats` + `bats tests/test-backup-portability.bats` + `bats tests/` |
+| Profile behavior | `bats tests/test-directory-structure.bats` + `bats tests/test-backup-portability.bats` + `bash tests/test-scripts-integration.sh` + `bats tests/` |
 | `lib/shell-integration.sh` | `bats tests/test-shell-functions.bats` + `bats tests/test-alias-creation.bats` + `bats tests/` |
 | `bin/ww` | `bats tests/` + manual: `ww help`, `ww profile list` |
 | GitHub sync files | `bash tests/run-integration-tests.sh` + `bats tests/test-github-sync.bats` + `bats tests/test-sync-state.bats` + `bats tests/` |
