@@ -33,4 +33,4 @@ Risk notes:           All callers of filter_system_tags() must be audited before
                       sync via map_tags_to_labels() — verify push behaviour after fix.
                       Depends on SYNC-005 (complete).
 
-Status:               pending
+Status:               complete

@@ -46,4 +46,4 @@ Risk notes:           Labels are repo-global — every encoded label (`scope:lar
                       serialisation strategy — recommend one label per value.
                       Depends on TASK-QUAL-004 (filter_system_tags fix) completing first.
 
-Status:               pending
+Status:               complete

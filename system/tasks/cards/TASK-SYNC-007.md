@@ -64,4 +64,4 @@ Risk notes:           Issue body writes go to GitHub — cannot be rolled back a
                       Serialisation of multi-line UDA values needs careful YAML quoting.
                       Depends on TASK-SYNC-006 completing first (shared field-mapper changes).
 
-Status:               pending
+Status:               complete

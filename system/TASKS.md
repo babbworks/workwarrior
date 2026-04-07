@@ -4,7 +4,7 @@
 **Orchestrator is the only agent that updates status fields.**
 `pending/` is archive-only. Nothing new is written there.
 
-Last updated: 2026-04-04 (session 4)
+Last updated: 2026-04-07 (session 5)
 Current phase: Phase 1 — Foundation (exit criteria met — see Phase Boundary Rules)
 
 ---
@@ -41,9 +41,9 @@ Current phase: Phase 1 — Foundation (exit criteria met — see Phase Boundary 
 | [TASK-SYNC-005](tasks/cards/TASK-SYNC-005.md) | complete | Implement GitHub label → TaskWarrior tag sync |
 | [TASK-TEST-002](tasks/cards/TASK-TEST-002.md) | complete | Add CI gate for BATS + integration tests |
 | [TASK-QUAL-001](tasks/cards/TASK-QUAL-001.md) | complete | Enforce artifact hygiene across repo |
-| [TASK-QUAL-004](tasks/cards/TASK-QUAL-004.md) | pending | Fix filter_system_tags() jq iterator bug in field-mapper.sh |
-| [TASK-SYNC-006](tasks/cards/TASK-SYNC-006.md) | pending | Extended label encoding for categorical UDA ↔ GitHub label sync |
-| [TASK-SYNC-007](tasks/cards/TASK-SYNC-007.md) | pending | Issue body YAML block for rich UDA ↔ GitHub sync |
+| [TASK-QUAL-004](tasks/cards/TASK-QUAL-004.md) | complete | Fix filter_system_tags() jq iterator bug in field-mapper.sh |
+| [TASK-SYNC-006](tasks/cards/TASK-SYNC-006.md) | complete | Extended label encoding for categorical UDA ↔ GitHub label sync |
+| [TASK-SYNC-007](tasks/cards/TASK-SYNC-007.md) | complete | Issue body YAML block for rich UDA ↔ GitHub sync |
 | [TASK-QUAL-002](tasks/cards/TASK-QUAL-002.md) | pending | Automate docs/help parity checks |
 | [TASK-ISSUES-001](tasks/cards/TASK-ISSUES-001.md) | pending | Improve `ww issues uda` CLI and uda-manager service |
 | [TASK-ISSUES-002](tasks/cards/TASK-ISSUES-002.md) | deferred | Configure bugwarrior for john and mark profiles |
