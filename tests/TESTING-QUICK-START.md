@@ -1,3 +1,19 @@
+# Testing Quick Start
+
+## Unit Tests (BATS)
+
+```bash
+bats tests/                                                     # full suite (~370 tests, ~33 baseline failures expected)
+bats tests/test-github-sync.bats tests/test-sync-state.bats    # strict CI gate — must be 0 failures
+bash system/scripts/select-tests.sh <type> --run               # run tests for a specific change type
+```
+
+Change types: `lib` | `service` | `profile` | `shell_integration` | `bin_ww` | `github_sync`
+
+See `tests/CLAUDE.md` for baseline failure list and per-file counts.
+
+---
+
 # Integration Testing - Quick Start
 
 ## Prerequisites
@@ -86,3 +102,17 @@ After tests pass:
 1. Review logs: `cat $WORKWARRIOR_BASE/.task/github-sync/sync.log`
 2. Check for any warnings or errors
 3. Proceed to documentation (Task 25)
+
+---
+
+## CI
+
+Two jobs run on every push and PR to `master`:
+
+| Job | Files | Platforms | Blocks merge? |
+|---|---|---|---|
+| `sync-engine` | `test-github-sync.bats`, `test-sync-state.bats` | macOS + Linux | Yes |
+| `full-suite` | `tests/*.bats` | Linux | No (informational) |
+
+The full-suite job uploads a TAP report artifact. As baseline failures are fixed,
+promote the relevant test files into the strict gate in `.github/workflows/workwarrior-tests.yml`.

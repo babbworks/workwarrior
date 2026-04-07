@@ -81,6 +81,8 @@ Change types: `lib` | `service` | `profile` | `shell_integration` | `bin_ww` | `
 
 If `select-tests.sh <type> --run` exits non-zero → **Gate B is blocked. Do not sign off.**
 
+CI context: the `sync-engine` CI job runs `test-github-sync.bats` and `test-sync-state.bats` on both macOS and Linux and blocks merge on failure. The `full-suite` job runs all tests as informational. A passing CI is a necessary but not sufficient condition for Gate B — the Verifier still runs `select-tests.sh --run` locally to confirm.
+
 **4b. Remaining checks:**
 
 1. Required test suite (from `select-tests.sh --run` above)
