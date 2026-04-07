@@ -22,5 +22,5 @@ Risk notes:           Existing behavior affected: repository cleanliness and rev
                       Tests currently covering write scope: explicit git-tracking checks.
                       Rollback verification: ignore/check script revert.
 
-Status:               pending
+Status:               complete
 

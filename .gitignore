@@ -8,11 +8,19 @@ node_modules/
 .DS_Store
 **/.DS_Store
 
-# TaskWarrior data
+# TaskWarrior data (sqlite3 files are runtime databases, never commit)
 *.sqlite3
 profiles/*/.task/taskchampion.sqlite3
+profiles/*/.task/taskchampion.sqlite3-shm
+profiles/*/.task/taskchampion.sqlite3-wal
+functions/*/.task/taskchampion.sqlite3
+functions/*/.task/taskchampion.sqlite3-shm
+functions/*/.task/taskchampion.sqlite3-wal
+
+# GitHub sync logs and state
 profiles/*/.task/github-sync/*.log
 profiles/*/.task/github-sync/errors.log
+profiles/*/.task/github-sync/
 
 # Profile runtime data (never commit)
 profiles/*/.config/
@@ -20,3 +28,9 @@ profiles/*/list/
 
 # Logs
 *.log
+
+# Environment files (secrets, never commit)
+.env
+**/.env
+*.env.local
+*.env.*.local

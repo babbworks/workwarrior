@@ -121,51 +121,38 @@ Mark TASK-1.4 `complete` in TASKS.md after rebuild.
 
 ## Step 7: Artifact Cleanup (Builder, serial)
 
-**Task card:** TASK-1.5
+**Task card:** TASK-1.5 / TASK-QUAL-001
 
 Builder runs the cleanup:
 
 ```bash
-# Add to .gitignore
-cat >> .gitignore << 'EOF'
-
-# macOS artifacts
-**/.DS_Store
-
-# TaskWarrior generated data
-profiles/*/.task/taskchampion.sqlite3
-profiles/*/.task/taskchampion.sqlite3-shm
-profiles/*/.task/taskchampion.sqlite3-wal
-
-# GitHub sync logs and state
-profiles/*/.task/github-sync/
-
-# Generated profile config
-profiles/*/.config/
-
-# Profile list data
-profiles/*/list/
-
-# Dev system outputs (not shipped)
-system/outputs/
-EOF
-
-# Untrack already-tracked artifacts
+# Untrack already-tracked artifacts (does not delete files on disk)
 git rm --cached --ignore-unmatch \
   .DS_Store \
-  profiles/.DS_Store \
-  services/.DS_Store \
   "profiles/work/.task/taskchampion.sqlite3"
+
+# Run the pre-merge hygiene check to verify no artifacts remain tracked
+bash system/scripts/check-artifacts.sh
 ```
 
-Verify:
+The hygiene check at `system/scripts/check-artifacts.sh` validates:
+- No `.DS_Store` files tracked
+- No `*.sqlite3` databases tracked
+- No `*.log` files tracked
+- No profile runtime data tracked (`profiles/*/.config/`, `profiles/*/list/`, `profiles/*/.task/`)
+- No `.env` / secrets files tracked
+
+Expected output: `Status: ALL CLEAR`
+
+If violations are found, the script exits non-zero and names each offending path. Use `git rm --cached <path>` to untrack without deleting.
+
+Verify repo state:
 ```bash
-git status
+git ls-files '*.DS_Store' '*.sqlite3'  # should be empty
+git status                              # should be clean after commit
 ```
 
-Expected: no `.DS_Store`, no `.sqlite3`, no sync logs in output.
-
-Mark TASK-1.5 `complete` in TASKS.md.
+Mark TASK-1.5 / TASK-QUAL-001 `complete` in TASKS.md.
 
 ---
 
