@@ -281,6 +281,109 @@ teardown() {
     grep -q "phase" "${WORKWARRIOR_BASE}/.taskrc"
 }
 
+# ── profile-uda add (interactive wizard) ──────────────────────────────────────
+# Input order matches read prompts in order:
+#   name (if not pre-supplied), type, label, values, group
+
+@test "profile-uda add wizard: minimal path (name arg, string, no values, no group)" {
+    # args: name=goals; prompts: type=string, label=Goals, values=(skip), group=(skip)
+    run bash -c "printf 'string\nGoals\n\n\n' | bash '${UDA_SCRIPT}' add goals"
+    assert_success
+    assert_output --partial "UDA 'goals' added"
+    type=$(grep -E '^uda\.goals\.type=' "${WORKWARRIOR_BASE}/.taskrc" | cut -d= -f2 | head -1 || true)
+    [ "${type}" = "string" ]
+}
+
+@test "profile-uda add wizard: label auto-generated from name" {
+    run bash -c "printf 'string\n\n\n\n' | bash '${UDA_SCRIPT}' add my_goal"
+    assert_success
+    label=$(grep -E '^uda\.my_goal\.label=' "${WORKWARRIOR_BASE}/.taskrc" | cut -d= -f2 | head -1 || true)
+    [ "${label}" = "My Goal" ]
+}
+
+@test "profile-uda add wizard: custom label accepted" {
+    run bash -c "printf 'string\nCustom Label\n\n\n' | bash '${UDA_SCRIPT}' add phase"
+    assert_success
+    label=$(grep -E '^uda\.phase\.label=' "${WORKWARRIOR_BASE}/.taskrc" | cut -d= -f2 | head -1 || true)
+    [ "${label}" = "Custom Label" ]
+}
+
+@test "profile-uda add wizard: values written to .taskrc" {
+    # type=string, label=Phase, values=todo,doing,done, order=confirm(Enter), default=none, group=skip
+    run bash -c "printf 'string\nPhase\ntodo,doing,done\n\n\n\n' | bash '${UDA_SCRIPT}' add phase"
+    assert_success
+    values=$(grep -E '^uda\.phase\.values=' "${WORKWARRIOR_BASE}/.taskrc" | cut -d= -f2 | head -1 || true)
+    [ "${values}" = "todo,doing,done" ]
+}
+
+@test "profile-uda add wizard: trailing comma preserved in values" {
+    # trailing comma = unset allowed
+    run bash -c "printf 'string\nPhase\nlow,medium,high,\n\n\n\n' | bash '${UDA_SCRIPT}' add phase"
+    assert_success
+    values=$(grep -E '^uda\.phase\.values=' "${WORKWARRIOR_BASE}/.taskrc" | cut -d= -f2 | head -1 || true)
+    [[ "${values}" == *"," ]]
+}
+
+@test "profile-uda add wizard: reorder confirmation changes value order" {
+    # values=a,b,c then reorder: 3 1 2 → c,a,b; default=none; group=skip
+    run bash -c "printf 'string\nRank\na,b,c\n3 1 2\n\n\n' | bash '${UDA_SCRIPT}' add rank"
+    assert_success
+    values=$(grep -E '^uda\.rank\.values=' "${WORKWARRIOR_BASE}/.taskrc" | cut -d= -f2 | head -1 || true)
+    [ "${values}" = "c,a,b" ]
+}
+
+@test "profile-uda add wizard: numeric type accepted" {
+    run bash -c "printf 'numeric\nScore\n\n' | bash '${UDA_SCRIPT}' add score"
+    assert_success
+    type=$(grep -E '^uda\.score\.type=' "${WORKWARRIOR_BASE}/.taskrc" | cut -d= -f2 | head -1 || true)
+    [ "${type}" = "numeric" ]
+}
+
+@test "profile-uda add wizard: date type accepted" {
+    run bash -c "printf 'date\nDeadline\n\n' | bash '${UDA_SCRIPT}' add deadline"
+    assert_success
+    type=$(grep -E '^uda\.deadline\.type=' "${WORKWARRIOR_BASE}/.taskrc" | cut -d= -f2 | head -1 || true)
+    [ "${type}" = "date" ]
+}
+
+@test "profile-uda add wizard: invalid type exits non-zero" {
+    run bash -c "printf 'badtype\n' | bash '${UDA_SCRIPT}' add myuda"
+    assert_failure
+    assert_output --partial "Invalid type"
+}
+
+@test "profile-uda add wizard: group assignment writes to .taskrc group block" {
+    # prompts in order: type, label, values(skip=Enter), group name
+    # no existing groups → single "Group name:" prompt
+    run bash -c "printf 'string\nGoals\n\nwork\n' | bash '${UDA_SCRIPT}' add goals"
+    assert_success
+    grep -q "WW UDA GROUPS" "${WORKWARRIOR_BASE}/.taskrc"
+    grep -q "group:work" "${WORKWARRIOR_BASE}/.taskrc"
+}
+
+@test "profile-uda add wizard: duplicate name rejected" {
+    # Add goals first
+    bash -c "printf 'string\nGoals\n\n\n' | bash '${UDA_SCRIPT}' add goals" >/dev/null
+    # Try to add again
+    run bash -c "printf 'string\nGoals\n\n\n' | bash '${UDA_SCRIPT}' add goals"
+    assert_failure
+    assert_output --partial "already exists"
+}
+
+@test "profile-uda add wizard: service-reserved name rejected" {
+    run bash -c "printf 'string\nLabel\n\n\n' | bash '${UDA_SCRIPT}' add github_anything"
+    assert_failure
+    assert_output --partial "reserved"
+}
+
+@test "profile-uda add wizard: interactive name prompt (no name arg)" {
+    # No name arg — wizard prompts for it first
+    run bash -c "printf 'myfield\nstring\nMy Field\n\n\n' | bash '${UDA_SCRIPT}' add"
+    assert_success
+    type=$(grep -E '^uda\.myfield\.type=' "${WORKWARRIOR_BASE}/.taskrc" | cut -d= -f2 | head -1 || true)
+    [ "${type}" = "string" ]
+}
+
 # ── unknown subcommand ─────────────────────────────────────────────────────────
 
 @test "profile-uda unknown subcommand: exits non-zero" {
