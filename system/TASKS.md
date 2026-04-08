@@ -4,7 +4,7 @@
 **Orchestrator is the only agent that updates status fields.**
 `pending/` is archive-only. Nothing new is written there.
 
-Last updated: 2026-04-07 (session 5)
+Last updated: 2026-04-08 (session 5)
 Current phase: Phase 1 — Foundation (exit criteria met — see Phase Boundary Rules)
 
 ---
@@ -55,6 +55,11 @@ Current phase: Phase 1 — Foundation (exit criteria met — see Phase Boundary 
 | [TASK-UX-002](tasks/cards/TASK-UX-002.md) | pending | Build command examples library per service |
 | [TASK-REL-001](tasks/cards/TASK-REL-001.md) | pending | Operationalize release checklist gate |
 | [TASK-REL-002](tasks/cards/TASK-REL-002.md) | pending | Define production-ready CLI milestone criteria |
+| [TASK-UDA-001](tasks/cards/TASK-UDA-001.md) | pending | Build ww profile uda surface — list/add/remove/group/manage/perm |
+| [TASK-UDA-002](tasks/cards/TASK-UDA-002.md) | pending | Unicode indicator system for UDA groups |
+| [TASK-UDA-003](tasks/cards/TASK-UDA-003.md) | pending | UDA color schema — systematic color rules for TW reports |
+| [TASK-URG-001](tasks/cards/TASK-URG-001.md) | pending | Interactive urgency coefficient tuning |
+| [TASK-TC-001](tasks/cards/TASK-TC-001.md) | parked | TaskChampion multi-device profile sync — ww integration layer |
 
 ---
 
