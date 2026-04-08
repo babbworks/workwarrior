@@ -1,0 +1,67 @@
+version: 1
+description: >
+  Canonical color rules for UDA fields in TaskWarrior reports.
+  Colors are applied via color.uda.<name>=<spec> in .taskrc.
+  Rules are written automatically when a UDA is added via ww profile uda add.
+
+  ww canonical color convention (maps to TW color syntax):
+    content / writing    → rgb:255/165/0   (orange)
+    time / actions       → blue
+    tasks / planning     → green
+    identity / people    → red
+    identifiers / URLs   → rgb:128/0/128   (purple)
+    financial            → white
+
+  TW color syntax supported:
+    Named:   black red green yellow blue magenta cyan white
+    Bright:  bright_red bright_green bright_yellow bright_blue etc.
+    256:     color0 .. color255
+    RGB:     rgb:R/G/B  (TaskWarrior 2.6+)
+    Modifiers: bold underline (prefix, e.g. bold green)
+
+groups:
+  # User-defined group name → TW color spec
+  # Matched case-insensitively at uda add time.
+  # Unrecognized groups fall back to "custom".
+
+  github:     "red"             # github identity = profile/identity (red)
+  time:       "blue"            # time tracking (blue)
+  financial:  "white"           # accounting/ledger (white)
+  identity:   "red"             # people/orgs (red)
+  content:    "rgb:255/165/0"   # writing/narrative (orange)
+  planning:   "green"           # tasks/status/phases (green)
+  system:     "yellow"          # system/config fields
+  work:       "green"           # work context (planning-adjacent)
+  personal:   "cyan"            # personal context
+  custom:     "yellow"          # fallback for unrecognized groups
+
+# Per-UDA overrides — takes precedence over group color.
+# Format: <uda_name>: "<tw_color_spec>"
+uda_overrides:
+  goals:        "rgb:255/165/0"  # goals = content/writing (orange)
+  phase:        "green"
+  scope:        "green"
+  deliverables: "rgb:255/165/0"
+  risks:        "bright_red"
+  notes:        "rgb:255/165/0"
+
+# Per-value color rules — written as color.uda.<name>.<value>=<spec>
+# Only applies to string UDAs with defined values.
+value_overrides:
+  phase:
+    review:     "bold green"
+    blocked:    "bold red"
+    done:       "green"
+    todo:       "yellow"
+    doing:      "blue"
+  scope:
+    critical:   "bold red"
+    high:       "red"
+    medium:     "yellow"
+    low:        "green"
+
+notes:
+  - "'orange' is not a valid TW color name — use rgb:255/165/0"
+  - "'purple' is not a valid TW color name — use rgb:128/0/128 or color5"
+  - "Color rendering is terminal-dependent — test before committing to a scheme"
+  - "bright_* variants may not render on all 8-color terminals"

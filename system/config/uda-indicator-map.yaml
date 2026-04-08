@@ -1,0 +1,35 @@
+version: 1
+description: >
+  Canonical unicode indicator characters for UDA groups. Each character appears
+  in TaskWarrior's indicator column (uda.<name>.indicator) when a task has a
+  value for that UDA. Characters must be single-width in standard terminals —
+  do not use emoji or characters that render as double-width (test on both
+  macOS Terminal and Linux before changing).
+
+  To override a character for a specific UDA:
+    ww profile uda perm <name> indicator:<char>
+
+  To override a group's default:
+    Edit this file and re-run: ww profile uda add (for new UDAs)
+    Existing UDAs: edit .taskrc directly — uda.<name>.indicator=<char>
+
+groups:
+  # User-defined group names → indicator character
+  # Names are matched case-insensitively against the group assigned at uda add time.
+  # Unrecognized group names fall back to the "custom" entry.
+
+  github:     "⑆"   # U+2446 — linked/chained (github connections)
+  time:       "◷"   # U+25F7 — quarter circle (time tracking)
+  financial:  "₿"   # U+20BF — bitcoin sign (currency-neutral financial marker)
+  identity:   "◈"   # U+25C8 — diamond with inner diamond (person/identity)
+  content:    "✎"   # U+270E — lower right pencil (writing/content)
+  planning:   "⊞"   # U+229E — squared plus (structure/planning)
+  system:     "◎"   # U+25CE — bullseye (system/config)
+  work:       "⊡"   # U+22A1 — squared dot (work context)
+  personal:   "◇"   # U+25C7 — white diamond (personal)
+  custom:     "◆"   # U+25C6 — black diamond (fallback for unrecognized groups)
+
+notes:
+  - "⏱ (U+23F1, stopwatch) and ⚙ (U+2699, gear) are avoided — may render double-width"
+  - "All characters above verified single-width on macOS Terminal.app and iTerm2"
+  - "Linux terminal rendering should be verified before production use"

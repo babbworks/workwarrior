@@ -384,6 +384,133 @@ teardown() {
     [ "${type}" = "string" ]
 }
 
+# ── UDA-002: indicator assignment ─────────────────────────────────────────────
+
+@test "indicator: assigned when uda added with group" {
+    run bash -c "printf 'string\nGoals\n\nplanning\n' | bash '${UDA_SCRIPT}' add goals"
+    assert_success
+    indicator=$(grep -E '^uda\.goals\.indicator=' "${WORKWARRIOR_BASE}/.taskrc" | cut -d= -f2 | head -1 || true)
+    [ -n "${indicator}" ]
+}
+
+@test "indicator: planning group gets ⊞ character" {
+    run bash -c "printf 'string\nGoals\n\nplanning\n' | bash '${UDA_SCRIPT}' add goals"
+    assert_success
+    indicator=$(grep -E '^uda\.goals\.indicator=' "${WORKWARRIOR_BASE}/.taskrc" | cut -d= -f2 | head -1 || true)
+    [ "${indicator}" = "⊞" ]
+}
+
+@test "indicator: work group gets ⊡ character" {
+    run bash -c "printf 'string\nPhase\n\nwork\n' | bash '${UDA_SCRIPT}' add phase"
+    assert_success
+    indicator=$(grep -E '^uda\.phase\.indicator=' "${WORKWARRIOR_BASE}/.taskrc" | cut -d= -f2 | head -1 || true)
+    [ "${indicator}" = "⊡" ]
+}
+
+@test "indicator: unrecognized group falls back to ◆" {
+    run bash -c "printf 'string\nFoo\n\nmygroup\n' | bash '${UDA_SCRIPT}' add foo"
+    assert_success
+    indicator=$(grep -E '^uda\.foo\.indicator=' "${WORKWARRIOR_BASE}/.taskrc" | cut -d= -f2 | head -1 || true)
+    [ "${indicator}" = "◆" ]
+}
+
+@test "indicator: not written when no group assigned" {
+    run bash -c "printf 'string\nGoals\n\n\n' | bash '${UDA_SCRIPT}' add goals"
+    assert_success
+    indicator=$(grep -E '^uda\.goals\.indicator=' "${WORKWARRIOR_BASE}/.taskrc" | cut -d= -f2 | head -1 || true)
+    [ -z "${indicator}" ]
+}
+
+@test "indicator: shown in list output" {
+    bash -c "printf 'string\nGoals\n\nplanning\n' | bash '${UDA_SCRIPT}' add goals" >/dev/null
+    run bash "${UDA_SCRIPT}" list
+    assert_success
+    assert_output --partial "⊞"
+}
+
+# ── UDA-003: color rules ───────────────────────────────────────────────────────
+
+@test "color: rule written to .taskrc when group assigned" {
+    run bash -c "printf 'string\nGoals\n\nplanning\n' | bash '${UDA_SCRIPT}' add goals"
+    assert_success
+    color=$(grep -E '^color\.uda\.goals=' "${WORKWARRIOR_BASE}/.taskrc" | cut -d= -f2 | head -1 || true)
+    [ -n "${color}" ]
+}
+
+@test "color: planning group writes green (no uda_override for this name)" {
+    # 'mytask' has no uda_override entry so falls through to group color
+    run bash -c "printf 'string\nMyTask\n\nplanning\n' | bash '${UDA_SCRIPT}' add mytask"
+    assert_success
+    color=$(grep -E '^color\.uda\.mytask=' "${WORKWARRIOR_BASE}/.taskrc" | cut -d= -f2 | head -1 || true)
+    [ "${color}" = "green" ]
+}
+
+@test "color: content group writes rgb:255/165/0 (orange)" {
+    run bash -c "printf 'string\nNotes\n\ncontent\n' | bash '${UDA_SCRIPT}' add notes"
+    assert_success
+    color=$(grep -E '^color\.uda\.notes=' "${WORKWARRIOR_BASE}/.taskrc" | cut -d= -f2 | head -1 || true)
+    [ "${color}" = "rgb:255/165/0" ]
+}
+
+@test "color: uda_override takes precedence over group (goals = orange not planning green)" {
+    run bash -c "printf 'string\nGoals\n\nplanning\n' | bash '${UDA_SCRIPT}' add goals"
+    assert_success
+    color=$(grep -E '^color\.uda\.goals=' "${WORKWARRIOR_BASE}/.taskrc" | cut -d= -f2 | head -1 || true)
+    [ "${color}" = "rgb:255/165/0" ]
+}
+
+@test "color: WW COLOR RULES block created in .taskrc" {
+    run bash -c "printf 'string\nGoals\n\nplanning\n' | bash '${UDA_SCRIPT}' add goals"
+    assert_success
+    grep -q "WW COLOR RULES" "${WORKWARRIOR_BASE}/.taskrc"
+}
+
+@test "color: not written when no group assigned" {
+    run bash -c "printf 'string\nGoals\n\n\n' | bash '${UDA_SCRIPT}' add goals"
+    assert_success
+    color=$(grep -E '^color\.uda\.goals=' "${WORKWARRIOR_BASE}/.taskrc" | cut -d= -f2 | head -1 || true)
+    [ -z "${color}" ]
+}
+
+@test "color subcommand: shows current color for a UDA" {
+    bash -c "printf 'string\nGoals\n\nplanning\n' | bash '${UDA_SCRIPT}' add goals" >/dev/null
+    run bash "${UDA_SCRIPT}" color goals
+    assert_success
+    assert_output --partial "color.uda.goals="
+}
+
+@test "color subcommand: sets color and confirms" {
+    TASKRC="${WORKWARRIOR_BASE}/.taskrc" task rc.confirmation=no config uda.goals.type string 2>/dev/null || true
+    run bash "${UDA_SCRIPT}" color goals "bold blue"
+    assert_success
+    assert_output --partial "color.uda.goals=bold blue"
+    color=$(grep -E '^color\.uda\.goals=' "${WORKWARRIOR_BASE}/.taskrc" | cut -d= -f2 | head -1 || true)
+    [ "${color}" = "bold blue" ]
+}
+
+@test "color subcommand: updates existing rule" {
+    bash -c "printf 'string\nGoals\n\nplanning\n' | bash '${UDA_SCRIPT}' add goals" >/dev/null
+    bash "${UDA_SCRIPT}" color goals "bold red" >/dev/null
+    color=$(grep -E '^color\.uda\.goals=' "${WORKWARRIOR_BASE}/.taskrc" | cut -d= -f2 | head -1 || true)
+    [ "${color}" = "bold red" ]
+    # Should only have one color rule for goals
+    count=$(grep -c "^color\.uda\.goals=" "${WORKWARRIOR_BASE}/.taskrc" || true)
+    [ "${count}" -eq 1 ]
+}
+
+@test "color subcommand: shows 'no color rule' message when none set" {
+    TASKRC="${WORKWARRIOR_BASE}/.taskrc" task rc.confirmation=no config uda.goals.type string 2>/dev/null || true
+    run bash "${UDA_SCRIPT}" color goals
+    assert_success
+    assert_output --partial "no color rule"
+}
+
+@test "color subcommand: requires uda name" {
+    run bash "${UDA_SCRIPT}" color
+    assert_failure
+    assert_output --partial "Usage"
+}
+
 # ── unknown subcommand ─────────────────────────────────────────────────────────
 
 @test "profile-uda unknown subcommand: exits non-zero" {

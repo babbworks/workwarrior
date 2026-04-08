@@ -21,6 +21,8 @@ source "${_WW_BASE}/lib/core-utils.sh"
 source "${_WW_BASE}/lib/sync-permissions.sh"
 
 REGISTRY="${_WW_BASE}/system/config/service-uda-registry.yaml"
+INDICATOR_MAP="${_WW_BASE}/system/config/uda-indicator-map.yaml"
+COLOR_MAP="${_WW_BASE}/system/config/uda-color-map.yaml"
 
 # ── Resolve profile ────────────────────────────────────────────────────────────
 
@@ -165,6 +167,117 @@ _mark_uncategorized() {
 _is_uncategorized() {
     local uda_name="$1"
     grep -q "^# uda:${uda_name} uncategorized" "${TASKRC_FILE}" 2>/dev/null
+}
+
+# ── Indicator map helpers ──────────────────────────────────────────────────────
+
+# Look up indicator character for a group name from uda-indicator-map.yaml.
+# Falls back to ◆ (custom) if group not found or map not present.
+_lookup_indicator() {
+    local group_name="${1,,}"  # lowercase
+    local indicator="◆"
+    if [[ -f "${INDICATOR_MAP}" ]]; then
+        local found
+        found=$(awk '
+            /^groups:/ { in_section=1; next }
+            in_section && /^[a-z]/ && !/^  / { in_section=0 }
+            in_section && $0 ~ "^  '"${group_name}"':" {
+                line=$0; gsub(/^[^"]*"/, "", line); gsub(/".*$/, "", line); print line; exit
+            }
+        ' "${INDICATOR_MAP}" || true)
+        [[ -n "${found}" ]] && indicator="${found}"
+    fi
+    echo "${indicator}"
+}
+
+# ── Color map helpers ──────────────────────────────────────────────────────────
+
+# Look up TW color spec for a UDA — checks uda_overrides first, then group, then custom.
+_lookup_color() {
+    local uda_name="$1"
+    local group_name="${2,,}"
+    local color="yellow"
+
+    if [[ ! -f "${COLOR_MAP}" ]]; then
+        echo "${color}"
+        return 0
+    fi
+
+    # Check per-UDA override (in uda_overrides: section)
+    local override
+    override=$(awk '
+        /^uda_overrides:/ { in_section=1; next }
+        in_section && /^[a-z]/ && !/^  / { in_section=0 }
+        in_section && $0 ~ "^  '"${uda_name}"':" {
+            line=$0; gsub(/^[^"]*"/, "", line); gsub(/".*$/, "", line); print line; exit
+        }
+    ' "${COLOR_MAP}" || true)
+    if [[ -n "${override}" ]]; then
+        echo "${override}"
+        return 0
+    fi
+
+    # Check group color (in groups: section only)
+    local group_color
+    group_color=$(awk '
+        /^groups:/ { in_section=1; next }
+        in_section && /^[a-z]/ && !/^  / { in_section=0 }
+        in_section && $0 ~ "^  '"${group_name}"':" {
+            line=$0; gsub(/^[^"]*"/, "", line); gsub(/".*$/, "", line); print line; exit
+        }
+    ' "${COLOR_MAP}" || true)
+    [[ -n "${group_color}" ]] && color="${group_color}"
+
+    echo "${color}"
+}
+
+# Write/update the WW COLOR RULES block in .taskrc.
+# Adds or replaces one color.uda.<name> line.
+_write_color_rule() {
+    local uda_name="$1"
+    local color_spec="$2"
+    local taskrc="${TASKRC_FILE}"
+    local rule="color.uda.${uda_name}=${color_spec}"
+
+    if grep -q "^# === WW COLOR RULES ===" "${taskrc}" 2>/dev/null; then
+        if grep -q "^color\.uda\.${uda_name}=" "${taskrc}" 2>/dev/null; then
+            sed -i.bak "s|^color\.uda\.${uda_name}=.*|${rule}|" "${taskrc}"
+            rm -f "${taskrc}.bak"
+        else
+            sed -i.bak "/^# === END WW COLOR RULES ===/i\\
+${rule}" "${taskrc}"
+            rm -f "${taskrc}.bak"
+        fi
+    else
+        printf '\n# === WW COLOR RULES ===\n%s\n# === END WW COLOR RULES ===\n' "${rule}" >> "${taskrc}"
+    fi
+}
+
+# Write per-value color rules from COLOR_MAP for a UDA that has defined values.
+_write_value_color_rules() {
+    local uda_name="$1"
+    if [[ ! -f "${COLOR_MAP}" ]]; then return 0; fi
+
+    # Extract value_overrides.<uda_name> block from yaml
+    local in_block=0
+    while IFS= read -r line; do
+        if [[ "${line}" =~ ^"  ${uda_name}:" ]]; then
+            in_block=1
+            continue
+        fi
+        if [[ "${in_block}" -eq 1 ]]; then
+            # Stop at next same-level or higher key
+            [[ "${line}" =~ ^"  "[a-z] ]] && break
+            [[ "${line}" =~ ^[a-z] ]] && break
+            # Parse "    <value>: <color_spec>"
+            if [[ "${line}" =~ ^"    "([a-z_]+):\ +\"(.+)\"$ ]]; then
+                local val="${BASH_REMATCH[1]}"
+                local col="${BASH_REMATCH[2]}"
+                _write_color_rule "${uda_name}.${val}" "${col}"
+            fi
+        fi
+    done < "${COLOR_MAP}"
+    return 0
 }
 
 # ── List subcommand ────────────────────────────────────────────────────────────
@@ -325,7 +438,14 @@ _print_uda_row() {
     local display_values=""
     [[ -n "${values}" ]] && display_values=" (${values})"
 
-    printf "  %-24s %-10s%s%s%s%s\n" \
+    # Indicator char from .taskrc
+    local indicator=""
+    indicator=$(grep -E "^uda\\.${uda}\\.indicator=" "${TASKRC_FILE}" | cut -d= -f2 | head -1 || true)
+    local indicator_col=" "
+    [[ -n "${indicator}" ]] && indicator_col="${indicator}"
+
+    printf "  %s %-24s %-10s%s%s%s%s\n" \
+        "${indicator_col}" \
         "${uda}" \
         "${type}" \
         "${display_label}" \
@@ -479,8 +599,25 @@ cmd_uda_add() {
 
     echo "  ✓ UDA '${uda_name}' added (${uda_type})."
 
-    [[ -n "${chosen_group}" ]] && _add_uda_to_group "${uda_name}" "${chosen_group}" \
-        && echo "  ✓ Added to group '${chosen_group}'."
+    if [[ -n "${chosen_group}" ]]; then
+        _add_uda_to_group "${uda_name}" "${chosen_group}"
+        echo "  ✓ Added to group '${chosen_group}'."
+
+        # ── Indicator (UDA-002) ──
+        local indicator
+        indicator=$(_lookup_indicator "${chosen_group}")
+        TASKRC="${TASKRC_FILE}" task rc.confirmation=no config uda."${uda_name}".indicator "${indicator}" >/dev/null
+        echo "  ✓ Indicator set: ${indicator}"
+
+        # ── Color (UDA-003) ──
+        local color_spec
+        color_spec=$(_lookup_color "${uda_name}" "${chosen_group}")
+        _write_color_rule "${uda_name}" "${color_spec}"
+        echo "  ✓ Color rule written: color.uda.${uda_name}=${color_spec}"
+
+        # Write per-value color rules if values were defined
+        [[ -n "${uda_values}" ]] && _write_value_color_rules "${uda_name}"
+    fi
 
     echo ""
     echo "  Use 'ww profile uda list' to see all UDAs."
@@ -628,6 +765,7 @@ Subcommands:
   add [<name>]              Add a new UDA (interactive wizard)
   remove <name>             Remove a UDA
   group <name> [group]      Assign UDA to a group (interactive if group omitted)
+  color <name> [spec]       Show or set the TW color rule for a UDA
   perm <name> [tokens...]   Show or set sync permissions for a UDA
   help                      Show this help
 
@@ -650,14 +788,47 @@ Examples:
   ww profile uda add goals
   ww profile uda remove phase
   ww profile uda group goals work
+  ww profile uda color goals
+  ww profile uda color goals "bold green"
   ww profile uda perm goals nosync,noai
   ww profile uda perm goals
 
 Note:
   UDAs from connected services (bugwarrior, github-sync) are shown separately.
   Do not rename or delete service-managed UDAs — it will break sync.
-  To manage which UDAs sync, use 'ww profile uda perm'.
+  Indicators and color rules are auto-assigned based on group at add time.
+  Use 'ww profile uda color' to override per UDA.
 EOF
+}
+
+# ── Color subcommand ───────────────────────────────────────────────────────────
+
+cmd_uda_color() {
+    local uda_name="${1:-}"
+    local color_spec="${2:-}"
+    _resolve_profile
+
+    if [[ -z "${uda_name}" ]]; then
+        log_error "Usage: ww profile uda color <name> [spec]"
+        echo "  Valid specs: blue  green  red  yellow  cyan  white  bold green  rgb:255/165/0  etc." >&2
+        exit 1
+    fi
+
+    if [[ -z "${color_spec}" ]]; then
+        # Show current color for this UDA
+        local current
+        current=$(grep -E "^color\.uda\.${uda_name}=" "${TASKRC_FILE}" | cut -d= -f2 | head -1 || true)
+        if [[ -n "${current}" ]]; then
+            echo "color.uda.${uda_name}=${current}"
+        else
+            echo "UDA '${uda_name}': no color rule set"
+            echo "  Set with: ww profile uda color ${uda_name} <spec>"
+        fi
+        return 0
+    fi
+
+    _write_color_rule "${uda_name}" "${color_spec}"
+    echo "✓ color.uda.${uda_name}=${color_spec}"
 }
 
 # ── Dispatch ───────────────────────────────────────────────────────────────────
@@ -671,6 +842,7 @@ main() {
         add)             cmd_uda_add "$@" ;;
         remove|rm|del)   cmd_uda_remove "$@" ;;
         group)           cmd_uda_group "$@" ;;
+        color)           cmd_uda_color "$@" ;;
         perm|perms)      cmd_uda_perm "$@" ;;
         help|-h|--help)  show_uda_help ;;
         *)
