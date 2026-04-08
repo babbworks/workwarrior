@@ -1,0 +1,81 @@
+version: 1
+description: >
+  Authoritative registry of service-managed UDAs. These fields are created and
+  maintained by external service integrations. Do not rename or delete them —
+  doing so will break sync. ww profile uda list marks these with service badges
+  and groups them under their service section.
+
+services:
+  bugwarrior:
+    description: "UDAs created by bugwarrior for external issue tracker sync (one-way pull)"
+    prefix_patterns:
+      - "github_*"
+      - "gitlab_*"
+      - "jira_*"
+      - "trello_*"
+      - "bw_*"
+    known_udas:
+      - name: github_number
+        label: "GitHub Issue #"
+        type: numeric
+      - name: github_repo
+        label: "GitHub Repo"
+        type: string
+      - name: github_url
+        label: "GitHub URL"
+        type: string
+      - name: github_title
+        label: "GitHub Title"
+        type: string
+      - name: github_state
+        label: "GitHub State"
+        type: string
+      - name: github_user
+        label: "GitHub Author"
+        type: string
+      - name: github_milestone
+        label: "GitHub Milestone"
+        type: string
+      - name: github_project
+        label: "GitHub Project"
+        type: string
+      - name: github_namespace
+        label: "GitHub Namespace"
+        type: string
+      - name: github_type
+        label: "GitHub Type"
+        type: string
+      - name: github_labels
+        label: "GitHub Labels"
+        type: string
+      - name: github_created_at
+        label: "GitHub Created"
+        type: date
+      - name: github_updated_at
+        label: "GitHub Updated"
+        type: date
+      - name: github_closed_at
+        label: "GitHub Closed"
+        type: date
+      - name: github_body
+        label: "GitHub Body"
+        type: string
+
+  github-sync:
+    description: "UDAs used by ww bidirectional GitHub sync engine"
+    known_udas:
+      - name: sync_id
+        label: "Sync Issue ID"
+        type: numeric
+      - name: sync_repo
+        label: "Sync Repo"
+        type: string
+      - name: sync_state
+        label: "Sync State"
+        type: string
+      - name: sync_last
+        label: "Last Synced"
+        type: date
+      - name: sync_url
+        label: "Issue URL"
+        type: string

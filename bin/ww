@@ -231,6 +231,15 @@ Actions:
   backup <name> [dest]       Backup a profile to tar.gz
   import <archive> [name]    Create a new profile from a backup archive
   restore <name> <archive>   Replace an existing profile from a backup archive
+  uda [subcommand]           Manage UDAs for the active profile
+  udas                       Alias for 'uda list'
+
+UDA Subcommands:
+  uda list [--all]           List all UDAs (--all includes uncategorized)
+  uda add [<name>]           Add a UDA (interactive wizard)
+  uda remove <name>          Remove a UDA
+  uda group <name> [group]   Assign UDA to a group
+  uda perm <name> [tokens]   Show or set sync permissions
 
 Global Options:
   --json           Supported for: list
@@ -246,6 +255,10 @@ Examples:
   ww profile import work-backup-20260101.tar.gz
   ww profile import work-backup-20260101.tar.gz work-copy
   ww profile restore work work-backup-20260101.tar.gz
+  ww profile uda list
+  ww profile uda add goals
+  ww profile uda perm goals nosync,noai
+  ww profile udas
 EOF
 }
 
@@ -678,6 +691,19 @@ cmd_profile() {
         exit 1
       fi
       "$WW_BASE/scripts/manage-profiles.sh" restore "$@"
+      ;;
+    uda|udas)
+      local uda_script="$WW_BASE/services/profile/subservices/profile-uda.sh"
+      if [[ ! -f "$uda_script" ]]; then
+        log_error "UDA service not found at $uda_script"
+        exit 1
+      fi
+      # 'udas' with no further args → shortcut for 'uda list'
+      if [[ "$action" == "udas" && -z "${1:-}" ]]; then
+        set -- "list"
+      fi
+      WORKWARRIOR_BASE="${WORKWARRIOR_BASE:-}" WARRIOR_PROFILE="${WARRIOR_PROFILE:-}" \
+        bash "$uda_script" "$@"
       ;;
     ""|help|-h|--help)
       show_help_profile
@@ -1535,7 +1561,28 @@ EOF
       WORKWARRIOR_BASE="$WORKWARRIOR_BASE" WARRIOR_PROFILE="$WARRIOR_PROFILE" \
         "$github_sync_cli" "$sync_command" "$@"
       ;;
-    pull|uda|*)
+    uda)
+      echo "Note: UDA management has moved to 'ww profile uda'." >&2
+      echo "  ww profile uda list      — view all UDAs" >&2
+      echo "  ww profile uda add       — add a new UDA" >&2
+      echo "  ww profile uda perm      — set sync permissions per UDA" >&2
+      echo "" >&2
+      echo "Redirecting to: ww profile uda list ..." >&2
+      echo "" >&2
+      local uda_script="$WW_BASE/services/profile/subservices/profile-uda.sh"
+      if [[ ! -f "$uda_script" ]]; then
+        log_error "UDA service not found at $uda_script"
+        exit 1
+      fi
+      if [[ -z "${WORKWARRIOR_BASE:-}" ]]; then
+        log_error "Issues service requires an active profile"
+        echo "Activate a profile with: p-<profile-name>" >&2
+        exit 1
+      fi
+      WORKWARRIOR_BASE="${WORKWARRIOR_BASE}" WARRIOR_PROFILE="${WARRIOR_PROFILE:-}" \
+        bash "$uda_script" list
+      ;;
+    pull|*)
       if [[ -z "${WORKWARRIOR_BASE:-}" ]]; then
         log_error "Issues service requires an active profile"
         echo "Activate a profile with: p-<profile-name>" >&2

@@ -1,5 +1,5 @@
 version: 1
-updated: "2026-04-04"
+updated: "2026-04-08"
 policy:
   canonical_source: "/Users/mp/ww/system/config/command-syntax.yaml"
   update_required_on:
@@ -124,6 +124,40 @@ commands:
     scope:
       default: "active-or-last-profile where applicable"
       override: "--profile"
+    status: "active"
+
+  - domain: "profile uda"
+    syntax:
+      - "ww profile uda list [--all]"
+      - "ww profile uda add [<name>]"
+      - "ww profile uda remove <name>"
+      - "ww profile uda group <name> [group]"
+      - "ww profile uda perm <name> [tokens...]"
+    aliases:
+      - "ww profile udas"
+    scope:
+      default: "active profile (requires active profile env)"
+    output_modes:
+      default: "human-compact"
+      supports_json: false
+    perm_tokens:
+      - "nosync"
+      - "deny:<service>"
+      - "deny:<service>:<channel>"
+      - "readonly"
+      - "writeonly"
+      - "private"
+      - "noreport"
+      - "noexport"
+      - "noai"
+      - "managed"
+      - "locked"
+    notes:
+      - "'ww issues uda' redirects here with a message"
+      - "service-managed UDAs (github_*, sync_*, etc.) shown in separate section"
+      - "groups stored as comment block in .taskrc: # === WW UDA GROUPS ==="
+      - "sync permissions stored in profiles/<name>/.config/sync-permissions"
+      - "uncategorized UDAs hidden from default list; require --all to show"
     status: "active"
 
   - domain: "journal"

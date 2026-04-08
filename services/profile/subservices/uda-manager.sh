@@ -2,7 +2,11 @@
 set -e
 
 # --- Configuration ---
-PROFILE_DIR="$HOME/ww/profiles"
+_UM_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_UM_WW_BASE="$(cd "${_UM_DIR}/../../.." && pwd)"
+PROFILE_DIR="${WORKWARRIOR_BASE:+$(dirname "${WORKWARRIOR_BASE}")}"
+PROFILE_DIR="${PROFILE_DIR:-${WW_BASE:+${WW_BASE}/profiles}}"
+PROFILE_DIR="${PROFILE_DIR:-${_UM_WW_BASE}/profiles}"
 SHELL_RC="$HOME/.bashrc"
 
 # --- Globals ---
