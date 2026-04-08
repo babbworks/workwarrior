@@ -56,8 +56,8 @@ Current phase: Phase 1 — Foundation (exit criteria met — see Phase Boundary 
 | [TASK-REL-001](tasks/cards/TASK-REL-001.md) | pending | Operationalize release checklist gate |
 | [TASK-REL-002](tasks/cards/TASK-REL-002.md) | pending | Define production-ready CLI milestone criteria |
 | [TASK-UDA-001](tasks/cards/TASK-UDA-001.md) | complete | Build ww profile uda surface — list/add/remove/group/manage/perm |
-| [TASK-UDA-002](tasks/cards/TASK-UDA-002.md) | pending | Unicode indicator system for UDA groups |
-| [TASK-UDA-003](tasks/cards/TASK-UDA-003.md) | pending | UDA color schema — systematic color rules for TW reports |
+| [TASK-UDA-002](tasks/cards/TASK-UDA-002.md) | complete | Unicode indicator system for UDA groups |
+| [TASK-UDA-003](tasks/cards/TASK-UDA-003.md) | complete | UDA color schema — systematic color rules for TW reports |
 | [TASK-URG-001](tasks/cards/TASK-URG-001.md) | pending | Interactive urgency coefficient tuning |
 | [TASK-TC-001](tasks/cards/TASK-TC-001.md) | parked | TaskChampion multi-device profile sync — ww integration layer |
 
