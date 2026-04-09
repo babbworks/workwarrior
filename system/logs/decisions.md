@@ -5,6 +5,24 @@ Each entry: date, decision, context, and why — so future sessions don't re-lit
 
 ---
 
+## 2026-04-08 — Minimal root CLAUDE.md stub approved
+
+**Decision:** `/Users/mp/ww/CLAUDE.md` created as a minimal redirect stub (no dev content) to fix Claude Code's auto-load gap. All real content stays in `system/`. The stub redirects to `system/ONBOARDING.md` and states the Orchestrator→Builder→Verifier→Docs handoff requirement. Previous rule was "no CLAUDE.md at root" — this is a narrow exception for tooling necessity, not a content file.
+
+---
+
+## 2026-04-08 — Integration tests pending quota; BATS suite is not postponed
+
+**Decision:** Live integration tests (`run-integration-tests.sh`) require GitHub API quota/auth and are noted as pending on any task card that requires them (currently: TASK-SYNC-003). BATS suite (`bats tests/`, `select-tests.sh --run`) is NOT postponed — it should run normally for all change types. When a task card says "integration tests pending," Verifier may sign off on BATS pass alone; integration test completion is a follow-up requirement before production release.
+
+---
+
+## 2026-04-08 — Install role split: ww deps install is canonical; extension installs are best-effort
+
+**Decision:** `ww deps install` (backed by `lib/dependency-installer.sh`) is the canonical, cross-platform install path for the core toolchain (task, timew, hledger, jrnl, pipx, gh). It handles brew/apt/dnf/pacman. Extension-specific install subcommands (`ww tui install`, `ww mcp install`, etc.) are best-effort: auto-install on macOS via brew, emit platform-appropriate hint on Linux via `detect_package_manager()`, never produce an unexplained error. Not fully enforced (no hard Linux CI) but must never silently fail.
+
+---
+
 ## 2026-04-04 — CLAUDE.md and TASKS.md do not belong at project root
 
 **Decision:** TASK-1.1 (deploy root CLAUDE.md), TASK-1.2 (deploy services/CLAUDE.md), and TASK-1.4 (TASKS.md at root) closed as design corrections rather than executed.
@@ -14,6 +32,8 @@ Each entry: date, decision, context, and why — so future sessions don't re-lit
 **Why closed:** `/Users/mp/ww` is a hybrid — it's both a software project (`bin/`, `lib/`, `services/`) and a user data container (`profiles/`). CLAUDE.md and TASKS.md are dev artifacts. Placing them at the root would put agent context files alongside a user's personal task data and journals. The `system/` directory was explicitly created as the control plane for these files — they already exist there and are already authoritative. Copying them to the root creates a maintenance split without benefit.
 
 **Consequence:** verify-phase1.sh rollout checks for root CLAUDE.md/TASKS.md will always fail. Those checks should be updated to point at `system/CLAUDE.md` and `system/TASKS.md` instead.
+
+**2026-04-09 update:** A root `CLAUDE.md` *was* added, but as a redirect only — not a copy. It points agents to `system/ONBOARDING.md` and lists the 5-file read order. This is intentional and does not create a maintenance split. `system/CLAUDE.md` remains authoritative. The original decision against *copying* system/CLAUDE.md to root still stands.
 
 ---
 
