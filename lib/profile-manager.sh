@@ -54,9 +54,13 @@ create_profile_directories() {
     return 1
   fi
   
-  # Create .timewarrior directory
+  # Create .timewarrior directory and extensions subdir
   if ! ensure_directory "$profile_base/.timewarrior"; then
     log_error "Failed to create .timewarrior directory"
+    return 1
+  fi
+  if ! ensure_directory "$profile_base/.timewarrior/extensions"; then
+    log_error "Failed to create .timewarrior/extensions directory"
     return 1
   fi
   
