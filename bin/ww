@@ -65,6 +65,7 @@ Commands:
   ledger      Preferred ledger namespace (add, list, remove, rename)
   ledgers     Alias for ledger namespace (bare form lists ledgers)
   tui         Interactive terminal UI (taskwarrior-tui by @kdheepak)
+  gun         Bulk task series generator (taskgun by @hamzamohdzubair)
   mcp         MCP server for AI agent task access (taskwarrior-mcp by @hnsstrk)
   extensions  External tool extensions registry
   find        Search across profiles and data types
@@ -156,6 +157,15 @@ TUI Commands:
   ww tui                      Launch interactive terminal UI (requires active profile)
   ww tui install              Install taskwarrior-tui (brew / cargo)
   ww tui help                 Show TUI help and attribution
+
+Gun Commands:
+  ww gun create <project> -p <parts> -u <unit> --offset <start> --interval <step>
+  ww gun create "ML_Course" -p 10 -u Lecture --offset 2d --interval 1d
+  ww gun create CLRS -p 12 -u Chapter --offset 7d --interval 7d --skip weekend
+  ww gun install              Install taskgun binary (cargo)
+  ww gun help                 Show gun help and attribution
+
+  Note: project names with spaces must use underscores (Design_Patterns not "Design Patterns")
 
 MCP Commands:
   ww mcp install              Install taskwarrior-mcp MCP server
@@ -1515,6 +1525,109 @@ cmd_ledger() {
 }
 
 # ============================================================================
+# GUN COMMAND
+# ============================================================================
+
+cmd_gun() {
+  local subcommand="${1:-}"
+  shift 2>/dev/null || true
+
+  # Upstream: https://github.com/hamzamohdzubair/taskgun
+  # Author: hamzamohdzubair · MIT License · Rust
+
+  case "$subcommand" in
+    install)
+      if command -v taskgun &>/dev/null; then
+        log_success "taskgun already installed: $(taskgun --version 2>/dev/null || echo 'version unknown')"
+        return 0
+      fi
+      if command -v cargo &>/dev/null; then
+        echo "Installing taskgun via cargo..."
+        echo "  Upstream: https://github.com/hamzamohdzubair/taskgun"
+        echo "  Author:   hamzamohdzubair · MIT License"
+        cargo install taskgun
+        log_success "taskgun installed"
+      elif command -v brew &>/dev/null; then
+        echo "Trying brew install taskgun..."
+        brew install taskgun 2>/dev/null || {
+          log_error "taskgun not available via brew. Install cargo first:"
+          echo "  brew install rust" >&2
+          echo "  cargo install taskgun" >&2
+          exit 1
+        }
+      else
+        log_error "Neither cargo nor brew found"
+        echo "Install cargo: https://rustup.rs/" >&2
+        echo "Then: cargo install taskgun" >&2
+        exit 1
+      fi
+      ;;
+    create)
+      if [[ -z "${TASKRC:-}" || -z "${TASKDATA:-}" ]]; then
+        log_error "No active profile — activate one first: p-<profile-name>"
+        exit 1
+      fi
+      if ! command -v taskgun &>/dev/null; then
+        log_error "taskgun not installed — run: ww gun install"
+        exit 1
+      fi
+      TASKRC="${TASKRC}" TASKDATA="${TASKDATA}" taskgun create "$@"
+      ;;
+    help|-h|--help)
+      cat << 'EOF'
+Gun Command — Bulk Task Series Generator
+
+Generates deadline-spaced task series from a single command.
+Useful for book chapters, lecture series, practice sets.
+
+Usage:
+  ww gun create <project> -p <parts> -u <unit> [options]
+  ww gun install              Install taskgun binary
+  ww gun help                 Show this help
+
+Options (passed to taskgun):
+  -p <parts>          Number of parts (or comma-separated per-chapter counts)
+  -u <unit>           Unit name (Lecture, Chapter, Exercise, etc.)
+  --offset <duration> Start offset from now (2d, 1w, 2h, 30m)
+  --interval <dur>    Interval between tasks (1d, 7d, 1h)
+  --skip <preset>     Skip rule: weekend, bedtime, or custom (2200-0600, mon,wed)
+
+Examples:
+  ww gun create ML_Course -p 10 -u Lecture --offset 2d --interval 1d
+  ww gun create CLRS -p 12 -u Chapter --offset 7d --interval 7d --skip weekend
+  ww gun create Exam_Prep -p 30 -u Lecture --offset 2h --interval 2h --skip bedtime
+  ww gun create Design_Patterns -p 3,4,2 -u Section --offset 3d --interval 3d
+
+Note: project names with spaces must use underscores.
+  Use: Design_Patterns
+  Not: "Design Patterns" (TaskWarrior splits on spaces)
+
+All ww gun create flags pass through to taskgun unchanged.
+Run 'taskgun create --help' for the full flag reference.
+
+Powered by taskgun · hamzamohdzubair
+  https://github.com/hamzamohdzubair/taskgun · MIT License
+EOF
+      ;;
+    "")
+      cmd_gun help
+      ;;
+    *)
+      # Pass all other subcommands through to taskgun directly
+      if [[ -z "${TASKRC:-}" || -z "${TASKDATA:-}" ]]; then
+        log_error "No active profile — activate one first: p-<profile-name>"
+        exit 1
+      fi
+      if ! command -v taskgun &>/dev/null; then
+        log_error "taskgun not installed — run: ww gun install"
+        exit 1
+      fi
+      TASKRC="${TASKRC}" TASKDATA="${TASKDATA}" taskgun "${subcommand}" "$@"
+      ;;
+  esac
+}
+
+# ============================================================================
 # TUI COMMAND
 # ============================================================================
 
@@ -2133,6 +2246,9 @@ main() {
       ;;
     tui)
       cmd_tui "$@"
+      ;;
+    gun)
+      cmd_gun "$@"
       ;;
     mcp)
       cmd_mcp "$@"
