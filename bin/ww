@@ -68,6 +68,7 @@ Commands:
   gun         Bulk task series generator (taskgun by @hamzamohdzubair)
   next        CFS-inspired next task recommendation (scheduler by @ftapajos)
   mcp         MCP server for AI agent task access (taskwarrior-mcp by @hnsstrk)
+  browser     Local web UI server (start, stop, status)
   extensions  External tool extensions registry
   find        Search across profiles and data types
   custom      Custom services (journal configuration, etc.)
@@ -87,8 +88,8 @@ Global Options:
   --help            Show command usage (same as 'ww help')
 
 Compatibility:
-  Plural command aliases remain supported (`groups`, `models`, `journals`, `ledgers`,
-  plus `profiles` and `services`) and emit a nudge toward preferred singular syntax.
+  Plural command aliases remain supported ('groups', 'models', 'journals', 'ledgers',
+  plus 'profiles' and 'services') and emit a nudge toward preferred singular syntax.
 
 Profile Commands:
   ww profile create <name>    Create a new profile
@@ -180,6 +181,13 @@ MCP Commands:
   ww mcp status               Show install and registration status
   ww mcp help                 Show MCP help and attribution
 
+Browser Commands:
+  ww browser                  Start web UI server on port 7777, open browser tab
+  ww browser --port N         Start on port N
+  ww browser --no-open        Start without opening a browser tab
+  ww browser stop             Stop the running browser server
+  ww browser status           Show whether the browser server is running
+
 Custom Services:
   ww custom journals          Configure journal settings (requires active profile)
   ww custom tasks             Configure TaskWarrior settings (requires active profile)
@@ -211,13 +219,6 @@ Examples:
   ww models                   List models (shortcut)
   ww extensions taskwarrior list --status active
   ww find invoice
-  extensions taskwarrior list --status active
-  models
-  groups
-  journals
-  ledgers
-  find
-  services
   ww deps check               Check dependency status
   ww version                  Show version
   ww help groups              Show groups help
@@ -549,7 +550,7 @@ print_json_array() {
 nudge_preferred_syntax() {
   local legacy="$1"
   local preferred="$2"
-  log_deprecation "'$legacy' still works; prefer '$preferred'"
+  echo "deprecated '$legacy' still works; prefer '$preferred'" >&2
 }
 
 parse_global_flags() {
@@ -1050,7 +1051,7 @@ cmd_deps() {
       run_dependency_installer
       ;;
     ""|help|-h|--help)
-      cat << EOF
+      cat << 'DEPS_HELP_EOF'
 Dependency Management
 
 Usage: ww deps <action>
@@ -1059,17 +1060,30 @@ Actions:
   check       Check installed dependencies and their versions
   install     Interactive dependency installation
 
+Install policy:
+  'ww deps install' is the canonical install path for the core toolchain.
+  It detects your package manager (brew, apt, dnf, pacman) and emits the
+  correct install command per tool. On macOS (brew), installs run automatically.
+  On Linux, the correct package manager command is shown -- no auto-install.
+
+  Extension installs (ww tui install, ww mcp install) follow the same policy:
+  auto-install on macOS via brew; platform-appropriate hint on Linux.
+
+  See docs/INSTALL.md for the full install policy.
+
 External Dependencies:
-  • TaskWarrior  - Task management (task)
-  • TimeWarrior  - Time tracking (timew)
-  • Hledger      - Ledger accounting (hledger)
-  • JRNL         - Journaling (jrnl)
+  * TaskWarrior  - Task management (task)
+  * TimeWarrior  - Time tracking (timew)
+  * Hledger      - Ledger accounting (hledger)
+  * JRNL         - Journaling (jrnl)
+  * pipx          - Python tool isolation (required for jrnl, bugwarrior)
+  * gh            - GitHub CLI (required for github-sync)
 
 Examples:
   ww deps check     Show dependency status
   ww deps install   Install missing dependencies
 
-EOF
+DEPS_HELP_EOF
       ;;
     *)
       log_error "Unknown deps action: $action"
@@ -1723,20 +1737,48 @@ cmd_tui() {
         ver=$(taskwarrior-tui --version 2>/dev/null | head -1 || echo "unknown")
         log_success "taskwarrior-tui already installed: $ver"
       else
-        echo "Installing taskwarrior-tui …"
         if command -v brew &>/dev/null; then
+          echo "Installing taskwarrior-tui via brew ..."
           brew install taskwarrior-tui
+          log_success "taskwarrior-tui installed"
         elif command -v cargo &>/dev/null; then
+          echo "Installing taskwarrior-tui via cargo ..."
           cargo install taskwarrior-tui
+          log_success "taskwarrior-tui installed"
         else
-          log_error "Neither brew nor cargo found"
+          # Detect platform and emit appropriate hint -- do not auto-install on Linux
+          local _tui_pm
+          if command -v apt &>/dev/null; then
+            _tui_pm="apt"
+          elif command -v dnf &>/dev/null; then
+            _tui_pm="dnf"
+          elif command -v pacman &>/dev/null; then
+            _tui_pm="pacman"
+          else
+            _tui_pm="unknown"
+          fi
+          log_error "taskwarrior-tui not found and no auto-install path available"
           echo "Install options:"
-          echo "  brew:  brew install taskwarrior-tui"
-          echo "  cargo: cargo install taskwarrior-tui"
-          echo "  snap:  snap install taskwarrior-tui"
+          case "$_tui_pm" in
+            apt)
+              echo "  cargo: cargo install taskwarrior-tui  (recommended on Debian/Ubuntu)"
+              echo "  snap:  snap install taskwarrior-tui"
+              ;;
+            dnf)
+              echo "  cargo: cargo install taskwarrior-tui  (recommended on Fedora/RHEL)"
+              ;;
+            pacman)
+              echo "  pacman: sudo pacman -S taskwarrior-tui  (AUR: yay -S taskwarrior-tui)"
+              echo "  cargo:  cargo install taskwarrior-tui"
+              ;;
+            *)
+              echo "  brew:  brew install taskwarrior-tui"
+              echo "  cargo: cargo install taskwarrior-tui"
+              echo "  snap:  snap install taskwarrior-tui"
+              ;;
+          esac
           exit 1
         fi
-        log_success "taskwarrior-tui installed"
       fi
       ;;
     help|-h|--help)
@@ -1799,12 +1841,40 @@ cmd_mcp() {
         return 0
       fi
       if ! command -v uv &>/dev/null; then
-        echo "Installing uv (required for taskwarrior-mcp) …"
         if command -v brew &>/dev/null; then
+          echo "Installing uv (required for taskwarrior-mcp) via brew ..."
           brew install uv
         else
-          log_error "uv not found and brew not available"
-          echo "Install uv manually: https://docs.astral.sh/uv/" >&2
+          # Detect platform and emit appropriate hint -- do not auto-install on Linux
+          local _mcp_pm
+          if command -v apt &>/dev/null; then
+            _mcp_pm="apt"
+          elif command -v dnf &>/dev/null; then
+            _mcp_pm="dnf"
+          elif command -v pacman &>/dev/null; then
+            _mcp_pm="pacman"
+          else
+            _mcp_pm="unknown"
+          fi
+          log_error "uv not found and no auto-install path available"
+          echo "Install uv first, then re-run 'ww mcp install':" >&2
+          case "$_mcp_pm" in
+            apt)
+              echo "  curl -LsSf https://astral.sh/uv/install.sh | sh   (Debian/Ubuntu)" >&2
+              echo "  or: pip install uv" >&2
+              ;;
+            dnf)
+              echo "  curl -LsSf https://astral.sh/uv/install.sh | sh   (Fedora/RHEL)" >&2
+              echo "  or: pip install uv" >&2
+              ;;
+            pacman)
+              echo "  sudo pacman -S uv   (Arch/Manjaro)" >&2
+              echo "  or: curl -LsSf https://astral.sh/uv/install.sh | sh" >&2
+              ;;
+            *)
+              echo "  https://docs.astral.sh/uv/" >&2
+              ;;
+          esac
           exit 1
         fi
       fi
@@ -1938,6 +2008,29 @@ EOF
       exit 1
       ;;
   esac
+}
+
+# ============================================================================
+# BROWSER COMMAND
+# ============================================================================
+
+cmd_browser() {
+  # Delegate entirely to services/browser/browser.sh.
+  # Modeled on cmd_tui() / cmd_mcp(): check prerequisites, then exec.
+
+  if ! command -v python3 &>/dev/null; then
+    log_error "python3 not found — required by ww browser"
+    echo "Install Python 3: https://www.python.org/downloads/" >&2
+    exit 1
+  fi
+
+  local browser_sh="${WW_BASE}/services/browser/browser.sh"
+  if [[ ! -f "$browser_sh" ]]; then
+    log_error "browser service not found at ${browser_sh}"
+    exit 2
+  fi
+
+  bash "$browser_sh" "$@"
 }
 
 # ============================================================================
@@ -2337,6 +2430,9 @@ main() {
       ;;
     mcp)
       cmd_mcp "$@"
+      ;;
+    browser)
+      cmd_browser "$@"
       ;;
     issues)
       cmd_issues "$@"

@@ -31,8 +31,9 @@ For fragility policy detail, also read `system/fragility-register.md`.
 ## Current State (update this section when phase changes)
 
 - **Phase:** Phase 2 active
-- **Next task:** TASK-SYNC-003 — harden sync pre-flight validation and error surfacing
-- **Known test baseline:** ~23 pre-existing failures (not regressions) in backup-portability, profile-name-validation, taskrc-copy-path-update, timewarrior-hook-installation
+- **Next task:** TASK-SITE-004 — Wave 3 of `ww browser` (Tasks section live data)
+- **Active initiative:** wwsite — locally-served browser UI (`ww browser`). Waves 1+2 complete (server + UI shell). Wave 3 adds live TaskWarrior data to the Tasks section.
+- **Known test baseline:** ~10 pre-existing failures (not regressions) in test-profile-management-properties.bats and test-profile-name-validation.bats. See tests/CLAUDE.md for the full list.
 
 ---
 

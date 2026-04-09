@@ -4,8 +4,8 @@
 **Orchestrator is the only agent that updates status fields.**
 `pending/` is archive-only. Nothing new is written there.
 
-Last updated: 2026-04-08 (session 6)
-Current phase: Phase 1 — Foundation (exit criteria met — see Phase Boundary Rules)
+Last updated: 2026-04-09 (session 7)
+Current phase: Phase 2 active — browser UI (wwsite) in progress
 
 ---
 
@@ -60,6 +60,12 @@ Current phase: Phase 1 — Foundation (exit criteria met — see Phase Boundary 
 | [TASK-UDA-003](tasks/cards/TASK-UDA-003.md) | complete | UDA color schema — systematic color rules for TW reports |
 | [TASK-URG-001](tasks/cards/TASK-URG-001.md) | complete | Interactive urgency coefficient tuning |
 | [TASK-TC-001](tasks/cards/TASK-TC-001.md) | parked | TaskChampion multi-device profile sync — ww integration layer |
+| [TASK-SITE-001](tasks/cards/TASK-SITE-001.md) | complete | Design `ww browser` — locally-served web UI (wwsite) |
+| [TASK-SITE-002](tasks/cards/TASK-SITE-002.md) | complete | Wave 1: server scaffolding — Python3 HTTP + SSE + /cmd + /profile endpoints |
+| [TASK-SITE-003](tasks/cards/TASK-SITE-003.md) | complete | Wave 2: UI shell — dark terminal aesthetic, sidebar, terminal line, SSE wiring |
+| [TASK-SITE-004](tasks/cards/TASK-SITE-004.md) | pending | Wave 3: Tasks section — live data, urgency list, inline actions |
+| [TASK-SITE-005](tasks/cards/TASK-SITE-005.md) | pending | Wave 4: Time, Journal, Ledger sections |
+| [TASK-SITE-006](tasks/cards/TASK-SITE-006.md) | pending | Wave 5: export/publish, full typeahead, keyboard shortcuts, polish |
 
 ---
 
@@ -67,10 +73,10 @@ Current phase: Phase 1 — Foundation (exit criteria met — see Phase Boundary 
 
 | Priority | ID | Goal | Depends On |
 |---|---|---|---|
-| 1 | [TASK-SYNC-003](tasks/cards/TASK-SYNC-003.md) | Harden sync pre-flight validation and error surfacing | SYNC-001, SYNC-002 done |
-| 2 | [TASK-SYNC-005](tasks/cards/TASK-SYNC-005.md) | Implement label → tag sync | SYNC-001 done |
-| 3 | [TASK-TEST-002](tasks/cards/TASK-TEST-002.md) | Add CI gate for BATS + integration tests | Wave B |
-| 4 | [TASK-QUAL-001](tasks/cards/TASK-QUAL-001.md) | Enforce artifact hygiene across repo | none |
+| 1 | [TASK-SITE-004](tasks/cards/TASK-SITE-004.md) | Wave 3: Tasks section live data | SITE-003 done |
+| 2 | [TASK-SITE-005](tasks/cards/TASK-SITE-005.md) | Wave 4: Time, Journal, Ledger sections | SITE-004 |
+| 3 | [TASK-SITE-006](tasks/cards/TASK-SITE-006.md) | Wave 5: export, typeahead, polish | SITE-005 |
+| 4 | [TASK-QUAL-002](tasks/cards/TASK-QUAL-002.md) | Automate docs/help parity checks | none |
 | 5 | [TASK-ISSUES-001](tasks/cards/TASK-ISSUES-001.md) | Improve `ww issues uda` CLI and uda-manager | none |
 | 6 | [TASK-ISSUES-002](tasks/cards/TASK-ISSUES-002.md) | Configure bugwarrior for john and mark profiles | none |
 

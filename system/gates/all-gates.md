@@ -71,6 +71,7 @@ Implementation ships with stale help strings or docs. Agents in future sessions 
 - [ ] All HIGH FRAGILITY changes have integration test sign-off
 - [ ] `git status` is clean (no artifact noise)
 - [ ] Release checklist (`gates/release-checklist.md`) is fully signed
+- [ ] All five criteria in `system/reports/production-readiness-rubric.md` are satisfied with evidence
 
 ### Failure mode
 Premature release claim with open tasks or stale docs. Do not tag a release until checklist is complete. This gate applies even for informal "Phase X complete" announcements.

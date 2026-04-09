@@ -383,3 +383,22 @@ commands:
       default: "active profile required"
       override: "n/a"
     status: "active"
+
+  - domain: "browser"
+    implementation_note: >
+      Python 3 stdlib HTTP server (ThreadingHTTPServer). Provides a local web
+      UI with SSE live-data, POST /cmd action endpoint, and POST /profile
+      profile-switch endpoint. PID and port written to
+      $WW_BASE/.state/browser.pid and $WW_BASE/.state/browser.port.
+    syntax:
+      - "ww browser [--port N] [--no-open]"
+      - "ww browser stop"
+      - "ww browser status"
+      - "ww browser --help"
+    scope:
+      default: "global (reads active profile from .state/active_profile)"
+      override: "n/a"
+    output_modes:
+      default: "human-compact"
+      supports_json: false
+    status: "active"

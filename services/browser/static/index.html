@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ww · workwarrior</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div id="app">
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-header">
+        <span class="wordmark-ww">ww</span>
+        <span class="wordmark-full">workwarrior</span>
+      </div>
+      <div class="profile-pill" id="profile-pill">—</div>
+      <ul class="profile-switcher hidden" id="profile-switcher"></ul>
+      <nav class="sidebar-nav">
+        <button class="nav-item active" data-section="tasks">Tasks</button>
+        <button class="nav-item" data-section="time">Time</button>
+        <button class="nav-item" data-section="journal">Journal</button>
+        <button class="nav-item" data-section="ledger">Ledger</button>
+      </nav>
+      <button class="sidebar-toggle" id="sidebar-toggle" title="Toggle sidebar">‹</button>
+    </aside>
+    <div id="main">
+      <header class="content-header">
+        <span id="section-title">Tasks</span>
+        <div class="header-right">
+          <span id="header-profile">—</span>
+          <span class="conn-dot" id="conn-dot" title="disconnected"></span>
+        </div>
+      </header>
+      <div id="content-area">
+        <section class="section" id="section-tasks">
+          <div class="skeleton-msg">Tasks — live data loading in Wave 3</div>
+          <div class="skeleton-row"></div><div class="skeleton-row"></div><div class="skeleton-row"></div>
+        </section>
+        <section class="section hidden" id="section-time">
+          <div class="skeleton-msg">Time — live data loading in Wave 3</div>
+          <div class="skeleton-row"></div><div class="skeleton-row"></div><div class="skeleton-row"></div>
+        </section>
+        <section class="section hidden" id="section-journal">
+          <div class="skeleton-msg">Journal — live data loading in Wave 3</div>
+          <div class="skeleton-row"></div><div class="skeleton-row"></div><div class="skeleton-row"></div>
+        </section>
+        <section class="section hidden" id="section-ledger">
+          <div class="skeleton-msg">Ledger — live data loading in Wave 3</div>
+          <div class="skeleton-row"></div><div class="skeleton-row"></div><div class="skeleton-row"></div>
+        </section>
+      </div>
+    </div>
+  </div>
+  <!-- Terminal line -->
+  <div id="terminal-bar">
+    <div id="cmd-output" class="hidden"></div>
+    <div id="hints-bar">type a ww command — tab to filter mode</div>
+    <div id="terminal-input-row">
+      <span id="term-prompt" class="prompt-exec">❯ </span>
+      <input type="text" id="term-input" autocomplete="off" spellcheck="false" />
+    </div>
+  </div>
+  <script src="/app.js"></script>
+</body>
+</html>

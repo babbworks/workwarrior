@@ -5,6 +5,22 @@ Each entry: date, decision, context, and why — so future sessions don't re-lit
 
 ---
 
+## 2026-04-09 — `ww browser` service architecture: live server + static export hybrid
+
+**Decision:** `ww browser` runs a Python3 stdlib HTTP server (ThreadingHTTPServer — required for SSE + concurrent POST) as the primary experience. Static snapshot export (`ww browser export`) is a secondary path for sharing/publishing. No external dependencies — Python3 stdlib + vanilla JS only.
+
+**Service namespace:** `browser` is the command. `sites` is reserved for future profile documentation site generation.
+
+**SSE design:** ping thread broadcasts to per-client `queue.Queue` objects. Profile changes detected by polling `.state/active_profile` every 15s and broadcasting a `profile` event. ThreadingHTTPServer is mandatory — single-threaded BaseHTTPServer deadlocks when an SSE client holds the connection.
+
+**Security boundary on POST /cmd:** `ALLOWED_SUBCOMMANDS` frozenset enforces that only `ww` subcommands are accepted. No `sh -c`, no eval. First token of the submitted command is validated against the set.
+
+**Static files:** served from `services/browser/static/` — paths are hardcoded (`/`, `/app.js`, `/style.css`), no user-controlled path traversal possible.
+
+**UI shell:** dark terminal aesthetic — `#0d1117` background, `ui-monospace` font stack, collapsing sidebar (collapse state in `localStorage`). Terminal line is dual-mode: execute (`❯ `) runs real `ww` commands via POST /cmd; filter (`/ `) dispatches a `filter` CustomEvent for sections to consume. Command history in `localStorage` (max 100).
+
+---
+
 ## 2026-04-08 — Minimal root CLAUDE.md stub approved
 
 **Decision:** `/Users/mp/ww/CLAUDE.md` created as a minimal redirect stub (no dev content) to fix Claude Code's auto-load gap. All real content stays in `system/`. The stub redirects to `system/ONBOARDING.md` and states the Orchestrator→Builder→Verifier→Docs handoff requirement. Previous rule was "no CLAUDE.md at root" — this is a narrow exception for tooling necessity, not a content file.

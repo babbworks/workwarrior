@@ -1,0 +1,83 @@
+/* style.css — Workwarrior Browser UI styles */
+
+/* ── Color tokens ─────────────────────────────────────────────────────────── */
+:root {
+  --bg: #0d1117;
+  --surface: #161b22;
+  --border: #21262d;
+  --text: #e6edf3;
+  --muted: #7d8590;
+  --accent: #58a6ff;
+  --success: #3fb950;
+  --warning: #d29922;
+  --error: #f85149;
+  --term-green: #39d353;
+  --sidebar-w: 240px;
+}
+
+/* ── Reset + base ─────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: ui-monospace, Menlo, Consolas, "Liberation Mono", monospace; font-size: 13px; line-height: 1.5; }
+
+/* ── App layout ───────────────────────────────────────────────────────────── */
+/* Leave room for terminal bar at the bottom */
+#app { display: flex; height: calc(100vh - 60px); }
+
+/* ── Sidebar ──────────────────────────────────────────────────────────────── */
+.sidebar { width: var(--sidebar-w); min-width: var(--sidebar-w); background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; transition: width 150ms ease, min-width 150ms ease; overflow: hidden; position: relative; }
+.sidebar.collapsed { width: 0; min-width: 0; }
+.sidebar-header { padding: 16px 12px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.wordmark-ww { color: var(--accent); font-size: 15px; font-weight: bold; }
+.wordmark-full { color: var(--muted); font-size: 11px; margin-left: 6px; }
+
+/* ── Profile pill ─────────────────────────────────────────────────────────── */
+.profile-pill { margin: 8px; padding: 4px 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; color: var(--text); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.profile-pill:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── Profile switcher ─────────────────────────────────────────────────────── */
+.profile-switcher { list-style: none; margin: 0 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+.profile-switcher li { padding: 5px 8px; cursor: pointer; font-size: 12px; color: var(--muted); }
+.profile-switcher li:hover { background: var(--surface); color: var(--text); }
+.profile-switcher li.active-profile { color: var(--accent); }
+
+/* ── Nav ──────────────────────────────────────────────────────────────────── */
+.sidebar-nav { flex: 1; padding: 8px 0; }
+.nav-item { display: block; width: 100%; padding: 7px 12px; background: none; border: none; border-left: 2px solid transparent; color: var(--muted); font-family: inherit; font-size: 13px; text-align: left; cursor: pointer; white-space: nowrap; }
+.nav-item:hover { color: var(--text); background: var(--bg); }
+.nav-item.active { color: var(--accent); border-left-color: var(--accent); }
+
+/* ── Collapse toggle ──────────────────────────────────────────────────────── */
+.sidebar-toggle { display: block; width: 100%; padding: 8px 12px; background: none; border: none; border-top: 1px solid var(--border); color: var(--muted); font-family: inherit; font-size: 14px; text-align: center; cursor: pointer; }
+.sidebar-toggle:hover { color: var(--text); }
+
+/* ── Main content ─────────────────────────────────────────────────────────── */
+#main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.content-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 16px; border-bottom: 1px solid var(--border); background: var(--surface); white-space: nowrap; }
+#section-title { font-size: 13px; color: var(--text); }
+.header-right { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+.conn-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--error); display: inline-block; }
+.conn-dot.connected { background: var(--success); }
+
+/* ── Content area ─────────────────────────────────────────────────────────── */
+#content-area { flex: 1; overflow-y: auto; padding: 16px; }
+.section.hidden { display: none; }
+.skeleton-msg { color: var(--muted); font-size: 12px; margin-bottom: 12px; }
+.skeleton-row { height: 18px; background: var(--surface); border-radius: 3px; margin-bottom: 8px; animation: shimmer 1.5s infinite; }
+.skeleton-row:nth-child(2) { width: 85%; }
+.skeleton-row:nth-child(3) { width: 70%; }
+.skeleton-row:nth-child(4) { width: 90%; }
+@keyframes shimmer { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.7; } }
+
+/* ── Terminal bar ─────────────────────────────────────────────────────────── */
+#terminal-bar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface); border-top: 1px solid var(--border); padding: 0; z-index: 100; }
+#cmd-output { max-height: 40vh; overflow-y: auto; padding: 8px 12px; background: var(--bg); border-bottom: 1px solid var(--border); font-size: 12px; white-space: pre-wrap; color: var(--text); }
+#cmd-output.error { color: var(--error); }
+#cmd-output.hidden { display: none; }
+#hints-bar { padding: 2px 12px; font-size: 11px; color: var(--muted); border-bottom: 1px solid var(--border); }
+#terminal-input-row { display: flex; align-items: center; padding: 6px 12px; gap: 4px; }
+.prompt-exec { color: var(--term-green); font-size: 14px; user-select: none; }
+.prompt-filter { color: var(--accent); font-size: 14px; user-select: none; }
+#term-input { flex: 1; background: none; border: none; outline: none; color: var(--text); font-family: inherit; font-size: 13px; caret-color: var(--term-green); }
+
+/* ── Utility ──────────────────────────────────────────────────────────────── */
+.hidden { display: none; }
