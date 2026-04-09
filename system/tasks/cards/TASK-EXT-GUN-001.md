@@ -40,4 +40,9 @@ Write scope:          /Users/mp/ww/bin/ww
 
 Fragility:            SERIALIZED: bin/ww
 
-Status:               pending
+Status:               complete
+
+Completion note:      Implemented in commit 27d019d. cmd_gun() in bin/ww,
+                      gun domain in CSSOT, taskgun-integration.md with space
+                      limitation docs. Zero source modification. 19 pre-existing
+                      failures, zero regressions.
