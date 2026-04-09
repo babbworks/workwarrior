@@ -7,7 +7,15 @@
       "Bash(bin/ww profile:*)",
       "Bash(bats tests/test-github-sync.bats)",
       "Bash(bats tests/)",
-      "Bash(wait)"
+      "Bash(wait)",
+      "Bash(ww --version)",
+      "Bash(ww help:*)",
+      "Bash(echo \"EXIT: $?\")",
+      "Read(//tmp/**)",
+      "Bash(bash -c 'ww help 2>/tmp/ww_help_stderr2.txt; cat /tmp/ww_help_stderr2.txt')",
+      "Bash(bats /Users/mp/ww/tests/test-profile-name-validation.bats)",
+      "Bash(bats /Users/mp/ww/tests/test-journal-addition.bats)",
+      "Bash(ww deps:*)"
     ]
   }
 }
