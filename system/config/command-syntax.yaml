@@ -287,6 +287,22 @@ commands:
       override: "--profile where supported"
     status: "active"
 
+  - domain: "gun"
+    upstream: "https://github.com/hamzamohdzubair/taskgun"
+    upstream_author: "hamzamohdzubair · MIT License"
+    implementation_note: >
+      Zero source modification. Thin wrapper passing TASKRC/TASKDATA env to taskgun.
+      All taskgun flags pass through unchanged via ww gun create.
+      Known limitation: project names with spaces are split by TaskWarrior — use underscores.
+    syntax:
+      - "ww gun create <project> -p <parts> -u <unit> [--offset] [--interval] [--skip]"
+      - "ww gun install"
+      - "ww gun help"
+    scope:
+      default: "active profile required for create"
+      override: "n/a"
+    status: "active"
+
   - domain: "tui"
     upstream: "https://github.com/kdheepak/taskwarrior-tui"
     upstream_author: "Karthikeyan Singaravelan (@kdheepak) · MIT License"
