@@ -231,8 +231,16 @@ Actions:
   backup <name> [dest]       Backup a profile to tar.gz
   import <archive> [name]    Create a new profile from a backup archive
   restore <name> <archive>   Replace an existing profile from a backup archive
+  urgency [subcommand]       Manage urgency coefficients for the active profile
   uda [subcommand]           Manage UDAs for the active profile
   udas                       Alias for 'uda list'
+
+Urgency Subcommands:
+  urgency show               Show all coefficients and top task scores
+  urgency set <factor> <v>   Set a coefficient (e.g. urgency set due 10.0)
+  urgency tune               Interactive wizard — step through all factors
+  urgency reset              Remove all ww-managed coefficients
+  urgency explain <id>       Break down urgency score for a specific task
 
 UDA Subcommands:
   uda list [--all]           List all UDAs (--all includes uncategorized)
@@ -255,6 +263,9 @@ Examples:
   ww profile import work-backup-20260101.tar.gz
   ww profile import work-backup-20260101.tar.gz work-copy
   ww profile restore work work-backup-20260101.tar.gz
+  ww profile urgency show
+  ww profile urgency set uda.phase.review 5.0
+  ww profile urgency explain 42
   ww profile uda list
   ww profile uda add goals
   ww profile uda perm goals nosync,noai
@@ -691,6 +702,15 @@ cmd_profile() {
         exit 1
       fi
       "$WW_BASE/scripts/manage-profiles.sh" restore "$@"
+      ;;
+    urgency)
+      local urg_script="$WW_BASE/services/profile/urgency.sh"
+      if [[ ! -f "$urg_script" ]]; then
+        log_error "Urgency service not found at $urg_script"
+        exit 1
+      fi
+      WORKWARRIOR_BASE="${WORKWARRIOR_BASE:-}" WARRIOR_PROFILE="${WARRIOR_PROFILE:-}" \
+        bash "$urg_script" "$@"
       ;;
     uda|udas)
       local uda_script="$WW_BASE/services/profile/subservices/profile-uda.sh"

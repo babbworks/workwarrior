@@ -126,6 +126,25 @@ commands:
       override: "--profile"
     status: "active"
 
+  - domain: "profile urgency"
+    syntax:
+      - "ww profile urgency show"
+      - "ww profile urgency set <factor> <value>"
+      - "ww profile urgency tune"
+      - "ww profile urgency reset"
+      - "ww profile urgency explain <task-id>"
+    scope:
+      default: "active profile (requires active profile env)"
+    output_modes:
+      default: "human-compact"
+      supports_json: false
+    notes:
+      - "factor examples: due  blocking  active  uda.goals  uda.phase.review"
+      - "coefficients written to WW URGENCY block in .taskrc"
+      - "reset removes WW URGENCY block and any stray urgency.*.coefficient lines"
+      - "explain uses task export + _urgency for the authoritative total"
+    status: "active"
+
   - domain: "profile uda"
     syntax:
       - "ww profile uda list [--all]"
