@@ -167,11 +167,18 @@ create_profile_aliases() {
       return 1
     fi
 
-    # Create <profile-name> alias as shorthand
-    if ! add_alias_to_section "$shorthand_alias" "$SECTION_PROFILE_ALIASES" "$_rc"; then
-      log_error "Failed to add ${profile_name} alias to $_rc"
-      return 1
-    fi
+    # Create <profile-name> alias as shorthand (skip reserved CLI names)
+    case "${profile_name}" in
+      ww|task|timew|jrnl|hledger)
+        log_warning "Skipping bare alias for reserved name '${profile_name}' — use p-${profile_name} instead"
+        ;;
+      *)
+        if ! add_alias_to_section "$shorthand_alias" "$SECTION_PROFILE_ALIASES" "$_rc"; then
+          log_error "Failed to add ${profile_name} alias to $_rc"
+          return 1
+        fi
+        ;;
+    esac
 
     # Create j-<profile-name> alias for journal access
     if [[ -n "$j_alias" ]]; then
