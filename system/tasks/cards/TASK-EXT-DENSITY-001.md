@@ -49,4 +49,12 @@ Write scope:          /Users/mp/ww/bin/ww
 Fragility:            SERIALIZED: bin/ww
                       Low — additive .taskrc writes only
 
-Status:               pending
+Status:               complete
+
+Completion note:      Implemented in commit 2984728 / merge. Delivered:
+                      profile-density.sh (install/run/config/help + attribution),
+                      service-uda-registry.yaml extensions: section,
+                      profile-uda.sh extension badge classification,
+                      bin/ww density routing, CSSOT update,
+                      twdensity-integration.md (includes citation pattern docs).
+                      19 pre-existing failures, zero regressions.
