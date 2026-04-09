@@ -22,5 +22,15 @@ Risk notes:           Existing behavior affected: release process rigor and cade
                       Tests currently covering write scope: checklist completeness scans.
                       Rollback verification: gate docs revert.
 
-Status:               pending
+Status:               complete
+
+Completion note:      Implemented 2026-04-09. Rewrote release-checklist.md as a versioned
+                      template with one item per rubric criterion plus evidence/role/date fields.
+                      Updated Gate D in all-gates.md to require signed checklist saved to
+                      system/reports/releases/ before tagging and to cite production-readiness-rubric.md
+                      as the criteria source. Added Step 7 (Release only) to feature-delivery.md
+                      with the complete release → save → tag sequence. Replaced stale GitHub-sync
+                      docs/RELEASE-CHECKLIST.md with user-facing ww release gate explanation.
+                      Added `release` change type to select-tests.sh (USAGE, arg parser, case block)
+                      with automated bats tests/ and three manual steps.
 
