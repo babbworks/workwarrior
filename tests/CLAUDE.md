@@ -88,16 +88,18 @@ Change types: `lib` | `service` | `profile` | `shell_integration` | `bin_ww` | `
 
 ---
 
-## Known Baseline Failures (~1)
+## Known Baseline Failures (~10)
 
-The full-suite baseline was re-established after session 6 (2026-04-08).
-Previous ~67 baseline failures were resolved during Phase 1/2 work.
+The full-suite baseline was re-confirmed after session 7 (2026-04-08).
 
 | Test file | Failing tests | Reason |
 |---|---|---|
-| `test-profile-name-validation.bats` | 1 | Property 17: 50-char profile name hook install — not yet enforced |
+| `test-profile-management-properties.bats` | ~8 | Property 4/5/6/7/32 iteration tests — profile delete/backup/list not fully enforced |
+| `test-profile-name-validation.bats` | ~2 | Property 1/2: 50-char profile name creation and rejection — not yet enforced |
 
-When running the suite, a clean run will show this 1 failure. Any new failures on top of this baseline are regressions and must be fixed before merge.
+When running the suite, a clean run will show ~10 failures. Any new failures on top of this baseline are regressions and must be fixed before merge.
+
+To establish your personal baseline before making changes: `git stash && bats tests/ 2>&1 | grep "not ok"` — compare that list to what you see after your changes.
 
 ---
 
@@ -123,11 +125,12 @@ These patterns produce silent failures that look like logic bugs. Check for them
 |---|---|---|
 | `test-smoke.bats` | Lib sourcing, `log_error` sig, grep/pipefail trap, `task config` confirmation, sync-permissions round-trip, `bin/ww` routing | 12 |
 
-### UDA Management (TASK-UDA-001+)
+### UDA Management (TASK-UDA-001+) / Urgency (TASK-URG-001)
 
 | File | What it covers | Count |
 |---|---|---|
 | `test-profile-uda.bats` | `sync-permissions` unit (11), `profile-uda` list/add/remove/group/perm/help (23) | 34 |
+| `test-profile-urgency.bats` | `urgency` help/show/set/reset/explain/routing | 30 |
 
 ### GitHub Sync (HIGH FRAGILITY)
 
