@@ -287,6 +287,23 @@ commands:
       override: "--profile where supported"
     status: "active"
 
+  - domain: "next"
+    upstream: "https://github.com/ftapajos/scheduler"
+    upstream_author: "Flávio Tapajós (ftapajos) · GPL-3.0"
+    implementation_note: >
+      Zero source modification. Thin wrapper passing TASKRC/TASKDATA/TIMEWARRIORDB
+      to the 'next' binary (installed via pipx install taskwarrior-scheduler).
+      tasklib reads TASKRC/TASKDATA from environment when no explicit path given.
+    syntax:
+      - "ww next"
+      - "ww next [filters...]"
+      - "ww next install"
+      - "ww next help"
+    scope:
+      default: "active profile required"
+      override: "n/a"
+    status: "active"
+
   - domain: "gun"
     upstream: "https://github.com/hamzamohdzubair/taskgun"
     upstream_author: "hamzamohdzubair · MIT License"
