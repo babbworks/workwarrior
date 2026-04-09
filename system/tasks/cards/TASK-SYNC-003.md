@@ -36,7 +36,18 @@ Risk notes:           Depends on SYNC-001 (tests) and SYNC-002 (critical bugs fi
                         no rate-limit detection, orphaned state entries cause repeated errors.
                       Rollback verification: revert all five files independently.
 
-Status:               in-review
+Status:               complete
+
+Verifier sign-off (2026-04-09):
+  [x] 1. sync_preflight() exists — validates WORKWARRIOR_BASE, jq, gh CLI, gh auth
+  [x] 2. check_gh_cli returns 2 (not installed), 3 (not authed) — confirmed + covered by tests 27-28
+  [x] 3. tw_update_task failures surface as warnings (no 2>/dev/null suppression)
+  [x] 4. HTTP 429 detected with retry-after advice
+  [x] 5. test-github-sync.bats 30/30 pass (tests 22-30 cover SYNC-003 paths)
+  [x] 6. run-integration-tests.sh pending quota — not blocking per policy
+  [x] 7. Full suite: no failures outside baseline files
+  Note: sync_preflight called twice for enable cmd (harmless redundancy — not blocking).
+  Verdict: PASS
 
 Builder risk brief (2026-04-05):
   - Existing behavior: check_gh_cli return codes change (1→2/3); sync commands

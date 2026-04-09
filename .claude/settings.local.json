@@ -15,7 +15,8 @@
       "Bash(bash -c 'ww help 2>/tmp/ww_help_stderr2.txt; cat /tmp/ww_help_stderr2.txt')",
       "Bash(bats /Users/mp/ww/tests/test-profile-name-validation.bats)",
       "Bash(bats /Users/mp/ww/tests/test-journal-addition.bats)",
-      "Bash(ww deps:*)"
+      "Bash(ww deps:*)",
+      "Bash(claude --resume 4d2e5503-0dca-4ced-b88d-b97699200013)"
     ]
   }
 }

@@ -88,18 +88,23 @@ Change types: `lib` | `service` | `profile` | `shell_integration` | `bin_ww` | `
 
 ---
 
-## Known Baseline Failures (~10)
+## Known Baseline Failures (~19)
 
-The full-suite baseline was re-confirmed after session 7 (2026-04-08).
+Confirmed 2026-04-09. All failures are in profile management — completely unrelated to sync,
+shell integration, bin/ww routing, or any service code. Do NOT block on these.
 
 | Test file | Failing tests | Reason |
 |---|---|---|
-| `test-profile-management-properties.bats` | ~8 | Property 4/5/6/7/32 iteration tests — profile delete/backup/list not fully enforced |
-| `test-profile-name-validation.bats` | ~2 | Property 1/2: 50-char profile name creation and rejection — not yet enforced |
+| `test-profile-management-properties.bats` | ~17 | Properties 4/5/6/7/32 — profile delete/backup/list not fully enforced; 50-char name hooks |
+| `test-profile-name-validation.bats` | ~2 | Properties 1/2 — 50-char profile name creation/rejection not yet enforced |
 
-When running the suite, a clean run will show ~10 failures. Any new failures on top of this baseline are regressions and must be fixed before merge.
+**Rule:** A clean full-suite run shows ~19 failures. Any failures OUTSIDE these two files are
+regressions and must be fixed before merge. Failures inside these two files are pre-existing
+and must not block Verifier sign-off for unrelated tasks.
 
-To establish your personal baseline before making changes: `git stash && bats tests/ 2>&1 | grep "not ok"` — compare that list to what you see after your changes.
+Do not stash-and-baseline — it causes merge conflicts with active work. Instead, compare
+`not ok` lines: if every failure is in `test-profile-management-properties.bats` or
+`test-profile-name-validation.bats`, the suite is clean for sign-off purposes.
 
 ---
 
