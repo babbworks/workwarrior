@@ -58,4 +58,10 @@ Write scope:          /Users/mp/ww/bin/ww
 
 Fragility:            SERIALIZED: bin/ww
 
-Status:               pending
+Status:               complete
+
+Completion note:      Implemented in commit 5db3241. cmd_schedule() in bin/ww
+                      with enable/disable toggle, run/dry-run, config, install.
+                      Per-profile config at profiles/<n>/.config/taskcheck/.
+                      estimated/time_map UDAs classified in profile-uda.sh.
+                      taskcheck-integration.md written.
