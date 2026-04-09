@@ -1,0 +1,61 @@
+# jubnzv/dotfiles
+
+**URL:** https://github.com/jubnzv/dotfiles  
+**Stars:** 9  
+**Language:** Shell  
+**Last push:** 2026-04-08  
+**Archived:** No  
+**Topics:** dotfiles, fzf, gruvbox, i3, kitty, neovim, polybar, taskwarrior, tmux, zsh  
+
+## Description
+
+Personal configuration files, scripts, etc.
+
+## Category
+
+Widgets & Editor Integrations
+
+## Workwarrior Integration Rating
+
+**Score:** 2  
+**Rating:** ★★★☆☆  Medium  
+
+### Scoring notes
+
+- +1: Shell scripting — matches ww stack
+- +1: GitHub is ww's primary issue source
+
+## README excerpt
+
+```
+## dotfiles
+
+### Post-install steps
+
+#### Firefox
+Install the addons:
+* [AdNauseam](https://addons.mozilla.org/en-US/firefox/addon/adnauseam/?utm_source=addons.mozilla.org&utm_medium=referral&utm_content=search)
+* [SurfingKeys](https://addons.mozilla.org/en-US/firefox/addon/surfingkeys_ff/?utm_source=addons.mozilla.org&utm_medium=referral&utm_content=search)
+* [uBlackList](https://addons.mozilla.org/en-US/firefox/addon/ublacklist/?utm_source=addons.mozilla.org&utm_medium=referral&utm_content=search)
+
+Go to [about:config](about:config) and set:
+* `ui.key.menuAccessKeyFocuses = false`
+* `browser.tabs.closeWindowWithLastTab = false`
+* `browser.fullscreen.autohide = false`
+
+Set the [surfing keys settings](https://raw.githubusercontent.com/jubnzv/dotfiles/master/assets/surfing-keys.js).
+
+#### Telegram themes
+
+```bash
+unzip theme.tdesktop-theme -d theme-extract
+vim theme-extract/colors.tdesktop-theme
+zip new-theme.tdesktop-theme theme-extract/colors.tdesktop-theme theme-extract/tiled.png
+```
+
+### Previous configurations
+
+* i3wm, rofi, polybar, etc.: [f978ac1](https://github.com/jubnzv/dotfiles/tree/f978ac1aaa460db4c509b69462bf533ecd98004a) (2013-2020)
+* Emacs: [7ddeb6c4](https://github.com/jubnzv/dotfiles/tree/7ddeb6c466070b74c465f4004d8481476d7bb71d/.emacs.d) (2015-2017), [8ea29553](https://github.com/jubnzv/dotfiles/tree/8ea29553c64d1ec1a58ad719afa23c5570f3553e/emacs) (2019), [0447794](https://github.com/jubnzv/dotfiles/blob/0447794b92bf15bff130eadd59f250c393b5798e/.emacs.d/) (2021)
+
+```

@@ -56,4 +56,8 @@ Risk notes:           Unicode terminal width is environment-dependent. Test on b
 Depends on:           TASK-UDA-001 (profile uda add must exist before indicator
                       assignment can be wired in)
 
-Status:               pending
+Status:               complete
+
+Completion note:      Implemented in commit 6bfde75. Delivered: uda-indicator-map.yaml,
+                      _lookup_indicator() + _print_uda_row in profile-uda.sh, indicator
+                      written to .taskrc on uda add. 29 new tests (76 total in test-profile-uda.bats).

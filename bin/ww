@@ -64,6 +64,7 @@ Commands:
   journals    Alias for journal namespace (bare form lists journals)
   ledger      Preferred ledger namespace (add, list, remove, rename)
   ledgers     Alias for ledger namespace (bare form lists ledgers)
+  tui         Interactive terminal UI (taskwarrior-tui by @kdheepak)
   extensions  External tool extensions registry
   find        Search across profiles and data types
   custom      Custom services (journal configuration, etc.)
@@ -149,6 +150,11 @@ Find Commands:
   ww find --regex <t>          Treat bare terms as regex
   ww find --exclude <glob> <t> Exclude matching paths (repeatable)
   ww find --native <t>         Use native tool search where available
+
+TUI Commands:
+  ww tui                      Launch interactive terminal UI (requires active profile)
+  ww tui install              Install taskwarrior-tui (brew / cargo)
+  ww tui help                 Show TUI help and attribution
 
 Custom Services:
   ww custom journals          Configure journal settings (requires active profile)
@@ -1491,6 +1497,161 @@ cmd_ledger() {
 }
 
 # ============================================================================
+# TUI COMMAND
+# ============================================================================
+
+cmd_tui() {
+  local subcommand="${1:-}"
+
+  case "$subcommand" in
+    install)
+      if command -v taskwarrior-tui &>/dev/null; then
+        local ver
+        ver=$(taskwarrior-tui --version 2>/dev/null | head -1 || echo "unknown")
+        log_success "taskwarrior-tui already installed: $ver"
+      else
+        echo "Installing taskwarrior-tui …"
+        if command -v brew &>/dev/null; then
+          brew install taskwarrior-tui
+        elif command -v cargo &>/dev/null; then
+          cargo install taskwarrior-tui
+        else
+          log_error "Neither brew nor cargo found"
+          echo "Install options:"
+          echo "  brew:  brew install taskwarrior-tui"
+          echo "  cargo: cargo install taskwarrior-tui"
+          echo "  snap:  snap install taskwarrior-tui"
+          exit 1
+        fi
+        log_success "taskwarrior-tui installed"
+      fi
+      ;;
+    help|-h|--help)
+      cat << 'EOF'
+TUI Command
+
+Launch an interactive terminal UI for task management.
+
+Usage:
+  ww tui              Launch TUI (requires active profile)
+  ww tui install      Check / install taskwarrior-tui binary
+  ww tui help         Show this help
+
+All task operations run against the active profile's data.
+Profile isolation is automatic — TASKRC and TASKDATA are scoped.
+
+Powered by taskwarrior-tui · Karthikeyan Singaravelan (@kdheepak)
+  https://github.com/kdheepak/taskwarrior-tui · MIT License
+EOF
+      ;;
+    "")
+      if [[ -z "${TASKRC:-}" || -z "${TASKDATA:-}" ]]; then
+        log_error "No active profile — activate one first: p-<profile-name>"
+        exit 1
+      fi
+      if ! command -v taskwarrior-tui &>/dev/null; then
+        log_error "taskwarrior-tui not installed"
+        echo "Install it: ww tui install"
+        exit 1
+      fi
+      # Attribution visible in scroll buffer once TUI exits (alt-screen restore)
+      echo "taskwarrior-tui · @kdheepak · MIT · github.com/kdheepak/taskwarrior-tui"
+      exec taskwarrior-tui --taskrc "$TASKRC" --taskdata "$TASKDATA"
+      ;;
+    *)
+      log_error "Unknown tui subcommand: $subcommand"
+      echo "Run 'ww tui help' for usage"
+      exit 1
+      ;;
+  esac
+}
+
+# ============================================================================
+# ISSUES UDA HELPERS
+# ============================================================================
+
+_issues_uda_install() {
+    # Idempotently install bugwarrior UDAs into the active profile's .taskrc.
+    # Runs `bugwarrior uda`, then appends only lines not already present.
+    if ! command -v bugwarrior &>/dev/null; then
+        log_error "bugwarrior is not installed"
+        echo "Install with: pipx install bugwarrior && pipx inject bugwarrior setuptools" >&2
+        exit 1
+    fi
+
+    local taskrc="${WORKWARRIOR_BASE}/.taskrc"
+    local bugwarrior_config="${WORKWARRIOR_BASE}/.config/bugwarrior/bugwarriorrc"
+    [[ -f "${WORKWARRIOR_BASE}/.config/bugwarrior/bugwarrior.toml" ]] && \
+        bugwarrior_config="${WORKWARRIOR_BASE}/.config/bugwarrior/bugwarrior.toml"
+
+    local bw_udas
+    if ! bw_udas=$(BUGWARRIORRC="${bugwarrior_config}" bugwarrior uda 2>/dev/null); then
+        log_error "bugwarrior uda failed — is bugwarrior configured? Run: ww issues custom"
+        exit 1
+    fi
+
+    local added=0 skipped=0
+    while IFS= read -r line; do
+        [[ -z "${line}" || "${line}" =~ ^# ]] && continue
+        local key="${line%%=*}"
+        if grep -q "^${key}=" "${taskrc}" 2>/dev/null; then
+            skipped=$(( skipped + 1 ))
+        else
+            echo "${line}" >> "${taskrc}"
+            added=$(( added + 1 ))
+        fi
+    done <<< "${bw_udas}"
+
+    echo "✓ UDA install complete: ${added} added, ${skipped} already present"
+}
+
+_issues_uda_group() {
+    # Create or update a UDA group in .taskrc for a known service prefix.
+    local svc_name="$1"
+    local taskrc="${WORKWARRIOR_BASE}/.taskrc"
+
+    local prefix
+    case "${svc_name}" in
+        github)  prefix="github" ;;
+        gitlab)  prefix="gitlab" ;;
+        jira)    prefix="jira" ;;
+        trello)  prefix="trello" ;;
+        sync)    prefix="sync" ;;
+        *)
+            log_error "Unknown service '${svc_name}'. Known: github gitlab jira trello sync"
+            exit 1 ;;
+    esac
+
+    local uda_list
+    uda_list=$(grep -E "^uda\\.${prefix}[^.]+\\.type=" "${taskrc}" 2>/dev/null \
+        | awk -F. '{print $2}' | sort -u | tr '\n' ',' | sed 's/,$//' || true)
+
+    if [[ -z "${uda_list}" ]]; then
+        log_error "No ${svc_name} UDAs found in .taskrc. Run: ww issues uda install"
+        exit 1
+    fi
+
+    local group_line="# group:${svc_name} udas:${uda_list}"
+
+    if grep -q "^# === WW UDA GROUPS ===" "${taskrc}" 2>/dev/null; then
+        if grep -q "^# group:${svc_name} " "${taskrc}" 2>/dev/null; then
+            sed -i.bak "s|^# group:${svc_name} .*|${group_line}|" "${taskrc}" \
+                && rm -f "${taskrc}.bak"
+        else
+            sed -i.bak "/^# === END WW UDA GROUPS ===/i\\
+${group_line}" "${taskrc}" && rm -f "${taskrc}.bak"
+        fi
+    else
+        printf '\n# === WW UDA GROUPS ===\n%s\n# === END WW UDA GROUPS ===\n' \
+            "${group_line}" >> "${taskrc}"
+    fi
+
+    local count
+    count=$(echo "${uda_list}" | tr ',' '\n' | wc -l | tr -d ' ')
+    echo "✓ Group '${svc_name}' written — ${count} UDAs: ${uda_list}"
+}
+
+# ============================================================================
 # ISSUES COMMAND
 # ============================================================================
 
@@ -1518,7 +1679,9 @@ Issues Service
 Routes to bugwarrior (one-way pull) or github-sync (two-way):
 
   ww issues pull [--dry-run] [--json]              Pull issues from all configured services
-  ww issues uda                                     List TaskWarrior UDAs for configured services
+  ww issues uda list                                List UDAs grouped by source service
+  ww issues uda install                             Install missing bugwarrior UDAs (idempotent)
+  ww issues uda group <service>                     Create UDA group (github gitlab jira trello sync)
 
   ww issues push [task-id]                          Push task changes to GitHub
   ww issues sync [task-id]                          Bidirectional sync with GitHub
@@ -1582,25 +1745,56 @@ EOF
         "$github_sync_cli" "$sync_command" "$@"
       ;;
     uda)
-      echo "Note: UDA management has moved to 'ww profile uda'." >&2
-      echo "  ww profile uda list      — view all UDAs" >&2
-      echo "  ww profile uda add       — add a new UDA" >&2
-      echo "  ww profile uda perm      — set sync permissions per UDA" >&2
-      echo "" >&2
-      echo "Redirecting to: ww profile uda list ..." >&2
-      echo "" >&2
+      local uda_sub="${1:-list}"; shift || true
       local uda_script="$WW_BASE/services/profile/subservices/profile-uda.sh"
-      if [[ ! -f "$uda_script" ]]; then
-        log_error "UDA service not found at $uda_script"
-        exit 1
-      fi
-      if [[ -z "${WORKWARRIOR_BASE:-}" ]]; then
-        log_error "Issues service requires an active profile"
-        echo "Activate a profile with: p-<profile-name>" >&2
-        exit 1
-      fi
-      WORKWARRIOR_BASE="${WORKWARRIOR_BASE}" WARRIOR_PROFILE="${WARRIOR_PROFILE:-}" \
-        bash "$uda_script" list
+      case "$uda_sub" in
+        help|--help|-h)
+          cat << 'EOF'
+ww issues uda — manage service UDAs
+
+  ww issues uda list              List all UDAs grouped by source service
+  ww issues uda install           Install missing bugwarrior UDAs (idempotent)
+  ww issues uda group <service>   Create UDA group for a service (github gitlab jira trello sync)
+  ww issues uda help              Show this help
+
+For full UDA management use: ww profile uda
+EOF
+          ;;
+        ""|list)
+          if [[ -z "${WORKWARRIOR_BASE:-}" ]]; then
+            log_error "Issues service requires an active profile"
+            echo "Activate a profile with: p-<profile-name>" >&2; exit 1
+          fi
+          if [[ ! -f "$uda_script" ]]; then
+            log_error "UDA service not found at $uda_script"; exit 1
+          fi
+          WORKWARRIOR_BASE="${WORKWARRIOR_BASE}" WARRIOR_PROFILE="${WARRIOR_PROFILE:-}" \
+            bash "$uda_script" list
+          ;;
+        install)
+          if [[ -z "${WORKWARRIOR_BASE:-}" ]]; then
+            log_error "Issues service requires an active profile"
+            echo "Activate a profile with: p-<profile-name>" >&2; exit 1
+          fi
+          _issues_uda_install
+          ;;
+        group)
+          local svc_arg="${1:-}"
+          if [[ -z "$svc_arg" ]]; then
+            log_error "Usage: ww issues uda group <service>  (github gitlab jira trello sync)"
+            exit 1
+          fi
+          if [[ -z "${WORKWARRIOR_BASE:-}" ]]; then
+            log_error "Issues service requires an active profile"
+            echo "Activate a profile with: p-<profile-name>" >&2; exit 1
+          fi
+          _issues_uda_group "$svc_arg"
+          ;;
+        *)
+          log_error "Unknown subcommand: ww issues uda ${uda_sub}"
+          echo "Run 'ww issues uda help' for usage." >&2; exit 1
+          ;;
+      esac
       ;;
     pull|*)
       if [[ -z "${WORKWARRIOR_BASE:-}" ]]; then
@@ -1757,6 +1951,9 @@ main() {
       ;;
     find)
       cmd_find "$@"
+      ;;
+    tui)
+      cmd_tui "$@"
       ;;
     issues)
       cmd_issues "$@"

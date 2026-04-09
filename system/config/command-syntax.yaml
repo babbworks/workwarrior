@@ -323,6 +323,25 @@ commands:
       override: "n/a"
     status: "active"
 
+  - domain: "tui"
+    syntax:
+      - "ww tui"
+      - "ww tui install"
+      - "ww tui help"
+    output_modes:
+      default: "n/a (launches external binary)"
+      supports_json: false
+    scope:
+      default: "active profile required for launch"
+      override: "n/a"
+    notes:
+      - "wraps taskwarrior-tui by Karthikeyan Singaravelan (@kdheepak) — MIT License"
+      - "binary installed system-wide via brew / cargo; no ww source modification"
+      - "profile isolation via --taskrc $TASKRC --taskdata $TASKDATA flags"
+      - "TUI config lives in profile .taskrc via uda.taskwarrior-tui.* prefix"
+      - "attribution printed to scroll buffer on TUI exit (alt-screen restore)"
+    status: "active"
+
   - domain: "custom"
     syntax:
       - "ww custom journals"

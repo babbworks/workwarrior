@@ -90,4 +90,9 @@ Risk notes:           .taskrc writes must never corrupt existing TW config.
                       Depends on: profile namespace (Option B) for babb udas form —
                       that can be a follow-up; list/add/remove/group/perm can ship first.
 
-Status:               pending
+Status:               complete
+
+Completion note:      Implemented in commit 7ab0b2b. Delivered: profile-uda.sh service
+                      (list/add/remove/group/perm), lib/sync-permissions.sh, service-uda-registry.yaml,
+                      bin/ww routing, CSSOT update, 34 BATS tests in test-profile-uda.bats,
+                      test-smoke.bats (12 pre-flight checks). ww issues uda redirect implemented.

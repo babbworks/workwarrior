@@ -74,4 +74,9 @@ Risk notes:           Coefficient changes affect task ranking globally within th
 
 Depends on:           TASK-UDA-001 (UDA groups must be defined to tune by group)
 
-Status:               pending
+Status:               complete
+
+Completion note:      Implemented in commit 6f3fb4b. Delivered: services/profile/urgency.sh
+                      (show/set/tune/reset/explain/group subcommands), WW URGENCY sentinel
+                      block in .taskrc, bin/ww routing, CSSOT update, 226-test
+                      test-profile-urgency.bats.

@@ -60,4 +60,8 @@ Risk notes:           TW color names are terminal-dependent. Confirm that "orang
 
 Depends on:           TASK-UDA-001 (uda add must exist)
 
-Status:               pending
+Status:               complete
+
+Completion note:      Implemented in commit 6bfde75. Delivered: uda-color-map.yaml,
+                      _lookup_color() + _write_color_rule() + _write_value_color_rules() in
+                      profile-uda.sh, color subcommand, WW COLOR RULES block in .taskrc.
