@@ -46,9 +46,10 @@ _resolve_profile() {
 # Returns true if a UDA name is service-managed (matches registry prefix or name)
 _is_service_uda() {
     local name="$1"
-    # Quick prefix check without yq — use patterns from registry
     case "${name}" in
         github_*|gitlab_*|jira_*|trello_*|bw_*|sync_id|sync_repo|sync_state|sync_last|sync_url)
+            return 0 ;;
+        density|densitywindow)
             return 0 ;;
         *)
             return 1 ;;
@@ -65,6 +66,7 @@ _uda_service() {
         trello_*)  echo "bugwarrior[trello]" ;;
         bw_*)      echo "bugwarrior" ;;
         sync_*)    echo "github-sync" ;;
+        density|densitywindow) echo "extension:twdensity" ;;
         *)         echo "" ;;
     esac
 }
