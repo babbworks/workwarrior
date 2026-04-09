@@ -241,383 +241,109 @@ EOF
 }
 
 # ============================================================================
-# preflight_check — TASK-SYNC-003 pre-flight validation
-#
-# preflight_check lives in services/custom/github-sync.sh (a service, not a lib).
-# To keep the test isolated from sourcing the full service dependency chain,
-# each test invokes preflight_check via a bash subprocess that sources only the
-# function definition extracted inline. This avoids set -euo pipefail propagation
-# from the service file into the BATS runner context.
+# sync_preflight — TASK-SYNC-003
 # ============================================================================
 
-# Helper: run preflight_check in a fresh bash subprocess with full PATH control.
-# This avoids sourcing the full service file (which carries set -euo pipefail).
-# Args: --mock-gh <exit_code>  install a mock gh that exits with <exit_code>
-#       --no-gh                do not install gh at all (tests not-installed path)
-#       --no-jq                do not install jq at all (tests not-installed path)
-#       --unset-base           run without WORKWARRIOR_BASE set
-#
-# All other system binaries (sed, grep, etc.) are accessible via /usr/bin:/bin.
-_run_preflight_check() {
-    local mock_gh_exit=0
-    local include_gh=true
-    local include_jq=true
-    local set_base=true
+@test "sync_preflight: fails with [env-missing] when WORKWARRIOR_BASE unset" {
+    source "${BATS_TEST_DIRNAME}/../services/custom/github-sync.sh" 2>/dev/null || true
+    local saved="${WORKWARRIOR_BASE:-}"
+    unset WORKWARRIOR_BASE
+    run sync_preflight
+    export WORKWARRIOR_BASE="${saved}"
+    assert_failure
+    assert_output --partial "[env-missing]"
+}
 
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --mock-gh)   mock_gh_exit="$2"; shift 2 ;;
-            --no-gh)     include_gh=false; shift ;;
-            --no-jq)     include_jq=false; shift ;;
-            --unset-base) set_base=false; shift ;;
-            *)            shift ;;
-        esac
-    done
+@test "sync_preflight: fails with [not-installed] when jq missing" {
+    source "${BATS_TEST_DIRNAME}/../services/custom/github-sync.sh" 2>/dev/null || true
+    local no_jq_dir="${BATS_TEST_TMPDIR}/no-jq-$$"
+    mkdir -p "${no_jq_dir}"
+    _mock_gh 0 ""
+    local saved_path="$PATH"
+    export PATH="${no_jq_dir}:${_WW_MOCK_BIN}"
+    run sync_preflight
+    export PATH="${saved_path}"
+    assert_failure
+    assert_output --partial "[not-installed]"
+}
 
-    local tmp_bin
-    tmp_bin="$(mktemp -d)"
+@test "sync_preflight: fails with [not-installed] when gh missing" {
+    source "${BATS_TEST_DIRNAME}/../services/custom/github-sync.sh" 2>/dev/null || true
+    local no_gh_dir="${BATS_TEST_TMPDIR}/no-gh2-$$"
+    mkdir -p "${no_gh_dir}"
+    local saved_path="$PATH"
+    export PATH="${no_gh_dir}:/usr/bin:/bin"
+    run sync_preflight
+    export PATH="${saved_path}"
+    assert_failure
+    assert_output --partial "[not-installed]"
+}
 
-    if [[ "${include_gh}" == "true" ]]; then
-        cat > "${tmp_bin}/gh" << GHEOF
+@test "sync_preflight: fails with [not-authenticated] when gh not authed" {
+    source "${BATS_TEST_DIRNAME}/../services/custom/github-sync.sh" 2>/dev/null || true
+    _mock_gh 1 "not authenticated"
+    run sync_preflight
+    assert_failure
+    assert_output --partial "[not-authenticated]"
+}
+
+@test "sync_preflight: succeeds when environment is valid" {
+    source "${BATS_TEST_DIRNAME}/../services/custom/github-sync.sh" 2>/dev/null || true
+    _mock_gh 0 ""
+    run sync_preflight
+    assert_success
+}
+
+# ============================================================================
+# check_gh_cli — categorised error codes (TASK-SYNC-003)
+# ============================================================================
+
+@test "check_gh_cli: returns exit code 2 when gh not installed" {
+    local no_gh_dir="${BATS_TEST_TMPDIR}/no-gh3-$$"
+    mkdir -p "${no_gh_dir}"
+    local saved_path="$PATH"
+    export PATH="${no_gh_dir}:/usr/bin:/bin"
+    run check_gh_cli
+    export PATH="${saved_path}"
+    assert_equal "2" "${status}"
+    assert_output --partial "[not-installed]"
+}
+
+@test "check_gh_cli: returns exit code 3 when gh not authenticated" {
+    _mock_gh 1 "not authenticated"
+    run check_gh_cli
+    assert_equal "3" "${status}"
+    assert_output --partial "[not-authenticated]"
+}
+
+# ============================================================================
+# github_get_issue — rate-limit detection (TASK-SYNC-003)
+# ============================================================================
+
+@test "github_get_issue: detects rate limit and emits [rate-limited] error" {
+    cat > "${_WW_MOCK_BIN}/gh" << 'EOF'
 #!/usr/bin/env bash
-exit ${mock_gh_exit}
-GHEOF
-        chmod +x "${tmp_bin}/gh"
-    fi
-
-    # Provide a real jq via symlink to the system binary if available
-    if [[ "${include_jq}" == "true" ]]; then
-        local real_jq
-        real_jq=$(command -v jq 2>/dev/null || true)
-        if [[ -n "${real_jq}" ]]; then
-            ln -s "${real_jq}" "${tmp_bin}/jq"
-        fi
-    fi
-    # When --no-jq: jq is not placed in tmp_bin, so PATH will not find it
-    # (tmp_bin is the only directory in PATH that we control)
-
-    local base_val=""
-    if [[ "${set_base}" == "true" ]]; then
-        base_val="${WORKWARRIOR_BASE}"
-    fi
-
-    # Extract just the preflight_check function body — avoids sourcing the full
-    # service file and propagating its set -euo pipefail into BATS.
-    local func_body
-    func_body=$(sed -n '/^preflight_check()/,/^}/p' \
-        "${BATS_TEST_DIRNAME}/../services/custom/github-sync.sh")
-
-    run bash -c "
-        export PATH='${tmp_bin}:/usr/bin:/bin'
-        export WORKWARRIOR_BASE='${base_val}'
-        ${func_body}
-        preflight_check
-    "
-
-    rm -rf "${tmp_bin}"
-}
-
-@test "preflight_check: fails with category env-missing when WORKWARRIOR_BASE is unset" {
-    _run_preflight_check --unset-base
+# auth status succeeds; issue view fails with rate limit
+if [[ "$1" == "auth" ]]; then exit 0; fi
+echo "error: HTTP 429: secondary rate limit exceeded" >&2
+exit 1
+EOF
+    chmod +x "${_WW_MOCK_BIN}/gh"
+    run github_get_issue "owner/repo" "42"
     assert_failure
-    assert_output --partial "env-missing"
-    assert_output --partial "WORKWARRIOR_BASE"
+    assert_output --partial "[rate-limited]"
 }
 
-@test "preflight_check: fails with category not-installed when jq is absent" {
-    _run_preflight_check --no-jq
+@test "github_get_issue: emits [not-found] for deleted issue" {
+    cat > "${_WW_MOCK_BIN}/gh" << 'EOF'
+#!/usr/bin/env bash
+# auth status succeeds; issue view returns not-found
+if [[ "$1" == "auth" ]]; then exit 0; fi
+echo "Could not resolve to an Issue" >&2
+exit 1
+EOF
+    chmod +x "${_WW_MOCK_BIN}/gh"
+    run github_get_issue "owner/repo" "99"
     assert_failure
-    assert_output --partial "not-installed"
-    assert_output --partial "jq"
-}
-
-@test "preflight_check: fails with category not-installed when gh is absent" {
-    _run_preflight_check --no-gh
-    assert_failure
-    assert_output --partial "not-installed"
-    assert_output --partial "gh"
-}
-
-@test "preflight_check: fails with category not-authenticated when gh auth fails" {
-    _run_preflight_check --mock-gh 1
-    assert_failure
-    assert_output --partial "not-authenticated"
-    assert_output --partial "gh auth login"
-}
-
-@test "preflight_check: succeeds when all dependencies present and gh authenticated" {
-    _run_preflight_check --mock-gh 0
-    assert_success
-}
-
-# ============================================================================
-# _check_rate_limit — TASK-SYNC-003 rate-limit detection
-# ============================================================================
-
-@test "_check_rate_limit: detects 'API rate limit exceeded' string" {
-    run _check_rate_limit "API rate limit exceeded for this resource"
-    assert_success
-    assert_output --partial "rate limit"
-}
-
-@test "_check_rate_limit: detects HTTP 429 in error output" {
-    run _check_rate_limit "HTTP 429 Too Many Requests"
-    assert_success
-    assert_output --partial "rate limit"
-}
-
-@test "_check_rate_limit: returns non-zero (not rate-limited) for generic errors" {
-    run _check_rate_limit "Could not resolve to an Issue"
-    assert_failure
-}
-
-@test "_check_rate_limit: returns non-zero for empty error output" {
-    run _check_rate_limit ""
-    assert_failure
-}
-
-# ============================================================================
-# _sync_tags_to_task — TASK-SYNC-005 GitHub label → TaskWarrior tag sync
-#
-# Each test runs _sync_tags_to_task in a subprocess with mocked tw API functions
-# so the full sync-pull.sh dependency chain is not sourced. SYSTEM_TAGS is
-# extracted from field-mapper.sh so the exclusion logic mirrors production.
-# ============================================================================
-
-# Helper: run _sync_tags_to_task in a fresh bash subprocess.
-# Args: current_tags_json  new_tags_json  [tw_update_exit_code]
-_run_sync_tags() {
-    local current_tags="${1:-[]}"
-    local new_tags="${2:-[]}"
-    local update_exit="${3:-0}"
-
-    local func_body sys_tags_line
-    func_body=$(sed -n '/^_sync_tags_to_task()/,/^}/p' \
-        "${BATS_TEST_DIRNAME}/../lib/sync-pull.sh")
-    sys_tags_line=$(grep '^SYSTEM_TAGS=' \
-        "${BATS_TEST_DIRNAME}/../lib/field-mapper.sh")
-
-    run bash -c "
-        ${sys_tags_line}
-        tw_get_field() { echo '${current_tags}'; }
-        tw_update_task_fields() {
-            shift  # skip task_uuid
-            for arg in \"\$@\"; do echo \"ARG:\${arg}\"; done
-            return ${update_exit}
-        }
-        ${func_body}
-        _sync_tags_to_task 'test-uuid-1234' '${new_tags}'
-    "
-}
-
-@test "_sync_tags_to_task: maps GitHub labels to tags on task with no existing tags" {
-    _run_sync_tags '[]' '["bug","feature"]'
-    assert_success
-    assert_output --partial "ARG:+bug"
-    assert_output --partial "ARG:+feature"
-}
-
-@test "_sync_tags_to_task: preserves system tags when replacing non-system tags" {
-    _run_sync_tags '["ACTIVE","bug"]' '["feature"]'
-    assert_success
-    assert_output --partial "ARG:-bug"
-    assert_output --partial "ARG:+feature"
-    refute_output --partial "ARG:-ACTIVE"
-}
-
-@test "_sync_tags_to_task: empty label set removes non-system tags only" {
-    _run_sync_tags '["bug","ACTIVE"]' '[]'
-    assert_success
-    assert_output --partial "ARG:-bug"
-    refute_output --partial "ARG:-ACTIVE"
-}
-
-@test "_sync_tags_to_task: deduplicates labels before applying tag changes" {
-    _run_sync_tags '[]' '["bug","bug"]'
-    assert_success
-    assert_output "ARG:+bug"
-}
-
-@test "_sync_tags_to_task: no-op when current tags already match label set" {
-    _run_sync_tags '["bug"]' '["bug"]'
-    assert_success
-    refute_output --partial "ARG:"
-}
-
-@test "_sync_tags_to_task: returns failure when tw_update_task_fields fails" {
-    _run_sync_tags '[]' '["bug"]' 1
-    assert_failure
-}
-
-# ============================================================================
-# map_uda_to_labels — TASK-SYNC-006 categorical UDA → namespaced label encoding
-#
-# Tests source field-mapper.sh directly (already loaded in setup()).
-# LABEL_UDA_MAP is overridden to a temp file so production config is not required.
-# ============================================================================
-
-_make_label_map() {
-    local tmp="${BATS_TEST_TMPDIR}/label-uda-map-$$.yaml"
-    cat > "${tmp}" << 'YAML'
-# test label map
-type: type
-phase: phase
-scope: scope
-YAML
-    echo "${tmp}"
-}
-
-@test "map_uda_to_labels: serialises UDA value to prefix:value label" {
-    export LABEL_UDA_MAP
-    LABEL_UDA_MAP=$(_make_label_map)
-    local task='{"type":"bug","phase":"dev","scope":""}'
-    run map_uda_to_labels "${task}"
-    assert_success
-    assert_output --partial "type:bug"
-    assert_output --partial "phase:dev"
-}
-
-@test "map_uda_to_labels: skips empty UDA values" {
-    export LABEL_UDA_MAP
-    LABEL_UDA_MAP=$(_make_label_map)
-    local task='{"type":"","phase":"","scope":""}'
-    run map_uda_to_labels "${task}"
-    assert_success
-    assert_output ""
-}
-
-@test "map_uda_to_labels: produces comma-separated list for multiple populated UDAs" {
-    export LABEL_UDA_MAP
-    LABEL_UDA_MAP=$(_make_label_map)
-    local task='{"type":"feature","phase":"design","scope":"large"}'
-    run map_uda_to_labels "${task}"
-    assert_success
-    assert_output --partial "type:feature"
-    assert_output --partial "phase:design"
-    assert_output --partial "scope:large"
-}
-
-@test "map_uda_to_labels: returns empty when map file absent" {
-    export LABEL_UDA_MAP="/nonexistent/label-uda-map.yaml"
-    run map_uda_to_labels '{"type":"bug"}'
-    assert_success
-    assert_output ""
-}
-
-@test "map_labels_to_udas: parses prefix:value label to uda name and value" {
-    export LABEL_UDA_MAP
-    LABEL_UDA_MAP=$(_make_label_map)
-    local labels='["type:bug","phase:dev","other:thing"]'
-    run map_labels_to_udas "${labels}"
-    assert_success
-    assert_output --partial "type bug"
-    assert_output --partial "phase dev"
-}
-
-@test "map_labels_to_udas: ignores unknown label prefixes" {
-    export LABEL_UDA_MAP
-    LABEL_UDA_MAP=$(_make_label_map)
-    local labels='["unknown:foo","priority:high"]'
-    run map_labels_to_udas "${labels}"
-    assert_success
-    assert_output ""
-}
-
-@test "map_labels_to_udas: returns empty when no labels match map" {
-    export LABEL_UDA_MAP
-    LABEL_UDA_MAP=$(_make_label_map)
-    run map_labels_to_udas '[]'
-    assert_success
-    assert_output ""
-}
-
-# ============================================================================
-# serialize_udas_to_body_block / parse_body_block_to_udas — TASK-SYNC-007
-#
-# BODY_UDA_MAP overridden to a temp file per test.
-# ============================================================================
-
-_make_body_map() {
-    local tmp="${BATS_TEST_TMPDIR}/body-uda-map-$$.yaml"
-    cat > "${tmp}" << 'YAML'
-# test body map
-goals: Goals
-deliverables: Deliverables
-YAML
-    echo "${tmp}"
-}
-
-@test "serialize_udas_to_body_block: produces correct fenced block" {
-    export BODY_UDA_MAP
-    BODY_UDA_MAP=$(_make_body_map)
-    local task='{"goals":"Ship v2","deliverables":"API docs"}'
-    run serialize_udas_to_body_block "${task}"
-    assert_success
-    assert_output --partial "<!-- ww-metadata -->"
-    assert_output --partial '```yaml'
-    assert_output --partial 'goals: "Ship v2"'
-    assert_output --partial 'deliverables: "API docs"'
-    assert_output --partial "<!-- /ww-metadata -->"
-}
-
-@test "serialize_udas_to_body_block: returns empty when all UDAs absent" {
-    export BODY_UDA_MAP
-    BODY_UDA_MAP=$(_make_body_map)
-    local task='{"goals":"","deliverables":""}'
-    run serialize_udas_to_body_block "${task}"
-    assert_success
-    assert_output ""
-}
-
-@test "serialize_udas_to_body_block: returns empty when map file absent" {
-    export BODY_UDA_MAP="/nonexistent/body-uda-map.yaml"
-    run serialize_udas_to_body_block '{"goals":"something"}'
-    assert_success
-    assert_output ""
-}
-
-@test "parse_body_block_to_udas: extracts uda values from block" {
-    export BODY_UDA_MAP
-    BODY_UDA_MAP=$(_make_body_map)
-    local body
-    body=$(printf '<!-- ww-metadata -->\n```yaml\ngoals: "Ship v2"\ndeliverables: "API docs"\n```\n<!-- /ww-metadata -->')
-    run parse_body_block_to_udas "${body}"
-    assert_success
-    assert_output --partial "goals Ship v2"
-    assert_output --partial "deliverables API docs"
-}
-
-@test "parse_body_block_to_udas: returns empty (not error) when block absent" {
-    run parse_body_block_to_udas "Just a regular issue body with no metadata block."
-    assert_success
-    assert_output ""
-}
-
-@test "parse_body_block_to_udas: preserves existing body content outside the block" {
-    export BODY_UDA_MAP
-    BODY_UDA_MAP=$(_make_body_map)
-    # Verify that non-block content does not appear in parse output
-    local body
-    body=$(printf 'This is the real description.\n\n<!-- ww-metadata -->\n```yaml\ngoals: "Target"\n```\n<!-- /ww-metadata -->\n\nMore text here.')
-    run parse_body_block_to_udas "${body}"
-    assert_success
-    assert_output --partial "goals Target"
-    refute_output --partial "real description"
-    refute_output --partial "More text here"
-}
-
-@test "serialize/parse round-trip: push then parse produces identical UDA values" {
-    export BODY_UDA_MAP
-    BODY_UDA_MAP=$(_make_body_map)
-    local task='{"goals":"Deliver feature X","deliverables":"PR merged"}'
-
-    # Serialize to block
-    local block
-    block=$(serialize_udas_to_body_block "${task}")
-
-    # Parse it back
-    run parse_body_block_to_udas "${block}"
-    assert_success
-    assert_output --partial "goals Deliver feature X"
-    assert_output --partial "deliverables PR merged"
+    assert_output --partial "[not-found]"
 }

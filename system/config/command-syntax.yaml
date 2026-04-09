@@ -1,5 +1,5 @@
 version: 1
-updated: "2026-04-08"
+updated: "2026-04-04"
 policy:
   canonical_source: "/Users/mp/ww/system/config/command-syntax.yaml"
   update_required_on:
@@ -126,59 +126,6 @@ commands:
       override: "--profile"
     status: "active"
 
-  - domain: "profile urgency"
-    syntax:
-      - "ww profile urgency show"
-      - "ww profile urgency set <factor> <value>"
-      - "ww profile urgency tune"
-      - "ww profile urgency reset"
-      - "ww profile urgency explain <task-id>"
-    scope:
-      default: "active profile (requires active profile env)"
-    output_modes:
-      default: "human-compact"
-      supports_json: false
-    notes:
-      - "factor examples: due  blocking  active  uda.goals  uda.phase.review"
-      - "coefficients written to WW URGENCY block in .taskrc"
-      - "reset removes WW URGENCY block and any stray urgency.*.coefficient lines"
-      - "explain uses task export + _urgency for the authoritative total"
-    status: "active"
-
-  - domain: "profile uda"
-    syntax:
-      - "ww profile uda list [--all]"
-      - "ww profile uda add [<name>]"
-      - "ww profile uda remove <name>"
-      - "ww profile uda group <name> [group]"
-      - "ww profile uda perm <name> [tokens...]"
-    aliases:
-      - "ww profile udas"
-    scope:
-      default: "active profile (requires active profile env)"
-    output_modes:
-      default: "human-compact"
-      supports_json: false
-    perm_tokens:
-      - "nosync"
-      - "deny:<service>"
-      - "deny:<service>:<channel>"
-      - "readonly"
-      - "writeonly"
-      - "private"
-      - "noreport"
-      - "noexport"
-      - "noai"
-      - "managed"
-      - "locked"
-    notes:
-      - "'ww issues uda' redirects here with a message"
-      - "service-managed UDAs (github_*, sync_*, etc.) shown in separate section"
-      - "groups stored as comment block in .taskrc: # === WW UDA GROUPS ==="
-      - "sync permissions stored in profiles/<name>/.config/sync-permissions"
-      - "uncategorized UDAs hidden from default list; require --all to show"
-    status: "active"
-
   - domain: "journal"
     syntax:
       - "ww journal add <journal>"
@@ -250,11 +197,13 @@ commands:
     scope:
       default: "active profile required"
       override: "--profile via ww wrappers where supported"
-    error_categories:
-      not-installed: "gh CLI or jq binary not found"
-      not-authenticated: "gh CLI present but not logged in (gh auth login required)"
-      env-missing: "WORKWARRIOR_BASE not set (no active profile)"
-      rate-limited: "GitHub API HTTP 429 — retry after waiting"
+    preflight_errors:
+      not-installed: "gh CLI or jq not found"
+      not-authenticated: "gh CLI not logged in (run: gh auth login)"
+      env-missing: "WORKWARRIOR_BASE not set (activate a profile first)"
+      rate-limited: "GitHub API rate limit hit (retry after indicated delay)"
+      not-found: "Issue deleted or not accessible on GitHub"
+      permission-denied: "Insufficient GitHub permissions for repo"
     status: "active"
 
   - domain: "find"
@@ -321,25 +270,6 @@ commands:
     scope:
       default: "global"
       override: "n/a"
-    status: "active"
-
-  - domain: "tui"
-    syntax:
-      - "ww tui"
-      - "ww tui install"
-      - "ww tui help"
-    output_modes:
-      default: "n/a (launches external binary)"
-      supports_json: false
-    scope:
-      default: "active profile required for launch"
-      override: "n/a"
-    notes:
-      - "wraps taskwarrior-tui by Karthikeyan Singaravelan (@kdheepak) — MIT License"
-      - "binary installed system-wide via brew / cargo; no ww source modification"
-      - "profile isolation via --taskrc $TASKRC --taskdata $TASKDATA flags"
-      - "TUI config lives in profile .taskrc via uda.taskwarrior-tui.* prefix"
-      - "attribution printed to scroll buffer on TUI exit (alt-screen restore)"
     status: "active"
 
   - domain: "custom"

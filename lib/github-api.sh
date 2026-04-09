@@ -4,45 +4,23 @@
 
 # Check if gh CLI is installed and authenticated
 # Input: None
-# Output: Error message if not available (to stderr)
-# Returns: 0 if available, 1 if not
+# Output: Error message with category to stderr
+# Returns: 0 if available, 2 if not-installed, 3 if not-authenticated
 check_gh_cli() {
-    # Check if gh is installed
     if ! command -v gh &>/dev/null; then
-        echo "Error: gh CLI not found. Please install it:" >&2
+        echo "Error [not-installed]: gh CLI not found. Please install it:" >&2
         echo "  brew install gh" >&2
         echo "  or visit: https://cli.github.com/" >&2
-        return 1
+        return 2
     fi
 
-    # Check if gh is authenticated
     if ! gh auth status &>/dev/null; then
-        echo "Error: gh CLI not authenticated. Please run:" >&2
+        echo "Error [not-authenticated]: gh CLI not authenticated. Please run:" >&2
         echo "  gh auth login" >&2
-        return 1
+        return 3
     fi
 
     return 0
-}
-
-# Detect whether a gh CLI error response indicates an HTTP 429 rate limit.
-# Input: error_output (string — captured stderr/stdout from a gh invocation)
-# Output: Retry-after advice to stderr if rate-limited
-# Returns: 0 if rate-limited (caller should abort), 1 if not rate-limited
-_check_rate_limit() {
-    local error_output="${1:-}"
-
-    # gh CLI surfaces rate-limit responses in several ways:
-    #   "API rate limit exceeded"
-    #   "rate limit"
-    #   HTTP status 429
-    if echo "${error_output}" | grep -qiE '(rate.limit|429)'; then
-        echo "Error: GitHub API rate limit exceeded (HTTP 429)." >&2
-        echo "  Wait a few minutes before retrying, or check your rate-limit status:" >&2
-        echo "  gh api rate_limit" >&2
-        return 0
-    fi
-    return 1
 }
 
 # Get issue details
@@ -68,18 +46,21 @@ github_get_issue() {
     local issue_data
     issue_data=$(gh issue view "${issue_number}" \
         --repo "${repo}" \
-        --json number,title,body,state,stateReason,labels,comments,createdAt,updatedAt,closedAt,url,author \
+        --json number,title,state,stateReason,labels,comments,createdAt,updatedAt,closedAt,url,author \
         2>&1)
-    
+
     local exit_code=$?
-    
+
     if [[ ${exit_code} -ne 0 ]]; then
-        if _check_rate_limit "${issue_data}"; then
-            return 1
+        if echo "${issue_data}" | grep -qE "HTTP 429|rate limit|secondary rate"; then
+            local retry_after
+            retry_after=$(echo "${issue_data}" | grep -oE "retry after [0-9]+ second" || echo "retry after a short wait")
+            echo "Error [rate-limited]: GitHub API rate limit hit. ${retry_after}." >&2
+            echo "  Check remaining quota: gh api rate_limit" >&2
         elif echo "${issue_data}" | grep -q "Could not resolve to an Issue"; then
-            echo "Error: Issue #${issue_number} not found in ${repo}" >&2
+            echo "Error [not-found]: Issue #${issue_number} not found in ${repo}" >&2
         elif echo "${issue_data}" | grep -q "permission"; then
-            echo "Error: Permission denied accessing ${repo}" >&2
+            echo "Error [permission-denied]: Permission denied accessing ${repo}" >&2
         else
             echo "Error: Failed to fetch issue: ${issue_data}" >&2
         fi
@@ -144,10 +125,10 @@ github_update_issue() {
     local exit_code=$?
     
     if [[ ${exit_code} -ne 0 ]]; then
-        _check_rate_limit "${result}" || echo "Error: Failed to update issue: ${result}" >&2
+        echo "Error: Failed to update issue: ${result}" >&2
         return 1
     fi
-
+    
     return 0
 }
 
@@ -194,10 +175,10 @@ github_update_labels() {
     local exit_code=$?
     
     if [[ ${exit_code} -ne 0 ]]; then
-        _check_rate_limit "${result}" || echo "Error: Failed to update labels: ${result}" >&2
+        echo "Error: Failed to update labels: ${result}" >&2
         return 1
     fi
-
+    
     return 0
 }
 
@@ -246,56 +227,6 @@ github_add_comment() {
         echo "${comment_id}"
     fi
     
-    return 0
-}
-
-# Update issue body — replace or append the ww-metadata block (SYNC-007)
-# Input: repo, issue_number, new_block (ww-metadata block string, may be empty),
-#        current_body (current full issue body text)
-# Output: nothing on success; error to stderr on failure
-# Returns: 0 on success, 1 on failure
-github_update_issue_body() {
-    local repo="$1"
-    local issue_number="$2"
-    local new_block="$3"
-    local current_body="$4"
-
-    if [[ -z "${repo}" || -z "${issue_number}" ]]; then
-        echo "Error: repo and issue_number required" >&2
-        return 1
-    fi
-
-    check_gh_cli || return 1
-
-    local updated_body
-    if echo "${current_body}" | grep -q '<!-- ww-metadata -->'; then
-        # Remove existing block (delete from open marker to close marker inclusive)
-        updated_body=$(echo "${current_body}" | \
-            sed '/<!-- ww-metadata -->/,/<!-- \/ww-metadata -->/d')
-        # Strip any trailing blank lines left by the removal
-        updated_body="${updated_body%$'\n'}"
-        if [[ -n "${new_block}" ]]; then
-            updated_body="${updated_body}"$'\n\n'"${new_block}"
-        fi
-    else
-        if [[ -z "${new_block}" ]]; then
-            return 0  # nothing to do
-        fi
-        updated_body="${current_body}"$'\n\n'"${new_block}"
-    fi
-
-    local result
-    result=$(gh issue edit "${issue_number}" \
-        --repo "${repo}" \
-        --body "${updated_body}" \
-        2>&1)
-
-    local exit_code=$?
-    if [[ ${exit_code} -ne 0 ]]; then
-        _check_rate_limit "${result}" || echo "Error: Failed to update issue body: ${result}" >&2
-        return 1
-    fi
-
     return 0
 }
 
