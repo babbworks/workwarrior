@@ -239,3 +239,111 @@ EOF
     assert_equal "0" "${status}"
     assert_output --partial "state"
 }
+
+# ============================================================================
+# sync_preflight — TASK-SYNC-003
+# ============================================================================
+
+@test "sync_preflight: fails with [env-missing] when WORKWARRIOR_BASE unset" {
+    source "${BATS_TEST_DIRNAME}/../services/custom/github-sync.sh" 2>/dev/null || true
+    local saved="${WORKWARRIOR_BASE:-}"
+    unset WORKWARRIOR_BASE
+    run sync_preflight
+    export WORKWARRIOR_BASE="${saved}"
+    assert_failure
+    assert_output --partial "[env-missing]"
+}
+
+@test "sync_preflight: fails with [not-installed] when jq missing" {
+    source "${BATS_TEST_DIRNAME}/../services/custom/github-sync.sh" 2>/dev/null || true
+    local no_jq_dir="${BATS_TEST_TMPDIR}/no-jq-$$"
+    mkdir -p "${no_jq_dir}"
+    _mock_gh 0 ""
+    local saved_path="$PATH"
+    export PATH="${no_jq_dir}:${_WW_MOCK_BIN}"
+    run sync_preflight
+    export PATH="${saved_path}"
+    assert_failure
+    assert_output --partial "[not-installed]"
+}
+
+@test "sync_preflight: fails with [not-installed] when gh missing" {
+    source "${BATS_TEST_DIRNAME}/../services/custom/github-sync.sh" 2>/dev/null || true
+    local no_gh_dir="${BATS_TEST_TMPDIR}/no-gh2-$$"
+    mkdir -p "${no_gh_dir}"
+    local saved_path="$PATH"
+    export PATH="${no_gh_dir}:/usr/bin:/bin"
+    run sync_preflight
+    export PATH="${saved_path}"
+    assert_failure
+    assert_output --partial "[not-installed]"
+}
+
+@test "sync_preflight: fails with [not-authenticated] when gh not authed" {
+    source "${BATS_TEST_DIRNAME}/../services/custom/github-sync.sh" 2>/dev/null || true
+    _mock_gh 1 "not authenticated"
+    run sync_preflight
+    assert_failure
+    assert_output --partial "[not-authenticated]"
+}
+
+@test "sync_preflight: succeeds when environment is valid" {
+    source "${BATS_TEST_DIRNAME}/../services/custom/github-sync.sh" 2>/dev/null || true
+    _mock_gh 0 ""
+    run sync_preflight
+    assert_success
+}
+
+# ============================================================================
+# check_gh_cli — categorised error codes (TASK-SYNC-003)
+# ============================================================================
+
+@test "check_gh_cli: returns exit code 2 when gh not installed" {
+    local no_gh_dir="${BATS_TEST_TMPDIR}/no-gh3-$$"
+    mkdir -p "${no_gh_dir}"
+    local saved_path="$PATH"
+    export PATH="${no_gh_dir}:/usr/bin:/bin"
+    run check_gh_cli
+    export PATH="${saved_path}"
+    assert_equal "2" "${status}"
+    assert_output --partial "[not-installed]"
+}
+
+@test "check_gh_cli: returns exit code 3 when gh not authenticated" {
+    _mock_gh 1 "not authenticated"
+    run check_gh_cli
+    assert_equal "3" "${status}"
+    assert_output --partial "[not-authenticated]"
+}
+
+# ============================================================================
+# github_get_issue — rate-limit detection (TASK-SYNC-003)
+# ============================================================================
+
+@test "github_get_issue: detects rate limit and emits [rate-limited] error" {
+    cat > "${_WW_MOCK_BIN}/gh" << 'EOF'
+#!/usr/bin/env bash
+# auth status succeeds; issue view fails with rate limit
+if [[ "$1" == "auth" ]]; then exit 0; fi
+echo "error: HTTP 429: secondary rate limit exceeded" >&2
+exit 1
+EOF
+    chmod +x "${_WW_MOCK_BIN}/gh"
+    run github_get_issue "owner/repo" "42"
+    assert_failure
+    assert_output --partial "[rate-limited]"
+}
+
+@test "github_get_issue: emits [not-found] for deleted issue" {
+    cat > "${_WW_MOCK_BIN}/gh" << 'EOF'
+#!/usr/bin/env bash
+# auth status succeeds; issue view returns not-found
+if [[ "$1" == "auth" ]]; then exit 0; fi
+echo "Could not resolve to an Issue" >&2
+exit 1
+EOF
+    chmod +x "${_WW_MOCK_BIN}/gh"
+    run github_get_issue "owner/repo" "99"
+    assert_failure
+    assert_output --partial "[not-found]"
+}

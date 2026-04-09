@@ -197,6 +197,13 @@ commands:
     scope:
       default: "active profile required"
       override: "--profile via ww wrappers where supported"
+    preflight_errors:
+      not-installed: "gh CLI or jq not found"
+      not-authenticated: "gh CLI not logged in (run: gh auth login)"
+      env-missing: "WORKWARRIOR_BASE not set (activate a profile first)"
+      rate-limited: "GitHub API rate limit hit (retry after indicated delay)"
+      not-found: "Issue deleted or not accessible on GitHub"
+      permission-denied: "Insufficient GitHub permissions for repo"
     status: "active"
 
   - domain: "find"

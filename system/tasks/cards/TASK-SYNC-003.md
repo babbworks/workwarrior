@@ -36,4 +36,14 @@ Risk notes:           Depends on SYNC-001 (tests) and SYNC-002 (critical bugs fi
                         no rate-limit detection, orphaned state entries cause repeated errors.
                       Rollback verification: revert all five files independently.
 
-Status:               pending
+Status:               in-review
+
+Builder risk brief (2026-04-05):
+  - Existing behavior: check_gh_cli return codes change (1→2/3); sync commands
+    now call sync_preflight instead of check_gh_cli; UDA write failures in
+    sync-pull now surface as warnings instead of being silenced; orphaned issues
+    log a warning and skip rather than hard-erroring.
+  - Tests covering write scope: 21 passing tests in test-github-sync.bats pre-change.
+  - Rollback: git checkout on all five files restores prior behavior cleanly.
+  - No new GitHub API calls introduced. All changes are defensive/surfacing only.
+  - HIGH FRAGILITY confirmed on Fragility field. Orchestrator approval on card.

@@ -17,6 +17,33 @@ source "${LIB_DIR}/sync-pull.sh"
 source "${LIB_DIR}/sync-push.sh"
 source "${LIB_DIR}/sync-bidirectional.sh"
 
+# Pre-flight validation
+# Validates: gh CLI present+authed, jq present, WORKWARRIOR_BASE set
+# Returns: 0 on pass; exits with categorised message on failure
+sync_preflight() {
+    local failed=0
+
+    if [[ -z "${WORKWARRIOR_BASE:-}" ]]; then
+        echo "Error [env-missing]: WORKWARRIOR_BASE is not set. Activate a profile first." >&2
+        echo "  Run: p-<profile-name>" >&2
+        failed=1
+    fi
+
+    if ! command -v jq &>/dev/null; then
+        echo "Error [not-installed]: jq not found. Please install it:" >&2
+        echo "  brew install jq" >&2
+        failed=1
+    fi
+
+    local gh_rc=0
+    check_gh_cli || gh_rc=$?
+    if [[ ${gh_rc} -ne 0 ]]; then
+        failed=1
+    fi
+
+    [[ ${failed} -eq 0 ]]
+}
+
 # Display help
 cmd_help() {
     local subcommand="$1"
@@ -172,6 +199,14 @@ Examples:
   github-sync sync --dry-run
   github-sync status
 
+Error categories:
+  [not-installed]      gh CLI or jq not found
+  [not-authenticated]  gh CLI not logged in (run: gh auth login)
+  [env-missing]        WORKWARRIOR_BASE not set (activate a profile first)
+  [rate-limited]       GitHub API rate limit hit (retry after indicated delay)
+  [not-found]          Issue deleted or not accessible on GitHub
+  [permission-denied]  Insufficient GitHub permissions for repo
+
 For detailed help on a command:
   github-sync help <command>
 
@@ -271,7 +306,7 @@ cmd_push() {
         esac
     done
     
-    if [[ "${dry_run}" != "true" ]] && ! check_gh_cli; then
+    if [[ "${dry_run}" != "true" ]] && ! sync_preflight; then
         return 1
     fi
 
@@ -342,7 +377,7 @@ cmd_pull() {
         esac
     done
     
-    if [[ "${dry_run}" != "true" ]] && ! check_gh_cli; then
+    if [[ "${dry_run}" != "true" ]] && ! sync_preflight; then
         return 1
     fi
 
@@ -413,7 +448,7 @@ cmd_sync() {
         esac
     done
     
-    if [[ "${dry_run}" != "true" ]] && ! check_gh_cli; then
+    if [[ "${dry_run}" != "true" ]] && ! sync_preflight; then
         return 1
     fi
 
@@ -506,10 +541,8 @@ cmd_status() {
 
 # Main entry point
 main() {
-    # Check for profile
-    if [[ -z "${WORKWARRIOR_BASE}" ]]; then
-        echo "Error: No profile active. Please activate a profile first." >&2
-        echo "Run: p-<profile-name> (or use_task_profile <profile-name>)" >&2
+    # Check for profile and environment
+    if ! sync_preflight; then
         return 1
     fi
     
@@ -530,10 +563,10 @@ main() {
     # Parse command
     local command="$1"
     shift
-    
+
     case "${command}" in
         enable|enable-sync)
-            if ! check_gh_cli; then
+            if ! sync_preflight; then
                 return 1
             fi
             cmd_enable "$@"

@@ -29,8 +29,13 @@ sync_pull_issue() {
     # Fetch current issue from GitHub
     local github_data
     github_data=$(github_get_issue "${repo}" "${issue_number}" 2>&1)
-    
-    if [[ $? -ne 0 ]]; then
+    local fetch_rc=$?
+
+    if [[ ${fetch_rc} -ne 0 ]]; then
+        if echo "${github_data}" | grep -q "\[not-found\]"; then
+            log_warning "Orphaned sync entry: issue #${issue_number} in ${repo} no longer exists. Skipping task ${task_uuid:0:8}. Remove sync with: github-sync disable ${task_uuid:0:8}"
+            return 0
+        fi
         echo "Error: Failed to fetch issue #${issue_number}: ${github_data}" >&2
         return 1
     fi
@@ -79,26 +84,27 @@ sync_pull_issue() {
     
     # Update task fields
     echo "Pulling issue #${issue_number} → task ${task_uuid:0:8}..." >&2
-    
+    local uda_failures=0
+
     # Update description
     if ! tw_update_task "${task_uuid}" "description" "${title}"; then
         echo "Warning: Failed to update description" >&2
     fi
-    
+
     # Update status
     if ! tw_update_task "${task_uuid}" "status" "${tw_status}"; then
         echo "Warning: Failed to update status" >&2
     fi
-    
+
     # Update priority
     if ! tw_update_task "${task_uuid}" "priority" "${priority}"; then
         echo "Warning: Failed to update priority" >&2
     fi
-    
+
     # Tag sync: explicitly deferred (TASK-SYNC-005).
     # GitHub labels → TaskWarrior tags requires careful non-system tag management.
     # Tracked for future implementation; skipped here intentionally.
-    
+
     # Populate metadata UDAs
     local issue_num url author created_at closed_at
     issue_num=$(echo "${github_data}" | jq -r '.number // ""')
@@ -106,36 +112,40 @@ sync_pull_issue() {
     author=$(echo "${github_data}" | jq -r '.author.login // ""')
     created_at=$(echo "${github_data}" | jq -r '.createdAt // ""')
     closed_at=$(echo "${github_data}" | jq -r '.closedAt // ""')
-    
-    tw_update_task "${task_uuid}" "githubissue" "${issue_num}" 2>/dev/null
-    tw_update_task "${task_uuid}" "githuburl" "${url}" 2>/dev/null
-    tw_update_task "${task_uuid}" "githubrepo" "${repo}" 2>/dev/null
-    tw_update_task "${task_uuid}" "githubauthor" "${author}" 2>/dev/null
+
+    tw_update_task "${task_uuid}" "githubissue" "${issue_num}" || { log_warning "Failed to update UDA githubissue for ${task_uuid:0:8}"; uda_failures=$((uda_failures + 1)); }
+    tw_update_task "${task_uuid}" "githuburl" "${url}" || { log_warning "Failed to update UDA githuburl for ${task_uuid:0:8}"; uda_failures=$((uda_failures + 1)); }
+    tw_update_task "${task_uuid}" "githubrepo" "${repo}" || { log_warning "Failed to update UDA githubrepo for ${task_uuid:0:8}"; uda_failures=$((uda_failures + 1)); }
+    tw_update_task "${task_uuid}" "githubauthor" "${author}" || { log_warning "Failed to update UDA githubauthor for ${task_uuid:0:8}"; uda_failures=$((uda_failures + 1)); }
     
     # Set entry date on first sync (if not already set)
     local current_entry
     current_entry=$(tw_get_field "${task_uuid}" "entry")
     if [[ -z "${current_entry}" && -n "${created_at}" ]]; then
-        # Convert ISO 8601 to TaskWarrior format
         local tw_entry
         tw_entry=$(echo "${created_at}" | sed 's/[-:]//g' | sed 's/\.[0-9]*Z/Z/')
-        tw_update_task "${task_uuid}" "entry" "${tw_entry}" 2>/dev/null
+        tw_update_task "${task_uuid}" "entry" "${tw_entry}" || log_warning "Failed to update UDA entry for ${task_uuid:0:8}"
     fi
-    
+
     # Set end date if issue is closed
     if [[ "${tw_status}" == "completed" && -n "${closed_at}" ]]; then
         local tw_end
         tw_end=$(echo "${closed_at}" | sed 's/[-:]//g' | sed 's/\.[0-9]*Z/Z/')
-        tw_update_task "${task_uuid}" "end" "${tw_end}" 2>/dev/null
+        tw_update_task "${task_uuid}" "end" "${tw_end}" || log_warning "Failed to update UDA end for ${task_uuid:0:8}"
     fi
-    
+
     # Sync comments to annotations
     sync_comments_to_annotations "${task_uuid}" "${issue_number}" "${repo}"
-    
+
     # Update sync state
     task_data=$(tw_get_task "${task_uuid}")
     save_sync_state "${task_uuid}" "${task_data}" "${github_data}"
-    
+
+    if [[ ${uda_failures} -gt 0 ]]; then
+        echo "⚠ Pulled issue #${issue_number} with ${uda_failures} UDA warning(s)" >&2
+        return 1
+    fi
+
     echo "✓ Pulled issue #${issue_number}" >&2
     return 0
 }

@@ -4,24 +4,22 @@
 
 # Check if gh CLI is installed and authenticated
 # Input: None
-# Output: Error message if not available (to stderr)
-# Returns: 0 if available, 1 if not
+# Output: Error message with category to stderr
+# Returns: 0 if available, 2 if not-installed, 3 if not-authenticated
 check_gh_cli() {
-    # Check if gh is installed
     if ! command -v gh &>/dev/null; then
-        echo "Error: gh CLI not found. Please install it:" >&2
+        echo "Error [not-installed]: gh CLI not found. Please install it:" >&2
         echo "  brew install gh" >&2
         echo "  or visit: https://cli.github.com/" >&2
-        return 1
+        return 2
     fi
-    
-    # Check if gh is authenticated
+
     if ! gh auth status &>/dev/null; then
-        echo "Error: gh CLI not authenticated. Please run:" >&2
+        echo "Error [not-authenticated]: gh CLI not authenticated. Please run:" >&2
         echo "  gh auth login" >&2
-        return 1
+        return 3
     fi
-    
+
     return 0
 }
 
@@ -50,14 +48,19 @@ github_get_issue() {
         --repo "${repo}" \
         --json number,title,state,stateReason,labels,comments,createdAt,updatedAt,closedAt,url,author \
         2>&1)
-    
+
     local exit_code=$?
-    
+
     if [[ ${exit_code} -ne 0 ]]; then
-        if echo "${issue_data}" | grep -q "Could not resolve to an Issue"; then
-            echo "Error: Issue #${issue_number} not found in ${repo}" >&2
+        if echo "${issue_data}" | grep -qE "HTTP 429|rate limit|secondary rate"; then
+            local retry_after
+            retry_after=$(echo "${issue_data}" | grep -oE "retry after [0-9]+ second" || echo "retry after a short wait")
+            echo "Error [rate-limited]: GitHub API rate limit hit. ${retry_after}." >&2
+            echo "  Check remaining quota: gh api rate_limit" >&2
+        elif echo "${issue_data}" | grep -q "Could not resolve to an Issue"; then
+            echo "Error [not-found]: Issue #${issue_number} not found in ${repo}" >&2
         elif echo "${issue_data}" | grep -q "permission"; then
-            echo "Error: Permission denied accessing ${repo}" >&2
+            echo "Error [permission-denied]: Permission denied accessing ${repo}" >&2
         else
             echo "Error: Failed to fetch issue: ${issue_data}" >&2
         fi
