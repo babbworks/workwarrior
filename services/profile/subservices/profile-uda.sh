@@ -51,6 +51,8 @@ _is_service_uda() {
             return 0 ;;
         density|densitywindow)
             return 0 ;;
+        estimated|time_map)
+            return 0 ;;
         *)
             return 1 ;;
     esac
@@ -67,6 +69,7 @@ _uda_service() {
         bw_*)      echo "bugwarrior" ;;
         sync_*)    echo "github-sync" ;;
         density|densitywindow) echo "extension:twdensity" ;;
+        estimated|time_map)    echo "extension:taskcheck" ;;
         *)         echo "" ;;
     esac
 }

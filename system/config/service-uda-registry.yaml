@@ -96,3 +96,18 @@ extensions:
         type: numeric
         default: 5
         notes: "Window size in days for density calculation"
+
+  taskcheck:
+    description: "UDAs added by taskcheck — automatic task scheduler"
+    upstream: "https://github.com/00sapo/taskcheck"
+    upstream_author: "00sapo · MIT License"
+    install: "pipx install taskcheck"
+    known_udas:
+      - name: estimated
+        label: "Estimated Hours"
+        type: numeric
+        notes: "Expected hours to complete the task — used by taskcheck scheduler"
+      - name: time_map
+        label: "Time Map"
+        type: string
+        notes: "Working hours map key (e.g. work, weekend) — defined in taskcheck.toml"

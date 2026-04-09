@@ -287,6 +287,28 @@ commands:
       override: "--profile where supported"
     status: "active"
 
+  - domain: "schedule"
+    upstream: "https://github.com/00sapo/taskcheck"
+    upstream_author: "00sapo · MIT License"
+    implementation_note: >
+      Zero source modification. Per-profile toggle via enabled flag file.
+      Config managed per-profile at profiles/<n>/.config/taskcheck/taskcheck.toml.
+      ww copies profile config to global appdirs location before each run
+      (taskcheck config path is not overridable via CLI).
+      --taskrc flag passed to taskcheck for TASKRC/TASKDATA isolation.
+    syntax:
+      - "ww schedule enable"
+      - "ww schedule disable"
+      - "ww schedule status"
+      - "ww schedule run [--dry-run]"
+      - "ww schedule config"
+      - "ww schedule install"
+      - "ww schedule help"
+    scope:
+      default: "active profile required"
+      override: "n/a"
+    status: "active"
+
   - domain: "next"
     upstream: "https://github.com/ftapajos/scheduler"
     upstream_author: "Flávio Tapajós (ftapajos) · GPL-3.0"

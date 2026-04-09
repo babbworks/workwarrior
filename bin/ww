@@ -67,6 +67,7 @@ Commands:
   tui         Interactive terminal UI (taskwarrior-tui by @kdheepak)
   gun         Bulk task series generator (taskgun by @hamzamohdzubair)
   next        CFS-inspired next task recommendation (scheduler by @ftapajos)
+  schedule    Auto-scheduler with toggle system (taskcheck by @00sapo)
   mcp         MCP server for AI agent task access (taskwarrior-mcp by @hnsstrk)
   browser     Local web UI server (start, stop, status)
   extensions  External tool extensions registry
@@ -159,6 +160,16 @@ TUI Commands:
   ww tui                      Launch interactive terminal UI (requires active profile)
   ww tui install              Install taskwarrior-tui (brew / cargo)
   ww tui help                 Show TUI help and attribution
+
+Schedule Commands:
+  ww schedule enable          Enable auto-scheduling for active profile
+  ww schedule disable         Disable without removing config
+  ww schedule status          Show enabled/disabled + last run
+  ww schedule run             Run scheduler against active profile
+  ww schedule run --dry-run   Preview scheduling without writing
+  ww schedule config          Open profile's taskcheck config
+  ww schedule install         Install taskcheck via pipx
+  ww schedule help            Show schedule help and attribution
 
 Next Commands:
   ww next                     Show recommended next task (requires active profile)
@@ -1546,6 +1557,194 @@ cmd_ledger() {
 }
 
 # ============================================================================
+# SCHEDULE COMMAND
+# ============================================================================
+
+cmd_schedule() {
+  local subcommand="${1:-status}"
+  shift 2>/dev/null || true
+
+  # Upstream: https://github.com/00sapo/taskcheck
+  # Author: 00sapo · MIT License · Python
+  # Binary: taskcheck
+  # Config: appdirs.user_config_dir("task")/taskcheck.toml (global path)
+  # ww manages per-profile config by copying to/from global location before run.
+
+  _schedule_require_profile() {
+    if [[ -z "${TASKRC:-}" || -z "${TASKDATA:-}" ]]; then
+      log_error "No active profile — activate one first: p-<profile-name>"
+      exit 1
+    fi
+  }
+
+  _schedule_profile_config_dir() {
+    echo "${WORKWARRIOR_BASE:-}/.config/taskcheck"
+  }
+
+  _schedule_enabled_flag() {
+    echo "$(_schedule_profile_config_dir)/enabled"
+  }
+
+  _schedule_profile_toml() {
+    echo "$(_schedule_profile_config_dir)/taskcheck.toml"
+  }
+
+  _schedule_global_config_dir() {
+    python3 -c "import appdirs; print(appdirs.user_config_dir('task'))" 2>/dev/null \
+      || echo "${HOME}/.config/task"
+  }
+
+  _schedule_global_toml() {
+    echo "$(_schedule_global_config_dir)/taskcheck.toml"
+  }
+
+  # Copy profile config to global location before running taskcheck
+  _schedule_activate_config() {
+    local profile_toml
+    profile_toml=$(_schedule_profile_toml)
+    local global_toml
+    global_toml=$(_schedule_global_toml)
+    if [[ -f "${profile_toml}" ]]; then
+      mkdir -p "$(dirname "${global_toml}")"
+      cp "${profile_toml}" "${global_toml}"
+    fi
+  }
+
+  case "$subcommand" in
+    install)
+      if command -v taskcheck &>/dev/null; then
+        log_success "taskcheck already installed: $(taskcheck --version 2>/dev/null || echo 'version unknown')"
+        return 0
+      fi
+      if ! command -v pipx &>/dev/null; then
+        log_error "pipx not found. Install with: brew install pipx"
+        exit 1
+      fi
+      echo "Installing taskcheck..."
+      echo "  Upstream: https://github.com/00sapo/taskcheck"
+      echo "  Author:   00sapo · MIT License"
+      pipx install taskcheck
+      log_success "taskcheck installed"
+      ;;
+    enable)
+      _schedule_require_profile
+      local config_dir
+      config_dir=$(_schedule_profile_config_dir)
+      mkdir -p "${config_dir}"
+      touch "$(_schedule_enabled_flag)"
+      # Create default config if none exists
+      if [[ ! -f "$(_schedule_profile_toml)" ]]; then
+        if command -v taskcheck &>/dev/null; then
+          echo "Creating default taskcheck config for profile '${WARRIOR_PROFILE:-active}'..."
+          _schedule_activate_config
+          taskcheck --install 2>/dev/null || true
+          # Copy the generated global config to profile
+          local global_toml
+          global_toml=$(_schedule_global_toml)
+          [[ -f "${global_toml}" ]] && cp "${global_toml}" "$(_schedule_profile_toml)"
+        else
+          log_warning "taskcheck not installed — run 'ww schedule install' then 'ww schedule config' to set up"
+        fi
+      fi
+      log_success "Auto-scheduling enabled for profile '${WARRIOR_PROFILE:-active}'"
+      echo "  Config: $(_schedule_profile_toml)"
+      echo "  Run:    ww schedule run"
+      ;;
+    disable)
+      _schedule_require_profile
+      local flag
+      flag=$(_schedule_enabled_flag)
+      if [[ -f "${flag}" ]]; then
+        rm "${flag}"
+        log_success "Auto-scheduling disabled for profile '${WARRIOR_PROFILE:-active}'"
+        echo "  Config preserved at: $(_schedule_profile_toml)"
+      else
+        echo "Auto-scheduling was not enabled for this profile."
+      fi
+      ;;
+    status)
+      _schedule_require_profile
+      local flag
+      flag=$(_schedule_enabled_flag)
+      local profile_toml
+      profile_toml=$(_schedule_profile_toml)
+      echo "Schedule status for profile '${WARRIOR_PROFILE:-active}':"
+      echo ""
+      if [[ -f "${flag}" ]]; then
+        echo "  enabled:  yes"
+      else
+        echo "  enabled:  no  (run: ww schedule enable)"
+      fi
+      if [[ -f "${profile_toml}" ]]; then
+        echo "  config:   ${profile_toml}"
+      else
+        echo "  config:   not found (run: ww schedule enable)"
+      fi
+      echo "  taskcheck: $(command -v taskcheck 2>/dev/null || echo 'not installed')"
+      ;;
+    run)
+      _schedule_require_profile
+      local flag
+      flag=$(_schedule_enabled_flag)
+      if [[ ! -f "${flag}" ]]; then
+        log_error "Auto-scheduling is disabled for this profile. Run: ww schedule enable"
+        exit 1
+      fi
+      if ! command -v taskcheck &>/dev/null; then
+        log_error "taskcheck not installed — run: ww schedule install"
+        exit 1
+      fi
+      _schedule_activate_config
+      taskcheck --taskrc "${TASKRC}" "$@"
+      ;;
+    config)
+      _schedule_require_profile
+      local profile_toml
+      profile_toml=$(_schedule_profile_toml)
+      if [[ ! -f "${profile_toml}" ]]; then
+        log_error "No config found. Run: ww schedule enable"
+        exit 1
+      fi
+      "${EDITOR:-vi}" "${profile_toml}"
+      ;;
+    help|-h|--help)
+      cat << 'EOF'
+Schedule Command — Automatic Task Scheduler
+
+Schedules tasks into working hours around calendar events, respecting
+urgency and dependencies. Adds 'estimated' and 'time_map' UDAs.
+
+Usage:
+  ww schedule enable          Enable for active profile + create default config
+  ww schedule disable         Disable (config preserved)
+  ww schedule status          Show enabled/disabled state
+  ww schedule run             Run scheduler
+  ww schedule run --dry-run   Preview without writing
+  ww schedule config          Edit profile's taskcheck.toml
+  ww schedule install         Install taskcheck via pipx
+  ww schedule help            Show this help
+
+UDAs added:
+  estimated    Numeric — expected hours to complete the task
+  time_map     String  — working hours map key (e.g. work, weekend)
+
+Toggle:
+  Enable/disable per profile without removing config.
+  Config lives at: profiles/<name>/.config/taskcheck/taskcheck.toml
+
+Powered by taskcheck · 00sapo
+  https://github.com/00sapo/taskcheck · MIT License
+EOF
+      ;;
+    *)
+      log_error "Unknown schedule subcommand: $subcommand"
+      cmd_schedule help
+      exit 1
+      ;;
+  esac
+}
+
+# ============================================================================
 # NEXT COMMAND
 # ============================================================================
 
@@ -2427,6 +2626,9 @@ main() {
       ;;
     next)
       cmd_next "$@"
+      ;;
+    schedule)
+      cmd_schedule "$@"
       ;;
     mcp)
       cmd_mcp "$@"
