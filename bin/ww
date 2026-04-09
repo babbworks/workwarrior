@@ -245,6 +245,7 @@ Actions:
   import <archive> [name]    Create a new profile from a backup archive
   restore <name> <archive>   Replace an existing profile from a backup archive
   urgency [subcommand]       Manage urgency coefficients for the active profile
+  density [subcommand]       Due-date density scoring (requires twdensity)
   uda [subcommand]           Manage UDAs for the active profile
   udas                       Alias for 'uda list'
 
@@ -724,6 +725,16 @@ cmd_profile() {
       fi
       WORKWARRIOR_BASE="${WORKWARRIOR_BASE:-}" WARRIOR_PROFILE="${WARRIOR_PROFILE:-}" \
         bash "$urg_script" "$@"
+      ;;
+    density)
+      local density_script="$WW_BASE/services/profile/subservices/profile-density.sh"
+      if [[ ! -f "$density_script" ]]; then
+        log_error "Density service not found at $density_script"
+        exit 1
+      fi
+      WORKWARRIOR_BASE="${WORKWARRIOR_BASE:-}" WARRIOR_PROFILE="${WARRIOR_PROFILE:-}" \
+        TASKRC="${TASKRC:-}" TASKDATA="${TASKDATA:-}" \
+        bash "$density_script" "$@"
       ;;
     uda|udas)
       local uda_script="$WW_BASE/services/profile/subservices/profile-uda.sh"

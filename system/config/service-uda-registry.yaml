@@ -79,3 +79,20 @@ services:
       - name: sync_url
         label: "Issue URL"
         type: string
+
+extensions:
+  twdensity:
+    description: "UDAs added by TWDensity — due-date density urgency scoring"
+    upstream: "https://github.com/00sapo/TWDensity"
+    upstream_author: "00sapo · MIT License"
+    install: "pipx install twdensity"
+    known_udas:
+      - name: density
+        label: "Due Density"
+        type: numeric
+        notes: "Count of tasks with similar due dates — drives urgency coefficient"
+      - name: densitywindow
+        label: "Density Window"
+        type: numeric
+        default: 5
+        notes: "Window size in days for density calculation"

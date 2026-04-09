@@ -299,6 +299,23 @@ commands:
       override: "n/a"
     status: "active"
 
+  - domain: "profile.density"
+    upstream: "https://github.com/00sapo/TWDensity"
+    upstream_author: "00sapo · MIT License"
+    implementation_note: >
+      Zero source modification. Thin wrapper that passes TASKRC/TASKDATA to twdensity.
+      UDAs (density, densitywindow) written idempotently to active profile .taskrc.
+      Extension UDAs classified as [extension:twdensity] in ww profile uda list.
+    syntax:
+      - "ww profile density install"
+      - "ww profile density run"
+      - "ww profile density config"
+      - "ww profile density help"
+    scope:
+      default: "active profile required"
+      override: "n/a"
+    status: "active"
+
   - domain: "mcp"
     upstream: "https://github.com/hnsstrk/taskwarrior-mcp"
     upstream_author: "hnsstrk · MIT License"
