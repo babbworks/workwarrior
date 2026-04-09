@@ -21,20 +21,18 @@ Proposed command syntax:
                       Note: ww gun is a thin passthrough to taskgun — all taskgun flags
                       pass through unchanged. ww adds profile env and attribution only.
 
-Limitations to investigate before implementation:
-                      - Does taskgun accept free-text project names with spaces?
-                        (e.g. "Design Patterns" vs design-patterns)
-                      - Does --skip accept arbitrary day names or only weekend/bedtime?
-                      - Does it write to TASKRC-specified data or hardcoded ~/.task?
-                      - What happens if TASKDATA points to a non-default location?
-                      - Does it support --dry-run before writing tasks?
-                      These must be confirmed by reading taskgun source before implementation.
+Limitations confirmed (system/audits/gun-limitations.md):
+                      - TASKRC/TASKDATA: fully supported via env inheritance
+                      - Project names with spaces: SPLIT by TaskWarrior — use underscores
+                        e.g. Design_Patterns not "Design Patterns"
+                      - --skip: built-ins (weekend/bedtime) + time ranges + day lists
+                      - --dry-run: NOT IMPLEMENTED upstream — not in proposed syntax
+                      - Non-default TASKDATA: works correctly
 
 Acceptance criteria:  1. ww gun passes TASKRC/TASKDATA env to taskgun correctly
                       2. ww gun install handles cargo/brew detection
-                      3. ww gun help shows usage and attribution
-                      4. Limitations above documented in integration doc
-                      5. docs/taskwarrior-extensions/taskgun-integration.md written
+                      3. ww gun help shows usage, space limitation warning, attribution
+                      4. docs/taskwarrior-extensions/taskgun-integration.md written
 
 Write scope:          /Users/mp/ww/bin/ww
                       /Users/mp/ww/system/config/command-syntax.yaml
@@ -42,4 +40,4 @@ Write scope:          /Users/mp/ww/bin/ww
 
 Fragility:            SERIALIZED: bin/ww
 
-Status:               pending — requires limitations investigation first (see above)
+Status:               pending
