@@ -66,6 +66,7 @@ Commands:
   ledgers     Alias for ledger namespace (bare form lists ledgers)
   tui         Interactive terminal UI (taskwarrior-tui by @kdheepak)
   gun         Bulk task series generator (taskgun by @hamzamohdzubair)
+  next        CFS-inspired next task recommendation (scheduler by @ftapajos)
   mcp         MCP server for AI agent task access (taskwarrior-mcp by @hnsstrk)
   extensions  External tool extensions registry
   find        Search across profiles and data types
@@ -157,6 +158,12 @@ TUI Commands:
   ww tui                      Launch interactive terminal UI (requires active profile)
   ww tui install              Install taskwarrior-tui (brew / cargo)
   ww tui help                 Show TUI help and attribution
+
+Next Commands:
+  ww next                     Show recommended next task (requires active profile)
+  ww next [filters...]        Filter tasks before recommendation
+  ww next install             Install taskwarrior-scheduler via pipx
+  ww next help                Show next help and attribution
 
 Gun Commands:
   ww gun create <project> -p <parts> -u <unit> --offset <start> --interval <step>
@@ -1525,6 +1532,81 @@ cmd_ledger() {
 }
 
 # ============================================================================
+# NEXT COMMAND
+# ============================================================================
+
+cmd_next() {
+  local subcommand="${1:-}"
+
+  # Upstream: https://github.com/ftapajos/scheduler
+  # Author: Flávio Tapajós (ftapajos) · GPL-3.0 · Python
+  # Binary: 'next' (installed via pipx install taskwarrior-scheduler)
+
+  case "$subcommand" in
+    install)
+      if command -v next &>/dev/null && next --help 2>&1 | grep -q taskwarrior; then
+        log_success "taskwarrior-scheduler already installed"
+        return 0
+      fi
+      if ! command -v pipx &>/dev/null; then
+        log_error "pipx not found. Install with: brew install pipx"
+        exit 1
+      fi
+      echo "Installing taskwarrior-scheduler..."
+      echo "  Upstream: https://github.com/ftapajos/scheduler"
+      echo "  Author:   Flávio Tapajós (ftapajos) · GPL-3.0"
+      pipx install taskwarrior-scheduler
+      log_success "taskwarrior-scheduler installed (binary: next)"
+      ;;
+    help|-h|--help)
+      cat << 'EOF'
+Next Command — CFS-Inspired Task Recommendation
+
+Recommends which task to work on next by combining TaskWarrior urgency
+with TimeWarrior time-already-spent. Prevents high-urgency tasks from
+monopolising all attention (inspired by the Linux CFS scheduler).
+
+Usage:
+  ww next                     Show recommended next task
+  ww next [filters...]        Filter tasks before recommendation
+  ww next install             Install taskwarrior-scheduler
+  ww next help                Show this help
+
+Examples:
+  ww next
+  ww next +work
+  ww next project:dev
+
+Requires:
+  - Active ww profile (TASKRC, TASKDATA, TIMEWARRIORDB set)
+  - taskwarrior-scheduler installed (ww next install)
+  - TimeWarrior on-modify hook active (already installed per profile)
+
+Powered by taskwarrior-scheduler · Flávio Tapajós (ftapajos)
+  https://github.com/ftapajos/scheduler · GPL-3.0
+EOF
+      ;;
+    *)
+      if [[ -z "${TASKRC:-}" || -z "${TASKDATA:-}" ]]; then
+        log_error "No active profile — activate one first: p-<profile-name>"
+        exit 1
+      fi
+      if ! command -v next &>/dev/null; then
+        log_error "taskwarrior-scheduler not installed — run: ww next install"
+        exit 1
+      fi
+      # Pass all args (including the subcommand if it wasn't install/help) as filters
+      local filters=()
+      [[ -n "$subcommand" ]] && filters+=("$subcommand")
+      shift 2>/dev/null || true
+      filters+=("$@")
+      TASKRC="${TASKRC}" TASKDATA="${TASKDATA}" TIMEWARRIORDB="${TIMEWARRIORDB:-}" \
+        next "${filters[@]+${filters[@]}}"
+      ;;
+  esac
+}
+
+# ============================================================================
 # GUN COMMAND
 # ============================================================================
 
@@ -2249,6 +2331,9 @@ main() {
       ;;
     gun)
       cmd_gun "$@"
+      ;;
+    next)
+      cmd_next "$@"
       ;;
     mcp)
       cmd_mcp "$@"
