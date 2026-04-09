@@ -35,4 +35,9 @@ Write scope:          /Users/mp/ww/bin/ww
 
 Fragility:            SERIALIZED: bin/ww
 
-Status:               pending
+Status:               complete
+
+Completion note:      Implemented in commit 9106919. cmd_next() in bin/ww,
+                      next domain in CSSOT, scheduler-integration.md.
+                      GPL-3.0 license noted. Zero source modification.
+                      19 pre-existing failures, zero regressions.
