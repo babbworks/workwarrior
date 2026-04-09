@@ -65,6 +65,7 @@ Commands:
   ledger      Preferred ledger namespace (add, list, remove, rename)
   ledgers     Alias for ledger namespace (bare form lists ledgers)
   tui         Interactive terminal UI (taskwarrior-tui by @kdheepak)
+  mcp         MCP server for AI agent task access (taskwarrior-mcp by @hnsstrk)
   extensions  External tool extensions registry
   find        Search across profiles and data types
   custom      Custom services (journal configuration, etc.)
@@ -155,6 +156,12 @@ TUI Commands:
   ww tui                      Launch interactive terminal UI (requires active profile)
   ww tui install              Install taskwarrior-tui (brew / cargo)
   ww tui help                 Show TUI help and attribution
+
+MCP Commands:
+  ww mcp install              Install taskwarrior-mcp MCP server
+  ww mcp register [--scope]   Register server with MCP client (default scope: user)
+  ww mcp status               Show install and registration status
+  ww mcp help                 Show MCP help and attribution
 
 Custom Services:
   ww custom journals          Configure journal settings (requires active profile)
@@ -1567,6 +1574,167 @@ EOF
 }
 
 # ============================================================================
+# MCP COMMAND
+# ============================================================================
+
+cmd_mcp() {
+  local subcommand="${1:-}"
+  shift 2>/dev/null || true
+
+  # Upstream: https://github.com/hnsstrk/taskwarrior-mcp
+  # Author: hnsstrk · MIT License · Python
+  local MCP_INSTALL_DIR="$HOME/.local/share/ww/mcp/taskwarrior"
+  local MCP_BINARY="taskwarrior-mcp"
+
+  case "$subcommand" in
+    install)
+      if command -v "$MCP_BINARY" &>/dev/null; then
+        log_success "$MCP_BINARY already installed: $(${MCP_BINARY} --version 2>/dev/null || echo 'version unknown')"
+        return 0
+      fi
+      if ! command -v uv &>/dev/null; then
+        echo "Installing uv (required for taskwarrior-mcp) …"
+        if command -v brew &>/dev/null; then
+          brew install uv
+        else
+          log_error "uv not found and brew not available"
+          echo "Install uv manually: https://docs.astral.sh/uv/" >&2
+          exit 1
+        fi
+      fi
+      echo "Installing taskwarrior-mcp from hnsstrk/taskwarrior-mcp …"
+      echo "  Upstream: https://github.com/hnsstrk/taskwarrior-mcp"
+      echo "  Author:   hnsstrk · MIT License"
+      mkdir -p "$(dirname "$MCP_INSTALL_DIR")"
+      if [[ -d "$MCP_INSTALL_DIR" ]]; then
+        echo "  Updating existing clone …"
+        git -C "$MCP_INSTALL_DIR" pull --quiet
+      else
+        git clone --quiet https://github.com/hnsstrk/taskwarrior-mcp.git "$MCP_INSTALL_DIR"
+      fi
+      uv tool install -e "$MCP_INSTALL_DIR/mcp-server"
+      if command -v "$MCP_BINARY" &>/dev/null; then
+        log_success "taskwarrior-mcp installed"
+        echo ""
+        echo "Next: register with your MCP client:"
+        echo "  ww mcp register"
+      else
+        log_error "Installation completed but $MCP_BINARY not found on PATH"
+        echo "Check that uv's bin directory is on your PATH" >&2
+        exit 1
+      fi
+      ;;
+    register)
+      local scope="user"
+      for arg in "$@"; do
+        case "$arg" in
+          --scope) ;;
+          user|project|local) scope="$arg" ;;
+        esac
+      done
+      if [[ -z "${TASKRC:-}" || -z "${TASKDATA:-}" ]]; then
+        log_error "No active profile — activate one first: p-<profile-name>"
+        echo "Profile env vars (TASKRC, TASKDATA) must be set for registration." >&2
+        exit 1
+      fi
+      if ! command -v "$MCP_BINARY" &>/dev/null; then
+        log_error "$MCP_BINARY not installed — run: ww mcp install"
+        exit 1
+      fi
+      local register_cmd="claude mcp add --transport stdio --scope ${scope} taskwarrior"
+      register_cmd+=' --env TW_MCP_TASKRC="$TASKRC"'
+      register_cmd+=' --env TW_MCP_TASK_DATA="$TASKDATA"'
+      register_cmd+=" -- $MCP_BINARY"
+      if command -v claude &>/dev/null; then
+        echo "Registering taskwarrior-mcp with Claude Code (scope: ${scope}) …"
+        echo "  Profile: ${WARRIOR_PROFILE:-active}"
+        echo "  TASKRC:  $TASKRC"
+        echo "  TASKDATA: $TASKDATA"
+        claude mcp add --transport stdio --scope "${scope}" taskwarrior \
+          --env "TW_MCP_TASKRC=${TASKRC}" \
+          --env "TW_MCP_TASK_DATA=${TASKDATA}" \
+          -- "$MCP_BINARY"
+        log_success "Registered. Restart Claude Code to activate."
+      else
+        echo "claude CLI not found — manual registration command:"
+        echo ""
+        echo "  $register_cmd"
+        echo ""
+        echo "For other MCP clients, configure with:"
+        echo "  command: $MCP_BINARY"
+        echo "  env:     TW_MCP_TASKRC=$TASKRC"
+        echo "           TW_MCP_TASK_DATA=$TASKDATA"
+      fi
+      ;;
+    status)
+      echo "taskwarrior-mcp status"
+      echo ""
+      if command -v "$MCP_BINARY" &>/dev/null; then
+        local ver
+        ver=$("$MCP_BINARY" --version 2>/dev/null || echo "unknown")
+        echo "  installed:  yes ($ver)"
+        echo "  binary:     $(command -v "$MCP_BINARY")"
+        echo "  source:     $MCP_INSTALL_DIR"
+      else
+        echo "  installed:  no"
+        echo "  install:    ww mcp install"
+      fi
+      echo ""
+      if [[ -n "${TASKRC:-}" && -n "${TASKDATA:-}" ]]; then
+        echo "  active profile: ${WARRIOR_PROFILE:-unknown}"
+        echo "  TW_MCP_TASKRC:      $TASKRC"
+        echo "  TW_MCP_TASK_DATA:   $TASKDATA"
+      else
+        echo "  active profile: none (activate with p-<profile-name>)"
+      fi
+      echo ""
+      if command -v claude &>/dev/null; then
+        echo "  claude CLI: available"
+        echo "  register:   ww mcp register [--scope user|project]"
+      else
+        echo "  claude CLI: not found (manual registration required)"
+      fi
+      ;;
+    help|-h|--help)
+      cat << 'EOF'
+MCP Command — TaskWarrior MCP Server
+
+Exposes TaskWarrior to any MCP-capable AI agent (Claude Code, Amazon Q, Gemini, etc.)
+with full ww profile isolation. Profile scoping is automatic via TASKRC/TASKDATA.
+
+Usage:
+  ww mcp install              Install taskwarrior-mcp server
+  ww mcp register [--scope]   Register with MCP client (scope: user|project, default: user)
+  ww mcp status               Show install and registration status
+  ww mcp help                 Show this help
+
+Profile isolation:
+  When a ww profile is active, TASKRC and TASKDATA are set automatically.
+  The MCP server reads TW_MCP_TASKRC and TW_MCP_TASK_DATA — same values.
+  Each profile gets its own isolated task database via the MCP server.
+
+AI agent usage:
+  Once registered, any MCP client can manage tasks in the active profile:
+    "What are my open tasks?"
+    "Create a task 'Review PR #42' with high priority, due Friday"
+    "Mark task a1b2c3d4 as done"
+
+Powered by taskwarrior-mcp · hnsstrk
+  https://github.com/hnsstrk/taskwarrior-mcp · MIT License
+EOF
+      ;;
+    "")
+      cmd_mcp status
+      ;;
+    *)
+      log_error "Unknown mcp subcommand: $subcommand"
+      echo "Run 'ww mcp help' for usage"
+      exit 1
+      ;;
+  esac
+}
+
+# ============================================================================
 # ISSUES UDA HELPERS
 # ============================================================================
 
@@ -1954,6 +2122,9 @@ main() {
       ;;
     tui)
       cmd_tui "$@"
+      ;;
+    mcp)
+      cmd_mcp "$@"
       ;;
     issues)
       cmd_issues "$@"

@@ -287,6 +287,35 @@ commands:
       override: "--profile where supported"
     status: "active"
 
+  - domain: "tui"
+    upstream: "https://github.com/kdheepak/taskwarrior-tui"
+    upstream_author: "Karthikeyan Singaravelan (@kdheepak) · MIT License"
+    syntax:
+      - "ww tui"
+      - "ww tui install"
+      - "ww tui help"
+    scope:
+      default: "active profile required for launch"
+      override: "n/a"
+    status: "active"
+
+  - domain: "mcp"
+    upstream: "https://github.com/hnsstrk/taskwarrior-mcp"
+    upstream_author: "hnsstrk · MIT License"
+    implementation_note: >
+      Zero source modification. Profile isolation via TW_MCP_TASKRC and
+      TW_MCP_TASK_DATA env vars, which map directly to ww's TASKRC/TASKDATA.
+      Server installed to ~/.local/share/ww/mcp/taskwarrior/ (outside repo).
+    syntax:
+      - "ww mcp install"
+      - "ww mcp register [--scope user|project]"
+      - "ww mcp status"
+      - "ww mcp help"
+    scope:
+      default: "install/status are global; register requires active profile"
+      override: "n/a"
+    status: "active"
+
   - domain: "questions"
     syntax:
       - "q"
