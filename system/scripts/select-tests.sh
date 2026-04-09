@@ -17,7 +17,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/common.sh"
 
 USAGE="Usage: select-tests.sh <change-type> [<change-type2> ...] [--run]
-Change types: lib | service | profile | shell_integration | bin_ww | github_sync"
+Change types: lib | service | profile | shell_integration | bin_ww | github_sync | release"
 
 # ── Argument parsing ─────────────────────────────────────────────────────────
 
@@ -28,7 +28,7 @@ for arg in "$@"; do
   case "$arg" in
     --run) RUN_MODE=1 ;;
     --help|-h) echo "$USAGE"; exit 0 ;;
-    lib|service|profile|shell_integration|bin_ww|github_sync) TYPES+=("$arg") ;;
+    lib|service|profile|shell_integration|bin_ww|github_sync|release) TYPES+=("$arg") ;;
     *) fail "Unknown argument: $arg"$'\n'"$USAGE" ;;
   esac
 done
@@ -71,6 +71,12 @@ get_tests_for_type() {
     github_sync)
       echo "bash tests/run-integration-tests.sh"
       echo "bats tests/"
+      ;;
+    release)
+      echo "bats tests/"
+      echo "manual: ww help"
+      echo "manual: ww deps check"
+      echo "manual: complete system/gates/release-checklist.md"
       ;;
   esac
 }

@@ -61,7 +61,10 @@ Implementation ships with stale help strings or docs. Agents in future sessions 
 ## Gate D — No Release Without Signed Release Checklist
 
 **Enforced by:** Orchestrator
-**Checked by:** Orchestrator against `gates/release-checklist.md`
+**Checked by:** Orchestrator against `system/gates/release-checklist.md`
+**Criteria source:** `system/reports/production-readiness-rubric.md`
+
+No release tag may be applied until a completed and signed checklist has been saved to `system/reports/releases/vX.Y.Z-checklist.md`. A release claim without that file is invalid regardless of other evidence.
 
 ### Checklist
 - [ ] All TASKS.md items in the release scope are marked `complete`
@@ -70,11 +73,12 @@ Implementation ships with stale help strings or docs. Agents in future sessions 
 - [ ] Gate E satisfied for all tasks in scope (no untracked TODOs)
 - [ ] All HIGH FRAGILITY changes have integration test sign-off
 - [ ] `git status` is clean (no artifact noise)
-- [ ] Release checklist (`gates/release-checklist.md`) is fully signed
-- [ ] All five criteria in `system/reports/production-readiness-rubric.md` are satisfied with evidence
+- [ ] All five production-readiness criteria in `system/reports/production-readiness-rubric.md` satisfied with evidence
+- [ ] Release checklist (`system/gates/release-checklist.md`) is fully signed by Orchestrator
+- [ ] Signed checklist saved to `system/reports/releases/vX.Y.Z-checklist.md` before tagging
 
 ### Failure mode
-Premature release claim with open tasks or stale docs. Do not tag a release until checklist is complete. This gate applies even for informal "Phase X complete" announcements.
+Premature release claim with open tasks or stale docs. Do not tag a release until checklist is complete and the signed copy is saved to `system/reports/releases/`. This gate applies even for informal "Phase X complete" announcements.
 
 ---
 

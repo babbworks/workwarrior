@@ -1,73 +1,51 @@
-# Release Checklist — Gate D
+# Release checklist — ww vX.Y.Z
 
-Complete this checklist before marking any phase complete or tagging a release. Orchestrator signs off. No exceptions.
+Fill in the version, date, and role before checking any item.
+Save the completed checklist to `system/reports/releases/vX.Y.Z-checklist.md` before tagging.
 
-Release/Phase: _______________
-Date: _______________
-Orchestrator: _______________
+Criteria source: `system/reports/production-readiness-rubric.md`
 
 ---
 
-## Section 1: Task Completion
+Version: _______________
+Date: _______________
+Checked by: _______________
 
-- [ ] All TASKS.md items in this release scope are marked `complete`
-- [ ] No tasks marked `in-progress` in the release scope
-- [ ] No tasks marked `blocked` in the release scope
-- [ ] Every deferred item has a TASKS.md card (Gate E satisfied for all tasks)
+---
 
-## Section 2: Documentation and Help (Gate C)
+## Criterion 1 — `ww help` clean output
 
-- [ ] Every new or modified service has a working `--help` / `-h` response
-- [ ] Help strings match actual behavior (not intended behavior)
-- [ ] `services/README.md` reflects current service set
-- [ ] Root `CLAUDE.md` is current (fragility markers, env vars, testing section)
-- [ ] `services/CLAUDE.md` is current (contract, tiers, conventions)
-- [ ] `lib/CLAUDE.md` is current (if lib work was done in this phase)
-- [ ] `tests/CLAUDE.md` is current (if test suite changed)
-- [ ] `docs/usage-examples.md` is current for any changed user-facing commands
+[ ] `ww help` produces no errors, no garbled output, no "command not found" messages | Evidence: ___ | Checked by: Verifier on ___
 
-## Section 3: Test Coverage (Gate B)
+## Criterion 2 — Every help-listed command responds correctly
 
-- [ ] `bats tests/` passes cleanly
-- [ ] All integration tests pass (if applicable to scope)
-- [ ] Every new behavior added in this phase has a corresponding BATS test
-- [ ] No regressions: tests that passed before phase still pass
+[ ] Every command token listed in `ww help` (Commands section) routes to a working handler that exits 0 on `--help` and does not produce an unhandled error | Evidence: ___ | Checked by: Verifier on ___
 
-## Section 4: GitHub Sync (if applicable)
+## Criterion 3 — `ww deps install` succeeds on clean macOS (brew baseline)
 
-- [ ] `./tests/run-integration-tests.sh` passes on test profile
-- [ ] Sync tests 24.1–24.5 all pass
-- [ ] No new TODOs in `lib/github-*.sh` or `lib/sync-*.sh`
-- [ ] Verifier produced explicit sync behavior sign-off
+[ ] On a macOS system with Homebrew installed, `ww deps install` installs all core tools without error | Evidence: ___ | Checked by: Orchestrator on ___
 
-## Section 5: Repository Hygiene
+## Criterion 4 — Extension installs give platform-appropriate guidance on Linux
 
-- [ ] `git status` is clean (no unexpected modified or untracked files)
-- [ ] No `.DS_Store`, `.sqlite3`, sync logs, or generated artifacts in diff
-- [ ] `.gitignore` covers all generated artifact patterns
-- [ ] `pending/` has no new files (archive-only policy enforced)
+[ ] On Linux (no brew), `ww tui install` and `ww mcp install` detect the platform, emit the correct install hint, and exit with a non-zero code — no silent failure, no generic "brew not found" message | Evidence: ___ | Checked by: Verifier on ___
 
-## Section 6: Phase Exit Criteria (Phase 1 specific)
+## Criterion 5 — Core profile round-trip works
 
-- [ ] Root `CLAUDE.md` deployed to project root and passes cold-read test
-- [ ] `services/CLAUDE.md` deployed and passes cold-read test
-- [ ] TASKS.md rebuilt with verified task status (not seeded estimates)
-- [ ] Explorer A report complete at `system/outputs/explorer-a-report.md`
-- [ ] Explorer B report complete at `system/outputs/explorer-b-report.md`
-- [ ] Test baseline per change type defined and in root `CLAUDE.md`
-- [ ] Fragility register current and cross-referenced in root `CLAUDE.md`
+[ ] The sequence `ww profile create <name>` → activate profile → `task add "test task"` → `timew start "test task"` completes without error and data appears in the correct profile directory | Evidence: ___ | Checked by: Verifier on ___
 
 ---
 
 ## Sign-Off
 
-All items above checked: **YES / NO**
+All five criteria satisfied (evidence gathered + code correct): **YES / NO**
 
-If NO: list blocking items below, assign task cards, do not proceed.
-
-Blocking items:
+If NO — list blocking items, assign task cards, do not tag:
 1.
 2.
 3.
 
 Orchestrator sign-off: _______________ Date: _______________
+
+---
+
+Completed checklists are saved to system/reports/releases/vX.Y.Z-checklist.md before tagging

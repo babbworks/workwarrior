@@ -136,6 +136,23 @@ If the task revealed new risk information (fragility, edge cases, test gaps): sa
 
 ---
 
+## Step 7 (Release only): Release Gate — Checklist → Save → Tag
+
+This step applies only when the Orchestrator is preparing a versioned release tag.
+
+```
+[ ] Complete system/gates/release-checklist.md — every criterion checked, evidence recorded
+[ ] Save signed checklist to system/reports/releases/vX.Y.Z-checklist.md
+[ ] Confirm the saved file exists before running git tag
+[ ] Tag the release: git tag -a vX.Y.Z -m "Release vX.Y.Z"
+```
+
+No tag may be applied without the signed checklist saved to `system/reports/releases/`.
+Criteria source: `system/reports/production-readiness-rubric.md`
+Gate reference: Gate D in `system/gates/all-gates.md`
+
+---
+
 ## Parallel Execution
 
 Multiple tasks can run Steps 2–4 simultaneously when:
