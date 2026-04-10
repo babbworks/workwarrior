@@ -1,0 +1,53 @@
+; Hledger Journal for profile: remote-dev
+; Created: Thu  9 Apr 2026 21:19:12 EDT
+
+; Account declarations
+account Assets:Checking
+account Assets:Savings
+account Expenses:Food
+account Expenses:Transportation
+account Expenses:Utilities
+account Expenses:Entertainment
+account Income:Salary
+account Liabilities:CreditCard
+account Equity:Opening Balances
+
+; Opening entry
+2026-04-09 * Opening Balance
+    Assets:Checking                 $0.00
+    Equity:Opening Balances
+
+
+; === Remote Dev — April 2026 ===
+
+2026-04-01 * Opening balance
+    assets:checking                        $4,200.00
+    equity:opening-balance
+
+2026-04-01 * Monthly subscription - GitHub Teams
+    expenses:software:subscriptions         $21.00
+    assets:checking
+
+2026-04-01 * Monthly subscription - 1Password Teams
+    expenses:software:subscriptions         $19.95
+    assets:checking
+
+2026-04-03 * Hetzner Cloud - CX32 server (monthly)
+    expenses:infrastructure:hosting         $16.90
+    assets:checking
+
+2026-04-04 * O'Reilly Learning Platform
+    expenses:education                      $49.00
+    assets:checking
+
+2026-04-07 * Freelance invoice - March work (Acme Corp)
+    assets:checking                       $3,200.00
+    income:freelance:acme
+
+2026-04-08 * Cloudflare - Pro plan
+    expenses:infrastructure:cdn             $25.00
+    assets:checking
+
+2026-04-09 * Coffee & co-working (WeWork day pass)
+    expenses:workspace                      $35.00
+    assets:checking

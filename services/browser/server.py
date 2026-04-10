@@ -6,11 +6,16 @@ Python 3 stdlib only. ThreadingHTTPServer is required so that SSE connections
 (which hold the socket open) do not block concurrent POST /cmd requests.
 
 Endpoints:
-  GET  /health   → 200 {"status":"ok","profile":"<active>","version":"1.0.0"}
-  GET  /events   → text/event-stream SSE (connected + ping every 15s + profile events)
-  POST /cmd      → run ww subcommand, return {"ok":bool,"output":"...","exit_code":N}
-  POST /profile  → switch active profile, return {"ok":bool,"profile":"..."} or 400
-  GET  /         → minimal placeholder HTML
+  GET  /health        → 200 {"status":"ok","profile":"<active>","version":"1.0.0"}
+  GET  /events        → text/event-stream SSE (connected + ping every 15s + profile events)
+  POST /cmd           → run ww subcommand, return {"ok":bool,"output":"...","exit_code":N}
+  POST /profile       → switch active profile, return {"ok":bool,"profile":"..."} or 400
+  GET  /data/tasks    → pending task list for active profile
+  GET  /data/time     → time tracking intervals and totals for active profile
+  GET  /data/journal  → recent journal entries for active profile
+  GET  /data/ledger   → account balances and recent transactions for active profile
+  POST /action        → task mutation (start/stop/done/add/annotate/journal_add/ledger_add)
+  GET  /              → minimal placeholder HTML
 
 State files (written on start, removed on clean shutdown):
   $WW_BASE/.state/browser.pid
@@ -80,6 +85,53 @@ class ServerState:
                 return fh.read().strip()
         except OSError:
             return ""
+
+    def get_profile_paths(self) -> dict:
+        """
+        Return a dict of absolute paths for the active profile's tool data.
+
+        Resolves journal and ledger paths from their respective YAML config
+        files when present. Falls back to convention-based defaults.
+        Returns an empty dict when no profile is active.
+        """
+        profile = self.get_active_profile()
+        if not profile:
+            return {}
+        base = os.path.join(self.ww_base, "profiles", profile)
+
+        # -- Journal path ------------------------------------------------
+        journal_file = os.path.join(base, "journals", f"{profile}.txt")
+        jrnl_yaml = os.path.join(base, "jrnl.yaml")
+        if os.path.isfile(jrnl_yaml):
+            try:
+                content = open(jrnl_yaml).read()
+                import re as _re
+                m = _re.search(r'default:\s*(.+)', content)
+                if m:
+                    journal_file = m.group(1).strip()
+            except OSError:
+                pass
+
+        # -- Ledger path -------------------------------------------------
+        ledger_file = os.path.join(base, "ledgers", f"{profile}.journal")
+        ledgers_yaml = os.path.join(base, "ledgers.yaml")
+        if os.path.isfile(ledgers_yaml):
+            try:
+                content = open(ledgers_yaml).read()
+                import re as _re
+                m = _re.search(r'default:\s*(.+)', content)
+                if m:
+                    ledger_file = m.group(1).strip()
+            except OSError:
+                pass
+
+        return {
+            "taskrc":        os.path.join(base, ".taskrc"),
+            "taskdata":      os.path.join(base, ".task"),
+            "timewarriordb": os.path.join(base, ".timewarrior"),
+            "journal_file":  journal_file,
+            "ledger_file":   ledger_file,
+        }
 
     def set_active_profile(self, name: str) -> bool:
         """
@@ -154,6 +206,17 @@ def _ping_thread(state: ServerState) -> None:
 
 
 # ---------------------------------------------------------------------------
+# TimeWarrior timestamp helper
+# ---------------------------------------------------------------------------
+
+def _parse_timew_ts(ts_str: str) -> float:
+    """Parse a TimeWarrior UTC timestamp string like '20260403T090012Z' to Unix time."""
+    import calendar
+    t = time.strptime(ts_str, "%Y%m%dT%H%M%SZ")
+    return float(calendar.timegm(t))
+
+
+# ---------------------------------------------------------------------------
 # HTTP request handler
 # ---------------------------------------------------------------------------
 
@@ -196,6 +259,14 @@ def make_handler(state: ServerState, ww_bin: str):
                     os.path.join(self.STATIC_DIR, "style.css"),
                     "text/css",
                 )
+            elif self.path == "/data/tasks":
+                self._handle_data_tasks()
+            elif self.path == "/data/time":
+                self._handle_data_time()
+            elif self.path == "/data/journal":
+                self._handle_data_journal()
+            elif self.path == "/data/ledger":
+                self._handle_data_ledger()
             else:
                 self._send_json(404, {"error": "not found"})
 
@@ -204,6 +275,8 @@ def make_handler(state: ServerState, ww_bin: str):
                 self._handle_cmd()
             elif self.path == "/profile":
                 self._handle_profile()
+            elif self.path == "/action":
+                self._handle_action()
             else:
                 self._send_json(404, {"error": "not found"})
 
@@ -385,6 +458,298 @@ def make_handler(state: ServerState, ww_bin: str):
 
             state.broadcast("profile", json.dumps({"profile": name}))
             self._send_json(200, {"ok": True, "profile": name})
+
+        # -- GET /data/tasks -------------------------------------------------
+
+        def _handle_data_tasks(self) -> None:
+            """Return pending and active tasks for the active profile as JSON."""
+            paths = state.get_profile_paths()
+            if not paths:
+                self._send_json(200, {"ok": False, "error": "no active profile", "tasks": []})
+                return
+            env = {**os.environ, "TASKRC": paths["taskrc"], "TASKDATA": paths["taskdata"]}
+            try:
+                result = subprocess.run(
+                    ["task", "rc.confirmation=no", "status:pending", "export"],
+                    capture_output=True, text=True, timeout=10, env=env,
+                )
+                tasks = json.loads(result.stdout) if result.stdout.strip() else []
+                # Also collect active tasks (may overlap with pending export)
+                result2 = subprocess.run(
+                    ["task", "rc.confirmation=no", "status:active", "export"],
+                    capture_output=True, text=True, timeout=10, env=env,
+                )
+                active = json.loads(result2.stdout) if result2.stdout.strip() else []
+                # Merge: active tasks first, pending de-duped by uuid
+                all_tasks = active + [t for t in tasks if t.get("uuid") not in {a["uuid"] for a in active}]
+                self._send_json(200, {"ok": True, "tasks": all_tasks})
+            except Exception as exc:
+                self._send_json(200, {"ok": False, "error": str(exc), "tasks": []})
+
+        # -- GET /data/time --------------------------------------------------
+
+        def _handle_data_time(self) -> None:
+            """
+            Parse TimeWarrior data files directly and return interval totals.
+            Reads the current and previous month .data files to cover week boundaries.
+            """
+            paths = state.get_profile_paths()
+            if not paths:
+                self._send_json(200, {"ok": False, "error": "no active profile", "intervals": []})
+                return
+            twdb = paths["timewarriordb"]
+            import glob as globmod
+            import re as _re
+            data_dir = os.path.join(twdb, "data")
+            intervals = []
+            now_utc = time.gmtime()
+            current_month = time.strftime("%Y-%m", now_utc)
+            prev_month = time.strftime("%Y-%m", time.gmtime(time.time() - 32 * 86400))
+            active_interval = None
+            for month in [prev_month, current_month]:
+                data_file = os.path.join(data_dir, f"{month}.data")
+                if not os.path.isfile(data_file):
+                    continue
+                for line in open(data_file):
+                    line = line.strip()
+                    if not line.startswith("inc "):
+                        continue
+                    # Closed interval: inc YYYYMMDDTHHMMSSZ - YYYYMMDDTHHMMSSZ # tags
+                    # Open interval:   inc YYYYMMDDTHHMMSSZ # tags
+                    m = _re.match(
+                        r'inc (\d{8}T\d{6}Z)(?:\s+-\s+(\d{8}T\d{6}Z))?\s*(?:#\s*(.*))?', line
+                    )
+                    if not m:
+                        continue
+                    start_str, end_str, tags_str = m.group(1), m.group(2), m.group(3) or ""
+                    start_ts = _parse_timew_ts(start_str)
+                    if end_str:
+                        end_ts = _parse_timew_ts(end_str)
+                        duration = end_ts - start_ts
+                        intervals.append({
+                            "start": start_str,
+                            "end": end_str,
+                            "duration": int(duration),
+                            "tags": tags_str.strip(),
+                            "active": False,
+                        })
+                    else:
+                        # No end time → currently active interval
+                        active_interval = {
+                            "start": start_str,
+                            "end": None,
+                            "duration": int(time.time() - start_ts),
+                            "tags": tags_str.strip(),
+                            "active": True,
+                        }
+
+            if active_interval:
+                intervals.append(active_interval)
+
+            # Compute today / week totals from local midnight boundaries
+            today_start = time.mktime(time.strptime(time.strftime("%Y-%m-%d"), "%Y-%m-%d"))
+            week_start = today_start - time.localtime().tm_wday * 86400
+            today_total = sum(
+                iv["duration"] for iv in intervals
+                if _parse_timew_ts(iv["start"]) >= today_start
+            )
+            week_total = sum(
+                iv["duration"] for iv in intervals
+                if _parse_timew_ts(iv["start"]) >= week_start
+            )
+            self._send_json(200, {
+                "ok": True,
+                "intervals": intervals[-50:],  # cap at 50 most recent
+                "today_total_seconds": today_total,
+                "week_total_seconds": week_total,
+                "active": active_interval is not None,
+                "active_tags": active_interval["tags"] if active_interval else None,
+                "active_since": active_interval["start"] if active_interval else None,
+            })
+
+        # -- GET /data/journal -----------------------------------------------
+
+        def _handle_data_journal(self) -> None:
+            """
+            Read the profile's journal text file directly and return up to 20 entries.
+            Does not invoke the jrnl CLI (too slow; requires config).
+            Entry headers have the format: [YYYY-MM-DD HH:MM]
+            """
+            paths = state.get_profile_paths()
+            if not paths:
+                self._send_json(200, {"ok": False, "error": "no active profile", "entries": []})
+                return
+            journal_file = paths["journal_file"]
+            try:
+                import re as _re
+                content = open(journal_file).read()
+                # Split on [YYYY-MM-DD HH:MM] date headers
+                parts = _re.split(r'\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2})\]', content)
+                # parts layout: [pre, date1, body1, date2, body2, ...]
+                entries = []
+                for i in range(1, len(parts) - 1, 2):
+                    date = parts[i]
+                    body = parts[i + 1].strip()
+                    if body:
+                        entries.append({"date": date, "body": body})
+                entries.reverse()  # most recent first
+                self._send_json(200, {"ok": True, "entries": entries[:20]})
+            except OSError:
+                self._send_json(200, {"ok": True, "entries": []})
+
+        # -- GET /data/ledger ------------------------------------------------
+
+        def _handle_data_ledger(self) -> None:
+            """
+            Return account balances and recent transactions via hledger JSON output.
+            Returns ok:false with an error message when hledger is not installed.
+            """
+            paths = state.get_profile_paths()
+            if not paths:
+                self._send_json(200, {"ok": False, "error": "no active profile"})
+                return
+            ledger_file = paths["ledger_file"]
+            if not os.path.isfile(ledger_file):
+                self._send_json(200, {"ok": True, "balances": [], "recent": []})
+                return
+            try:
+                bal = subprocess.run(
+                    ["hledger", "-f", ledger_file, "balance", "--output-format=json"],
+                    capture_output=True, text=True, timeout=10,
+                )
+                reg = subprocess.run(
+                    ["hledger", "-f", ledger_file, "register", "--output-format=json"],
+                    capture_output=True, text=True, timeout=10,
+                )
+                balances = json.loads(bal.stdout) if bal.returncode == 0 and bal.stdout.strip() else []
+                recent_raw = json.loads(reg.stdout) if reg.returncode == 0 and reg.stdout.strip() else []
+                # Take only the last 10 register rows
+                recent = recent_raw[-10:] if recent_raw else []
+                self._send_json(200, {"ok": True, "balances": balances, "recent": recent})
+            except FileNotFoundError:
+                self._send_json(200, {"ok": False, "error": "hledger not installed",
+                                      "balances": [], "recent": []})
+            except Exception as exc:
+                self._send_json(200, {"ok": False, "error": str(exc), "balances": [], "recent": []})
+
+        # -- POST /action ----------------------------------------------------
+
+        def _handle_action(self) -> None:
+            """
+            Execute a task or journal/ledger mutation and return the result.
+
+            Supported actions:
+              done, start, stop   — task lifecycle
+              add                 — create a new task
+              annotate            — add annotation to a task
+              journal_add         — append an entry to the profile's journal file
+              ledger_add          — append a transaction to the profile's ledger file
+            """
+            body = self._read_json_body()
+            if body is None:
+                return
+            action = body.get("action", "")
+            paths = state.get_profile_paths()
+            if not paths:
+                self._send_json(400, {"ok": False, "error": "no active profile"})
+                return
+            env = {**os.environ, "TASKRC": paths["taskrc"], "TASKDATA": paths["taskdata"]}
+
+            def run_task(*args):
+                return subprocess.run(
+                    ["task", "rc.confirmation=no"] + list(args),
+                    capture_output=True, text=True, timeout=15, env=env,
+                )
+
+            def fetch_tasks():
+                r = subprocess.run(
+                    ["task", "rc.confirmation=no", "status:pending", "export"],
+                    capture_output=True, text=True, timeout=10, env=env,
+                )
+                r2 = subprocess.run(
+                    ["task", "rc.confirmation=no", "status:active", "export"],
+                    capture_output=True, text=True, timeout=10, env=env,
+                )
+                pending = json.loads(r.stdout) if r.stdout.strip() else []
+                active = json.loads(r2.stdout) if r2.stdout.strip() else []
+                return active + [t for t in pending if t.get("uuid") not in {a["uuid"] for a in active}]
+
+            try:
+                if action == "done":
+                    tid = str(body.get("id", ""))
+                    r = run_task(tid, "done")
+                    tasks = fetch_tasks()
+                    self._send_json(200, {"ok": r.returncode == 0, "output": r.stdout or r.stderr, "tasks": tasks})
+
+                elif action == "start":
+                    tid = str(body.get("id", ""))
+                    r = run_task(tid, "start")
+                    tasks = fetch_tasks()
+                    self._send_json(200, {"ok": r.returncode == 0, "output": r.stdout or r.stderr, "tasks": tasks})
+
+                elif action == "stop":
+                    tid = str(body.get("id", ""))
+                    r = run_task(tid, "stop")
+                    tasks = fetch_tasks()
+                    self._send_json(200, {"ok": r.returncode == 0, "output": r.stdout or r.stderr, "tasks": tasks})
+
+                elif action == "add":
+                    args_obj = body.get("args", {})
+                    desc = args_obj.get("description", "")
+                    if not desc:
+                        self._send_json(400, {"ok": False, "error": "description required"})
+                        return
+                    cmd_parts = ["add", desc]
+                    if args_obj.get("project"):
+                        cmd_parts.append(f"project:{args_obj['project']}")
+                    if args_obj.get("priority"):
+                        cmd_parts.append(f"priority:{args_obj['priority']}")
+                    if args_obj.get("due"):
+                        cmd_parts.append(f"due:{args_obj['due']}")
+                    for tag in args_obj.get("tags", []):
+                        cmd_parts.append(f"+{tag}")
+                    r = run_task(*cmd_parts)
+                    tasks = fetch_tasks()
+                    self._send_json(200, {"ok": r.returncode == 0, "output": r.stdout or r.stderr, "tasks": tasks})
+
+                elif action == "annotate":
+                    tid = str(body.get("id", ""))
+                    note = body.get("args", {}).get("note", "")
+                    r = run_task(tid, "annotate", note)
+                    tasks = fetch_tasks()
+                    self._send_json(200, {"ok": r.returncode == 0, "output": r.stdout or r.stderr, "tasks": tasks})
+
+                elif action == "journal_add":
+                    entry_text = body.get("args", {}).get("entry", "").strip()
+                    if not entry_text:
+                        self._send_json(400, {"ok": False, "error": "entry required"})
+                        return
+                    import time as time_mod
+                    timestamp = time_mod.strftime("%Y-%m-%d %H:%M")
+                    line = f"\n[{timestamp}] {entry_text}\n"
+                    with open(paths["journal_file"], "a") as fh:
+                        fh.write(line)
+                    self._send_json(200, {"ok": True, "output": "entry added"})
+
+                elif action == "ledger_add":
+                    args_obj = body.get("args", {})
+                    date = args_obj.get("date", time.strftime("%Y-%m-%d"))
+                    desc = args_obj.get("description", "")
+                    account = args_obj.get("account", "expenses:misc")
+                    amount = args_obj.get("amount", "0")
+                    if not desc:
+                        self._send_json(400, {"ok": False, "error": "description required"})
+                        return
+                    entry = f"\n{date} {desc}\n    {account}  ${amount}\n    assets:checking\n"
+                    with open(paths["ledger_file"], "a") as fh:
+                        fh.write(entry)
+                    self._send_json(200, {"ok": True, "output": "transaction added"})
+
+                else:
+                    self._send_json(400, {"ok": False, "error": f"unknown action: {action}"})
+
+            except Exception as exc:
+                self._send_json(500, {"ok": False, "error": str(exc)})
 
         # -- Helpers ---------------------------------------------------------
 

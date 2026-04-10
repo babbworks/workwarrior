@@ -1,0 +1,6 @@
+{
+  "Fix CORS headers on \/v2\/webhooks endpoint":{"count":1},
+  "api":{"count":1},
+  "backend":{"count":1},
+  "bug":{"count":1}
+}

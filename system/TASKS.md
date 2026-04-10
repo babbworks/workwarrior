@@ -4,8 +4,8 @@
 **Orchestrator is the only agent that updates status fields.**
 `pending/` is archive-only. Nothing new is written there.
 
-Last updated: 2026-04-09 (session 7)
-Current phase: Phase 2 active — browser UI (wwsite) in progress
+Last updated: 2026-04-09 (session 8)
+Current phase: Phase 2 active — browser UI (wwsite) Waves 1–3 complete
 
 ---
 
@@ -63,7 +63,7 @@ Current phase: Phase 2 active — browser UI (wwsite) in progress
 | [TASK-SITE-001](tasks/cards/TASK-SITE-001.md) | complete | Design `ww browser` — locally-served web UI (wwsite) |
 | [TASK-SITE-002](tasks/cards/TASK-SITE-002.md) | complete | Wave 1: server scaffolding — Python3 HTTP + SSE + /cmd + /profile endpoints |
 | [TASK-SITE-003](tasks/cards/TASK-SITE-003.md) | complete | Wave 2: UI shell — dark terminal aesthetic, sidebar, terminal line, SSE wiring |
-| [TASK-SITE-004](tasks/cards/TASK-SITE-004.md) | pending | Wave 3: Tasks section — live data, urgency list, inline actions |
+| [TASK-SITE-004](tasks/cards/TASK-SITE-004.md) | complete | Wave 3: Live data sections — all 4 tools, /data/* endpoints, /action mutations |
 | [TASK-SITE-005](tasks/cards/TASK-SITE-005.md) | pending | Wave 4: Time, Journal, Ledger sections |
 | [TASK-SITE-006](tasks/cards/TASK-SITE-006.md) | pending | Wave 5: export/publish, full typeahead, keyboard shortcuts, polish |
 
@@ -73,7 +73,7 @@ Current phase: Phase 2 active — browser UI (wwsite) in progress
 
 | Priority | ID | Goal | Depends On |
 |---|---|---|---|
-| 1 | [TASK-SITE-004](tasks/cards/TASK-SITE-004.md) | Wave 3: Tasks section live data | SITE-003 done |
+| 1 | [TASK-SITE-005](tasks/cards/TASK-SITE-005.md) | Wave 4: Time, Journal, Ledger section polish | SITE-004 done |
 | 2 | [TASK-SITE-005](tasks/cards/TASK-SITE-005.md) | Wave 4: Time, Journal, Ledger sections | SITE-004 |
 | 3 | [TASK-SITE-006](tasks/cards/TASK-SITE-006.md) | Wave 5: export, typeahead, polish | SITE-005 |
 | 4 | [TASK-QUAL-002](tasks/cards/TASK-QUAL-002.md) | Automate docs/help parity checks | none |

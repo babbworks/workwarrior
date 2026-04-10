@@ -1,0 +1,15 @@
+journals:
+  default: /Users/mp/ww/profiles/remote-dev/journals/remote-dev.txt
+editor: nano
+encrypt: false
+tagsymbols: '@'
+default_hour: 9
+default_minute: 0
+timeformat: "%Y-%m-%d %H:%M"
+highlight: true
+linewrap: 79
+colors:
+  body: none
+  date: blue
+  tags: yellow
+  title: cyan

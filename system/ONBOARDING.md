@@ -31,8 +31,8 @@ For fragility policy detail, also read `system/fragility-register.md`.
 ## Current State (update this section when phase changes)
 
 - **Phase:** Phase 2 active
-- **Next task:** TASK-SITE-004 — Wave 3 of `ww browser` (Tasks section live data)
-- **Active initiative:** wwsite — locally-served browser UI (`ww browser`). Waves 1+2 complete (server + UI shell). Wave 3 adds live TaskWarrior data to the Tasks section.
+- **Next task:** TASK-SITE-005 — Wave 4 of `ww browser` (Time/Journal/Ledger polish)
+- **Active initiative:** wwsite — locally-served browser UI (`ww browser`). Waves 1–3 complete. All four sections (Tasks, Time, Journal, Ledger) show live data. Demo profile `remote-dev` is seeded with tasks, time, journal, and ledger data.
 - **Known test baseline:** ~10 pre-existing failures (not regressions) in test-profile-management-properties.bats and test-profile-name-validation.bats. See tests/CLAUDE.md for the full list.
 
 ---

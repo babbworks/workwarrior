@@ -1,0 +1,15 @@
+[2026-04-09 21:19] Welcome to your journal!
+
+This is the default journal for the 'remote-dev' profile.
+You can add entries using the 'j' command when this profile is active.
+
+
+[2026-04-03 09:15] Set up the new staging environment today. Hetzner CX32 is on order. In the meantime started diagnosing the CORS issue on /v2/webhooks — turns out the middleware chain was stripping the preflight headers before they hit the route handler. Should be a one-line fix once I trace the exact middleware order. @api @bug
+
+[2026-04-04 17:45] Long infra day. Got through the Terraform review for the CDN changes — flagged two issues with the cache TTL config that would have caused stale asset problems on deploy. Pushed the Hetzner setup work forward but blocked on SSH key provisioning from IT. @infra @devops
+
+[2026-04-07 09:30] Back after the weekend. Postgres migration planning session with the team — we settled on pg_upgrade with a blue/green failover window rather than logical replication. Lower risk, bigger maintenance window. Scheduled for the 20th. @database @planning
+
+[2026-04-08 14:00] Good progress on the rate limiting middleware. Token bucket is implemented and the tests pass for the happy path. Edge cases around burst behavior still need work — what happens when the bucket refills exactly as a request lands. Starting OTel tracing work in parallel since it's on a separate service. @api @observability
+
+[2026-04-09 11:15] Weekly sync was productive. Team aligned on the Node 18→22 upgrade timeline: we do it service by service starting with the least critical. The CORS fix is finally in review — took longer than expected because the root cause was in a shared auth middleware, not the webhook handler. @comms @api

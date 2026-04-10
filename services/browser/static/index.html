@@ -33,20 +33,55 @@
       </header>
       <div id="content-area">
         <section class="section" id="section-tasks">
-          <div class="skeleton-msg">Tasks — live data loading in Wave 3</div>
-          <div class="skeleton-row"></div><div class="skeleton-row"></div><div class="skeleton-row"></div>
+          <div class="section-toolbar">
+            <input type="text" id="task-filter" class="inline-filter" placeholder="filter tasks…" />
+            <button class="btn-add" id="btn-add-task">+ Add task</button>
+          </div>
+          <form class="add-form hidden" id="add-task-form">
+            <input type="text" name="description" placeholder="Description*" required />
+            <input type="text" name="project" placeholder="Project" />
+            <input type="text" name="tags" placeholder="Tags (comma-sep)" />
+            <select name="priority"><option value="">Priority</option><option>H</option><option>M</option><option>L</option></select>
+            <input type="date" name="due" />
+            <button type="submit">Add</button>
+            <button type="button" class="btn-cancel">Cancel</button>
+          </form>
+          <div class="task-list" id="task-list">
+            <div class="skeleton-msg">Loading tasks…</div>
+          </div>
         </section>
         <section class="section hidden" id="section-time">
-          <div class="skeleton-msg">Time — live data loading in Wave 3</div>
-          <div class="skeleton-row"></div><div class="skeleton-row"></div><div class="skeleton-row"></div>
+          <div class="time-today" id="time-today">Loading…</div>
+          <div class="time-week" id="time-week"></div>
+          <div class="time-intervals" id="time-intervals"></div>
         </section>
         <section class="section hidden" id="section-journal">
-          <div class="skeleton-msg">Journal — live data loading in Wave 3</div>
-          <div class="skeleton-row"></div><div class="skeleton-row"></div><div class="skeleton-row"></div>
+          <div class="section-toolbar">
+            <button class="btn-add" id="btn-add-journal">+ New entry</button>
+          </div>
+          <form class="add-form hidden" id="add-journal-form">
+            <textarea name="entry" placeholder="Write your entry…" rows="4" required></textarea>
+            <button type="submit">Add</button>
+            <button type="button" class="btn-cancel">Cancel</button>
+          </form>
+          <div class="journal-list" id="journal-list">
+            <div class="skeleton-msg">Loading journal…</div>
+          </div>
         </section>
         <section class="section hidden" id="section-ledger">
-          <div class="skeleton-msg">Ledger — live data loading in Wave 3</div>
-          <div class="skeleton-row"></div><div class="skeleton-row"></div><div class="skeleton-row"></div>
+          <div class="section-toolbar">
+            <button class="btn-add" id="btn-add-ledger">+ Add transaction</button>
+          </div>
+          <form class="add-form hidden" id="add-ledger-form">
+            <input type="date" name="date" />
+            <input type="text" name="description" placeholder="Description*" required />
+            <input type="text" name="account" placeholder="Account (e.g. expenses:food)" />
+            <input type="text" name="amount" placeholder="Amount (e.g. 25.00)" />
+            <button type="submit">Add</button>
+            <button type="button" class="btn-cancel">Cancel</button>
+          </form>
+          <div class="ledger-balances" id="ledger-balances"></div>
+          <div class="ledger-recent" id="ledger-recent"></div>
         </section>
       </div>
     </div>
