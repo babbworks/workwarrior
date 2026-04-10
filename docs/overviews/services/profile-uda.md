@@ -77,3 +77,7 @@ When a UDA is added to a group, the indicator character and color rule are auto-
 - `system/config/uda-color-map.yaml` — group → TW color spec, with per-UDA and per-value overrides
 
 Both maps are parsed with POSIX `awk` (not `yq`) for portability.
+
+## Changelog
+
+- 2026-04-10 — Initial version

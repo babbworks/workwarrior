@@ -61,3 +61,7 @@ No automatic retry logic — callers receive `[rate-limited]` and must decide wh
 - Never call `gh` directly outside this file — all GitHub API access goes through these functions
 - All functions return non-zero on any API failure — callers must check return codes
 - `check_gh_cli()` must be called before any API operation (enforced by `sync_preflight()` in `github-sync.sh`)
+
+## Changelog
+
+- 2026-04-10 — Initial version

@@ -63,3 +63,7 @@ $WORKWARRIOR_BASE/.config/bugwarrior/bugwarrior.toml
 ```
 
 The `BUGWARRIORRC` env var is exported on profile activation to point bugwarrior to this profile-specific config.
+
+## Changelog
+
+- 2026-04-10 — Initial version

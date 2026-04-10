@@ -94,3 +94,7 @@ If a profile is resolved, exports: `WARRIOR_PROFILE`, `WORKWARRIOR_BASE`, `TASKR
 3. Add to `show_usage()` command list and relevant Commands section
 4. Add domain to `system/config/command-syntax.yaml`
 5. Write `docs/taskwarrior-extensions/<name>-integration.md` if wrapping an external tool
+
+## Changelog
+
+- 2026-04-10 — Initial version

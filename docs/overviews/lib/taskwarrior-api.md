@@ -49,3 +49,7 @@ Adds an annotation to a task using `task <uuid> annotate`.
 - `rc.confirmation=no` is set on all write operations — sync must never block waiting for user input
 - `rc.verbose=nothing` suppresses TaskWarrior's output on writes — only errors surface
 - Return codes are meaningful: 0 = success, non-zero = failure. Callers in sync-pull/push check every write
+
+## Changelog
+
+- 2026-04-10 — Initial version

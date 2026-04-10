@@ -71,3 +71,7 @@ Extracts and parses the `<!-- ww-udas: {...} -->` block from an issue body. Retu
 ## SYSTEM_TAGS
 
 Tags that are never modified by sync operations. Defined as a bash array at the top of the file. Any tag in this set is filtered out of both push and pull operations. Modifying this set changes sync behavior globally — update with care.
+
+## Changelog
+
+- 2026-04-10 — Initial version

@@ -45,3 +45,7 @@ If no last profile exists (fresh install), the shell starts with no profile acti
 ## PATH Management
 
 `$WW_BASE/bin` is prepended to `PATH` only if not already present (idempotent check). This makes `ww`, `profile`, `export`, `custom`, and `x` available as bare commands.
+
+## Changelog
+
+- 2026-04-10 — Initial version

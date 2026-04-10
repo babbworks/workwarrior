@@ -49,3 +49,7 @@ Wraps any sync operation function with error classification and recovery:
 4. Returns: `success`, `retry`, `skip`, or `abort`
 
 Used by `sync_push_task()` and `sync_pull_issue()` for the outer error boundary.
+
+## Changelog
+
+- 2026-04-10 — Initial version

@@ -41,3 +41,7 @@ The conflict window opens when the last sync state is read and closes when the n
 ## Error Isolation
 
 Failures on individual tasks do not abort the full sync. Each task is processed independently. Failed tasks are counted and reported in the summary. The sync log records the specific error for each failure.
+
+## Changelog
+
+- 2026-04-10 — Initial version

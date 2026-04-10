@@ -72,3 +72,7 @@ main()
 ## Profile Override Pattern
 
 Profile-level override: `profiles/<name>/services/custom/github-sync.sh` shadows this global script when that profile is active. Used to provide profile-specific sync behavior without modifying the global script.
+
+## Changelog
+
+- 2026-04-10 — Initial version

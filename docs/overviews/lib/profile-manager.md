@@ -82,3 +82,7 @@ This was a critical bug fix (TASK-SYNC-002): the original implementation deleted
 - `.taskrc` writes use `task rc.confirmation=no config` to avoid interactive prompts
 - Backup archives are `.tar.gz` with timestamp in filename
 - `restore_profile` requires the profile to already exist (use `import_profile` for new profiles)
+
+## Changelog
+
+- 2026-04-10 — Initial version

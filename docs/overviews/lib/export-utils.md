@@ -45,3 +45,7 @@ All data export logic for profile data. Exports tasks, time tracking, journals, 
 **`get_export_path(profile_base, format, data_type)`** — Generates timestamped output filename.
 **`csv_escape(value)`** — Wraps value in quotes and escapes internal quotes. Handles newlines in task descriptions.
 **`json_wrapper(data, profile_name, data_type)`** — Wraps raw export data in a standard envelope: `{"profile": "...", "type": "...", "exported_at": "...", "data": [...]}`.
+
+## Changelog
+
+- 2026-04-10 — Initial version

@@ -40,3 +40,7 @@ Aggregates statistics across all four data types (tasks, time, journals, ledger)
 **`get_last_activity(profile_base)`** — Returns the most recent activity timestamp across all four tools. Used to show "last active" in profile listings.
 
 **`format_relative_time(timestamp)`** — Converts an ISO timestamp to a human-readable relative string: "2 hours ago", "yesterday", "3 days ago".
+
+## Changelog
+
+- 2026-04-10 — Initial version

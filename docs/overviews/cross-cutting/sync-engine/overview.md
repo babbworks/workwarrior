@@ -101,3 +101,7 @@ All sync operations run `sync_preflight()` first. Error categories are bracket-t
 - 24.5: Batch Operations
 
 Must pass clean before AND after any change to HIGH FRAGILITY files.
+
+## Changelog
+
+- 2026-04-10 — Initial version

@@ -41,3 +41,7 @@ Profile lifecycle management beyond creation: listing, info display, deletion, b
 | `restore` | Yes | Yes | Always |
 
 This distinction prevents accidental overwrites. `import` is safe by default; `restore` is explicit about its danger.
+
+## Changelog
+
+- 2026-04-10 — Initial version

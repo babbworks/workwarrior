@@ -56,3 +56,7 @@ Uses an unquoted heredoc (`<< EOF` not `<< 'EOF'`) so `${WW_INSTALL_DIR}` expand
 ## WW_INSTALL_DIR
 
 `WW_INSTALL_DIR="${WW_INSTALL_DIR:-$HOME/ww}"` — never `readonly`. Allows custom install paths for testing (`WW_INSTALL_DIR=/tmp/ww-test ./install.sh`) and multi-user systems. The rc block records the actual chosen path, not the default.
+
+## Changelog
+
+- 2026-04-10 — Initial version

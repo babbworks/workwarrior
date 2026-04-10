@@ -57,3 +57,7 @@ Groups enable cross-profile operations in other services:
 - Future: `ww group export <group>` — export data from all member profiles
 
 The groups service itself only manages membership — it does not execute operations on members.
+
+## Changelog
+
+- 2026-04-10 — Initial version
