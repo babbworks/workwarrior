@@ -55,3 +55,7 @@ Native mode is faster for simple searches but doesn't support cross-type results
 ## Profile Scope
 
 Without `--profile`, uses the active profile (or last profile). With `--profile <name>`, sets `TASKRC`/`TASKDATA`/`TIMEWARRIORDB` to that profile's paths without activating it — the current shell profile is unchanged.
+
+## Changelog
+
+- 2026-04-10 — Initial version

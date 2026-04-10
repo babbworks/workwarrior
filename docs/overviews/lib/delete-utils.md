@@ -54,3 +54,7 @@ Per-tool deletion (used for selective data removal):
 **`get_time_count(profile_base)`** — Counts time entries via `timew export`.
 **`get_journal_count(profile_base)`** — Counts journal entries by line count.
 **`get_ledger_count(profile_base)`** — Counts ledger transactions.
+
+## Changelog
+
+- 2026-04-10 — Initial version

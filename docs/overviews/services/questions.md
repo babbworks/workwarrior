@@ -66,3 +66,7 @@ Profile-specific templates at `$WORKWARRIOR_BASE/templates/` shadow global templ
 ## Workpad Algorithm
 
 `wp-algorithm.sh` implements a "workpad" concept — a structured daily planning session that combines question templates with task review. `workpad-blocks.sh` defines the block structure for workpad sessions.
+
+## Changelog
+
+- 2026-04-10 — Initial version

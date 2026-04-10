@@ -62,3 +62,7 @@ Same pattern as `sync_pull_all()`.
 - Both files source `lib/github-api.sh`, `lib/taskwarrior-api.sh`, `lib/github-sync-state.sh`, `lib/field-mapper.sh`, `lib/sync-detector.sh`, `lib/annotation-sync.sh`, `lib/logging.sh`
 - Never called directly — always via `services/custom/github-sync.sh` which runs `sync_preflight()` first
 - Integration tests required for any change: `./tests/run-integration-tests.sh` on a test profile
+
+## Changelog
+
+- 2026-04-10 — Initial version

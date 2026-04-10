@@ -47,3 +47,7 @@ Suppressed: per-alias detail, "already present" idempotency notices, duplicate s
 ## Post-Creation
 
 After `ww profile create work`, the user activates with `p-work`. The profile is immediately usable — all four tools (task, timew, jrnl, hledger) are isolated to the new profile's directories.
+
+## Changelog
+
+- 2026-04-10 — Initial version

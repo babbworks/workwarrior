@@ -62,3 +62,7 @@ When an extension is adopted into ww:
 2. An integration doc is written to `docs/taskwarrior-extensions/<name>-integration.md`
 3. The domain is added to `system/config/command-syntax.yaml` with `upstream` and `upstream_author` fields
 4. If the extension adds UDAs, they are registered in `system/config/service-uda-registry.yaml` under `extensions:`
+
+## Changelog
+
+- 2026-04-10 — Initial version

@@ -60,3 +60,7 @@ Returns 0 if the UDA has the specified token.
 ## Integration with MCP Server
 
 When `ww mcp` is active, the MCP server should respect `noai` permissions — UDAs marked `noai` should not be included in task data returned to AI agents. This integration is planned but not yet implemented in the MCP server wrapper.
+
+## Changelog
+
+- 2026-04-10 — Initial version

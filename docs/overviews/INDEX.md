@@ -308,3 +308,7 @@ under the `extensions:` section. They appear in `ww profile uda list` with
 - [conflict-resolver.sh](cross-cutting/sync-engine/conflict-resolver.md)
 - [annotation-sync.sh](cross-cutting/sync-engine/annotation-sync.md)
 - [sync-bidirectional.sh](cross-cutting/sync-engine/sync-bidirectional.md)
+
+## Changelog
+
+- 2026-04-10 — Initial version

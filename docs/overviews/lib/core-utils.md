@@ -77,3 +77,7 @@ Read/write `$WW_BASE/.state/last_profile`. Used by `resolve_scope_context()` in 
 - Uses `${var:-}` defensive guards on all variable expansions
 - `WW_BASE` is resolved once at source time via `${WW_BASE:-$HOME/ww}` — never `readonly`
 - Log functions (`log_info` etc.) are defined here as thin wrappers; the full logging system is in `lib/logging.sh`
+
+## Changelog
+
+- 2026-04-10 — Initial version

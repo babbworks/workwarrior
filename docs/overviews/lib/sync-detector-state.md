@@ -76,3 +76,7 @@ Returns newline-separated list of task UUIDs that have sync state files.
 
 ### `remove_sync_state(task_uuid)`
 Deletes the state file. Called by `github-sync disable`.
+
+## Changelog
+
+- 2026-04-10 — Initial version

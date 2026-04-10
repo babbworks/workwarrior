@@ -60,3 +60,7 @@ JSON output is always wrapped in the standard envelope:
 ```json
 {"profile": "work", "type": "tasks", "exported_at": "...", "data": [...]}
 ```
+
+## Changelog
+
+- 2026-04-10 — Initial version

@@ -60,3 +60,7 @@ User overrides in `config/shortcuts.user.yaml` are merged at load time, with use
 | `function` | `j`, `l`, `task`, `timew`, `i`, `q` — shell functions |
 | `service` | `ww profile`, `ww journal`, `ww gun` — ww commands |
 | `global` | `search`, `list` — standalone commands |
+
+## Changelog
+
+- 2026-04-10 — Initial version

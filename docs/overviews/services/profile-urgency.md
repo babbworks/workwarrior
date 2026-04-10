@@ -63,3 +63,7 @@ total:        10.4
 ## Relationship to TWDensity
 
 `ww profile density install` writes `urgency.uda.density.0..30.coefficient` entries to `.taskrc`. These appear in `ww profile urgency show` and can be tuned via `ww profile urgency tune`. The two surfaces are complementary — density install writes initial coefficients, urgency tune adjusts them.
+
+## Changelog
+
+- 2026-04-10 — Initial version

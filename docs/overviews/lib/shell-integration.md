@@ -72,3 +72,7 @@ These are defined in this file and become available in the user's shell after so
 - `get_ww_rc_files()` is the single source of truth for rc file discovery — all write operations loop over its output.
 - Reserved CLI names (`ww`, `task`, `timew`, `jrnl`, `hledger`) never get bare aliases — only `p-<name>` form.
 - Profile creation output is signal-only: no per-alias lines, no idempotency notices. Single `✓ Aliases written → .bashrc .zshrc` summary.
+
+## Changelog
+
+- 2026-04-10 — Initial version

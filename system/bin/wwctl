@@ -10,20 +10,50 @@ wwctl — Workwarrior Dev System CLI
 
 Usage: wwctl <command> [args]
 
-Commands:
-  status                                  Show system readiness and active task summary
-  verify-phase1                           Run Phase 1 gate verification (PASS/FAIL per criterion)
-  new-task <TASK-ID> <"goal">             Generate a task card from template + index in TASKS.md
-  dispatch <role> <topic> <card-path>     Create git worktree on agent/<role>/<topic> branch
-  gates                                   Print all hard gates (A–E) as a quick reference
-  fragility                               Print the serialized and high-fragility file list
+Task Lifecycle:
+  status                                  System readiness and active task summary
+  verify-phase1                           Phase 1 gate verification (PASS/FAIL)
+  new-task <TASK-ID> <"goal">             Generate task card + index in TASKS.md
+  dispatch <role> <topic> <card-path>     Create git worktree on agent/<role>/<topic>
+  task-status                             Focused view: pending/in-progress/blocked cards
+  worktrees [clean]                       List active worktrees; clean merges stale ones
+
+Codebase Health:
+  health                                  Composite health check (tests, TODOs, docs, worktrees)
+  todo-scan                               Scan production paths for untracked TODOs (Gate E)
+  docs-check                              Check overview docs for staleness vs source files
+  diff-summary [<range>]                  Summarise what changed: files, cards, docs, tests
+  select-tests <type> [--run]             Map change type to required test suite
+
+Release & Gates:
+  release-check                           Automated Gate D — full release readiness check
+  gates                                   Print Gates A–E quick reference
+  fragility                               Print serialized and high-fragility file list
+
+Profile Diagnostics:
+  profile-health [<name>]                 Check health of a ww profile's data
+
+Logging & Decisions:
+  log "<message>"                         Append timestamped entry to decisions.md
+  decisions [--last <n>]                  Print last N decisions (default: 5)
 
 Examples:
-  wwctl status
-  wwctl verify-phase1
+  wwctl health
+  wwctl docs-check
+  wwctl todo-scan
+  wwctl diff-summary
+  wwctl diff-summary HEAD~3..HEAD
+  wwctl select-tests lib --run
+  wwctl task-status
+  wwctl worktrees
+  wwctl worktrees clean
+  wwctl profile-health
+  wwctl profile-health babb
+  wwctl release-check
+  wwctl log "Decided to use two-phase commit for state writes"
+  wwctl decisions --last 3
   wwctl new-task TASK-002 "Write root CLAUDE.md"
   wwctl dispatch builder write-claude-md tasks/cards/TASK-002.md
-  wwctl dispatch explorer docs-drift-audit tasks/cards/TASK-003a.md
   wwctl gates
   wwctl fragility
 EOF
@@ -33,6 +63,7 @@ cmd="${1:-}"
 shift || true
 
 case "${cmd}" in
+  # ── Task Lifecycle ────────────────────────────────────────────────────────────
   status)
     "${ROOT}/scripts/system-status.sh" "$@"
     ;;
@@ -44,6 +75,81 @@ case "${cmd}" in
     ;;
   dispatch)
     "${ROOT}/scripts/dispatch-worktree.sh" "$@"
+    ;;
+  task-status)
+    CARDS_DIR="${ROOT}/tasks/cards"
+    echo "Task Status"
+    echo "─────────────────────────────────────────────────────────────"
+    for status_filter in "in-progress" "in-review" "blocked" "pending"; do
+      found=0
+      while IFS= read -r card; do
+        STATUS="$(grep "^Status:" "${card}" 2>/dev/null | awk '{print $2}' || echo "")"
+        [[ "${STATUS}" != "${status_filter}" ]] && continue
+        found=1
+        GOAL="$(grep "^Goal:" "${card}" 2>/dev/null | sed 's/^Goal: *//' | cut -c1-55 || echo "")"
+        FRAG="$(grep "^Fragility:" "${card}" 2>/dev/null | sed 's/^Fragility: *//' | cut -c1-30 || echo "")"
+        printf "  %-14s %-14s %-56s %s\n" \
+          "$(basename "${card}" .md)" "[${STATUS}]" "${GOAL}" "${FRAG}"
+      done < <(find "${CARDS_DIR}" -name "TASK-*.md" 2>/dev/null | sort)
+      [[ "${found}" -eq 0 && "${status_filter}" != "pending" ]] && true
+    done
+    ;;
+  worktrees)
+    source "${ROOT}/scripts/common.sh"
+    ACTION="${1:-list}"
+    if [[ "${ACTION}" == "clean" ]]; then
+      echo "Cleaning merged worktrees..."
+      git -C "${WW_ROOT}" worktree list 2>/dev/null | grep "agent/" | awk '{print $1}' | while IFS= read -r wt; do
+        branch=$(git -C "${WW_ROOT}" worktree list 2>/dev/null | grep "${wt}" | grep -o '\[.*\]' | tr -d '[]')
+        if git -C "${WW_ROOT}" branch --merged master 2>/dev/null | grep -qF "${branch}"; then
+          echo "  Removing merged: ${branch}"
+          git -C "${WW_ROOT}" worktree remove "${wt}" --force 2>/dev/null || true
+          git -C "${WW_ROOT}" branch -D "${branch}" 2>/dev/null || true
+        fi
+      done
+      echo "Done."
+    else
+      echo "Active Worktrees"
+      echo "─────────────────────────────────────────────────────────────"
+      TREES=$(git -C "${WW_ROOT}" worktree list 2>/dev/null | grep "agent/" || true)
+      if [[ -z "${TREES}" ]]; then
+        echo "  (none)"
+      else
+        NOW=$(date +%s)
+        while IFS= read -r line; do
+          path=$(echo "${line}" | awk '{print $1}')
+          branch=$(echo "${line}" | grep -o '\[.*\]' | tr -d '[]')
+          mtime=$(stat -f "%m" "${path}" 2>/dev/null || stat -c "%Y" "${path}" 2>/dev/null || echo "${NOW}")
+          age=$(( (NOW - mtime) / 86400 ))
+          dirty=$(git -C "${path}" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
+          dirty_flag=""
+          [[ "${dirty}" -gt 0 ]] && dirty_flag=" [${dirty} uncommitted]"
+          printf "  %-45s %dd old%s\n" "${branch}" "${age}" "${dirty_flag}"
+        done <<< "${TREES}"
+      fi
+    fi
+    ;;
+
+  # ── Codebase Health ───────────────────────────────────────────────────────────
+  health)
+    "${ROOT}/scripts/health.sh" "$@"
+    ;;
+  todo-scan)
+    "${ROOT}/scripts/todo-scan.sh" "$@"
+    ;;
+  docs-check)
+    "${ROOT}/scripts/docs-check.sh" "$@"
+    ;;
+  diff-summary)
+    "${ROOT}/scripts/diff-summary.sh" "$@"
+    ;;
+  select-tests)
+    "${ROOT}/scripts/select-tests.sh" "$@"
+    ;;
+
+  # ── Release & Gates ───────────────────────────────────────────────────────────
+  release-check)
+    "${ROOT}/scripts/release-check.sh" "$@"
     ;;
   gates)
     echo "Hard Gates A–E (all are merge blockers):"
@@ -62,6 +168,36 @@ case "${cmd}" in
     echo ""
     echo "Full policy: fragility-register.md"
     ;;
+
+  # ── Profile Diagnostics ───────────────────────────────────────────────────────
+  profile-health)
+    "${ROOT}/scripts/profile-health.sh" "$@"
+    ;;
+
+  # ── Logging & Decisions ───────────────────────────────────────────────────────
+  log)
+    source "${ROOT}/scripts/common.sh"
+    MSG="${1:-}"
+    [[ -z "${MSG}" ]] && { echo "ERROR: message required" >&2; echo "Usage: wwctl log \"<message>\"" >&2; exit 1; }
+    DECISIONS="${WW_ROOT}/system/logs/decisions.md"
+    [[ -f "${DECISIONS}" ]] || fail "decisions.md not found at ${DECISIONS}"
+    DATE=$(date +"%Y-%m-%d")
+    printf '\n## %s — %s\n\n**Decision:** \n\n**Context:** \n\n**Why:** \n\n**Consequence:** \n' \
+      "${DATE}" "${MSG}" >> "${DECISIONS}"
+    echo "Appended to decisions.md: ${DATE} — ${MSG}"
+    ;;
+  decisions)
+    source "${ROOT}/scripts/common.sh"
+    N=5
+    [[ "${1:-}" == "--last" && -n "${2:-}" ]] && N="${2}"
+    DECISIONS="${WW_ROOT}/system/logs/decisions.md"
+    [[ -f "${DECISIONS}" ]] || fail "decisions.md not found"
+    echo "Last ${N} decisions:"
+    echo ""
+    grep "^## " "${DECISIONS}" | tail -"${N}" | sed 's/^## /  /'
+    ;;
+
+  # ── Help ──────────────────────────────────────────────────────────────────────
   "" | -h | --help | help)
     usage
     ;;

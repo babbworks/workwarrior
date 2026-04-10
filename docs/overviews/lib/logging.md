@@ -63,3 +63,7 @@ Parses `sync.log` and outputs operation counts by type.
 - Sync log files are in `.gitignore` — never committed
 - Terminal functions write to stderr; sync functions write to files
 - `init_logging()` failure is non-fatal — sync continues without logging rather than aborting
+
+## Changelog
+
+- 2026-04-10 — Initial version

@@ -41,3 +41,7 @@ The conflict window is the period between when the last sync state was saved and
 Last-write-wins is simple and predictable but lossy: the losing side's changes are discarded without merge. For text fields (description, body), this means one side's edits are lost. For status fields (open/closed), it means the more recent state wins regardless of intent.
 
 A future improvement (not yet planned) would be field-level merge for text fields.
+
+## Changelog
+
+- 2026-04-10 — Initial version

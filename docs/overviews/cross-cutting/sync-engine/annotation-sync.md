@@ -34,3 +34,7 @@ The sync state JSON stores a list of already-synced annotation IDs and comment I
 ## Format
 
 Annotations synced to GitHub comments are prefixed with `[TaskWarrior]:` to distinguish them from human comments. Comments synced to TW annotations are prefixed with `[GitHub @<author>]:`.
+
+## Changelog
+
+- 2026-04-10 — Initial version

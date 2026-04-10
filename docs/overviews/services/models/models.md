@@ -69,3 +69,7 @@ models:
 ## Usage by Other Services
 
 The models registry is consumed by any ww service that makes LLM calls. Currently used by `ww mcp` (for model selection in the MCP server) and planned for use by `ww questions` (AI-assisted question generation) and future AI-native services.
+
+## Changelog
+
+- 2026-04-10 — Initial version

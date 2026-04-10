@@ -57,3 +57,7 @@ The `setuptools` inject is required because `taskw` (a bugwarrior dependency) im
 ## WW_INSTALL_DIR
 
 `WW_INSTALL_DIR="${WW_INSTALL_DIR:-$HOME/ww}"` — never `readonly`. Allows `WW_INSTALL_DIR=/tmp/ww-test ./install.sh` for testing. The shell RC block uses an unquoted heredoc (`<< EOF` not `<< 'EOF'`) so `${WW_INSTALL_DIR}` expands to the actual chosen path at write time.
+
+## Changelog
+
+- 2026-04-10 — Initial version

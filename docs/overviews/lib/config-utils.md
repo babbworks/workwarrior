@@ -42,3 +42,7 @@ in_section && /^[^ ]/ { in_section=0 }
 in_section && /^  [a-zA-Z0-9_-]+:/ { ... }
 ```
 This avoids false matches on keys that appear in other sections. The `validate_jrnl_config` fix (TASK-INSTALL-002) corrected a bug where `grep journals:` matched all YAML keys containing the word "journals", not just the section header.
+
+## Changelog
+
+- 2026-04-10 — Initial version

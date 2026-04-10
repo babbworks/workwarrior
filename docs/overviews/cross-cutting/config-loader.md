@@ -65,3 +65,7 @@ When `gh` CLI is present and authenticated, the bugwarrior config stores:
 github.token = @oracle:eval:gh auth token
 ```
 The oracle directive is evaluated at pull time — the token is never written to the config file. `load_github_sync_config()` detects this pattern and evaluates it via `gh auth token` to get the actual token value for API calls.
+
+## Changelog
+
+- 2026-04-10 — Initial version

@@ -49,3 +49,7 @@ Bugwarrior and ww github-sync are separate engines with separate UDA namespaces:
 | ww github-sync | TW ↔ GitHub (two-way) | `githubissue`, `githubrepo`, `githubsync`, `githuburl` |
 
 A task can be managed by both: bugwarrior pulls metadata, ww sync handles two-way state. This file manages that coexistence.
+
+## Changelog
+
+- 2026-04-10 — Initial version
