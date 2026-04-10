@@ -95,11 +95,12 @@ shell integration, bin/ww routing, or any service code. Do NOT block on these.
 
 | Test file | Failing tests | Reason |
 |---|---|---|
-| `test-profile-management-properties.bats` | ~17 | Properties 4/5/6/7/32 — profile delete/backup/list not fully enforced; 50-char name hooks |
+| `test-profile-management-properties.bats` | ~17 | Properties 3/4/5/6/7/15/16/17/18/20/23/30/32 — profile delete/backup/list/copy/hook/name not fully enforced |
 | `test-profile-name-validation.bats` | ~2 | Properties 1/2 — 50-char profile name creation/rejection not yet enforced |
+| `test-browser.bats` | ~10 | Browser server lifecycle tests — require live server on port 7777; fail in isolated test runs (Kiro's work) |
 
-**Rule:** A clean full-suite run shows ~19 failures. Any failures OUTSIDE these two files are
-regressions and must be fixed before merge. Failures inside these two files are pre-existing
+**Rule:** A clean full-suite run shows ~29 failures. Any failures OUTSIDE the three baseline files
+below are regressions and must be fixed before merge. Failures inside these files are pre-existing
 and must not block Verifier sign-off for unrelated tasks.
 
 Do not stash-and-baseline — it causes merge conflicts with active work. Instead, compare
