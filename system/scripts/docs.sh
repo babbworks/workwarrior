@@ -85,10 +85,31 @@ _doc_status() {
 
 # ── Subcommands ───────────────────────────────────────────────────────────────
 
+# Strip markdown formatting for clean terminal display
+_strip_md() {
+  sed \
+    -e 's/^#{1,6} //' \
+    -e 's/\*\*\([^*]*\)\*\*/\1/g' \
+    -e 's/\*\([^*]*\)\*/\1/g' \
+    -e 's/`\([^`]*\)`/\1/g' \
+    -e 's/^```[a-z]*//' \
+    -e 's/^```//' \
+    -e 's/^> /  /' \
+    -e 's/^- /  • /' \
+    -e 's/^\* /  • /' \
+    -e 's/^  - /    · /' \
+    -e 's/\[\([^]]*\)\]([^)]*)/\1/g' \
+    -e 's/^|/  |/'
+}
+
 cmd_docs_index() {
-  local pager="${PAGER:-less -R}"
-  [[ "${1:-}" == "--raw" ]] && pager="cat"
-  "${pager}" "${OVERVIEWS_DIR}/INDEX.md"
+  local raw=0
+  [[ "${1:-}" == "--raw" ]] && raw=1
+  if [[ "${raw}" -eq 1 ]]; then
+    cat "${OVERVIEWS_DIR}/INDEX.md"
+  else
+    _strip_md < "${OVERVIEWS_DIR}/INDEX.md" | less -R 2>/dev/null || _strip_md < "${OVERVIEWS_DIR}/INDEX.md"
+  fi
 }
 
 cmd_docs_list() {
@@ -128,7 +149,7 @@ cmd_docs_show() {
   if [[ "${raw}" -eq 1 ]]; then
     cat "${doc_abs}"
   else
-    "${PAGER:-less -R}" "${doc_abs}"
+    _strip_md < "${doc_abs}" | less -R 2>/dev/null || _strip_md < "${doc_abs}"
   fi
 }
 
