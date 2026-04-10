@@ -257,34 +257,54 @@ under the `extensions:` section. They appear in `ww profile uda list` with
 - [shell-integration.sh](lib/shell-integration.md)
 - [logging.sh](lib/logging.md)
 - [github-api.sh](lib/github-api.md)
-- [github-sync-state.sh](lib/github-sync-state.md)
-- [sync-pull.sh](lib/sync-pull.md)
-- [sync-push.sh](lib/sync-push.md)
-- [sync-bidirectional.sh](lib/sync-bidirectional.md)
-- [sync-detector.sh](lib/sync-detector.md)
+- [sync-pull.sh + sync-push.sh](lib/sync-pull-push.md)
 - [field-mapper.sh](lib/field-mapper.md)
-- [conflict-resolver.sh](lib/conflict-resolver.md)
-- [annotation-sync.sh](lib/annotation-sync.md)
+- [sync-detector.sh + github-sync-state.sh](lib/sync-detector-state.md)
 - [sync-permissions.sh](lib/sync-permissions.md)
 - [taskwarrior-api.sh](lib/taskwarrior-api.md)
-- [config-loader.sh](lib/config-loader.md)
-- [dependency-installer.sh](lib/dependency-installer.md)
+- [config-utils.sh](lib/config-utils.md)
+- [bugwarrior-integration.sh](lib/bugwarrior-integration.md)
 - [export-utils.sh](lib/export-utils.md)
 - [delete-utils.sh](lib/delete-utils.md)
 - [profile-stats.sh](lib/profile-stats.md)
 - [shortcode-registry.sh](lib/shortcode-registry.md)
+- [dependency-installer.sh](lib/dependency-installer.md)
 
-### services/
-- [profile/create-ww-profile.sh](services/profile-create.md)
-- [profile/manage-profiles.sh](services/profile-manage.md)
-- [profile/urgency.sh](services/profile-urgency.md)
-- [profile/subservices/profile-uda.sh](services/profile-uda.md)
-- [profile/subservices/profile-density.sh](services/profile-density.md)
-- [custom/github-sync.sh](services/github-sync.md)
-- [custom/configure-issues.sh](services/configure-issues.md)
+### services/ — top-level
+- [github-sync.sh](services/github-sync.md)
+- [profile-uda.sh](services/profile-uda.md)
+- [profile-urgency.sh](services/profile-urgency.md)
 - [questions/q.sh](services/questions.md)
-- [extensions/extensions.sh](services/extensions.md)
-- [find/find.sh](services/find.md)
-- [groups/groups.sh](services/groups.md)
-- [models/models.sh](services/models.md)
-- [export/export.sh](services/export.md)
+
+### services/profile/
+- [create-ww-profile.sh](services/profile/create-ww-profile.md)
+- [manage-profiles.sh](services/profile/manage-profiles.md)
+
+### services/custom/
+- [configure-issues.sh](services/custom/configure-issues.md)
+
+### services/extensions/
+- [extensions.sh](services/extensions/extensions.md)
+
+### services/find/
+- [find.sh + find.py](services/find/find.md)
+
+### services/groups/
+- [groups.sh](services/groups/groups.md)
+
+### services/models/
+- [models.sh](services/models/models.md)
+
+### services/export/
+- [export.sh](services/export/export.md)
+
+### cross-cutting/ — broad functionality originating in specific services
+- [installer-utils.sh](cross-cutting/installer-utils.md) — install infrastructure
+- [config-loader.sh](cross-cutting/config-loader.md) — GitHub sync config loading
+- [error-handler.sh](cross-cutting/error-handler.md) — GitHub error classification
+
+### cross-cutting/sync-engine/ — full sync subsystem
+- [overview.md](cross-cutting/sync-engine/overview.md) — full cycle, file map, data integrity fixes
+- [conflict-resolver.sh](cross-cutting/sync-engine/conflict-resolver.md)
+- [annotation-sync.sh](cross-cutting/sync-engine/annotation-sync.md)
+- [sync-bidirectional.sh](cross-cutting/sync-engine/sync-bidirectional.md)
