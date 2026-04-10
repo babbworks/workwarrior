@@ -121,4 +121,10 @@ Risk notes:           All new scripts are additive. wwctl is in system/ not bin/
                       profile-health reads profile data read-only — no writes.
                       todo-scan and docs-check are read-only git operations.
 
-Status:               pending
+Status:               complete
+
+Completion note:      Implemented in commit e365585. 11 new wwctl commands across
+                      Tier 1+2+3. 6 new scripts. source-map.yaml with 39 doc mappings.
+                      Changelog sections added to all 39 overview docs.
+                      All commands verified on master: docs-check (39 current),
+                      todo-scan (clean), decisions, worktrees, task-status.
