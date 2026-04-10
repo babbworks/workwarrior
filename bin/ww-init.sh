@@ -20,6 +20,11 @@ if [[ ":$PATH:" != *":$WW_BASE/bin:"* ]]; then
   export PATH="$WW_BASE/bin:$PATH"
 fi
 
+# Add ww system/bin to PATH (wwctl and other dev tools)
+if [[ ":$PATH:" != *":$WW_BASE/system/bin:"* ]]; then
+  export PATH="$WW_BASE/system/bin:$PATH"
+fi
+
 # ============================================================================
 # LOAD LIBRARIES
 # ============================================================================
