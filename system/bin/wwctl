@@ -37,6 +37,16 @@ Logging & Decisions:
   log "<message>"                         Append timestamped entry to decisions.md
   decisions [--last <n>]                  Print last N decisions (default: 5)
 
+Docs:
+  docs                                    Show INDEX.md (pager)
+  docs list                               List all docs with staleness status
+  docs show <name>                        Show a doc (fuzzy name match)
+  docs show --raw <name>                  Show without pager (pipeable)
+  docs search <term>                      Search across all docs with context
+  docs changelog <name>                   Show changelog section of a doc
+  docs update <name> "<note>"             Append changelog entry to a doc
+  docs stale                              List only stale docs
+
 Examples:
   wwctl health
   wwctl docs-check
@@ -195,6 +205,9 @@ case "${cmd}" in
     echo "Last ${N} decisions:"
     echo ""
     grep "^## " "${DECISIONS}" | tail -"${N}" | sed 's/^## /  /'
+    ;;
+  docs)
+    "${ROOT}/scripts/docs.sh" "$@"
     ;;
 
   # ── Help ──────────────────────────────────────────────────────────────────────
