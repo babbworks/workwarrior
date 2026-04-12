@@ -52,7 +52,8 @@ config/cmd-heuristics.yaml
 config/cmd-heuristics-corpus.yaml
 
 # Profile data (user-specific, never commit)
-profiles/
+profiles/*
+!profiles/README.md
 
 # Legacy personal journal configs and content
 functions/journals/CONFIG/
