@@ -8,7 +8,7 @@ Key files (in read order):
 1. `system/ONBOARDING.md` — orientation, current phase, hard rules, how work gets done
 2. `system/CLAUDE.md` — directory map, agent model, scripting standards, fragility markers, hard gates
 3. `system/TASKS.md` — canonical task board (Orchestrator-only writes)
-4. `system/context/working-conventions.md` — operator preferences, response style, multi-agent norms
+4. `system/tasks/INDEX.md` — scannable manifest of all 73+ task cards
 5. `system/logs/decisions.md` — every non-obvious architectural decision
 
 **Never skip the Orchestrator → Builder → Verifier → Docs handoff sequence.**

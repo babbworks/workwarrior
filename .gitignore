@@ -66,3 +66,6 @@ system/context/
 services/questions/babb-*
 services/questions/bin/babb-*
 services/bookbuilder
+
+# Legacy devsystem (superseded by system/)
+devsystem/

@@ -1,5 +1,0 @@
-bin/ww
-lib/shell-integration.sh
-lib/github-*.sh
-lib/sync-*.sh
-

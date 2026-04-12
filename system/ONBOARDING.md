@@ -31,9 +31,10 @@ For fragility policy detail, also read `system/fragility-register.md`.
 ## Current State (update this section when phase changes)
 
 - **Phase:** Phase 2 active
-- **Next task:** TASK-SITE-005 — Wave 4 of `ww browser` (Time/Journal/Ledger polish)
-- **Active initiative:** wwsite — locally-served browser UI (`ww browser`). Waves 1–3 complete. All four sections (Tasks, Time, Journal, Ledger) show live data. A demo profile can be seeded with tasks, time, journal, and ledger data for testing.
+- **Active work:** Browser UI (15+ panels), heuristic engine (627 rules), AI integration (ollama), weapons (gun/sword), profile management (remove service)
+- **Recent completions:** Heuristic compilation spec (all tasks done), browser CMD with compound commands, CTRL service, models service, profile hygiene (gitignored profiles, sanitized docs, disabled CI)
 - **Known test baseline:** ~10 pre-existing failures (not regressions) in test-profile-management-properties.bats and test-profile-name-validation.bats. See tests/CLAUDE.md for the full list.
+- **CI:** Disabled. Tests run locally via `bats tests/`. No GitHub Actions workflow active.
 
 ---
 
@@ -49,15 +50,17 @@ system/
   fragility-register.md  ← file-by-file access policy
   services-CLAUDE.md     ← service development contract
   logs/decisions.md      ← architectural decision log
-  context/
-    working-conventions.md        ← operator preferences + multi-agent norms
-    reference/
-      bugwarrior-github-udas.md   ← UDA schema + design notes
+  logs/session-browser-ui.md  ← browser UI session log
+  logs/handover-to-codex.md   ← cross-agent handover doc
+  plans/                 ← feature plans and roadmaps
   roles/                 ← Orchestrator, Builder, Verifier, Explorer, Docs
   workflows/             ← feature-delivery, phase1, high-fragility
   gates/                 ← Gates A–E with checklists
   templates/             ← task-card, verifier-signoff, builder-risk-brief
-  tasks/cards/           ← individual task cards (TASK-XXX.md)
+  tasks/
+    INDEX.md             ← scannable manifest of all 73+ task cards
+    cards/               ← individual task cards (TASK-XXX.md)
+  audits/                ← divergence tracking
   config/
     command-syntax.yaml  ← canonical CLI contract (CSSOT)
     gates.yaml

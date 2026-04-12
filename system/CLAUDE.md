@@ -16,16 +16,18 @@ Workwarrior is a terminal-first, profile-based productivity system that unifies 
 |---|---|---|
 | `bin/ww` | Main CLI dispatcher (709 lines). Routes commands to services. | Serialized — one writer at a time |
 | `lib/` | Core bash libraries (24 files). Read `lib/CLAUDE.md` before any change. | High-risk — see fragility section |
-| `services/` | Service registry (22 categories). Read `services/CLAUDE.md`. | Safe to add; risky to change existing |
-| `profiles/` | User workspaces with task/time/journal data. | Never modify profile data directly |
+| `services/` | Service registry (25+ categories). Read `services/CLAUDE.md`. | Safe to add; risky to change existing |
+| `profiles/` | User workspaces with task/time/journal data. Gitignored. | Never modify profile data directly |
 | `functions/` | Shell helper functions sourced at shell init. | Low risk |
-| `config/` | Global YAML config (groups, models, shortcuts, extensions). | Low risk |
+| `config/` | Global YAML config (ai, models, groups, shortcuts, ctrl, heuristics). | Low risk |
 | `resources/` | Default templates and config files for new profiles. | Low risk |
 | `docs/` | User-facing documentation. Docs agent owns updates here. | Write after merge only |
 | `tests/` | BATS unit suites and integration test runners. | Always update when changing behavior |
 | `system/` | Dev system documentation and planning. Not shipped. | Orchestrator only |
 | `TASKS.md` | **Canonical task board.** Single source of truth for all open work. | Orchestrator only |
 | `pending/` | Archive. Nothing new is written here. | Read-only |
+| `scripts/` | Build scripts: compile-heuristics.py, scan-taskwarrior-extensions.py | Low risk |
+| `weapons/` | Weapon extensions (gun, sword). | Low risk |
 
 **Never create files in:** `profiles/*/`, `bin/`, or root unless explicitly required by a task card.
 
@@ -123,12 +125,15 @@ Full policy in `system/fragility-register.md`.
 
 ```
 .DS_Store
-profiles/*/.task/taskchampion.sqlite3
-profiles/*/.task/github-sync/*.log
-profiles/*/.task/github-sync/errors.log
-profiles/*/.config/
-profiles/*/list/
+profiles/*/
+.state/
+.task/
+__pycache__/
 *.sqlite3
+config/cmd-heuristics.yaml
+config/cmd-heuristics-corpus.yaml
+devsystem/
+services/bookbuilder/
 ```
 
 ---
@@ -184,7 +189,7 @@ These are merge blockers. Not advisory. Not optional.
 
 ## Canonical Task Source
 
-**`TASKS.md` at the project root is the only source of truth for open work.**
+**`system/TASKS.md` is the only source of truth for open work.** `system/tasks/INDEX.md` is the scannable manifest of all 73+ task cards.
 
 - Orchestrator is the only agent that updates status fields
 - `pending/` is archive — nothing new is written there

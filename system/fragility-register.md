@@ -89,18 +89,21 @@ These files implement two-way sync between TaskWarrior and GitHub Issues. Errors
 
 ### Generated Artifacts — NEVER COMMIT
 
-These files must never appear in commits or PR diffs. They are in `.gitignore` after Task 1.5 completes.
+These files are in `.gitignore` and must never appear in commits.
 
 ```
 **/.DS_Store
-profiles/*/.task/taskchampion.sqlite3
-profiles/*/.task/github-sync/sync.log
-profiles/*/.task/github-sync/errors.log
-profiles/*/.config/
-profiles/*/list/
-system/outputs/
+profiles/*/
+.state/
+.task/
+__pycache__/
+*.sqlite3
 *.sqlite3-shm
 *.sqlite3-wal
+config/cmd-heuristics.yaml
+config/cmd-heuristics-corpus.yaml
+devsystem/
+services/bookbuilder/
 ```
 
 ---
