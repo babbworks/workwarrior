@@ -8,7 +8,7 @@
 
 ## Architecture in One Paragraph
 
-Workwarrior is a profile-based shell productivity system. A **profile** is an isolated directory (`profiles/<name>/`) containing its own TaskWarrior data, TimeWarrior database, journals, ledgers, and config. The `ww` CLI dispatcher (`bin/ww`) routes commands to **service scripts** (`services/<category>/`) and calls **lib functions** (`lib/*.sh`). Shell functions (`j`, `l`, `task`, `timew`, etc.) are injected into the user's shell via `lib/shell-integration.sh` at init time. Profile activation sets four env vars (`WARRIOR_PROFILE`, `WORKWARRIOR_BASE`, `TASKRC`, `TASKDATA`, `TIMEWARRIORDB`) that all tools and services read. Nothing in the system hardcodes paths — everything resolves through these env vars.
+Workwarrior is a profile-based shell productivity system. A **profile** is an isolated directory (`profiles/<name>/`) containing its own TaskWarrior data, TimeWarrior database, journals, ledgers, and config. The `ww` CLI dispatcher (`bin/ww`) routes commands to **service scripts** (`services/<category>/`) and calls **lib functions** (`lib/*.sh`). Shell functions (`j`, `l`, `task`, `timew`, etc.) are injected into the user's shell via `lib/shell-integration.sh` at init time. Profile activation sets env vars (`WARRIOR_PROFILE`, `WORKWARRIOR_BASE`, `TASKRC`, `TASKDATA`, `TIMEWARRIORDB`) that all tools and services read. A **browser UI** (`ww browser`) serves a locally-hosted web interface with 15+ panels for tasks, time, journals, ledgers, profiles, and a unified CMD input with AI translation (ollama) and heuristic matching (627 compiled regex rules). The **heuristic engine** matches natural language input against rules before falling back to AI, with compound command support for multi-step operations. Nothing in the system hardcodes paths — everything resolves through env vars.
 
 ---
 
@@ -85,7 +85,24 @@ services/                 Service scripts (executable, discovered at runtime)
   x-delete/               Destructive operations
     x.sh                  ww x — profile/data deletion with backup
   browser/                Local web server (ww browser)
+    server.py             Python3 HTTP server — 15+ panels, SSE, CMD AI, heuristic engine
+    static/app.js         Browser UI — sidebar, task editor, time/journal/ledger panels
+    static/index.html     HTML shell — dark terminal aesthetic
+    static/style.css      Styles — monospace, collapsible sidebar, inline editors
+  cmd/                    Unified command service
+    cmd.log               JSONL log of all CMD submissions (route, input, output)
+  ctrl/                   Control panel service
+    ctrl.sh               ww ctrl status/ai-mode/ai-cmd/prompt-ww/prompt-ai
+  projects/               Cross-cutting project views
+  servers/                Server management
   scripts/                Utility scripts (journals, ledgers, tasks, times)
+
+weapons/                  Weapon extensions
+  gun/                    taskgun passthrough — bulk task series generator
+  sword/                  Task splitting into sequential subtasks with dependencies
+
+scripts/                  Build and utility scripts
+  compile-heuristics.py   Heuristic compilation — scans commands, generates 627 regex rules
 
 functions/                Shell helper functions (sourced at init)
   journals/               Journal helper scripts
@@ -98,10 +115,16 @@ tools/                    Standalone tools
   list/list.py            List management tool (ww list)
 
 config/                   Global YAML configuration
+  ai.yaml                 AI mode, access points, preferred provider
+  cmd-heuristics.yaml     Compiled NL→command heuristic rules (627 rules)
+  cmd-heuristics-corpus.yaml  Synthetic corpus for heuristic validation
+  ctrl.yaml               CTRL service settings (UI, command line display)
   groups.yaml             Profile group definitions
   models.yaml             LLM provider/model registry
   shortcuts.yaml          Shortcut/alias definitions
+  projects.yaml           Cross-cutting project definitions
   extensions.taskwarrior.yaml  TaskWarrior extension registry
+  extensions.timewarrior.yaml  TimeWarrior extension registry
   profile-meta-template.yaml   Profile metadata template
 
 resources/                Default templates for new profiles
@@ -168,6 +191,10 @@ profiles/<name>/
 | `ww profile density` | `services/profile/subservices/profile-density.sh` | Due-date density scoring |
 | `ww profile urgency` | `services/profile/urgency.sh` | Urgency coefficient tuning |
 | `ww profile uda` | `services/profile/subservices/profile-uda.sh` | UDA management |
+| `ww ctrl` | `services/ctrl/ctrl.sh` | AI mode, prompt, UI settings |
+| `ww sword` | `cmd_sword()` in bin/ww | Task splitting into sequential subtasks |
+| `ww q` / `ww questions` | `services/questions/q.sh` | Template-based question workflows |
+| `ww compile-heuristics` | `scripts/compile-heuristics.py` | Compile NL→command heuristic rules |
 
 ---
 
@@ -298,6 +325,19 @@ under the `extensions:` section. They appear in `ww profile uda list` with
 ### services/export/
 - [export.sh](services/export/export.md)
 
+### services/browser/
+- [server.py + static/*](services/browser/browser.md) — Browser UI, CMD AI, heuristic engine
+
+### services/ctrl/
+- [ctrl.sh](services/ctrl/ctrl.md) — AI mode, prompt, UI settings
+
+### scripts/
+- [compile-heuristics.py](scripts/compile-heuristics.md) — Heuristic compilation system
+
+### weapons/
+- [gun/](weapons/gun.md) — taskgun passthrough
+- [sword/](weapons/sword.md) — Task splitting into sequential subtasks
+
 ### cross-cutting/ — broad functionality originating in specific services
 - [installer-utils.sh](cross-cutting/installer-utils.md) — install infrastructure
 - [config-loader.sh](cross-cutting/config-loader.md) — GitHub sync config loading
@@ -311,4 +351,5 @@ under the `extensions:` section. They appear in `ww profile uda list` with
 
 ## Changelog
 
+- 2026-04-12 — Added browser UI, CMD AI, heuristic engine, CTRL service, weapons (gun/sword), compile-heuristics, clark profile, updated architecture overview
 - 2026-04-10 — Initial version

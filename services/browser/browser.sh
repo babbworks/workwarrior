@@ -29,16 +29,19 @@ Usage:
   ww browser [start] [--port N] [--no-open]
   ww browser stop
   ww browser status
+  ww browser export [--path FILE]  Generate a self-contained offline HTML snapshot
   ww browser --help
 
 Actions:
   start (default)  Start the browser HTTP server
   stop             Stop a running browser server
   status           Show whether the server is running
+  export           Generate a self-contained offline HTML snapshot
 
 Flags:
   --port N         Listen on port N instead of 7777
   --no-open        Do not open browser tab on start
+  --path FILE      Output path for export (default: ./ww-export-<profile>-<date>.html)
 
 Examples:
   ww browser                        Start on default port 7777
@@ -93,6 +96,116 @@ _browser_is_running() {
   # Stale PID files — clean them up
   rm -f "$(_browser_pid_file)" "$(_browser_port_file)"
   return 1
+}
+
+_browser_export() {
+  local out_path="${1:-}"
+  local port
+  port="$(_browser_read_port)"
+
+  if ! _browser_is_running; then
+    echo "error: browser server is not running — start it first with 'ww browser'" >&2
+    exit 1
+  fi
+
+  # Fetch all data from the running server
+  local data
+  data=$(curl -sf "http://localhost:${port}/data/all") || {
+    echo "error: could not fetch data from browser server" >&2
+    exit 1
+  }
+
+  # Determine output path
+  local profile date_str
+  profile=$(echo "$data" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('profile','unknown'))" 2>/dev/null || echo "unknown")
+  date_str=$(date +%Y%m%d)
+  if [[ -z "$out_path" ]]; then
+    out_path="./ww-export-${profile}-${date_str}.html"
+  fi
+
+  # Read static assets
+  local js css
+  js=$(cat "${BROWSER_SERVICE_DIR}/static/app.js")
+  css=$(cat "${BROWSER_SERVICE_DIR}/static/style.css")
+
+  python3 - "$out_path" "$data" "$js" "$css" << 'PYEOF'
+import sys, json, html as _html
+out_path = sys.argv[1]
+data = json.loads(sys.argv[2])
+js = sys.argv[3]
+css = sys.argv[4]
+
+profile = data.get("profile", "")
+exported_at = data.get("exported_at", "")
+tasks = data.get("tasks", [])
+journal = data.get("journal", [])
+balances = data.get("balances", [])
+
+def esc(s): return _html.escape(str(s or ""))
+
+task_rows = "".join(
+    f'<tr><td>{esc(t.get("id",""))}</td><td>{esc(t.get("description",""))}</td>'
+    f'<td>{esc(t.get("project",""))}</td><td>{esc(t.get("status",""))}</td>'
+    f'<td>{esc(",".join(t.get("tags") or []))}</td></tr>'
+    for t in tasks
+)
+journal_rows = "".join(
+    f'<div class="je"><div class="jd">{esc(e.get("date",""))}</div>'
+    f'<div class="jb">{esc(e.get("body",""))}</div></div>'
+    for e in journal
+)
+balance_rows = "".join(
+    f'<tr><td>{esc(b.get("account",""))}</td><td>{esc(b.get("amount",""))}</td></tr>'
+    for b in balances
+)
+
+html = f"""<!DOCTYPE html>
+<html lang=\"en\">
+<head><meta charset=\"UTF-8\">
+<title>ww export — {esc(profile)} — {esc(exported_at)}</title>
+<style>
+{css}
+.export-header{{padding:16px;border-bottom:1px solid var(--border);background:var(--surface);}}
+.export-section{{padding:16px;margin-bottom:24px;}}
+h2{{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:6px;}}
+table{{width:100%;border-collapse:collapse;font-size:12px;}}
+th{{text-align:left;color:var(--muted);padding:4px 8px;border-bottom:1px solid var(--border);}}
+td{{padding:4px 8px;border-bottom:1px solid var(--border);}}
+.je{{padding:12px 0;border-bottom:1px solid var(--border);}}
+.jd{{font-size:11px;color:var(--muted);margin-bottom:4px;}}
+.jb{{font-size:13px;white-space:pre-wrap;}}
+</style>
+</head>
+<body>
+<div id=\"app\">
+<div class=\"export-header\">
+  <span class=\"wordmark-ww\">ww</span>
+  <span class=\"wordmark-full\">workwarrior export</span>
+  <span style=\"float:right;color:var(--muted);font-size:11px;\">{esc(profile)} &middot; {esc(exported_at)}</span>
+</div>
+<div id=\"main\">
+<div class=\"export-section\">
+<h2>Tasks ({len(tasks)})</h2>
+<table><thead><tr><th>#</th><th>Description</th><th>Project</th><th>Status</th><th>Tags</th></tr></thead>
+<tbody>{task_rows}</tbody></table>
+</div>
+<div class=\"export-section\">
+<h2>Journal ({len(journal)} recent entries)</h2>
+{journal_rows}
+</div>
+<div class=\"export-section\">
+<h2>Balances</h2>
+<table><thead><tr><th>Account</th><th>Amount</th></tr></thead>
+<tbody>{balance_rows}</tbody></table>
+</div>
+</div></div>
+<script>/* exported snapshot — no live data */\nconst WW_DATA = {json.dumps(data)};</script>
+</body></html>"""
+
+with open(out_path, "w") as f:
+    f.write(html)
+print(f"Exported: {out_path}")
+PYEOF
 }
 
 # ============================================================================
@@ -207,11 +320,12 @@ main() {
   local subcommand=""
   local port="${BROWSER_DEFAULT_PORT}"
   local no_open=0
+  local export_path=""
 
   # Parse arguments
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      start|stop|status)
+      start|stop|status|export)
         subcommand="$1"
         shift
         ;;
@@ -229,6 +343,14 @@ main() {
         ;;
       --no-open)
         no_open=1
+        shift
+        ;;
+      --path)
+        export_path="${2:-}"
+        shift 2
+        ;;
+      --path=*)
+        export_path="${1#--path=}"
         shift
         ;;
       --help|-h|help)
@@ -255,6 +377,9 @@ main() {
       ;;
     status)
       _browser_status
+      ;;
+    export)
+      _browser_export "$export_path"
       ;;
     *)
       echo "error: unknown subcommand: $subcommand" >&2

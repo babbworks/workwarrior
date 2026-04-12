@@ -83,30 +83,30 @@ global_flag_application:
     - "WW_VERBOSE=0|1"
 
 compatibility_layer:
-  warnings_policy: "compatibility warnings are optional; if dual syntax remains first-class, warnings may be removed while retaining alias support"
-  warning_env_override: "WW_NO_DEPRECATION_WARNINGS=1 disables alias nudges"
+  warnings_policy: "compatibility aliases remain first-class and do not emit deprecation warnings"
+  warning_env_override: "n/a (deprecation nudges removed)"
   deprecated_alias_matrix:
     - legacy: "ww profiles"
       preferred: "ww profile list"
-      behavior: "legacy still executes; warning emitted"
+      behavior: "legacy still executes"
     - legacy: "ww services"
       preferred: "ww service list"
-      behavior: "legacy still executes; warning emitted"
+      behavior: "legacy still executes"
     - legacy: "ww groups <action>"
       preferred: "ww group <action>"
-      behavior: "legacy still executes; nudge emitted (bare 'ww groups' defaults to list, no nudge)"
+      behavior: "legacy still executes (bare 'ww groups' defaults to list)"
     - legacy: "ww models <action>"
       preferred: "ww model <action>"
-      behavior: "legacy still executes; nudge emitted (bare 'ww models' defaults to list, no nudge)"
+      behavior: "legacy still executes (bare 'ww models' defaults to list)"
     - legacy: "ww journals [action]"
       preferred: "ww journal [action]"
-      behavior: "legacy still executes; warning emitted"
+      behavior: "legacy still executes"
     - legacy: "ww ledgers [action]"
       preferred: "ww ledger [action]"
-      behavior: "legacy still executes; warning emitted"
+      behavior: "legacy still executes"
     - legacy: "ww help groups|models|journals|ledgers"
       preferred: "ww help group|model|journal|ledger"
-      behavior: "legacy still executes; warning emitted"
+      behavior: "legacy still executes"
 
 commands:
   - domain: "profile"
@@ -229,7 +229,7 @@ commands:
       - "ww group remove <name> <profiles...>"
       - "ww group delete <name>"
     aliases:
-      - "ww groups ...  # bare 'ww groups' defaults to list; action forms nudge to singular"
+      - "ww groups ...  # bare form defaults to list"
     output_modes:
       default: "human-compact"
       supports_json: true
@@ -240,17 +240,35 @@ commands:
 
   - domain: "model"
     syntax:
+      - "ww model <name> <type> <base_url> [api_key_env]"
       - "ww model list"
       - "ww model providers"
       - "ww model env"
       - "ww model check"
       - "ww model show <name>"
       - "ww model add-provider <name> <type> <base_url> [api_key_env]"
+      - "ww model remove-provider <name>"
       - "ww model add-model <name> <provider> <model_id> [notes]"
       - "ww model set-default <name>"
       - "ww model remove-model <name>"
     aliases:
-      - "ww models ...  # bare 'ww models' defaults to list; action forms nudge to singular"
+      - "ww models ...  # bare form defaults to list"
+    output_modes:
+      default: "human-compact"
+      supports_json: true
+    scope:
+      default: "global"
+      override: "n/a"
+    status: "active"
+
+  - domain: "ctrl"
+    syntax:
+      - "ww ctrl status"
+      - "ww ctrl ai-mode <off|local-only|local+remote>"
+      - "ww ctrl ai-cmd <on|off>"
+      - "ww ctrl prompt-ww <on|off>"
+      - "ww ctrl prompt-ai <on|off>"
+      - "ww ctrl ui-model-indicator <on|off>"
     output_modes:
       default: "human-compact"
       supports_json: true

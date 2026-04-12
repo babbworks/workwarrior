@@ -136,14 +136,14 @@ registers a listener and filters its visible rows client-side (no server round-t
 
 ## Dummy Profile
 
-A "remote-dev" profile has been pre-seeded with the following data for development/demo use:
+A "demo" profile has been pre-seeded with the following data for development/demo use:
   Tasks: 10 pending (projects: infra, api, docs, maintenance, observability, comms)
          2 completed, 1 active (CORS fix), annotations on 2 tasks
   Time:  ~5 days of intervals this week; 1 active interval (Postgres migration)
   Journal: 5 entries Apr 3–9 covering infra, API, database, and team sync topics
   Ledger:  8 transactions, balanced across expenses/income/assets
 
-To view: ww browser --no-open  then POST /profile {"profile":"remote-dev"}
+To view: ww browser --no-open  then POST /profile {"profile":"demo"}
 
 ---
 
@@ -174,15 +174,15 @@ Acceptance criteria:
 
 ---
 
-Write scope:          /Users/mp/ww/services/browser/server.py        (add /data/* + /action endpoints)
-                      /Users/mp/ww/services/browser/static/app.js    (replace skeleton sections with live data)
-                      /Users/mp/ww/services/browser/static/index.html (update section markup)
-                      /Users/mp/ww/services/browser/static/style.css  (add task row, time bar, ledger styles)
-                      /Users/mp/ww/tests/test-browser-data.bats       (new BATS suite for data endpoints)
+Write scope:          $WW_BASE/services/browser/server.py        (add /data/* + /action endpoints)
+                      $WW_BASE/services/browser/static/app.js    (replace skeleton sections with live data)
+                      $WW_BASE/services/browser/static/index.html (update section markup)
+                      $WW_BASE/services/browser/static/style.css  (add task row, time bar, ledger styles)
+                      $WW_BASE/tests/test-browser-data.bats       (new BATS suite for data endpoints)
 
 Tests required:       bats tests/test-browser.bats     (regression check — must still pass 16)
                       bats tests/test-browser-data.bats (new)
-                      Manual: ww browser — switch to remote-dev profile, verify all 4 sections show data
+                      Manual: ww browser — switch to demo profile, verify all 4 sections show data
                       Manual: complete a task in the browser, verify it disappears from pending list
 
 Rollback:             git checkout services/browser/server.py

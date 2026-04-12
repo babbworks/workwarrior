@@ -32,7 +32,6 @@ else
   log_warning() { echo "warn $*"; }
   log_error() { echo "err $*" >&2; }
   log_step() { echo ">> $*"; }
-  log_deprecation() { echo "deprecated $*" >&2; }
 fi
 
 if [[ -f "$WW_BASE/lib/profile-manager.sh" ]]; then
@@ -60,6 +59,7 @@ Commands:
   groups      Alias for group namespace (bare form lists groups)
   model       Preferred model namespace (providers and model registry)
   models      Alias for model namespace (bare form lists models)
+  ctrl        Control settings (AI access, command-line indicators, UI toggles)
   journal     Preferred journal namespace (add, list, remove, rename)
   journals    Alias for journal namespace (bare form lists journals)
   ledger      Preferred ledger namespace (add, list, remove, rename)
@@ -73,6 +73,7 @@ Commands:
   extensions  External tool extensions registry
   find        Search across profiles and data types
   custom      Custom services (journal configuration, etc.)
+  q           Questions service (templated workflows for tasks, journals, etc.)
   shortcut    Shortcut reference (list, info, compact)
   export      Export profile data (json, csv, markdown)
   x           Delete profiles and data (with backup)
@@ -90,7 +91,7 @@ Global Options:
 
 Compatibility:
   Plural command aliases remain supported ('groups', 'models', 'journals', 'ledgers',
-  plus 'profiles' and 'services') and emit a nudge toward preferred singular syntax.
+  plus 'profiles' and 'services') without deprecation warnings.
 
 Profile Commands:
   ww profile create <name>    Create a new profile
@@ -114,6 +115,8 @@ Groups Commands:
   ww group delete <name>
 
 Models Commands:
+  ww model <name> <type> <base_url> [api_key_env]
+                              Shortcut for add-provider (singular create form)
   ww model list                List models and default
   ww models                    List models and default (shortcut)
   ww model providers           List model providers
@@ -121,9 +124,18 @@ Models Commands:
   ww model check               Check required env vars
   ww model show <model>        Show model details
   ww model add-provider <name> <type> <base_url> [api_key_env]
+  ww model remove-provider <name>
   ww model add-model <name> <provider> <model_id> [notes]
   ww model set-default <name>
   ww model remove-model <name>
+
+CTRL Commands:
+  ww ctrl status
+  ww ctrl ai-mode <off|local-only|local+remote>
+  ww ctrl ai-cmd <on|off>
+  ww ctrl prompt-ww <on|off>
+  ww ctrl prompt-ai <on|off>
+  ww ctrl ui-model-indicator <on|off>
 
 Journal Commands:
   ww journal add <name>        Add journal to active profile
@@ -372,12 +384,15 @@ Usage: ww model <action> [arguments]
 Alias: ww models (bare alias defaults to list)
 
 Actions:
+  <name> <type> <base_url> [api_key_env]
+                              Shortcut for add-provider (singular create form)
   list                         List models and default
   providers                    List providers
   env                          Show provider environment variables
   check                        Check if required env vars are set
   show <model>                 Show model details
   add-provider <name> <type> <base_url> [api_key_env]
+  remove-provider <name>       Remove provider (must not be in use by models)
   add-model <name> <provider> <model_id> [notes]
   set-default <name>           Set default model
   remove-model <name>          Remove model
@@ -385,9 +400,11 @@ Actions:
 Examples:
   ww model list
   ww models
+  ww model openai openai https://api.openai.com/v1 OPENAI_API_KEY
   ww model providers
   ww model env
   ww model check
+  ww model remove-provider openai
   ww model set-default gpt-4o-mini
 EOF
 }
@@ -466,28 +483,24 @@ show_service_help() {
       show_help_service
       ;;
     group|groups)
-      if [[ "$topic" == "groups" ]]; then
-        nudge_preferred_syntax "ww help groups" "ww help group"
-      fi
       show_help_group
       ;;
     model|models)
-      if [[ "$topic" == "models" ]]; then
-        nudge_preferred_syntax "ww help models" "ww help model"
-      fi
       show_help_model
       ;;
     journal|journals)
-      if [[ "$topic" == "journals" ]]; then
-        nudge_preferred_syntax "ww help journals" "ww help journal"
-      fi
       show_help_journal
       ;;
     ledger|ledgers)
-      if [[ "$topic" == "ledgers" ]]; then
-        nudge_preferred_syntax "ww help ledgers" "ww help ledger"
-      fi
       show_help_ledger
+      ;;
+    ctrl)
+      if [[ -f "$WW_BASE/services/ctrl/ctrl.sh" ]]; then
+        "$WW_BASE/services/ctrl/ctrl.sh" help
+      else
+        log_error "CTRL service not found"
+        exit 1
+      fi
       ;;
     extensions)
       cmd_extensions help
@@ -497,6 +510,9 @@ show_service_help() {
       ;;
     custom)
       cmd_custom help
+      ;;
+    q|questions)
+      cmd_questions help
       ;;
     shortcut)
       cmd_shortcut help
@@ -534,6 +550,11 @@ EOF
 show_version() {
   echo "Workwarrior version $WW_VERSION"
   echo "Installation: $WW_BASE"
+  local indicator=""
+  indicator="$(build_cli_indicator)"
+  if [[ -n "$indicator" ]]; then
+    echo "CLI context: $indicator"
+  fi
 
   if [[ -f "$WW_BASE/VERSION" ]]; then
     local installed_version
@@ -558,10 +579,50 @@ print_json_array() {
   printf ']'
 }
 
+ctrl_read_bool() {
+  local section="$1"
+  local key="$2"
+  local cfg="$WW_BASE/config/ctrl.yaml"
+  [[ -f "$cfg" ]] || { echo "true"; return 0; }
+  awk -v section="$section" -v key="$key" '
+    $0 ~ "^" section ":[[:space:]]*$" { in_s=1; next }
+    in_s && /^[^[:space:]]/ { in_s=0 }
+    in_s && $0 ~ "^  " key ":[[:space:]]*" { print $2; exit }
+    END { if (NR == 0) print "true" }
+  ' "$cfg"
+}
+
+ai_is_active_for_cli() {
+  local cfg="$WW_BASE/config/ai.yaml"
+  [[ -f "$cfg" ]] || { echo "true"; return 0; }
+  local mode cmd_ai
+  mode="$(awk '/^mode:[[:space:]]*/ {print $2; exit}' "$cfg")"
+  cmd_ai="$(awk '
+    /^access_points:[[:space:]]*$/ { in_ap=1; next }
+    in_ap && /^[^[:space:]]/ { in_ap=0 }
+    in_ap && /^  cmd_ai:[[:space:]]*/ { print $2; exit }
+  ' "$cfg")"
+  [[ "$mode" == "off" || "$cmd_ai" == "false" ]] && echo "false" || echo "true"
+}
+
+build_cli_indicator() {
+  local show_ww show_ai ai_active cwd_base
+  show_ww="$(ctrl_read_bool command_line show_ww)"
+  show_ai="$(ctrl_read_bool command_line show_ai)"
+  ai_active="$(ai_is_active_for_cli)"
+  cwd_base="$(basename "$PWD" 2>/dev/null || true)"
+  local parts=()
+  if [[ "$show_ww" == "true" && "$cwd_base" != "ww" ]]; then
+    parts+=("ww")
+  fi
+  if [[ "$show_ai" == "true" && "$ai_active" == "true" ]]; then
+    parts+=("(AI)")
+  fi
+  echo "${parts[*]}"
+}
+
 nudge_preferred_syntax() {
-  local legacy="$1"
-  local preferred="$2"
-  echo "deprecated '$legacy' still works; prefer '$preferred'" >&2
+  :
 }
 
 parse_global_flags() {
@@ -806,6 +867,7 @@ service_category_description() {
     custom) echo "Interactive profile configuration helpers" ;;
     groups) echo "Profile grouping and membership management" ;;
     models) echo "LLM provider/model registry configuration" ;;
+    ctrl) echo "AI and command-line settings control plane" ;;
     extensions) echo "External tool extension registries" ;;
     x-delete) echo "Profile/data deletion workflows" ;;
     *) echo "Service category" ;;
@@ -815,7 +877,7 @@ service_category_description() {
 service_category_scope() {
   local category="$1"
   case "$category" in
-    groups|models|extensions|x-delete)
+    groups|models|ctrl|extensions|x-delete)
       echo "Global scope (active profile not required)"
       ;;
     *)
@@ -829,7 +891,8 @@ service_category_syntax() {
   case "$category" in
     profile) echo "ww profile <create|list|info|delete|backup>" ;;
     groups) echo "ww group <list|show|create|add|remove|delete>" ;;
-    models) echo "ww model <list|providers|env|check|show|add-provider|add-model|set-default|remove-model>" ;;
+    models) echo "ww model <name type base_url [api_key_env]|list|providers|env|check|show|add-provider|remove-provider|add-model|set-default|remove-model>" ;;
+    ctrl) echo "ww ctrl <status|ai-mode|ai-cmd|prompt-ww|prompt-ai|ui-model-indicator>" ;;
     extensions) echo "ww extensions <tool> <action>" ;;
     custom) echo "ww custom <journals|tasks|times|ledgers|issues|list>" ;;
     find) echo "ww find <term> [--type <type>] [--profile <name>]" ;;
@@ -883,7 +946,7 @@ service_help_topic_alias() {
     models) echo "model" ;;
     journals) echo "journal" ;;
     ledgers) echo "ledger" ;;
-    service|services|profile|group|model|journal|ledger|extensions|find|custom|shortcut|deps)
+    service|services|profile|group|model|journal|ledger|extensions|find|custom|shortcut|deps|ctrl)
       echo "$name"
       ;;
     *) echo "" ;;
@@ -1151,6 +1214,19 @@ cmd_models() {
 }
 
 # ============================================================================
+# CTRL COMMAND
+# ============================================================================
+
+cmd_ctrl() {
+  if [[ -f "$WW_BASE/services/ctrl/ctrl.sh" ]]; then
+    "$WW_BASE/services/ctrl/ctrl.sh" "$@"
+  else
+    log_error "CTRL service not found"
+    exit 1
+  fi
+}
+
+# ============================================================================
 # EXTENSIONS COMMAND
 # ============================================================================
 
@@ -1270,6 +1346,569 @@ EOF
       exit 1
       ;;
   esac
+}
+
+# ============================================================================
+# QUESTIONS COMMAND
+# ============================================================================
+
+cmd_questions() {
+  local action="${1:-}"
+  shift 2>/dev/null || true
+
+  # Resolve profile — use scope context (handles --profile flag and last-used profile)
+  local q_base=""
+  if [[ -n "${WORKWARRIOR_BASE:-}" ]]; then
+    q_base="$WORKWARRIOR_BASE/services/questions"
+  elif [[ -n "${WARRIOR_PROFILE:-}" ]]; then
+    q_base="$WW_BASE/profiles/$WARRIOR_PROFILE/services/questions"
+  else
+    # Try active profile from state file, then last profile
+    local try_prof=""
+    if [[ -f "$WW_BASE/.state/active_profile" ]]; then
+      try_prof="$(cat "$WW_BASE/.state/active_profile" 2>/dev/null | tr -d '[:space:]')"
+    fi
+    if [[ -z "$try_prof" ]] || [[ ! -d "$WW_BASE/profiles/$try_prof" ]]; then
+      try_prof="$(get_last_profile 2>/dev/null || true)"
+    fi
+    if [[ -n "$try_prof" && -d "$WW_BASE/profiles/$try_prof" ]]; then
+      q_base="$WW_BASE/profiles/$try_prof/services/questions"
+      export WORKWARRIOR_BASE="$WW_BASE/profiles/$try_prof"
+      export WARRIOR_PROFILE="$try_prof"
+      export TASKRC="$WW_BASE/profiles/$try_prof/.taskrc"
+    else
+      log_error "No active profile — activate one first: p-<profile-name>"
+      exit 1
+    fi
+  fi
+
+  local templates_dir="$q_base/templates"
+  mkdir -p "$templates_dir"/{task,journal,time,list,ledger,custom}
+
+  case "$action" in
+    list|"")
+      _q_list_all "$templates_dir"
+      ;;
+    new)
+      local service="${1:-custom}"
+      if [[ ! "$service" =~ ^(task|journal|time|list|ledger|custom)$ ]]; then
+        log_error "Invalid service: $service. Use: task, journal, time, list, ledger, custom"
+        exit 1
+      fi
+      if [[ "$service" == "task" ]]; then
+        _q_create_task_template "$templates_dir"
+      else
+        _q_create_template "$templates_dir" "$service"
+      fi
+      ;;
+    edit)
+      local name="${1:-}"
+      if [[ -z "$name" ]]; then
+        log_error "Template name required: ww q edit <name>"
+        exit 1
+      fi
+      local found=$(_q_find_template "$templates_dir" "$name")
+      if [[ -z "$found" ]]; then
+        log_error "Template '$name' not found"
+        exit 1
+      fi
+      ${EDITOR:-nano} "$found"
+      log_success "Template saved"
+      ;;
+    delete)
+      local name="${1:-}"
+      local flag="${2:-}"
+      if [[ -z "$name" ]]; then
+        log_error "Template name required: ww q delete <name>"
+        exit 1
+      fi
+      local found=$(_q_find_template "$templates_dir" "$name")
+      if [[ -z "$found" ]]; then
+        log_error "Template '$name' not found"
+        exit 1
+      fi
+      if [[ "$flag" != "--yes" ]]; then
+        read -p "Delete template '$name'? (y/N): " confirm
+        [[ "$confirm" =~ ^[Yy]$ ]] || { echo "Cancelled"; exit 0; }
+      fi
+      rm -f "$found"
+      log_success "Deleted template '$name'"
+      ;;
+    task|journal|time|list|ledger|custom)
+      local template_name="${1:-}"
+      if [[ -z "$template_name" ]]; then
+        _q_list_service "$templates_dir" "$action"
+      else
+        _q_run_template "$templates_dir" "$action" "$template_name"
+      fi
+      ;;
+    help|-h|--help)
+      cat << 'QEOF'
+Questions Service — Templated Workflows
+
+Usage:
+  ww q                         List all templates
+  ww q list                    List all templates
+  ww q new <service>           Create new template (task, journal, time, list, ledger, custom)
+  ww q <service>               List templates for a service
+  ww q <service> <template>    Run a template
+  ww q edit <template>         Edit template in $EDITOR
+  ww q delete <template>       Delete a template
+
+Services: task, journal, time, list, ledger, custom
+
+Examples:
+  ww q new journal             Create a journal question template
+  ww q new task                Create a task template (with UDA picker)
+  ww q journal daily           Run the 'daily' journal template
+  ww q task standup            Run the 'standup' task template
+QEOF
+      ;;
+    *)
+      log_error "Unknown questions command: $action"
+      echo "Run: ww q help"
+      exit 1
+      ;;
+  esac
+}
+
+_q_list_all() {
+  local templates_dir="$1"
+  local global_dir="$WW_BASE/services/questions/templates"
+  echo "All Templates:"
+  echo "=============="
+  local found=0
+  for service in task journal time list ledger custom; do
+    local files=()
+    # Profile templates
+    local dir="$templates_dir/$service"
+    if [[ -d "$dir" ]]; then
+      while IFS= read -r f; do
+        files+=("$(basename "$f" .json)")
+      done < <(find "$dir" -maxdepth 1 -name "*.json" -type f 2>/dev/null | sort)
+    fi
+    # Global templates (add if not already found)
+    local gdir="$global_dir/$service"
+    if [[ -d "$gdir" ]]; then
+      while IFS= read -r f; do
+        local bn="$(basename "$f" .json)"
+        local already=0
+        for existing in "${files[@]}"; do [[ "$existing" == "$bn" ]] && already=1 && break; done
+        [[ $already -eq 0 ]] && files+=("$bn")
+      done < <(find "$gdir" -maxdepth 1 -name "*.json" -type f 2>/dev/null | sort)
+    fi
+    if [[ ${#files[@]} -gt 0 ]]; then
+      found=1
+      echo "$service:"
+      for f in "${files[@]}"; do
+        echo "  $f"
+      done
+    fi
+  done
+  if [[ $found -eq 0 ]]; then
+    echo "(no templates)"
+    echo "Create one: ww q new journal"
+  fi
+}
+
+_q_list_service() {
+  local templates_dir="$1"
+  local service="$2"
+  local global_dir="$WW_BASE/services/questions/templates"
+  echo "Templates for $service:"
+  local files=()
+  for dir in "$templates_dir/$service" "$global_dir/$service"; do
+    [[ -d "$dir" ]] || continue
+    while IFS= read -r f; do
+      local bn="$(basename "$f" .json)"
+      local already=0
+      for existing in "${files[@]}"; do [[ "$existing" == "$bn" ]] && already=1 && break; done
+      [[ $already -eq 0 ]] && files+=("$bn")
+    done < <(find "$dir" -maxdepth 1 -name "*.json" -type f 2>/dev/null | sort)
+  done
+  if [[ ${#files[@]} -eq 0 ]]; then
+    echo "  (none)"
+    echo "Create one: ww q new $service"
+  else
+    for f in "${files[@]}"; do
+      echo "  $f"
+    done
+  fi
+}
+
+_q_find_template() {
+  local templates_dir="$1"
+  local name="$2"
+  local global_dir="$WW_BASE/services/questions/templates"
+  # Profile first, then global
+  for service in task journal time list ledger custom; do
+    local f="$templates_dir/$service/${name}.json"
+    if [[ -f "$f" ]]; then echo "$f"; return 0; fi
+    local gf="$global_dir/$service/${name}.json"
+    if [[ -f "$gf" ]]; then echo "$gf"; return 0; fi
+  done
+  return 1
+}
+
+_q_create_template() {
+  local templates_dir="$1"
+  local service="$2"
+
+  read -p "Template name (filename, no spaces): " tname
+  if [[ -z "$tname" || ! "$tname" =~ ^[a-zA-Z0-9._-]+$ ]]; then
+    log_error "Invalid name. Use letters, numbers, dots, hyphens, underscores."
+    return 1
+  fi
+  local tfile="$templates_dir/$service/${tname}.json"
+  if [[ -f "$tfile" ]]; then
+    log_error "Template '$tname' already exists in $service"
+    return 1
+  fi
+
+  read -p "Display name [$tname]: " display_name
+  [[ -z "$display_name" ]] && display_name="$tname"
+  read -p "Description: " desc
+
+  echo ""
+  echo "Enter questions (empty line to finish):"
+  local questions=()
+  local n=1
+  while true; do
+    read -p "  Q$n: " qtxt
+    [[ -z "$qtxt" ]] && break
+    questions+=("$qtxt")
+    ((n++))
+  done
+
+  if [[ ${#questions[@]} -eq 0 ]]; then
+    log_error "At least one question required"
+    return 1
+  fi
+
+  # Write JSON
+  python3 -c "
+import json, sys
+qs = []
+for i, q in enumerate(sys.argv[3:]):
+    qs.append({'id': f'q{i+1}', 'text': q, 'type': 'text', 'required': True})
+t = {'name': sys.argv[1], 'description': sys.argv[2], 'service': '$service', 'questions': qs,
+     'output_format': {'title': sys.argv[1] + ' - {date}', 'tags': ['$service', 'template']}}
+with open('$tfile', 'w') as f:
+    json.dump(t, f, indent=2)
+" "$display_name" "$desc" "${questions[@]}"
+
+  log_success "Created: $tfile"
+  echo "Run with: ww q $service $tname"
+}
+
+_q_create_task_template() {
+  local templates_dir="$1"
+
+  read -p "Template name (filename, no spaces): " tname
+  if [[ -z "$tname" || ! "$tname" =~ ^[a-zA-Z0-9._-]+$ ]]; then
+    log_error "Invalid name"
+    return 1
+  fi
+  local tfile="$templates_dir/task/${tname}.json"
+  if [[ -f "$tfile" ]]; then
+    log_error "Template '$tname' already exists"
+    return 1
+  fi
+
+  read -p "Display name [$tname]: " display_name
+  [[ -z "$display_name" ]] && display_name="$tname"
+  read -p "Description: " desc
+
+  echo ""
+  echo "Enter questions (empty line to finish):"
+  local questions=()
+  local n=1
+  while true; do
+    read -p "  Q$n: " qtxt
+    [[ -z "$qtxt" ]] && break
+    questions+=("$qtxt")
+    ((n++))
+  done
+  if [[ ${#questions[@]} -eq 0 ]]; then
+    log_error "At least one question required"
+    return 1
+  fi
+
+  # UDA picker — interactive search
+  echo ""
+  echo "Select UDAs to include (type name to search, number to select, 'list' to browse, Enter to finish):"
+  echo "─────────────────────────────────────────────────────────────"
+
+  local taskrc="${TASKRC:-$WORKWARRIOR_BASE/.taskrc}"
+  local uda_names=()
+  local uda_types=()
+  local uda_labels=()
+
+  while IFS= read -r line; do
+    local uname="${line%%=*}"
+    uname="${uname#uda.}"
+    uname="${uname%.type}"
+    local utype="${line#*=}"
+    [[ "$uname" =~ ^(github|gitlab|jira|trello|bw_|sync_) ]] && continue
+    local ulabel=""
+    ulabel=$(grep "^uda\.${uname}\.label=" "$taskrc" 2>/dev/null | head -1 | cut -d= -f2)
+    [[ -z "$ulabel" ]] && ulabel="$uname"
+    uda_names+=("$uname")
+    uda_types+=("$utype")
+    uda_labels+=("$ulabel")
+  done < <(grep "^uda\..*\.type=" "$taskrc" 2>/dev/null | sort)
+
+  local selected_udas=()
+  if [[ ${#uda_names[@]} -gt 0 ]]; then
+    while true; do
+      local sel_display=""
+      if [[ ${#selected_udas[@]} -gt 0 ]]; then
+        sel_display=" [selected: ${selected_udas[*]}]"
+      fi
+      read -p "UDA${sel_display}: " uda_input
+      [[ -z "$uda_input" ]] && break
+
+      if [[ "$uda_input" == "list" ]]; then
+        for i in "${!uda_names[@]}"; do
+          printf "  %3d. %-25s %-10s %s\n" "$((i+1))" "${uda_names[$i]}" "(${uda_types[$i]})" "${uda_labels[$i]}"
+        done
+        continue
+      fi
+
+      # Number input
+      if [[ "$uda_input" =~ ^[0-9]+$ ]]; then
+        local num=$uda_input
+        if (( num >= 1 && num <= ${#uda_names[@]} )); then
+          selected_udas+=("${uda_names[$((num-1))]}")
+          echo "  + ${uda_names[$((num-1))]}"
+        else
+          echo "  (invalid number, 1-${#uda_names[@]})"
+        fi
+        continue
+      fi
+
+      # Text search — show matches
+      local matches=()
+      local match_indices=()
+      for i in "${!uda_names[@]}"; do
+        if [[ "${uda_names[$i]}" == *"$uda_input"* || "${uda_labels[$i]}" == *"$uda_input"* ]]; then
+          matches+=("${uda_names[$i]}")
+          match_indices+=("$i")
+        fi
+      done
+
+      if [[ ${#matches[@]} -eq 0 ]]; then
+        echo "  (no match for '$uda_input')"
+      elif [[ ${#matches[@]} -eq 1 ]]; then
+        selected_udas+=("${matches[0]}")
+        echo "  + ${matches[0]}"
+      else
+        echo "  matches:"
+        for j in "${!matches[@]}"; do
+          local idx="${match_indices[$j]}"
+          printf "    %3d. %-25s %s\n" "$((idx+1))" "${matches[$j]}" "${uda_labels[$idx]}"
+        done
+      fi
+    done
+  fi
+
+  echo ""
+  echo "Selected UDAs: ${selected_udas[*]:-none}"
+
+  # Write JSON with UDA fields
+  python3 -c "
+import json, sys
+
+questions_text = sys.argv[3:3+int(sys.argv[1])]
+uda_list = sys.argv[3+int(sys.argv[1]):]
+display = sys.argv[2]
+
+qs = []
+for i, q in enumerate(questions_text):
+    qs.append({'id': f'q{i+1}', 'text': q, 'type': 'text', 'required': i == 0})
+
+# Add UDA fields as questions
+for u in uda_list:
+    qs.append({'id': f'uda_{u}', 'text': f'{u}', 'type': 'uda', 'required': False, 'uda_name': u})
+
+t = {
+    'name': display,
+    'description': sys.argv[2+int(sys.argv[1])+1] if len(sys.argv) > 2+int(sys.argv[1])+1 else '',
+    'service': 'task',
+    'questions': qs,
+    'udas': uda_list,
+    'output_format': {'title': display + ' - {date}', 'tags': ['task', 'template']}
+}
+with open('$tfile', 'w') as f:
+    json.dump(t, f, indent=2)
+" "${#questions[@]}" "$display_name" "${questions[@]}" "$desc" "${selected_udas[@]}"
+
+  log_success "Created task template: $tfile"
+  echo "Run with: ww q task $tname"
+}
+
+_q_run_template() {
+  local templates_dir="$1"
+  local service="$2"
+  local template_name="$3"
+  local tfile="$templates_dir/$service/${template_name}.json"
+  local global_dir="$WW_BASE/services/questions/templates"
+
+  # Check profile first, then global
+  if [[ ! -f "$tfile" ]]; then
+    tfile="$global_dir/$service/${template_name}.json"
+  fi
+  if [[ ! -f "$tfile" ]]; then
+    log_error "Template '$template_name' not found in $service"
+    return 1
+  fi
+
+  if ! command -v python3 &>/dev/null; then
+    log_error "python3 required for template processing"
+    return 1
+  fi
+
+  # Parse and prompt via temp Python script
+  local _q_py=$(mktemp /tmp/ww_q_XXXXXX.py)
+  cat > "$_q_py" << 'PYEOF'
+import json, sys, os, subprocess
+from datetime import datetime
+
+tfile = os.environ.get('_Q_TFILE', '')
+service = os.environ.get('_Q_SERVICE', '')
+taskrc = os.environ.get('_Q_TASKRC', '')
+ww_base = os.environ.get('_Q_WWBASE', '')
+
+with open(tfile) as f:
+    template = json.load(f)
+
+print(f"\n{template['name']}")
+print(f"{template.get('description', '')}")
+print("=" * 50)
+
+answers = {}
+for q in template['questions']:
+    qtype = q.get('type', 'text')
+    label = q['text']
+    required = q.get('required', False)
+
+    while True:
+        val = input(f"  {label}: ").strip()
+        if not val and required:
+            print("    (required)")
+            continue
+        break
+    answers[q['id']] = val
+
+print("\n" + "=" * 50)
+
+if service == 'journal':
+    # Write to journal
+    journal_file = ""
+    if ww_base:
+        import re
+        jrnl_yaml = os.path.join(ww_base, "jrnl.yaml")
+        if os.path.isfile(jrnl_yaml):
+            with open(jrnl_yaml) as jf:
+                in_journals = False
+                for line in jf:
+                    if line.strip() == "journals:":
+                        in_journals = True
+                        continue
+                    if in_journals:
+                        m = re.match(r'^  default:\s*(.+)', line)
+                        if m:
+                            journal_file = m.group(1).strip()
+                            break
+    if not journal_file:
+        journal_file = os.path.join(ww_base, "journals", os.path.basename(ww_base) + ".txt")
+
+    ts = datetime.now().strftime("%Y-%m-%d %H:%M")
+    entry_parts = [f"[{ts}] {template['name']}"]
+    for qid, val in answers.items():
+        if val:
+            entry_parts.append(f"  {qid}: {val}")
+    entry = "\n".join(entry_parts) + "\n"
+
+    with open(journal_file, "a") as jf:
+        jf.write("\n" + entry)
+    print(f"✓ Written to journal: {journal_file}")
+
+elif service == 'task':
+    # Create task via task CLI
+    desc = answers.get('q1', '')
+    if not desc:
+        print("✗ No description (q1) provided")
+        sys.exit(1)
+
+    cmd = ["task", "rc.confirmation=no", "add", desc]
+    tags = template.get('output_format', {}).get('tags', [])
+    for tag in tags:
+        cmd.append(f"+{tag}")
+
+    env = dict(os.environ)
+    if taskrc:
+        env["TASKRC"] = taskrc
+        taskdata = os.path.join(os.path.dirname(taskrc), ".task")
+        env["TASKDATA"] = taskdata
+
+    r = subprocess.run(cmd, capture_output=True, text=True, env=env)
+    if r.returncode != 0:
+        print(f"✗ Failed to create task: {r.stderr}")
+        sys.exit(1)
+    print(f"✓ Task created: {desc}")
+
+    # Get new task ID
+    r2 = subprocess.run(["task", "rc.confirmation=no", "+LATEST", "ids"],
+                        capture_output=True, text=True, env=env)
+    task_id = r2.stdout.strip().split()[-1] if r2.stdout.strip() else ""
+
+    # Add annotations for non-description answers
+    for qid, val in answers.items():
+        if qid == 'q1' or not val:
+            continue
+        q_obj = next((q for q in template['questions'] if q['id'] == qid), None)
+        if q_obj and q_obj.get('type') == 'uda' and task_id:
+            uda_name = q_obj.get('uda_name', qid.replace('uda_', ''))
+            subprocess.run(["task", "rc.confirmation=no", task_id, "modify", f"{uda_name}:{val}"],
+                          capture_output=True, text=True, env=env)
+            print(f"  set {uda_name}={val}")
+        elif task_id:
+            label = q_obj['text'] if q_obj else qid
+            subprocess.run(["task", "rc.confirmation=no", task_id, "annotate", f"{label}: {val}"],
+                          capture_output=True, text=True, env=env)
+            print(f"  annotated: {label}: {val}")
+
+    if task_id:
+        print(f"  Task ID: {task_id}")
+
+elif service == 'time':
+    tags = answers.get('q1', '')
+    desc = answers.get('q2', '')
+    if tags:
+        env = dict(os.environ)
+        if ww_base:
+            env["TIMEWARRIORDB"] = os.path.join(ww_base, ".timewarrior")
+        subprocess.run(["timew", "start"] + tags.split(), env=env)
+        print(f"✓ Started tracking: {tags}")
+    if desc:
+        journal_file = os.path.join(ww_base, "journals", os.path.basename(ww_base) + ".txt") if ww_base else ""
+        if journal_file and os.path.isfile(os.path.dirname(journal_file)):
+            ts = datetime.now().strftime("%Y-%m-%d %H:%M")
+            with open(journal_file, "a") as jf:
+                jf.write(f"\n[{ts}] [time:{tags}] {desc}\n")
+
+else:
+    # Generic: just print answers
+    for qid, val in answers.items():
+        if val:
+            print(f'  {qid}: {val}')
+
+PYEOF
+  _Q_TFILE="$tfile" _Q_SERVICE="$service" _Q_TASKRC="${TASKRC:-}" _Q_WWBASE="${WORKWARRIOR_BASE:-}" python3 "$_q_py"
+  local _q_rc=$?
+  rm -f "$_q_py"
+  return $_q_rc
 }
 
 # ============================================================================
@@ -1815,6 +2454,137 @@ EOF
       filters+=("$@")
       TASKRC="${TASKRC}" TASKDATA="${TASKDATA}" TIMEWARRIORDB="${TIMEWARRIORDB:-}" \
         next "${filters[@]+${filters[@]}}"
+      ;;
+  esac
+}
+
+# ============================================================================
+# SWORD COMMAND — Task Splitting
+# ============================================================================
+
+cmd_sword() {
+  local subcommand="${1:-}"
+  shift 2>/dev/null || true
+
+  case "$subcommand" in
+    help|-h|--help|"")
+      cat << 'EOF'
+Sword Command — Task Splitting
+
+Splits a single task into sequential subtasks with dependencies.
+Each subtask depends on the previous one. Due dates are offset by interval.
+
+Usage:
+  ww sword <task-id> -p <parts> [--interval <dur>] [--prefix <text>]
+  ww sword install              (no install needed — ww-native)
+  ww sword help                 Show this help
+
+Options:
+  -p <parts>          Number of subtasks to create
+  --interval <dur>    Due date offset between parts (default: 1d)
+  --prefix <text>     Prefix for subtask descriptions (default: "Part N of:")
+
+Examples:
+  ww sword 5 -p 3                    Split task 5 into 3 parts
+  ww sword 5 -p 4 --interval 2d     Split with 2-day intervals
+  ww sword 12 -p 2 --prefix "Phase" Split into "Phase 1 of: ..." and "Phase 2 of: ..."
+EOF
+      ;;
+    install)
+      log_success "Sword is ww-native — no installation needed"
+      ;;
+    *)
+      # Parse: ww sword <task-id> -p <parts> [--interval <dur>] [--prefix <text>]
+      local task_id="$subcommand"
+      local parts=""
+      local interval="1d"
+      local prefix="Part"
+
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          -p) parts="$2"; shift 2 ;;
+          --interval) interval="$2"; shift 2 ;;
+          --prefix) prefix="$2"; shift 2 ;;
+          *) shift ;;
+        esac
+      done
+
+      if [[ -z "$task_id" || -z "$parts" ]]; then
+        log_error "Usage: ww sword <task-id> -p <parts>"
+        exit 1
+      fi
+
+      if [[ -z "${TASKRC:-}" || -z "${TASKDATA:-}" ]]; then
+        log_error "No active profile — activate one first: p-<profile-name>"
+        exit 1
+      fi
+
+      # Get the original task
+      local task_json
+      task_json=$(task rc.confirmation=no "$task_id" export 2>/dev/null)
+      if [[ -z "$task_json" || "$task_json" == "[]" ]]; then
+        log_error "Task $task_id not found"
+        exit 1
+      fi
+
+      local orig_desc
+      orig_desc=$(echo "$task_json" | python3 -c "import json,sys; t=json.load(sys.stdin)[0]; print(t['description'])" 2>/dev/null)
+      local orig_project
+      orig_project=$(echo "$task_json" | python3 -c "import json,sys; t=json.load(sys.stdin)[0]; print(t.get('project',''))" 2>/dev/null)
+      local orig_tags
+      orig_tags=$(echo "$task_json" | python3 -c "import json,sys; t=json.load(sys.stdin)[0]; print(' '.join('+'+t for t in t.get('tags',[])))" 2>/dev/null)
+
+      if [[ -z "$orig_desc" ]]; then
+        log_error "Could not read task $task_id description"
+        exit 1
+      fi
+
+      echo "Splitting task $task_id into $parts parts:"
+      echo "  Original: $orig_desc"
+      echo "  Interval: $interval"
+      echo ""
+
+      local prev_id=""
+      local created_ids=()
+
+      for ((i=1; i<=parts; i++)); do
+        local sub_desc="$prefix $i of: $orig_desc"
+        local cmd_parts=("add" "$sub_desc")
+
+        # Add project if original had one
+        if [[ -n "$orig_project" ]]; then
+          cmd_parts+=("project:$orig_project")
+        fi
+
+        # Add tags if original had them
+        if [[ -n "$orig_tags" ]]; then
+          cmd_parts+=($orig_tags)
+        fi
+
+        # Add due date offset
+        cmd_parts+=("due:${i}${interval}")
+
+        # Add dependency on previous subtask
+        if [[ -n "$prev_id" ]]; then
+          cmd_parts+=("depends:$prev_id")
+        fi
+
+        local result
+        result=$(task rc.confirmation=no "${cmd_parts[@]}" 2>&1)
+        # Extract the new task ID
+        local new_id
+        new_id=$(echo "$result" | grep -o 'Created task [0-9]*' | grep -o '[0-9]*')
+        if [[ -z "$new_id" ]]; then
+          new_id=$(task rc.confirmation=no +LATEST ids 2>/dev/null | tr -d ' ')
+        fi
+
+        created_ids+=("$new_id")
+        prev_id="$new_id"
+        echo "  ✓ $prefix $i: task $new_id (due: +${i}${interval}${prev_id:+, depends: $prev_id})"
+      done
+
+      echo ""
+      log_success "Created ${#created_ids[@]} subtasks: ${created_ids[*]}"
       ;;
   esac
 }
@@ -2538,14 +3308,12 @@ main() {
       cmd_profile "$@"
       ;;
     profiles)
-      nudge_preferred_syntax "ww profiles" "ww profile list"
       cmd_profile list "$@"
       ;;
     service|s)
       cmd_service "$@"
       ;;
     services)
-      nudge_preferred_syntax "ww services" "ww service list"
       if [[ $# -eq 0 ]]; then
         cmd_service list
       else
@@ -2557,11 +3325,6 @@ main() {
       ;;
     groups)
       if [[ $# -eq 0 ]]; then
-        nudge_preferred_syntax "ww groups" "ww group list"
-      else
-        nudge_preferred_syntax "ww groups <action>" "ww group <action>"
-      fi
-      if [[ $# -eq 0 ]]; then
         cmd_group list
       else
         cmd_group "$@"
@@ -2571,11 +3334,6 @@ main() {
       cmd_models "$@"
       ;;
     models)
-      if [[ $# -eq 0 ]]; then
-        nudge_preferred_syntax "ww models" "ww model list"
-      else
-        nudge_preferred_syntax "ww models <action>" "ww model <action>"
-      fi
       if [[ $# -eq 0 ]]; then
         cmd_models list
       else
@@ -2587,11 +3345,6 @@ main() {
       ;;
     journals)
       if [[ $# -eq 0 ]]; then
-        nudge_preferred_syntax "ww journals" "ww journal list"
-      else
-        nudge_preferred_syntax "ww journals <action>" "ww journal <action>"
-      fi
-      if [[ $# -eq 0 ]]; then
         cmd_journal list
       else
         cmd_journal "$@"
@@ -2602,15 +3355,13 @@ main() {
       ;;
     ledgers)
       if [[ $# -eq 0 ]]; then
-        nudge_preferred_syntax "ww ledgers" "ww ledger list"
-      else
-        nudge_preferred_syntax "ww ledgers <action>" "ww ledger <action>"
-      fi
-      if [[ $# -eq 0 ]]; then
         cmd_ledger list
       else
         cmd_ledger "$@"
       fi
+      ;;
+    ctrl)
+      cmd_ctrl "$@"
       ;;
     extensions)
       cmd_extensions "$@"
@@ -2623,6 +3374,15 @@ main() {
       ;;
     gun)
       cmd_gun "$@"
+      ;;
+    sword)
+      cmd_sword "$@"
+      ;;
+    remove)
+      bash "$WW_BASE/services/remove/remove.sh" "$@"
+      ;;
+    compile-heuristics)
+      python3 "$WW_BASE/scripts/compile-heuristics.py" --ww-base "$WW_BASE" "$@"
       ;;
     next)
       cmd_next "$@"
@@ -2641,6 +3401,9 @@ main() {
       ;;
     custom)
       cmd_custom "$@"
+      ;;
+    q|questions)
+      cmd_questions "$@"
       ;;
     shortcut)
       cmd_shortcut "$@"

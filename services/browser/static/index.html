@@ -13,75 +13,398 @@
         <span class="wordmark-ww">ww</span>
         <span class="wordmark-full">workwarrior</span>
       </div>
-      <div class="profile-pill" id="profile-pill">—</div>
+      <div class="profile-row">
+        <div class="profile-pill" id="profile-pill">—</div>
+        <button class="profile-info-btn" id="btn-profile-screen" title="Profile info">P</button>
+      </div>
       <ul class="profile-switcher hidden" id="profile-switcher"></ul>
-      <nav class="sidebar-nav">
-        <button class="nav-item active" data-section="tasks">Tasks</button>
-        <button class="nav-item" data-section="time">Time</button>
-        <button class="nav-item" data-section="journal">Journal</button>
-        <button class="nav-item" data-section="ledger">Ledger</button>
+      <div class="cmd-ctrl-row">
+        <button class="cmd-ctrl-btn" id="btn-nav-cmd" data-section="cmd" title="CMD — unified commands">CMD</button>
+        <button class="cmd-ctrl-btn" id="btn-nav-ctrl" data-section="ctrl" title="CTRL — settings">CTRL</button>
+      </div>
+      <div class="weapons-bar">
+        <button class="weapon-btn" id="btn-weapon-sword" title="Sword — coming soon">⚔</button>
+        <button class="weapon-btn" id="btn-weapon-gun" title="Gun — bulk task series">🔫</button>
+        <button class="weapon-btn weapon-disabled" title="Bat — coming soon">🏏</button>
+        <button class="weapon-btn weapon-disabled" title="Fire — coming soon">🔥</button>
+        <button class="weapon-btn weapon-disabled" title="Slingshot — coming soon">🏹</button>
+      </div>
+      <nav class="sidebar-nav" id="sidebar-nav">
+        <div class="nav-group-label">functions</div>
+        <button class="nav-item active" data-section="tasks"><span class="nav-icon icon-tasks">∼</span><span class="nav-label">Tasks</span></button>
+        <button class="nav-item" data-section="time"><span class="nav-icon icon-time">⭕</span><span class="nav-label">Times</span></button>
+        <button class="nav-item" data-section="journal"><span class="nav-icon icon-journal">╱</span><span class="nav-label">Journals</span></button>
+        <button class="nav-item" data-section="ledger"><span class="nav-icon icon-ledger">═</span><span class="nav-label">Ledgers</span></button>
+        <div class="nav-divider"></div>
+        <div class="nav-group-label">services</div>
+        <button class="nav-item" data-section="next"><span class="nav-icon">▶</span><span class="nav-label">Next</span></button>
+        <button class="nav-item" data-section="schedule"><span class="nav-icon">⏱</span><span class="nav-label">Schedule</span></button>
+        <button class="nav-item" data-section="sync"><span class="nav-icon">⇄</span><span class="nav-label">Sync</span></button>
+        <button class="nav-item" data-section="groups"><span class="nav-icon">⊞</span><span class="nav-label">Groups</span></button>
+        <button class="nav-item" data-section="models"><span class="nav-icon">◈</span><span class="nav-label">Models</span></button>
+        <button class="nav-item" data-section="network"><span class="nav-icon">⊕</span><span class="nav-label">Network</span></button>
+        <button class="nav-item" data-section="export"><span class="nav-icon">⤓</span><span class="nav-label">Export</span></button>
+        <button class="nav-item" data-section="questions"><span class="nav-icon">？</span><span class="nav-label">Questions</span></button>
+        <button class="nav-item" data-section="bookbuilder"><span class="nav-icon">📖</span><span class="nav-label">Saves</span></button>
+        <button class="nav-item" data-section="projects"><span class="nav-icon">◆</span><span class="nav-label">Projects</span></button>
       </nav>
-      <button class="sidebar-toggle" id="sidebar-toggle" title="Toggle sidebar">‹</button>
-    </aside>
-    <div id="main">
-      <header class="content-header">
-        <span id="section-title">Tasks</span>
-        <div class="header-right">
-          <span id="header-profile">—</span>
-          <span class="conn-dot" id="conn-dot" title="disconnected"></span>
+      <div class="sidebar-footer" id="sidebar-footer">
+        <div class="warrior-stats" id="warrior-stats">
+          <span class="warrior-icon">✱</span>
+          <span class="warrior-label" id="warrior-label">Warrior</span>
+          <span class="warrior-count" id="warrior-count"></span>
         </div>
+        <div class="density-control">
+          <span class="density-label">density</span>
+          <div class="density-stops">
+            <button class="density-btn" data-density="compact" title="Compact">·</button>
+            <button class="density-btn" data-density="normal" title="Normal">·</button>
+            <button class="density-btn" data-density="relaxed" title="Relaxed">·</button>
+          </div>
+        </div>
+        <button class="sidebar-toggle" id="sidebar-toggle" title="Toggle sidebar">‹</button>
+      </div>
+    </aside>
+    <button class="sidebar-peek" id="sidebar-peek" title="Open sidebar">›</button>
+    <div id="main">
+      <header id="content-header">
+        <div class="header-row1">
+          <span id="section-title">Tasks</span>
+          <div class="header-stats">
+            <span id="stat-tasks-count" class="stat-item hidden"></span>
+            <span id="stat-time-today" class="stat-item hidden"></span>
+            <span id="stat-date" class="stat-item"></span>
+            <span id="header-profile" class="stat-item stat-profile" title="Switch profile">—</span>
+            <span class="conn-dot" id="conn-dot" title="disconnected"></span>
+          </div>
+        </div>
+        <div class="header-row2" id="stat-context-bar">—</div>
       </header>
       <div id="content-area">
+        <!-- Tasks -->
         <section class="section" id="section-tasks">
+          <div class="section-resource-bar"><div id="tasklist-selector"></div></div>
+          <form class="add-form-inline" id="add-task-form">
+            <input type="text" name="description" placeholder="Add task…" autocomplete="off" />
+            <input type="text" name="project" placeholder="project" />
+            <input type="text" name="tags" placeholder="tags" />
+            <select name="priority"><option value="">pri</option><option>H</option><option>M</option><option>L</option></select>
+            <input type="date" name="due" />
+            <button type="submit" class="btn-inline-submit">save</button>
+            <button type="button" class="btn-inline-alt" id="btn-task-start">start</button>
+          </form>
           <div class="section-toolbar">
             <input type="text" id="task-filter" class="inline-filter" placeholder="filter tasks…" />
-            <button class="btn-add" id="btn-add-task">+ Add task</button>
           </div>
-          <form class="add-form hidden" id="add-task-form">
-            <input type="text" name="description" placeholder="Description*" required />
-            <input type="text" name="project" placeholder="Project" />
-            <input type="text" name="tags" placeholder="Tags (comma-sep)" />
-            <select name="priority"><option value="">Priority</option><option>H</option><option>M</option><option>L</option></select>
-            <input type="date" name="due" />
-            <button type="submit">Add</button>
-            <button type="button" class="btn-cancel">Cancel</button>
-          </form>
-          <div class="task-list" id="task-list">
-            <div class="skeleton-msg">Loading tasks…</div>
-          </div>
+          <div class="task-list" id="task-list"><div class="skeleton-msg">Loading tasks…</div></div>
+          <div class="task-detail hidden" id="task-detail"></div>
         </section>
+        <!-- Times -->
         <section class="section hidden" id="section-time">
+          <div class="section-resource-bar"><div id="timew-selector"></div></div>
+          <form class="add-form-inline" id="add-time-form">
+            <input type="text" name="tags" placeholder="@tags (e.g. +project +meeting)" autocomplete="off" list="timew-tags-list" style="width:180px" />
+            <datalist id="timew-tags-list"></datalist>
+            <input type="text" name="description" placeholder="description (logged to journal)" autocomplete="off" style="flex:1;min-width:140px" />
+            <input type="text" name="duration" placeholder="duration (e.g. 30min, 1h)" style="width:130px" />
+            <select name="task_id" id="time-task-select"><option value="">no task</option></select>
+            <button type="button" class="btn-inline-submit" id="btn-timew-start">▶ start</button>
+            <button type="button" class="btn-inline-alt" id="btn-timew-stop">■ stop</button>
+            <button type="submit" class="btn-inline-alt" id="btn-timew-track">+ track</button>
+          </form>
           <div class="time-today" id="time-today">Loading…</div>
           <div class="time-week" id="time-week"></div>
           <div class="time-intervals" id="time-intervals"></div>
         </section>
+        <!-- Journals -->
         <section class="section hidden" id="section-journal">
-          <div class="section-toolbar">
-            <button class="btn-add" id="btn-add-journal">+ New entry</button>
-          </div>
-          <form class="add-form hidden" id="add-journal-form">
-            <textarea name="entry" placeholder="Write your entry…" rows="4" required></textarea>
-            <button type="submit">Add</button>
-            <button type="button" class="btn-cancel">Cancel</button>
+          <div class="section-resource-bar"><div id="journal-selector"></div></div>
+          <form class="add-form-inline" id="add-journal-form">
+            <textarea name="entry" placeholder="New journal entry… (Enter to submit, Shift+Enter for newline)" rows="2"></textarea>
           </form>
-          <div class="journal-list" id="journal-list">
-            <div class="skeleton-msg">Loading journal…</div>
-          </div>
+          <input type="text" id="journal-search" class="inline-filter" placeholder="search entries…" style="margin-bottom:8px;width:100%" />
+          <div class="journal-list" id="journal-list"><div class="skeleton-msg">Loading journal…</div></div>
         </section>
+        <!-- Ledgers -->
         <section class="section hidden" id="section-ledger">
-          <div class="section-toolbar">
-            <button class="btn-add" id="btn-add-ledger">+ Add transaction</button>
-          </div>
-          <form class="add-form hidden" id="add-ledger-form">
+          <div class="section-resource-bar"><div id="ledger-selector"></div></div>
+          <form class="add-form-inline" id="add-ledger-form">
             <input type="date" name="date" />
-            <input type="text" name="description" placeholder="Description*" required />
-            <input type="text" name="account" placeholder="Account (e.g. expenses:food)" />
-            <input type="text" name="amount" placeholder="Amount (e.g. 25.00)" />
-            <button type="submit">Add</button>
-            <button type="button" class="btn-cancel">Cancel</button>
+            <input type="text" name="description" placeholder="Add transaction…" autocomplete="off" />
+            <input type="text" name="account" placeholder="account" list="account-list" />
+            <datalist id="account-list"></datalist>
+            <input type="text" name="amount" placeholder="amount" />
+            <button type="submit" class="btn-inline-submit">save</button>
           </form>
           <div class="ledger-balances" id="ledger-balances"></div>
+          <div class="add-account-row">
+            <input type="text" id="add-account-input" class="inline-filter" placeholder="add account (e.g. expenses:travel:flights)" style="width:260px" />
+            <button class="btn-inline-alt" id="btn-add-account">+ account</button>
+          </div>
+          <div class="hledger-toolbar">
+            <button class="btn-inline-alt hl-btn" data-cmd="balancesheet">balance sheet</button>
+            <button class="btn-inline-alt hl-btn" data-cmd="incomestatement">income stmt</button>
+            <button class="btn-inline-alt hl-btn" data-cmd="cashflow">cashflow</button>
+            <button class="btn-inline-alt hl-btn" data-cmd="register">register</button>
+            <button class="btn-inline-alt hl-btn" data-cmd="stats">stats</button>
+            <button class="btn-inline-alt hl-btn" data-cmd="activity">activity</button>
+            <button class="btn-inline-alt hl-btn" data-cmd="check">check</button>
+            <button class="btn-inline-alt hl-btn" data-cmd="roi">roi</button>
+            <button class="btn-inline-alt hl-btn" data-cmd="accounts">accounts</button>
+            <button class="btn-inline-alt hl-btn" data-cmd="print">print</button>
+          </div>
+          <div class="hledger-period-row">
+            <select id="hl-period" class="resource-select" style="font-size:11px">
+              <option value="">all time</option>
+              <option value="--monthly">monthly</option>
+              <option value="--weekly">weekly</option>
+              <option value="--daily">daily</option>
+              <option value="--quarterly">quarterly</option>
+              <option value="--yearly">yearly</option>
+            </select>
+            <input type="text" id="hl-filter" class="inline-filter" placeholder="account filter…" style="width:160px" />
+            <select id="hl-depth" class="resource-select" style="font-size:11px">
+              <option value="">full depth</option>
+              <option value="--depth=1">depth 1</option>
+              <option value="--depth=2">depth 2</option>
+              <option value="--depth=3">depth 3</option>
+            </select>
+          </div>
+          <div class="hledger-output hidden" id="hledger-output"></div>
+          <input type="text" id="ledger-search" class="inline-filter" placeholder="search transactions…" style="margin:8px 0;width:100%" />
           <div class="ledger-recent" id="ledger-recent"></div>
+        </section>
+        <!-- Next -->
+        <section class="section hidden" id="section-next">
+          <div id="next-card"><div class="skeleton-msg">Loading…</div></div>
+        </section>
+        <!-- Schedule -->
+        <section class="section hidden" id="section-schedule">
+          <div id="schedule-card"><div class="skeleton-msg">Loading…</div></div>
+          <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn-inline-alt" id="btn-sched-status">status</button>
+            <button class="btn-inline-alt" id="btn-sched-enable">enable</button>
+            <button class="btn-inline-alt" id="btn-sched-disable">disable</button>
+            <button class="btn-inline-alt" id="btn-sched-run">run</button>
+            <button class="btn-inline-alt" id="btn-sched-dryrun">dry-run</button>
+            <button class="btn-inline-alt" id="btn-sched-install">install</button>
+          </div>
+          <div class="cmd-unified-output hidden" id="schedule-output"></div>
+        </section>
+        <!-- Sync -->
+        <section class="section hidden" id="section-sync">
+          <div class="service-panel" id="sync-panel">
+            <div class="service-panel-header">Sync · GitHub Integration</div>
+            <div class="service-panel-body" id="sync-body"><div class="skeleton-msg">Loading…</div></div>
+            <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+              <button class="btn-inline-alt" id="btn-sync-status">status</button>
+              <button class="btn-inline-alt" id="btn-sync-pull">pull</button>
+              <button class="btn-inline-alt" id="btn-sync-push">push</button>
+              <button class="btn-inline-alt" id="btn-sync-install">install</button>
+            </div>
+            <div class="cmd-unified-output hidden" id="sync-output"></div>
+          </div>
+        </section>
+        <!-- Groups -->
+        <section class="section hidden" id="section-groups">
+          <div class="service-panel" id="groups-panel">
+            <div class="service-panel-header">Groups</div>
+            <form class="add-form-inline" id="group-create-form">
+              <input type="text" name="name" placeholder="group name" autocomplete="off" style="width:140px" />
+              <input type="text" name="profiles" placeholder="profiles (comma-separated)" autocomplete="off" style="flex:1;min-width:160px" />
+              <button type="submit" class="btn-inline-submit">create group</button>
+            </form>
+            <div class="service-panel-body" id="groups-body"><div class="skeleton-msg">Loading…</div></div>
+          </div>
+        </section>
+        <!-- Models -->
+        <section class="section hidden" id="section-models">
+          <div class="service-panel" id="models-panel">
+            <div class="service-panel-header">Models</div>
+            <div class="service-panel-body" id="models-body"><div class="skeleton-msg">Loading…</div></div>
+            <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+              <button class="btn-inline-alt" id="btn-model-list">list</button>
+              <button class="btn-inline-alt" id="btn-model-providers">providers</button>
+              <button class="btn-inline-alt" id="btn-model-env">env</button>
+              <button class="btn-inline-alt" id="btn-model-check">check</button>
+              <button class="btn-inline-submit" id="btn-model-detect">detect ollama models</button>
+            </div>
+          </div>
+        </section>
+        <!-- Network -->
+        <section class="section hidden" id="section-network">
+          <div class="service-panel" id="network-panel">
+            <div class="service-panel-header">Network</div>
+            <div class="service-panel-body" id="network-body"><div class="skeleton-msg">Checking…</div></div>
+          </div>
+        </section>
+        <!-- Export -->
+        <section class="section hidden" id="section-export">
+          <div class="service-panel" id="export-panel">
+            <div class="service-panel-header">Export</div>
+            <div class="service-panel-body" id="export-body">
+              <p style="color:var(--muted);font-size:12px;margin-bottom:8px">Export profile data as JSON, CSV, or Markdown.</p>
+              <div class="export-actions">
+                <button class="btn-inline-submit" id="btn-export-json">JSON</button>
+                <button class="btn-inline-alt" id="btn-export-run">ww export</button>
+              </div>
+              <div class="cmd-unified-output hidden" id="export-output"></div>
+            </div>
+          </div>
+        </section>
+        <!-- Questions -->
+        <section class="section hidden" id="section-questions">
+          <div class="service-panel" id="questions-panel">
+            <div class="service-panel-header">Questions</div>
+            <div class="service-panel-body" id="questions-body"><div class="skeleton-msg">Loading…</div></div>
+            <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+              <button class="btn-inline-alt" id="btn-q-list">list templates</button>
+            </div>
+            <div class="q-create-section" style="margin-top:12px;padding-top:8px;border-top:1px solid var(--border)">
+              <div style="font-size:11px;color:var(--muted);margin-bottom:6px">create template</div>
+              <form class="add-form-inline" id="q-create-form">
+                <select name="service" style="width:100px"><option value="journal">journal</option><option value="task">task</option><option value="time">time</option><option value="ledger">ledger</option><option value="custom">custom</option></select>
+                <input type="text" name="name" placeholder="template name" autocomplete="off" style="width:140px" />
+                <input type="text" name="description" placeholder="description" autocomplete="off" style="flex:1;min-width:140px" />
+                <button type="submit" class="btn-inline-submit">create</button>
+              </form>
+              <div id="q-questions-builder" style="margin-top:6px"></div>
+            </div>
+            <div class="cmd-unified-output hidden" id="questions-output"></div>
+          </div>
+        </section>
+        <!-- BookBuilder -->
+        <section class="section hidden" id="section-bookbuilder">
+          <div class="service-panel" id="bookbuilder-panel">
+            <div class="service-panel-header">Saves <span style="font-size:10px;color:var(--muted)">bookbuilder · peers8862</span></div>
+            <div class="service-panel-body" id="bookbuilder-body">
+              <p style="color:var(--muted);font-size:12px;margin-bottom:8px">Knowledge base from saved content — bookmarks, articles, documents.</p>
+              <form class="add-form-inline" id="bb-add-form">
+                <input type="text" name="url" placeholder="add URL to knowledge base…" autocomplete="off" style="flex:1;min-width:240px" />
+                <button type="submit" class="btn-inline-submit">+ save</button>
+              </form>
+              <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+                <button class="btn-inline-alt" id="btn-bb-status">status</button>
+                <button class="btn-inline-alt" id="btn-bb-search">search</button>
+                <button class="btn-inline-alt" id="btn-bb-inbox">inbox</button>
+                <button class="btn-inline-alt" id="btn-bb-run">run pipeline</button>
+              </div>
+              <div class="cmd-unified-output hidden" id="bb-output"></div>
+            </div>
+          </div>
+        </section>
+        <!-- Projects -->
+        <section class="section hidden" id="section-projects">
+          <div class="service-panel" id="projects-panel">
+            <div class="service-panel-header">Projects</div>
+            <form class="add-form-inline" id="project-create-form">
+              <input type="text" name="name" placeholder="project name" autocomplete="off" style="width:160px" />
+              <input type="text" name="description" placeholder="description" autocomplete="off" style="flex:1;min-width:140px" />
+              <button type="submit" class="btn-inline-submit">create project</button>
+            </form>
+            <div class="service-panel-body" id="projects-body"><div class="skeleton-msg">Loading…</div></div>
+          </div>
+        </section>
+        <!-- Gun -->
+        <section class="section hidden" id="section-gun">
+          <div class="gun-panel">
+            <div class="gun-header">
+              <span class="gun-icon">🔫</span>
+              <span class="gun-title">Gun — Bulk Task Series</span>
+              <span class="gun-attr">taskgun · hamzamohdzubair · MIT</span>
+            </div>
+            <form class="add-form-inline" id="gun-form">
+              <input type="text" name="project" placeholder="project (e.g. ML_Course)" autocomplete="off" style="flex:1;min-width:140px" />
+              <input type="number" name="parts" placeholder="parts" min="1" style="width:70px" />
+              <input type="text" name="unit" placeholder="unit (Lecture, Chapter…)" style="width:150px" />
+              <input type="text" name="offset" placeholder="offset (2d, 1w)" style="width:100px" />
+              <input type="text" name="interval" placeholder="interval (1d, 7d)" style="width:100px" />
+              <input type="text" name="skip" placeholder="skip (weekend)" style="width:110px" />
+              <button type="submit" class="btn-inline-submit">create series</button>
+            </form>
+            <div class="gun-output hidden" id="gun-output"></div>
+            <div class="gun-help"><p>Generates deadline-spaced task series. Use underscores in project names.</p></div>
+          </div>
+        </section>
+        <!-- Sword -->
+        <section class="section hidden" id="section-sword">
+          <div class="gun-panel">
+            <div class="gun-header">
+              <span class="gun-icon">⚔</span>
+              <span class="gun-title">Sword — Task Splitting</span>
+              <span class="gun-attr">ww-native</span>
+            </div>
+            <form class="add-form-inline" id="sword-form">
+              <input type="number" name="task_id" placeholder="task ID" min="1" style="width:80px" />
+              <input type="number" name="parts" placeholder="parts" min="2" style="width:70px" />
+              <input type="text" name="interval" placeholder="interval (1d)" style="width:100px" />
+              <input type="text" name="prefix" placeholder="prefix (Part)" style="width:100px" />
+              <button type="submit" class="btn-inline-submit">split task</button>
+            </form>
+            <div class="gun-output hidden" id="sword-output"></div>
+            <div class="gun-help"><p>Splits a task into sequential subtasks with dependencies and due date offsets.</p></div>
+          </div>
+        </section>
+        <!-- CMD -->
+        <section class="section hidden" id="section-cmd">
+          <div class="cmd-panel">
+            <div id="cmd-ai-meta" style="font-size:11px;color:var(--muted);margin-bottom:6px">AI: loading…</div>
+            <form class="add-form-inline" id="cmd-unified-form">
+              <input type="text" name="command" placeholder="unified command…" autocomplete="off" style="flex:1;min-width:240px" />
+              <button type="submit" class="btn-inline-submit">run</button>
+            </form>
+            <div class="cmd-unified-output hidden" id="cmd-unified-output"></div>
+            <div class="cmd-log-header">history</div>
+            <div class="cmd-log" id="cmd-log"></div>
+          </div>
+        </section>
+        <!-- CTRL -->
+        <section class="section hidden" id="section-ctrl">
+          <div class="service-panel" id="ctrl-panel">
+            <div class="service-panel-header">CTRL — Settings</div>
+            <div class="service-panel-body" id="ctrl-body">
+              <p style="color:var(--muted);font-size:12px;margin-bottom:8px">Global and profile settings.</p>
+              <div style="margin-bottom:10px;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:4px">
+                <div style="font-size:11px;color:var(--muted);margin-bottom:4px">AI Access</div>
+                <div style="display:flex;gap:6px;align-items:center">
+                  <select id="ctrl-ai-mode" class="resource-select" style="font-size:12px;padding:4px 8px">
+                    <option value="off">AI off</option>
+                    <option value="local-only" selected>local only (ollama)</option>
+                    <option value="local+remote">local + remote</option>
+                  </select>
+                  <span id="ctrl-ai-status" style="font-size:11px;color:var(--muted)"></span>
+                </div>
+              </div>
+              <div style="margin-bottom:10px;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:4px">
+                <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Command Line</div>
+                <div style="display:flex;gap:14px;align-items:center;font-size:12px;color:var(--text)">
+                  <label><input type="checkbox" id="ctrl-cl-ww" /> show ww</label>
+                  <label><input type="checkbox" id="ctrl-cl-ai" /> show (AI)</label>
+                  <label><input type="checkbox" id="ctrl-ui-model" /> show model in UI</label>
+                </div>
+              </div>
+              <div class="ctrl-sections">
+                <button class="btn-inline-alt" id="btn-ctrl-deps">deps check</button>
+                <button class="btn-inline-alt" id="btn-ctrl-shortcuts">shortcuts</button>
+                <button class="btn-inline-alt" id="btn-ctrl-version">version</button>
+              </div>
+              <div class="cmd-unified-output hidden" id="ctrl-output"></div>
+            </div>
+          </div>
+        </section>
+        <!-- Profile -->
+        <section class="section hidden" id="section-profile">
+          <div class="service-panel" id="profile-panel">
+            <div class="service-panel-header">Profile</div>
+            <div class="service-panel-body" id="profile-body"><div class="skeleton-msg">Loading…</div></div>
+          </div>
+        </section>
+        <!-- Warrior -->
+        <section class="section hidden" id="section-warrior">
+          <div class="service-panel" id="warrior-panel">
+            <div class="service-panel-header">✱ Warrior — Global Overview</div>
+            <div class="service-panel-body" id="warrior-body"><div class="skeleton-msg">Loading…</div></div>
+          </div>
         </section>
       </div>
     </div>
@@ -91,8 +414,12 @@
     <div id="cmd-output" class="hidden"></div>
     <div id="hints-bar">type a ww command — tab to filter mode</div>
     <div id="terminal-input-row">
+      <span id="term-profile-badge" class="term-badge"></span>
+      <span id="term-pinned-icon" class="term-pinned-icon hidden"></span>
+      <span id="term-context" class="term-context hidden"></span>
       <span id="term-prompt" class="prompt-exec">❯ </span>
       <input type="text" id="term-input" autocomplete="off" spellcheck="false" />
+      <button id="term-pos-toggle" title="Move terminal (Ctrl+Shift+T)">↑</button>
     </div>
   </div>
   <script src="/app.js"></script>

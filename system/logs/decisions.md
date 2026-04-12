@@ -242,7 +242,7 @@ Each entry: date, decision, context, and why — so future sessions don't re-lit
 
 **Decision:** Profile creation output shows component-level progress (`🔧 Creating default TaskRC...`, `✓ .taskrc created at:...`) but suppresses per-alias detail, "already present" idempotency notices, and duplicate step labels.
 
-**Context:** Output for `profile create john` included 4 lines of `ℹ Added alias: p-john / john / j-john / l-john`, 2 lines of `ℹ Shell integration already present in .bashrc/.zshrc`, plus duplicate step labels between `create-ww-profile.sh` and its called functions.
+**Context:** Output for `profile create <name>` included 4 lines of `ℹ Added alias: p-<name> / <name> / j-<name> / l-<name>`, 2 lines of `ℹ Shell integration already present in .bashrc/.zshrc`, plus duplicate step labels between `create-ww-profile.sh` and its called functions.
 
 **Why signal, not noise:** Idempotency is the expected happy path — reporting it clutters output without informing the user of anything actionable. Per-alias lines repeat information the user already requested. The `✓ Aliases written  →  .bashrc .zshrc` summary line provides all the confirmation needed.
 
@@ -276,7 +276,7 @@ Each entry: date, decision, context, and why — so future sessions don't re-lit
 
 **Decision:** `github.login` = the authenticated GitHub user (your personal account). `github.username` = the namespace to pull issues from (a user or org). These are separate config fields and must be prompted separately.
 
-**Context:** The original `configure-issues.sh` wizard set both to the same value (the personal username). For org-based workflows (e.g. babb profile: login=peers8862, username=babbworks), this caused the pull to silently fetch the wrong set of issues — or no issues at all if the org had no repos owned by that username.
+**Context:** The original `configure-issues.sh` wizard set both to the same value (the personal username). For org-based workflows (e.g. a profile with login=user1, username=orgname), this caused the pull to silently fetch the wrong set of issues — or no issues at all if the org had no repos owned by that username.
 
 **Consequence:** `configure_github()` now prompts for login (pre-filled from `gh api user`) separately from namespace/org. Default for namespace is the login value, which is correct for personal-account setups.
 
@@ -289,3 +289,260 @@ Each entry: date, decision, context, and why — so future sessions don't re-lit
 **Context:** bugwarrior injects 15 `github*` UDAs into `.taskrc`. Users managing UDAs interactively had no signal that these fields are externally managed — renaming or deleting them breaks sync.
 
 **Consequence:** `classify_uda()` function in `uda-manager.sh` is the canonical source. Future service integrations must use a prefix consistent with this classification (e.g. a Linear integration should use `linear*` UDA names). The `ww issues uda` CLI (TASK-ISSUES-001) will use the same classification.
+
+## 2026-04-10: Browser UI session — direct execution without orchestrator
+
+**Decision:** Execute browser UI and service wiring changes directly without the
+Explorer → Builder → Verifier orchestrator workflow.
+
+**Justification:**
+1. Write scope is predominantly LOW fragility (browser static files, new service dirs)
+2. `bin/ww` changes are additive only (new `cmd_questions`, no modification to existing commands)
+3. Server changes are contained within `services/browser/server.py` with no CLI impact
+4. Kiro IDE provides inline diagnostics, compile checks, and direct testing that
+   replaces the Verifier role for these file types
+5. The orchestrator overhead (~30 min per change for task cards, gate checks) is
+   disproportionate to the risk level of browser UI changes
+6. All changes are logged in `system/logs/session-browser-ui.md` with full detail
+
+**Files touched:**
+- services/browser/static/* (LOW) — HTML, CSS, JS
+- services/browser/server.py (LOW) — new endpoints only
+- bin/ww (SERIALIZED) — additive cmd_questions function only
+- services/questions/* — new/updated templates and handlers
+- services/cmd/ — new service directory
+- system/audits/divergences.md — new documentation
+
+**What would trigger orchestrator use:**
+- Any modification to `lib/sync-*.sh`, `lib/github-*.sh` (HIGH FRAGILITY)
+- Any modification to existing `bin/ww` command logic (SERIALIZED)
+- Any change to `lib/shell-integration.sh` (SERIALIZED)
+- Any change affecting test baselines
+
+## 2026-04-10: Simultaneous time tracking — multiple TIMEWARRIORDB approach
+
+**Decision:** Use multiple TIMEWARRIORDB instances for concurrent time tracking
+rather than tag merging or a ww-native time log.
+
+**Rationale:**
+- TimeWarrior is fundamentally single-track by design
+- Tag merging (tried and reverted) loses per-task time granularity
+- Multiple timew instances under `profiles/<name>/timew/<track>/` leverages
+  existing resource infrastructure (timew.yaml, resource selectors)
+- Each concurrent track is a real timew database with full timew compatibility
+- Aggregation for display is a read-only operation in the browser UI
+
+**Implementation:** Deferred to dedicated task card when ready.
+
+## 2026-04-10: Projects service design
+
+**Decision:** Projects are a cross-cutting view that groups resources by a shared
+project name/tag, not a new data store.
+
+**Design:**
+- A project is defined in `config/projects.yaml` with a name and associated resources
+- Tasks are linked via TaskWarrior's `project:` field
+- Journal entries are linked via `[project:name]` prefix convention
+- Ledger entries are linked via account hierarchy (e.g., `expenses:project-name:*`)
+- Time entries are linked via timew tags matching the project name
+- The browser Projects panel aggregates these views
+
+## 2026-04-10: Task card organization and index
+
+**Decision:** Create INDEX.md as a scannable manifest alongside TASKS.md.
+INDEX.md is NOT redundant with TASKS.md:
+- TASKS.md = human-readable dispatch board (strategic view, dependency waves)
+- INDEX.md = machine-scannable manifest (one-line per card, priority flags, folder structure)
+- Folder structure = status-at-a-glance (subfolders reserved for future physical separation)
+
+Cards remain flat in cards/ for now. INDEX.md provides virtual organization.
+
+## 2026-04-10: Weapons as top-level concept
+
+**Decision:** Create /weapons/ top-level folder. Weapons are distinct from services
+(infrastructure) and extensions (external tool wrappers). Weapons manipulate data
+from the four main functions in specialized ways.
+
+Gun is modeled as an extension-type weapon (wraps taskgun binary).
+Sword is ww-native (implemented in bin/ww).
+Both live in weapons/<name>/ with README.md.
+
+## 2026-04-10: AI access control
+
+**Decision:** Create config/ai.yaml for controlling LLM access across services.
+Global enable/disable, per-service allowlist, confirmation toggle, offline mode.
+
+## 2026-04-10: TimeWarrior extensions — separate from TaskWarrior
+
+**Decision:** Keep `ww extensions taskwarrior` and `ww extensions timewarrior` as
+separate commands. Registry at config/extensions.timewarrior.yaml.
+
+## 2026-04-10: Recurring tasks — full cross-function recurrence
+
+**Decision:** Use TaskWarrior's built-in recurrence for tasks, plus a ww layer
+for recurring journal prompts and ledger entries. Lives under CTRL panel.
+
+## 2026-04-10: Calendar integration — parked
+
+**Decision:** CAL-001 stays parked. Not a current priority.
+
+## 2026-04-10: WEB-001 — removed
+
+**Decision:** TASK-WEB-001 archived to removed/. Superseded by the browser service
+(SITE-002 through SITE-010).
+
+## 2026-04-11: Task card index and folder structure
+
+**Decision:** Create INDEX.md as a scannable registry alongside TASKS.md dispatch board.
+
+**Rationale:** TASKS.md is the Orchestrator's working surface (dispatch queue, priorities,
+dependency waves). INDEX.md is the complete inventory with one-line summaries per card,
+organized by status. They serve different purposes and are not redundant.
+
+**Scanning mechanism:** The Orchestrator reads TASKS.md for dispatch decisions. Any agent
+(Kiro, Claude, Codex) reads INDEX.md for project state overview. The system/CLAUDE.md
+references TASKS.md as the canonical task board. INDEX.md is the lookup table behind it.
+
+**Priority field:** Added to INDEX.md with values: NEXT, HIGH, MEDIUM, LOW, PARKED.
+TASK-QUAL-002 bumped to NEXT priority.
+
+## 2026-04-11: Weapons as top-level concept
+
+**Decision:** Create /weapons/ folder as the home for weapon documentation and config.
+Weapon code lives in bin/ww (cmd_<weapon>) for native weapons, or passes through to
+external binaries for extension weapons.
+
+**Gun:** Extension weapon. Binary: taskgun (cargo install). Docs: weapons/gun/README.md.
+Modeled as an extension in docs/taskwarrior-extensions/taskgun-integration.md.
+
+**Sword:** Native weapon. Code: cmd_sword() in bin/ww. Docs: weapons/sword/README.md.
+Mechanical splitting by default. AI splitting (--ai) is future work using the same
+provider resolution as CMD AI.
+
+## 2026-04-11: AI access control
+
+**Decision:** Create config/ai.yaml for controlling LLM access points.
+User controls: mode (off/local-only/local+remote), per-feature toggles.
+Managed via CTRL panel in browser UI.
+
+## 2026-04-11: TASK-WEB-001 archived
+
+**Decision:** Moved to removed/. The browser service IS the web UI.
+TASK-EXT-WARLOCK-001 remains pending as a separate future consideration.
+
+## 2026-04-11: ww issues uda value
+
+**Decision:** Keep `i uda` as a distinct command that shows service-managed UDAs
+specifically (bugwarrior/github-sync fields). Different from `ww profile uda list`
+which shows all UDAs. Route to service-uda-registry.yaml reading.
+
+## 2026-04-11: Recurring tasks via TaskWarrior built-in
+
+**Decision:** Use TaskWarrior's built-in recurrence for CRON-style actions rather
+than external tool (allgreed/cron). Managed via CTRL panel. TASK-EXT-CRON-001
+updated to LOW priority.
+
+## 2026-04-11: Models service core stabilization (Phase 1)
+
+**Decision:** Stabilize `ww model` parsing/behavior before broader AI-control work.
+
+**Implemented now:** Section-aware YAML parsing in `services/models/models.sh`,
+correct `list/providers/env/check` behavior, prevent removing the active default model,
+and align docs/tests with singular-first syntax (`ww model`, `ww models` as legacy alias).
+
+**Process note:** Applied risk-tiered workflow. This change touched LOW-fragility service
+and docs paths only, so the full high-fragility orchestration chain was not required.
+
+## 2026-04-11: Phase 2 AI control enforcement + CTRL control plane
+
+**Decision:** Enforce `config/ai.yaml` server-side for CMD AI and centralize runtime/UI
+settings under a CLI-accessible CTRL service.
+
+**Implemented now:**
+- Browser server `/cmd/ai` now resolves providers/models via config, enforces AI mode and
+  access-point policy, and returns active provider/model metadata.
+- Added `/data/ctrl` endpoint for effective AI + command-line/UI indicator state.
+- Added `ww ctrl` service (`status`, `ai-mode`, `ai-cmd`, `prompt-ww`, `prompt-ai`,
+  `ui-model-indicator`) with persisted settings in `config/ctrl.yaml`.
+- CTRL browser panel now updates persisted settings via `ww ctrl` commands instead of
+  localStorage-only toggles.
+- CMD UI now displays active AI provider/model discreetly.
+
+## 2026-04-11: Alias warning removal + model syntax refinement
+
+**Decision:** Remove deprecation nudges for plural aliases while keeping alias support.
+
+**Implemented now:**
+- `ww models|groups|journals|ledgers|profiles|services` run without warning text.
+- Model namespace updated to support singular create shortcut:
+  `ww model <name> <type> <base_url> [api_key_env]` (add-provider synonym).
+- Added `ww model remove-provider <name>` (guarded when models still reference provider).
+
+## 2026-04-11: Ollama sensing and per-profile AI config
+
+**Decision:** Implement three levels of ollama integration:
+- L1: Background probe in ww-init.sh (1s timeout, non-blocking)
+- L2: ww ctrl ai-on/off/status convenience commands
+- L3: profiles/<name>/ai.yaml overrides global config/ai.yaml
+
+**Mechanism:** curl probe to localhost:11434/api/tags with 1-second timeout.
+If reachable, exports WW_OLLAMA_AVAILABLE=1. The browser server reads
+profile-level ai.yaml after global, overriding mode and preferred_provider.
+
+**Per-profile use case:** One profile uses a coding model (codellama), another
+uses a general model (llama3.2). Each profile's ai.yaml specifies its preference.
+
+## 2026-04-11: Heuristic evolution system design
+
+**Decision:** Build a self-improving command interpretation system where:
+1. Every CMD request is logged with route (ai/heuristic), input, output, success
+2. Successful AI responses are digested into heuristic rules
+3. Rules are stored in config/cmd-heuristics.yaml (YAML, user-editable)
+4. Over time, more requests are handled by heuristics, reducing AI dependency
+5. Users can view, edit, add, delete rules via CTRL panel
+
+**Route indicator:** UI now shows ⚡ (AI) or ⚙ (heuristic) for every CMD execution.
+CMD log records the route field for historical analysis.
+
+**Initial rules:** 12 builtin patterns extracted from the existing heuristic code,
+covering task creation, time tracking, journal entries, profile commands, and
+direct ww command passthrough.
+
+**Plan document:** system/plans/heuristic-evolution.md with 5-phase roadmap.
+
+## 2026-04-11: Heuristic Compilation spec — remaining tasks completed
+
+**Decision:** Implemented all remaining required tasks from the Kiro heuristic compilation spec (`.kiro/specs/heuristic-compilation/`).
+
+**Tasks completed:**
+- 5.2: `detect_conflicts()` and `resolve_conflicts()` — finds rule pairs matching same input with different outputs, keeps higher-confidence rule
+- 5.3: `validate_corpus_coverage()` and `fill_gaps()` — identifies corpus entries unmatched by any rule, creates gap-filling rules with escaped regex
+- 9.1: `split_compound_input()` — splits on conjunctions (and/then/also/plus) at word boundaries
+- 9.2: `HeuristicEngine.match_compound()` in server.py — tries compound split, matches each segment, falls through to AI if any segment unrecognizable
+- 9.3: `generate_composition_patterns()` — 9 multi-command rules covering task+annotation, task+time tracking, task done+stop tracking
+- 11.2: `--verbose` report mode — detailed per-rule output grouped by domain with sample test results
+- 11.3: `--digest` report additions — `read_cmd_log_digest()` reads cmd.log JSONL, `merge_corpus()` deduplicates, report shows log stats and conflicts
+
+**Validation:** Full pipeline run: 260 commands discovered, 911 rules generated, 0 failures, 93 conflicts resolved, 64 gaps filled, 621 merged rules. `--digest` found 7 AI entries from 20 log lines. `--verbose` shows all rules grouped by domain with PASS/FAIL per sample.
+
+## 2026-04-12: Stress-test profile created from business document
+
+**Decision:** Created a full profile populated with data inferred from a detailed business document about a Delaware-incorporated electronics assembly network company.
+
+**Scope:** 143 tasks across 11 projects, 103 journal entries across 13 named journals, 139 ledger transactions in dual currency (USD + CAD) with 47 accounts, 52 time tracking intervals totaling 180 hours. UDA data populated on ~20 key tasks. Tasks span incorporation, node setup, logistics hub, software development, workforce training, fundraising, compliance, M&A, sales, brand, and housing.
+
+**Purpose:** Stress test of the full workwarrior system — profile creation, multi-journal support, dual-currency hledger, rich UDA usage, time tracking with tags, and browser UI rendering of a complex profile.
+
+**Ledger design:** Full chart of accounts with startup costs through Q2 2026, bridge financing (USD 500K SAFE notes), Year 1 actual revenue, Year 2 quarterly projections, Year 3 semi-annual projections. Revenue grows from ~USD 500K (Y1) to ~USD 2M (Y2) to ~USD 5M (Y3). Dual currency: CAD for Canadian operations, USD for American operations and platform-level revenue.
+
+## 2026-04-12: Profile removal service and repo hygiene
+
+**Decision:** Built `ww remove` service for clean profile removal. Gitignored `profiles/`, `config/cmd-heuristics*.yaml`, `functions/journals/CONFIG/`, `functions/journals/private/`. Sanitized all system docs to replace real profile names with dummy names.
+
+**Remove service design:** Supports `--keep` (inverse selection), `--archive-all` / `--delete-all` (batch mode), `--dry-run`, `--force`. Each profile prompted individually: archive, delete, or skip. Archive preserves to `profiles/.archive/<name>-<timestamp>/`. Scrubs: groups.yaml, .state files, question templates, shell RC aliases.
+
+**Scramble flag:** Flagged for future implementation. Will obfuscate profile data (task descriptions, journal content, ledger amounts, time tags, UDA values) before deletion to prevent recovery from disk or git history. Multi-pass overwrite option.
+
+**Heuristic files gitignored:** `config/cmd-heuristics.yaml` and `config/cmd-heuristics-corpus.yaml` are generated output from `ww compile-heuristics`. Each install regenerates its own based on the user's command surface. No reason to commit them.
+
+**Profile data gitignored:** `profiles/` contains all user-specific task, journal, ledger, and time data. Never belongs in the repo. Existing tracked profile files will need `git rm -r --cached profiles/` before commit.

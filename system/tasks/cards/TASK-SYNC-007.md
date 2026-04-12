@@ -35,22 +35,22 @@ Acceptance criteria:  1. A UDA-to-body map is defined in system/config/body-uda-
                          missing block returns empty (not error), existing body content
                          preserved, empty UDAs omit block, round-trip fidelity.
 
-Write scope:          /Users/mp/ww/system/config/body-uda-map.yaml  (new)
-                      /Users/mp/ww/lib/field-mapper.sh
-                      /Users/mp/ww/lib/github-api.sh  (add github_update_issue_body())
-                      /Users/mp/ww/lib/sync-push.sh
-                      /Users/mp/ww/lib/sync-pull.sh
-                      /Users/mp/ww/tests/test-github-sync.bats
+Write scope:          $WW_BASE/system/config/body-uda-map.yaml  (new)
+                      $WW_BASE/lib/field-mapper.sh
+                      $WW_BASE/lib/github-api.sh  (add github_update_issue_body())
+                      $WW_BASE/lib/sync-push.sh
+                      $WW_BASE/lib/sync-pull.sh
+                      $WW_BASE/tests/test-github-sync.bats
 
 Tests required:       bats tests/test-github-sync.bats
                       bats tests/
 
-Rollback:             git checkout /Users/mp/ww/lib/field-mapper.sh \
-                        /Users/mp/ww/lib/github-api.sh \
-                        /Users/mp/ww/lib/sync-push.sh \
-                        /Users/mp/ww/lib/sync-pull.sh \
-                        /Users/mp/ww/tests/test-github-sync.bats
-                      rm /Users/mp/ww/system/config/body-uda-map.yaml
+Rollback:             git checkout $WW_BASE/lib/field-mapper.sh \
+                        $WW_BASE/lib/github-api.sh \
+                        $WW_BASE/lib/sync-push.sh \
+                        $WW_BASE/lib/sync-pull.sh \
+                        $WW_BASE/tests/test-github-sync.bats
+                      rm $WW_BASE/system/config/body-uda-map.yaml
 
 Fragility:            HIGH FRAGILITY: field-mapper.sh, github-api.sh, sync-push.sh,
                       sync-pull.sh. Writing to issue body is an irreversible side effect
@@ -58,7 +58,7 @@ Fragility:            HIGH FRAGILITY: field-mapper.sh, github-api.sh, sync-push.
                       production repos.
 
 Risk notes:           Issue body writes go to GitHub — cannot be rolled back automatically.
-                      Use a test repo (babbworks/claude-tests) for initial validation.
+                      Use a test repo (exampleorg/claude-tests) for initial validation.
                       The ww-metadata block must use HTML comment fences to survive
                       GitHub's markdown rendering pipeline without visual clutter.
                       Serialisation of multi-line UDA values needs careful YAML quoting.

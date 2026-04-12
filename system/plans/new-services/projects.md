@@ -75,10 +75,10 @@ GitHub's Projects V2 API is GraphQL-only and supports custom fields per project:
 A profile binding would look like:
 
 ```yaml
-# profiles/babb/.config/ww-projects/github.yaml
+# profiles/acme/.config/ww-projects/github.yaml
 backend: github_projects_v2
 project_id: PVT_kwDOBxxxxxxx        # GitHub Project V2 node ID
-org: babbworks
+org: exampleorg
 field_map:
   goals:        "Goals"             # TW UDA → GitHub Project field name
   deliverables: "Deliverables"
@@ -163,21 +163,21 @@ profiles into a single external project view:
 ```yaml
 # groups/work/config.yaml
 name: work
-profiles: [babb, mark]
+profiles: [acme, bravo]
 projects:
   github_projects_v2:
     project_id: PVT_kwDOBxxxxxxx
-    org: babbworks
+    org: exampleorg
     field_map:
       goals: "Goals"
       phase: "Phase"
 ```
 
-When `p-babb` is active and the user runs `ww projects push`, the service looks for:
-1. A profile-level binding (`profiles/babb/.config/ww-projects/github.yaml`)
+When `p-acme` is active and the user runs `ww projects push`, the service looks for:
+1. A profile-level binding (`profiles/acme/.config/ww-projects/github.yaml`)
 2. A group-level binding for any group the active profile belongs to
 
-This means a `work` group project shows tasks from both `babb` and `mark` in a
+This means a `work` group project shows tasks from both `acme` and `bravo` in a
 single GitHub Project view — each task is a project item, each item has fields
 populated from the owning task's UDAs. Contributors see a unified board regardless
 of which profile owns each task.
@@ -239,7 +239,7 @@ Phases 4–8 are speculative and should not be carded until Phase 3 is live.
   `services/integration/` category to signal its broader scope?
 - The `project` OAuth scope may not be granted by default via `gh auth login`.
   Should `ww projects init` run `gh auth refresh -s project` automatically?
-- For group-level bindings, who owns the conflict when babb and mark both push
+- For group-level bindings, who owns the conflict when acme and bravo both push
   a different value for the same project field? Last-write-wins is the default
   but may not be right for all fields.
 - Should `projects` eventually absorb `github-sync` (task-level sync) as a
@@ -251,4 +251,4 @@ Phases 4–8 are speculative and should not be carded until Phase 3 is live.
 
 **Draft concept — not yet in task pipeline.**
 Promote to task card once SYNC-006 and SYNC-007 are complete and the GraphQL
-client design has been validated against the babbworks/workwarrior project.
+client design has been validated against a test project.

@@ -4,7 +4,7 @@
 
 ### System fixes
 - Created `/Users/mp/ww/CLAUDE.md` — minimal redirect stub so Claude Code auto-loads system/ at session start. Approved by user. Not a dev content file — just points to `system/ONBOARDING.md`.
-- Deleted `TASK-ISSUES-002` — bugwarrior setup for john/mark removed from backlog per user decision.
+- Deleted `TASK-ISSUES-002` — bugwarrior setup for additional profiles removed from backlog per user decision.
 
 ### New task cards created
 - `TASK-DESIGN-001` — service discovery interview task: quiz user on undeveloped services, produce `service-overview.md` in each service folder as design departure point.

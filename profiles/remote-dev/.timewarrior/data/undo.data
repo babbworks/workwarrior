@@ -1,4 +1,0 @@
-txn:
-  type: interval
-  before: 
-  after: {"id":0,"start":"20260410T012046Z","tags":["Fix CORS headers on \/v2\/webhooks endpoint","api","backend","bug"]}

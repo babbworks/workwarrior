@@ -1,5 +1,21 @@
 models:
-  default: ""
+  default: llama3-2-latest
+  llama3:
+    provider: ollama
+    id: llama3.2:latest
+    notes: Local llama3.2 3B
+  gemma3:
+    provider: ollama
+    id: gemma3:1b
+    notes: Local gemma3 1B
+  gemma3-1b:
+    provider: ollama
+    id: gemma3:1b
+    notes: "auto-detected"
+  llama3-2-latest:
+    provider: ollama
+    id: llama3.2:latest
+    notes: "auto-detected"
 providers:
   openai:
     type: openai

@@ -4,14 +4,31 @@
 **Orchestrator is the only agent that updates status fields.**
 `pending/` is archive-only. Nothing new is written there.
 
-Last updated: 2026-04-09 (session 8)
-Current phase: Phase 2 active — browser UI (wwsite) Waves 1–3 complete
+Last updated: 2026-04-12 (session — heuristic compilation, remove service, doc sanitization)
+Current phase: Phase 2 active — browser UI, AI integration, weapons, heuristic engine, project organization
 
 ---
 
 ## Active Tasks
 
-*None. Phase 1 tasks resolved — see notes below.*
+| ID | Status | Goal |
+|---|---|---|
+| [TASK-SITE-007](tasks/cards/TASK-SITE-007.md) | in-progress | Browser UI major overhaul (ongoing) |
+
+---
+
+## Dispatch Queue (Priority Order)
+
+| Priority | ID | Goal |
+|---|---|---|
+| NEXT | [TASK-QUAL-002](tasks/cards/TASK-QUAL-002.md) | Automate docs/help parity checks (Gate C) |
+| HIGH | [TASK-ISSUES-001](tasks/cards/TASK-ISSUES-001.md) | Fix ww issues uda routing |
+| MEDIUM | [TASK-SITE-006](tasks/cards/TASK-SITE-006.md) | Wave 5: export, typeahead, keyboard shortcuts |
+| MEDIUM | [TASK-UX-001](tasks/cards/TASK-UX-001.md) | Standardize output modes |
+| MEDIUM | [TASK-UX-002](tasks/cards/TASK-UX-002.md) | Command examples library |
+| MEDIUM | [TASK-TIMEW-001](tasks/cards/TASK-TIMEW-001.md) | TimeWarrior extension manager (sync + billable) |
+| MEDIUM | [TASK-DESIGN-001](tasks/cards/TASK-DESIGN-001.md) | Service category design quiz |
+| LOW | [TASK-EXT-CRON-001](tasks/cards/TASK-EXT-CRON-001.md) | Recurring tasks (TW + journals/ledgers) |
 
 ---
 
@@ -46,7 +63,7 @@ Current phase: Phase 2 active — browser UI (wwsite) Waves 1–3 complete
 | [TASK-SYNC-007](tasks/cards/TASK-SYNC-007.md) | complete | Issue body YAML block for rich UDA ↔ GitHub sync |
 | [TASK-QUAL-002](tasks/cards/TASK-QUAL-002.md) | pending | Automate docs/help parity checks |
 | [TASK-ISSUES-001](tasks/cards/TASK-ISSUES-001.md) | pending | Improve `ww issues uda` CLI and uda-manager service |
-| [TASK-ISSUES-002](tasks/cards/TASK-ISSUES-002.md) | deferred | Configure bugwarrior for john and mark profiles |
+| [TASK-ISSUES-002](tasks/cards/TASK-ISSUES-002.md) | deferred | Configure bugwarrior for additional profiles |
 | [TASK-QUAL-003](tasks/cards/TASK-QUAL-003.md) | complete | Audit and clean functions/ directory dead code |
 | [TASK-INSTALL-001](tasks/cards/TASK-INSTALL-001.md) | complete | Per-tool interactive installer with version cards, platform detection, conflict neutralisation |
 | [TASK-INSTALL-002](tasks/cards/TASK-INSTALL-002.md) | complete | Fix journals() function — grep matches all YAML keys, not just journal names under journals: section |
@@ -64,8 +81,12 @@ Current phase: Phase 2 active — browser UI (wwsite) Waves 1–3 complete
 | [TASK-SITE-002](tasks/cards/TASK-SITE-002.md) | complete | Wave 1: server scaffolding — Python3 HTTP + SSE + /cmd + /profile endpoints |
 | [TASK-SITE-003](tasks/cards/TASK-SITE-003.md) | complete | Wave 2: UI shell — dark terminal aesthetic, sidebar, terminal line, SSE wiring |
 | [TASK-SITE-004](tasks/cards/TASK-SITE-004.md) | complete | Wave 3: Live data sections — all 4 tools, /data/* endpoints, /action mutations |
-| [TASK-SITE-005](tasks/cards/TASK-SITE-005.md) | pending | Wave 4: Time, Journal, Ledger sections |
+| [TASK-SITE-005](tasks/cards/TASK-SITE-005.md) | in-progress | Wave 4: Time, Journal, Ledger sections |
 | [TASK-SITE-006](tasks/cards/TASK-SITE-006.md) | pending | Wave 5: export/publish, full typeahead, keyboard shortcuts, polish |
+| [TASK-EXT-SWORD-001](tasks/cards/TASK-EXT-SWORD-001.md) | pending | Design and implement Sword weapon service for browser UI |
+| [TASK-SITE-008](tasks/cards/TASK-SITE-008.md) | complete | Fix task start/stop/done buttons in browser |
+| [TASK-SITE-009](tasks/cards/TASK-SITE-009.md) | complete | Fix Times click-to-start on interval rows |
+| [TASK-SITE-010](tasks/cards/TASK-SITE-010.md) | complete | Enable UDA editing from task inline detail |
 
 ---
 
@@ -78,7 +99,7 @@ Current phase: Phase 2 active — browser UI (wwsite) Waves 1–3 complete
 | 3 | [TASK-SITE-006](tasks/cards/TASK-SITE-006.md) | Wave 5: export, typeahead, polish | SITE-005 |
 | 4 | [TASK-QUAL-002](tasks/cards/TASK-QUAL-002.md) | Automate docs/help parity checks | none |
 | 5 | [TASK-ISSUES-001](tasks/cards/TASK-ISSUES-001.md) | Improve `ww issues uda` CLI and uda-manager | none |
-| 6 | [TASK-ISSUES-002](tasks/cards/TASK-ISSUES-002.md) | Configure bugwarrior for john and mark profiles | none |
+| 6 | [TASK-ISSUES-002](tasks/cards/TASK-ISSUES-002.md) | Configure bugwarrior for additional profiles | none |
 
 ---
 
@@ -113,7 +134,7 @@ Current phase: Phase 2 active — browser UI (wwsite) Waves 1–3 complete
 | TASK-SYNC-002 | Fix 3 critical data-integrity bugs: mv error checks in state, JSON input validation in detector, two-phase commit in profile restore |
 | TASK-SYNC-004 | Gate E: remove TODO from sync-pull.sh, create TASK-SYNC-005 for deferred tag sync |
 | TASK-QUAL-003 | Dead code audit: removed 8 unreferenced scripts from functions/ |
-| TASK-ISSUES-† | Session 4: bugwarrior installed (pipx + setuptools); babb profile configured; GitHub UDAs added to babb .taskrc; configure-issues.sh GitHub wizard overhauled (gh auth token, login/org split, project_template, UDA auto-generate); dependency-installer.sh + bin/ww install hints corrected; uda-manager.sh service-source display; test-shell-functions Property 12 assertion fixed |
+| TASK-ISSUES-† | Session 4: bugwarrior installed (pipx + setuptools); profile configured; GitHub UDAs added to .taskrc; configure-issues.sh GitHub wizard overhauled (gh auth token, login/org split, project_template, UDA auto-generate); dependency-installer.sh + bin/ww install hints corrected; uda-manager.sh service-source display; test-shell-functions Property 12 assertion fixed |
 
 ---
 

@@ -73,6 +73,19 @@ _ww_startup_status() {
 _ww_startup_status
 
 # ============================================================================
+# AI SENSING (lightweight — 1s timeout)
+# ============================================================================
+
+_ww_sense_ollama() {
+  if command -v curl &>/dev/null; then
+    if curl -s --max-time 1 http://localhost:11434/api/tags >/dev/null 2>&1; then
+      export WW_OLLAMA_AVAILABLE=1
+    fi
+  fi
+}
+{ _ww_sense_ollama & } 2>/dev/null  # background, suppress job control noise
+
+# ============================================================================
 # DONE
 # ============================================================================
 

@@ -1,0 +1,5 @@
+command_line:
+  show_ww: true
+  show_ai: true
+ui:
+  show_active_model: true

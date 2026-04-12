@@ -191,3 +191,33 @@ docs/overviews/cross-cutting/sync-engine/annotation-sync.md:
 docs/overviews/cross-cutting/sync-engine/sync-bidirectional.md:
   sources:
     - lib/sync-bidirectional.sh
+
+docs/overviews/services/browser/browser.md:
+  sources:
+    - services/browser/server.py
+    - services/browser/static/app.js
+    - services/browser/static/index.html
+    - services/browser/static/style.css
+    - services/browser/browser.sh
+
+docs/overviews/services/ctrl/ctrl.md:
+  sources:
+    - services/ctrl/ctrl.sh
+    - config/ctrl.yaml
+
+docs/overviews/scripts/compile-heuristics.md:
+  sources:
+    - scripts/compile-heuristics.py
+    - config/cmd-heuristics.yaml
+    - config/cmd-heuristics-corpus.yaml
+    - config/ai.yaml
+
+docs/overviews/weapons/gun.md:
+  sources:
+    - weapons/gun/README.md
+    - bin/ww
+
+docs/overviews/weapons/sword.md:
+  sources:
+    - weapons/sword/README.md
+    - bin/ww

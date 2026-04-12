@@ -66,19 +66,19 @@ Acceptance criteria:  1. ww profile uda list
                          correct .taskrc lines, remove with and without --force,
                          group block written and updated, uda redirect message
 
-Write scope:          /Users/mp/ww/bin/ww
-                      /Users/mp/ww/services/profile/subservices/uda-manager.sh
-                      /Users/mp/ww/lib/sync-permissions.sh  (new)
-                      /Users/mp/ww/system/config/command-syntax.yaml
-                      /Users/mp/ww/tests/test-profile-uda.bats  (new)
+Write scope:          $WW_BASE/bin/ww
+                      $WW_BASE/services/profile/subservices/uda-manager.sh
+                      $WW_BASE/lib/sync-permissions.sh  (new)
+                      $WW_BASE/system/config/command-syntax.yaml
+                      $WW_BASE/tests/test-profile-uda.bats  (new)
 
 Tests required:       bats tests/test-profile-uda.bats
                       bats tests/
                       Manual: ww profile uda list / add goals / group work / perm goals nosync
 
-Rollback:             git checkout /Users/mp/ww/bin/ww
-                      git checkout /Users/mp/ww/services/profile/subservices/uda-manager.sh
-                      rm /Users/mp/ww/lib/sync-permissions.sh
+Rollback:             git checkout $WW_BASE/bin/ww
+                      git checkout $WW_BASE/services/profile/subservices/uda-manager.sh
+                      rm $WW_BASE/lib/sync-permissions.sh
 
 Fragility:            SERIALIZED: bin/ww (one writer at a time)
                       HIGH FRAGILITY: any .taskrc write must be additive and non-destructive
@@ -87,7 +87,7 @@ Risk notes:           .taskrc writes must never corrupt existing TW config.
                       Use append + section-replace pattern for the UDA GROUPS block.
                       uda-manager.sh path hardcoding must be removed before wiring.
                       sync-permissions file is gitignored (profile config).
-                      Depends on: profile namespace (Option B) for babb udas form —
+                      Depends on: profile namespace (Option B) for acme udas form —
                       that can be a follow-up; list/add/remove/group/perm can ship first.
 
 Status:               complete

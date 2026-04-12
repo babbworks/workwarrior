@@ -135,16 +135,16 @@ ww ledger list
 ww ledgers
 ```
 
-## Compatibility Nudges (Legacy Forms Still Work)
+## Compatibility Aliases (Legacy Forms Still Work)
 
 ```bash
-# Legacy plural form still runs, but warns with preferred replacement
-ww journals list      # prefer: ww journal list
-ww ledgers list       # prefer: ww ledger list
-ww groups list        # prefer: ww group list
-ww models list        # prefer: ww model list
-ww profiles           # prefer: ww profile list
-ww services           # prefer: ww service list
+# Legacy plural forms still run without warnings
+ww journals list
+ww ledgers list
+ww groups list
+ww models list
+ww profiles
+ww services
 ```
 
 ## Find Service

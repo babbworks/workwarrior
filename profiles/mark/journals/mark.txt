@@ -1,5 +1,0 @@
-[2026-04-04 20:23] Welcome to your journal!
-
-This is the default journal for the 'mark' profile.
-You can add entries using the 'j' command when this profile is active.
-
