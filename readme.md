@@ -1,290 +1,303 @@
 # Workwarrior
 
-A profile-based productivity system for the terminal. Integrates TaskWarrior, TimeWarrior, JRNL, and Hledger under a unified CLI with isolated profiles, a browser UI, natural language command translation, and a growing set of weapons and services.
+Workwarrior wraps five open-source tools — TaskWarrior, TimeWarrior, JRNL, Hledger, and Bugwarrior — into a single profile-based productivity system. Each profile is an isolated workspace: its own tasks, time tracking, journals, double-entry ledgers, and configuration. Switch contexts instantly. Nothing bleeds between profiles.
+
+The system runs from the terminal, from a locally-served browser UI, or both at once. A natural language command layer translates plain English into tool commands using 627 compiled heuristic rules before optionally falling back to a local LLM.
 
 ```
-ww profile create work
 p-work
-task add "Ship the feature" project:api priority:H due:friday
-j "Kicked off API sprint — targeting Friday release"
-timew start api sprint
+task add "Ship the API" project:backend priority:H due:friday +release
+j "Sprint 12 kicked off — targeting Friday for the API release"
+timew start backend sprint
 l balance
 ww browser
 ```
 
-## What It Does
+---
 
-Each profile is a self-contained workspace with its own tasks, time tracking, journals, ledgers, and configuration. Switch profiles instantly. No data bleeds between contexts.
+## Why Workwarrior Exists
 
-The system wraps five tools — TaskWarrior, TimeWarrior, JRNL, Hledger, and Bugwarrior — behind a single `ww` command with 20+ service domains, a locally-served browser UI, and an optional AI layer for natural language command input.
+Most productivity tools force you into one paradigm. Task managers don't track time. Time trackers don't do accounting. Journals live in a separate app. Ledgers live in another. And none of them understand that you might have three completely different work contexts that should never touch each other.
+
+Workwarrior doesn't replace these tools — it orchestrates them. TaskWarrior handles tasks. TimeWarrior tracks time. JRNL manages journals. Hledger does double-entry accounting. Each is best-in-class at what it does. Workwarrior adds the layer that makes them work together: profile isolation, unified commands, a browser UI, natural language input, and a growing set of services that connect everything.
+
+The result is a system where `p-work` puts you in your work context with all five tools pointed at the right data, `p-personal` switches to your personal context, and `ww browser` gives you a visual dashboard over whichever profile is active — all without any of these tools knowing the others exist.
+
+---
+
+## Profiles
+
+A profile is a directory containing everything for one work context:
+
+```
+profiles/<name>/
+  .taskrc              TaskWarrior config and UDAs
+  .task/               Task database + hooks
+  .timewarrior/        TimeWarrior database
+  journals/            JRNL journal files (multiple named journals supported)
+  ledgers/             Hledger ledger files (multiple named ledgers supported)
+  jrnl.yaml            Journal name → file mapping
+  ledgers.yaml         Ledger name → file mapping
+```
+
+Activating a profile sets environment variables that all tools read. No symlinks, no config switching, no path hacking. Just env vars:
+
+```bash
+ww profile create work       # Create a new profile
+p-work                       # Activate it — sets TASKRC, TASKDATA, TIMEWARRIORDB, etc.
+task list                    # TaskWarrior sees only this profile's tasks
+timew summary                # TimeWarrior sees only this profile's time
+j "Meeting notes"            # Writes to this profile's journal
+l balance                    # Shows this profile's ledger balances
+```
+
+Profiles support multiple named resources. A single profile can have journals called `strategy`, `engineering`, and `personal`, each mapping to a different file. Same for ledgers, and the infrastructure anticipates multiple task lists and time tracking instances per profile.
+
+Profiles can be backed up, restored, imported from archives, grouped for batch operations, and removed cleanly with `ww remove` (which scrubs all references from config, state, aliases, and templates).
+
+---
+
+## The Browser UI
+
+`ww browser` launches a locally-served web interface — no cloud, no accounts, no external dependencies. Python 3 stdlib only.
+
+The UI has a dark terminal aesthetic with a collapsible sidebar, 15+ panels, and a unified command input that accepts both direct `ww` commands and natural language:
+
+- **Tasks** — full task list with inline editing, UDA display, start/stop/done buttons, add task form, annotation management
+- **Time** — today's total, weekly breakdown, recent intervals, start/stop controls
+- **Journals** — entry list with expand/collapse, new entry form, multi-journal selector
+- **Ledgers** — account balances, recent transactions, income statement, balance sheet, new transaction form
+- **CMD** — unified command input with natural language translation and route indicator (⚡ AI or ⚙ heuristic)
+- **CTRL** — AI mode toggle (off / local-only / local+remote), prompt settings, UI configuration
+- **Models** — LLM provider and model registry
+- **Groups, Sync, Questions, Profile** — and more
+
+The server uses SSE for real-time updates and supports switching profiles and named resources from the browser.
+
+```bash
+ww browser                   # Start on port 7777 and open browser
+ww browser --port 9090       # Custom port
+ww browser stop              # Stop the server
+```
+
+---
+
+## Natural Language Commands
+
+The CMD service accepts plain English and translates it into tool commands. It tries 627 compiled heuristic regex rules first — no network, no latency, no LLM needed. If no rule matches, it optionally falls back to a local LLM (ollama) or a remote provider.
+
+Inputs that work without AI:
+
+```
+"add a task to review the budget"              → task add review the budget
+"create task deploy server due friday"         → task add deploy server due:friday
+"start tracking time on code review"           → timew start code review
+"stop tracking"                                → timew stop
+"show my profiles"                             → profile list
+"finish task 5 and stop tracking"              → task 5 done + timew stop
+"add task fix login and annotate it with       → task add fix login
+ check mobile layout"                            task annotate LAST check mobile layout
+```
+
+The heuristic engine covers all 19 command domains with 6 phrasing variations per command: passthrough, imperative, declarative, interrogative, shorthand, and verbose. Compound commands (joined by "and", "then", "also", "plus") are split and matched independently.
+
+Rules are compiled by `ww compile-heuristics`, which scans all command sources, generates regex patterns, validates them against a synthetic corpus, resolves conflicts, fills coverage gaps, and writes the output. The engine is self-improving: every CMD submission is logged, and the `--digest` flag analyzes past AI translations to generate new rules.
+
+```bash
+ww compile-heuristics              # Recompile rules
+ww compile-heuristics --verbose    # Show every rule with test results
+ww compile-heuristics --digest     # Include CMD log analysis
+```
+
+---
+
+## Weapons
+
+Weapons are tools that manipulate profile data in special ways — creating, slicing, and packaging tasks.
+
+| Weapon | What it does |
+|--------|-------------|
+| **Gun** | Bulk task series generator with deadline spacing. Wraps taskgun. |
+| **Sword** | Splits a task into N sequential subtasks with dependency chains and due date offsets. Native to ww. |
+| **Next** | CFS-inspired scheduler that recommends the optimal next task based on urgency, deadlines, and context. |
+| **Schedule** | Auto-scheduler that assigns time blocks to tasks. Wraps taskcheck. |
+
+```bash
+ww sword 5 -p 3                    # Split task 5 into 3 sequential parts
+ww sword 5 -p 4 --interval 2d     # 2-day intervals between parts
+ww gun <args>                      # Generate bulk task series
+ww next                            # What should I work on?
+ww schedule                        # Auto-schedule tasks
+```
+
+---
+
+## GitHub Integration
+
+Two sync engines, complementary:
+
+**Bugwarrior** (one-way pull) — pulls issues from GitHub, GitLab, Jira, Trello, and 20+ services into TaskWarrior. Configured per-profile.
+
+**ww github-sync** (two-way) — links individual tasks to GitHub issues for bidirectional sync. Pushes task changes to GitHub, pulls GitHub changes to TaskWarrior. Handles field mapping, conflict resolution, annotation↔comment sync, and label encoding for UDA values.
+
+```bash
+i pull                             # Pull issues from configured services
+i status                           # Show sync state
+ww issues sync                     # Two-way sync all linked tasks
+ww issues push                     # Push local changes to GitHub
+ww issues enable <task> <issue#> <org/repo>  # Link a task to an issue
+ww issues custom                   # Configure services interactively
+```
+
+---
+
+## AI Integration
+
+Optional. The system works fully without AI — the heuristic engine handles routine commands. AI adds flexibility for unusual phrasings and complex instructions.
+
+```yaml
+# config/ai.yaml
+mode: local-only          # off | local-only | local+remote
+preferred_provider: ollama
+access_points:
+  cmd_ai: true            # Enable AI in CMD service
+```
+
+Per-profile overrides via `profiles/<name>/ai.yaml`. Model fallback chains try multiple models before giving up. Controls available via CLI (`ww ctrl ai-on/off/status`) and browser CTRL panel.
+
+```bash
+ww model add-provider ollama ollama http://localhost:11434
+ww model set-default llama3.2
+ww ctrl ai-status                  # Show resolved AI state
+```
+
+---
+
+## UDA System
+
+TaskWarrior's User Defined Attributes are a first-class concept in Workwarrior. Profiles can carry 100+ UDAs covering project metadata, financial fields, compliance tracking, people, equipment, and more.
+
+```bash
+ww profile uda list                # All UDAs with source badges
+ww profile uda add goals           # Interactive UDA creation
+ww profile uda remove <name>       # Remove with safety warnings
+ww profile uda group work          # Group UDAs for batch operations
+ww profile uda perm goals nosync   # Set sync permissions per-UDA
+```
+
+UDAs are classified by source: `[github]` for bugwarrior-injected fields, `[extension]` for tool-added fields, `[custom]` for user-defined. The browser UI renders all UDAs in the task inline editor.
+
+---
 
 ## Installation
 
-Requires bash/zsh on macOS or Linux. Python 3 for the browser UI and heuristic compiler.
+Requires bash or zsh on macOS or Linux. Python 3 for the browser UI.
 
 ```bash
 git clone <repo-url> ~/ww
 cd ~/ww
 ./install.sh
-source ~/.bashrc   # or source ~/.zshrc
+source ~/.bashrc
 ```
 
-The installer detects your platform, checks for dependencies, and offers to install missing tools (TaskWarrior, TimeWarrior, JRNL, Hledger) via brew/apt/dnf/pacman. Each tool gets a version card showing installed vs. required versions.
+The installer presents a version card for each tool showing installed, latest, and minimum required versions. On macOS it auto-installs via brew. On Linux it shows the right command for your distro.
 
 ```bash
-./install.sh                    # Interactive
-./install.sh --non-interactive  # Automated
-./install.sh --force            # Reinstall/upgrade
-./uninstall.sh                  # Remove (keeps profiles)
-./uninstall.sh --purge          # Remove everything
+ww deps install              # Install/check core toolchain
+ww deps check                # Show dependency status
+ww tui install               # Install taskwarrior-tui (optional)
+ww mcp install               # Install MCP server for AI agents (optional)
 ```
 
-## Quick Start
+---
 
-```bash
-# Create and activate a profile
-ww profile create work
-p-work
+## Services
 
-# Tasks
-task add "Review PR" project:api priority:H due:tomorrow +review
-task add "Write tests" project:api priority:M due:friday
-task list
+Everything in Workwarrior is a service. The `ww` dispatcher routes commands to service scripts in `services/<category>/`.
 
-# Time tracking (auto-starts via hook when you start a task)
-task 1 start
-timew summary
+| Domain | What it does |
+|--------|-------------|
+| `ww profile` | Create, list, info, delete, backup, import, restore, UDA management, urgency tuning, density scoring |
+| `ww journal` | Add, list, remove, rename named journals |
+| `ww ledger` | Add, list, remove, rename named ledgers |
+| `ww group` | Profile groups for batch operations |
+| `ww model` | LLM provider/model registry |
+| `ww ctrl` | AI mode, prompt settings, UI configuration |
+| `ww find` | Cross-profile search |
+| `ww issues` | GitHub two-way sync + bugwarrior pull |
+| `ww custom` | Interactive configuration wizards |
+| `ww extensions` | TaskWarrior/TimeWarrior extension registry |
+| `ww export` | Profile data export (JSON, CSV, markdown) |
+| `ww questions` | Template-based capture workflows |
+| `ww browser` | Locally-served web UI |
+| `ww remove` | Profile removal with archive/delete/scrub |
+| `ww shortcut` | Shortcut/alias reference |
+| `ww deps` | Dependency management |
+| `ww compile-heuristics` | Recompile NL→command rules |
 
-# Journal
-j "Sprint planning complete — 8 stories committed"
+Shell functions injected at init: `task`, `timew`, `j`, `l`, `i`, `q`, `list`, `search`, and `p-<name>` for each profile.
 
-# Ledger
-l balance
-l register expenses
+---
 
-# Browser UI
-ww browser
-```
-
-## Core Commands
-
-### Profile Management
-```bash
-ww profile create <name>     # Create isolated profile
-ww profile list              # List all profiles
-ww profile info <name>       # Show profile details
-ww profile delete <name>     # Delete with safety backup
-ww profile backup <name>     # Archive profile
-ww profile import <archive>  # Create from archive
-ww profile restore <archive> # Replace existing from archive
-ww profile uda list          # List all UDAs with source badges
-ww profile uda add <name>    # Interactive UDA creation
-ww profile urgency           # Tune urgency coefficients
-ww profile density           # Due-date density scoring
-```
-
-### Tasks, Time, Journals, Ledgers
-```bash
-# Shell functions (available after profile activation)
-task [args]                  # TaskWarrior with profile isolation
-timew [args]                 # TimeWarrior with profile isolation
-j [journal] "entry"          # Write to journal
-l [args]                     # Hledger with profile ledger
-
-# Via ww command
-ww journal add/list/remove/rename
-ww ledger add/list/remove/rename
-```
-
-### Services
-```bash
-ww service list              # Discover available services
-ww service info <name>       # Service details
-ww ctrl status               # AI mode, prompt, UI settings
-ww ctrl ai-on / ai-off       # Toggle AI
-ww model list                # LLM provider/model registry
-ww model providers           # List configured providers
-ww group list/create/show    # Profile groups
-ww find <term>               # Cross-profile search
-ww shortcut list             # Shortcut reference
-ww extensions taskwarrior list  # TW extension registry
-ww deps install              # Install/check dependencies
-ww q / ww questions          # Template-based workflows
-```
-
-### Weapons
-```bash
-ww gun <args>                # Bulk task series generator (taskgun)
-ww sword <task-id> <parts>   # Split task into sequential subtasks
-ww next                      # CFS-inspired next-task recommendation
-ww schedule                  # Auto-scheduler (taskcheck)
-```
-
-### Issue Sync
-```bash
-i pull                       # Pull GitHub issues via bugwarrior
-i status                     # Sync state
-ww issues sync               # Two-way GitHub sync
-ww issues push/pull          # Directional sync
-ww issues custom             # Configure GitHub/Jira/etc.
-```
-
-### Profile Removal
-```bash
-ww remove <profile>          # Remove specific profiles (prompted)
-ww remove --keep <profile>   # Remove all EXCEPT listed
-ww remove --archive-all      # Archive all without prompting
-ww remove --delete-all       # Delete all without prompting
-ww remove --dry-run          # Preview what would happen
-ww remove --list             # Show removable profiles
-```
-
-## Browser UI
-
-`ww browser` launches a locally-served web interface with a dark terminal aesthetic.
-
-```bash
-ww browser                   # Start and open browser
-ww browser --port 9090       # Custom port
-ww browser --no-open         # Start without opening browser
-ww browser stop              # Stop the server
-```
-
-Features:
-- 15+ panels: Tasks, Time, Journals, Ledgers, CMD, CTRL, Sync, Groups, Models, Questions, Profile, and more
-- Task inline editor with full UDA support (180+ UDAs rendered)
-- Unified CMD input with natural language translation
-- Heuristic matching (627 compiled regex rules) before AI fallback
-- Compound commands: "add task review code and start tracking time"
-- Route indicator: ⚡ AI or ⚙ heuristic for every command
-- AI mode toggle: off / local-only (ollama) / local+remote
-- Real-time SSE updates on profile changes
-- Resource management: create/switch named journals, ledgers, time tracks
-- Hledger integration: balances, register, income statement, balance sheet
-
-## Heuristic Engine
-
-The CMD service matches natural language input against 627 compiled regex rules before falling back to AI (ollama). Rules cover all 19 command domains with 6 phrasing variations per command.
-
-```bash
-# These all work without AI:
-"add a task to review the budget"           → task add review the budget
-"create task deploy server due friday"      → task add deploy server due:friday
-"start tracking time on code review"        → timew start code review
-"stop tracking"                             → timew stop
-"show my profiles"                          → profile list
-"finish task 5 and stop tracking"           → task 5 done + timew stop
-
-# Recompile rules after adding commands:
-ww compile-heuristics
-ww compile-heuristics --verbose    # Detailed per-rule report
-ww compile-heuristics --digest     # Include CMD log analysis
-```
-
-## AI Integration
-
-Optional. Works with ollama (local) or remote providers. Configured per-profile.
-
-```bash
-# Global config
-config/ai.yaml               # mode: off | local-only | local+remote
-config/models.yaml            # Provider/model registry
-
-# Per-profile override
-profiles/<name>/ai.yaml       # Overrides global mode and provider
-
-# CLI controls
-ww ctrl ai-on                 # Enable AI
-ww ctrl ai-off                # Disable AI
-ww ctrl ai-status             # Show current AI state
-ww model add-provider ollama ollama http://localhost:11434
-ww model set-default llama3.2
-```
-
-## Directory Structure
+## Project Structure
 
 ```
 bin/
-  ww                          CLI dispatcher (all commands route here)
+  ww                          CLI dispatcher — all commands route here
   ww-init.sh                  Shell bootstrap (sourced at shell start)
 
-lib/                          Core bash libraries (sourced, not executed)
+lib/                          Core bash libraries
   core-utils.sh               Profile validation, path resolution
   profile-manager.sh           Profile lifecycle
   shell-integration.sh         Shell function injection, alias management
-  sync-*.sh, github-*.sh      GitHub two-way sync engine
-  field-mapper.sh              TW ↔ GitHub field mapping
-  ...
+  sync-*.sh, github-*.sh      GitHub two-way sync engine (10 files)
+  dependency-installer.sh      Platform-aware tool installer
+  ...                          20+ library files
 
 services/                     Service scripts
-  browser/                    Browser UI (Python3 HTTP + SSE + static)
-  ctrl/                       AI mode, prompt, UI settings
+  browser/                    Browser UI (Python3 HTTP + SSE + static assets)
+  ctrl/                       AI mode and settings
   cmd/                        Unified command service + JSONL logging
-  remove/                     Profile removal with archive/delete
+  remove/                     Profile removal
   models/                     LLM provider/model registry
   questions/                  Template-based workflows
-  custom/                     Interactive config wizards + GitHub sync
+  custom/                     Config wizards + GitHub sync
   profile/                    Profile lifecycle + UDA management
-  groups/                     Profile group management
-  extensions/                 TW extension registry
-  find/                       Cross-profile search
-  export/                     Data export (JSON, CSV, markdown)
-  ...
-
-scripts/
-  compile-heuristics.py       Heuristic rule compiler (627 rules, 19 domains)
+  groups/, find/, export/, extensions/, ...
 
 weapons/
-  gun/                        taskgun — bulk task series generator
-  sword/                      Task splitting into sequential subtasks
+  gun/                        Bulk task series (taskgun)
+  sword/                      Task splitting with dependency chains
+
+scripts/
+  compile-heuristics.py       Heuristic rule compiler
 
 config/
   ai.yaml                    AI mode and access points
   models.yaml                LLM provider/model registry
   ctrl.yaml                  CTRL service settings
   groups.yaml                Profile group definitions
-  shortcuts.yaml             Shortcut/alias definitions
-  projects.yaml              Cross-cutting project definitions
+  shortcuts.yaml             Shortcut definitions
 
-profiles/                    User profiles (gitignored, created at runtime)
-  <name>/
-    .taskrc                  TaskWarrior config
-    .task/                   Task database
-    .timewarrior/            TimeWarrior database
-    journals/                JRNL journal files
-    ledgers/                 Hledger ledger files
-    jrnl.yaml                Journal name → file mapping
-    ledgers.yaml             Ledger name → file mapping
+profiles/                    User profiles (created at runtime, gitignored)
 ```
 
-## Environment Variables
-
-Set automatically on profile activation:
-
-| Variable | Purpose |
-|---|---|
-| `WARRIOR_PROFILE` | Active profile name |
-| `WORKWARRIOR_BASE` | Active profile directory |
-| `TASKRC` | Path to profile `.taskrc` |
-| `TASKDATA` | Path to profile `.task` |
-| `TIMEWARRIORDB` | Path to profile `.timewarrior` |
+---
 
 ## Documentation
 
-- `docs/overviews/INDEX.md` — full technical overview with architecture, data flows, and per-component docs
-- `docs/usage-examples.md` — practical workflows
-- `docs/search-guides/` — tool-specific search guides (task, time, journal, ledger, list)
-- `docs/INSTALL.md` — detailed installation guide
-- `docs/service-development.md` — how to build and register services
+- `docs/overviews/INDEX.md` — full technical overview with architecture, data flows, per-component docs
+- `docs/usage-examples.md` — practical workflows and CLI patterns
+- `docs/INSTALL.md` — detailed installation policy and platform notes
+- `docs/search-guides/` — search guides per tool (task, time, journal, ledger, list)
+- `docs/service-development.md` — how to build and register new services
+
+---
 
 ## Testing
 
 ```bash
-bats tests/                          # Run all BATS tests
-bats tests/test-models-service.bats  # Run specific suite
-python3 -m pytest services/browser/  # Browser/heuristic tests
+bats tests/                          # Run all BATS test suites
+bats tests/test-models-service.bats  # Run a specific suite
+python3 -m pytest services/browser/  # Browser and heuristic engine tests
 ```
-
-## License
-
-See LICENSE file.
