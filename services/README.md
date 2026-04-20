@@ -254,6 +254,68 @@ ww help deps
 
 Plural help topics (`ww help groups`, `ww help models`, `ww help journals`, `ww help ledgers`) are accepted aliases.
 
+## Approved Command Examples Library
+
+These examples are the curated baseline used by docs and verifier checks. Each major command family includes:
+- `basic` (daily usage)
+- `scoped override` (`--profile` or `--global`)
+- `advanced` (automation/power-user form)
+
+### Profile
+- basic: `ww profile list`
+- scoped override: `ww --profile babb profile list`
+- advanced: `ww --json profile info babb`
+
+### Service Discovery
+- basic: `ww service list`
+- scoped override: `ww --profile babb service info custom`
+- advanced: `ww --json service list`
+
+### Journal
+- basic: `ww journal list`
+- scoped override: `ww --profile babb journal list`
+- advanced: `ww --json journal list`
+
+### Ledger
+- basic: `ww ledger list`
+- scoped override: `ww --profile babb ledger list`
+- advanced: `ww --json ledger list`
+
+### Group
+- basic: `ww group list`
+- scoped override: `ww --global group list`
+- advanced: `ww groups`
+
+### Model
+- basic: `ww model list`
+- scoped override: `ww --global model list`
+- advanced: `ww model providers`
+
+### Find
+- basic: `ww find invoice`
+- scoped override: `ww find --profile babb --type task invoice`
+- advanced: `ww find --type task --native invoice`
+
+### Issues
+- basic: `ww issues uda list`
+- scoped override: `ww --profile babb issues uda list`
+- advanced: `ww issues uda help`
+
+### Questions
+- basic: `ww q list`
+- scoped override: `ww --profile babb q list`
+- advanced: `ww q journal`
+
+### Timew Extensions
+- basic: `ww timew extensions list`
+- scoped override: `ww --profile babb timew extensions list`
+- advanced: `ww --json timew extensions list`
+
+### Routines
+- basic: `ww routines list`
+- scoped override: `ww --profile babb routines list`
+- advanced: `ww routines add "Clean room" --frequency weekly --run-now`
+
 ## Best Practices
 
 ### Script Guidelines

@@ -1,5 +1,5 @@
 version: 1
-updated: "2026-04-04"
+updated: "2026-04-20"
 policy:
   canonical_source: "/Users/mp/ww/system/config/command-syntax.yaml"
   update_required_on:
@@ -9,6 +9,7 @@ policy:
   defaults:
     profile_resolution: "active-or-last-profile"
     output_mode: "human-compact"
+    output_mode_help_policy: "default compact human; use --verbose for expanded human and --json for machine-readable output"
     json_mode: "opt-in --json only"
     noun_policy:
       singular: "primary action namespace"
@@ -44,6 +45,58 @@ policy:
       - "Examples"
     alias_rule: "when singular and plural forms exist, help must mark singular as preferred and plural as alias"
     global_flag_doc_rule: "commands that support --profile/--json/--compact must document them in help"
+  examples_library_policy:
+    required_tiers:
+      - "basic"
+      - "scoped override"
+      - "advanced"
+    scope_rule: "major command families must publish at least one approved example per tier"
+
+examples_library:
+  profile:
+    basic: "ww profile list"
+    scoped_override: "ww --profile babb profile list"
+    advanced: "ww --json profile info babb"
+  service:
+    basic: "ww service list"
+    scoped_override: "ww --profile babb service info custom"
+    advanced: "ww --json service list"
+  journal:
+    basic: "ww journal list"
+    scoped_override: "ww --profile babb journal list"
+    advanced: "ww --json journal list"
+  ledger:
+    basic: "ww ledger list"
+    scoped_override: "ww --profile babb ledger list"
+    advanced: "ww --json ledger list"
+  group:
+    basic: "ww group list"
+    scoped_override: "ww --global group list"
+    advanced: "ww groups"
+  model:
+    basic: "ww model list"
+    scoped_override: "ww --global model list"
+    advanced: "ww model providers"
+  find:
+    basic: "ww find invoice"
+    scoped_override: "ww find --profile babb --type task invoice"
+    advanced: "ww find --type task --native invoice"
+  issues:
+    basic: "ww issues uda list"
+    scoped_override: "ww --profile babb issues uda list"
+    advanced: "ww issues uda help"
+  questions:
+    basic: "ww q list"
+    scoped_override: "ww --profile babb q list"
+    advanced: "ww q journal"
+  timew:
+    basic: "ww timew extensions list"
+    scoped_override: "ww --profile babb timew extensions list"
+    advanced: "ww --json timew extensions list"
+  routines:
+    basic: "ww routines list"
+    scoped_override: "ww --profile babb routines list"
+    advanced: "ww routines add \"Clean room\" --frequency weekly --run-now"
 
 global_flags:
   - name: "--profile"
@@ -177,7 +230,10 @@ commands:
     syntax:
       - "i help"
       - "i pull [--dry-run] [--json]"
-      - "i uda"
+      - "i uda list"
+      - "i uda install"
+      - "i uda group <service>"
+      - "i uda help"
       - "i push [task-id]"
       - "i sync [task-id]"
       - "i enable-sync <task-id> <issue> <repo>"
@@ -290,6 +346,30 @@ commands:
       override: "n/a"
     status: "active"
 
+  - domain: "timew"
+    upstream: "https://github.com/trev-dev/timew-billable"
+    upstream_author: "trev-dev · MIT License"
+    implementation_note: >
+      Per-profile TimeWarrior extensions under $TIMEWARRIORDB/extensions/.
+      Preset "billable" clones timew-billable, builds with nim c -d:release src/billable.nim,
+      installs binary as extensions/billable plus sidecar <name>.ww-ext.json metadata.
+      Generic "ww timew extensions install <git-url>" supports Nim billable layout, nimble
+      packages, or a shell script heuristic; Python extensions are manual.
+    syntax:
+      - "ww timew extensions list"
+      - "ww timew extensions install billable"
+      - "ww timew extensions install https://github.com/org/repo.git"
+      - "ww timew extensions remove <name>"
+      - "ww timew extensions help"
+      - "ww timew help"
+    output_modes:
+      default: "human-compact"
+      supports_json: true
+    scope:
+      default: "active profile required (TIMEWARRIORDB)"
+      override: "--profile"
+    status: "active"
+
   - domain: "custom"
     syntax:
       - "ww custom journals"
@@ -325,6 +405,32 @@ commands:
     scope:
       default: "active profile required"
       override: "n/a"
+    status: "active"
+
+  - domain: "routines"
+    upstream: "https://github.com/allgreed/cron"
+    upstream_author: "allgreed · Python"
+    implementation_note: >
+      Profile-scoped routine definitions at profiles/<n>/.config/routines/*.py.
+      Runtime source installs to $WW_BASE/tools/extensions/cron via
+      ww routines install, with cron.py linked into the profile routines dir.
+      Runs execute with TASKRC/TASKDATA env for profile isolation and write
+      .ww-routines-state.json metadata per profile.
+    syntax:
+      - "ww routines list"
+      - "ww routines add \"<desc>\" --frequency <daily|weekly|monthly|yearly> [--name <name>] [--run-now]"
+      - "ww routines new <name>"
+      - "ww routines edit <name>"
+      - "ww routines run [name]"
+      - "ww routines status"
+      - "ww routines install"
+      - "ww routines help"
+    output_modes:
+      default: "human-compact"
+      supports_json: true
+    scope:
+      default: "active profile required (except install/help)"
+      override: "--profile"
     status: "active"
 
   - domain: "next"
@@ -408,14 +514,13 @@ commands:
 
   - domain: "questions"
     syntax:
-      - "q"
-      - "q help"
-      - "q list"
-      - "q <service>"
-      - "q <service> <template>"
-      - "q new [service]"
-      - "q edit <template>"
-      - "q delete <template> [--yes]"
+      - "ww q"
+      - "ww q list"
+      - "ww q <service>"
+      - "ww q <service> <template>"
+      - "ww q new [service]"
+      - "ww q edit <template>"
+      - "ww q delete <template> [--yes]"
     output_modes:
       default: "human-compact"
       supports_json: false

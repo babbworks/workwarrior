@@ -12,42 +12,17 @@ Upstream:             https://github.com/allgreed/cron
 Profile isolation:    Writes tasks via active TASKRC/TASKDATA. Per-profile by default.
                       Routine definitions are profile-specific Python files.
 
---- DESIGN EXPLORATION REQUIRED (quiz operator before implementation) ---
+Design decisions (operator-confirmed):
+                      1. Routine files are profile-scoped in:
+                           profiles/<name>/.config/routines/
+                      2. Authoring UX uses template-first flow:
+                           ww routines new <name> (opens editor)
+                      3. Run trigger is manual:
+                           ww routines run [name]
+                      4. Scope is per-profile only.
+                      5. Nix is not required for ww runtime usage; runtime is Python 3.
 
-Key design questions that need answers before a write scope can be defined:
-
-1. ROUTINE DEFINITION LOCATION
-   Where do routine definition files live?
-   Option A: profiles/<name>/routines/mycron.py  (per-profile, version-controlled)
-   Option B: profiles/<name>/.config/routines/   (per-profile, gitignored)
-   Option C: a global routines/ dir with profile-tagged classes
-   → Preference?
-
-2. ROUTINE AUTHORING UX
-   How does a user create a new routine?
-   Option A: ww routines new → opens editor with a template Python file
-   Option B: ww routines add "Clean room" --frequency weekly → generates the class
-   Option C: user writes Python directly, ww routines just runs them
-   → How much abstraction over the Python class syntax is wanted?
-
-3. RUN TRIGGER
-   When do routines execute (generate tasks)?
-   Option A: ww routines run → manual trigger
-   Option B: on shell init (ww-init.sh sources a routines check)
-   Option C: launchd/cron job calling ww routines run --profile <name>
-   → Preference? (Option B is lowest friction but adds shell init latency)
-
-4. PROFILE SCOPE
-   Should routines be per-profile only, or can global routines generate tasks
-   into a specific profile?
-   → Per-profile only, or global routines with --profile targeting?
-
-5. DEPENDENCY ON NIX
-   allgreed/cron uses nix for dev but the runtime is Python 3.
-   Is nix acceptable as a dependency, or should ww extract just the Python
-   runtime logic and vendor it?
-
-Proposed command syntax (draft — pending design answers):
+Command syntax:
                       ww routines list              List defined routines for active profile
                       ww routines run               Generate tasks from all due routines
                       ww routines run <name>        Run a specific routine
@@ -59,10 +34,25 @@ Proposed command syntax (draft — pending design answers):
 
 Attribution:
                       Powered by allgreed/cron · allgreed
-                      https://github.com/allgreed/cron · (license TBC)
+                      https://github.com/allgreed/cron
 
-Acceptance criteria:  Deferred — pending design quiz answers above.
+Acceptance criteria:  1. `ww routines` command family exists with list/new/edit/run/status/install/help.
+                      2. Routine files are stored in `profiles/<name>/.config/routines/`.
+                      3. Routine execution runs with profile `TASKRC`/`TASKDATA` and records run metadata.
+                      4. CSSOT updated with `routines` domain syntax and behavior.
+                      5. Integration doc written at docs/taskwarrior-extensions/cron-integration.md.
+                      6. BATS coverage added for routines list/new/run/status.
 
-Write scope:          TBD after design decisions.
+Write scope:          /Users/mp/ww/bin/ww
+                      /Users/mp/ww/system/config/command-syntax.yaml
+                      /Users/mp/ww/docs/taskwarrior-extensions/cron-integration.md
+                      /Users/mp/ww/tests/test-routines.bats
+                      /Users/mp/ww/docs/usage-examples.md
+                      /Users/mp/ww/services/README.md
 
-Status:               parked — requires operator design quiz before task card can be completed
+Status:               complete
+
+Completion note:      Implemented `ww routines` as profile-scoped recurring task microservice.
+                      Routine definitions and runtime state now live in `.config/routines`.
+                      Runtime source installs to `$WW_BASE/tools/extensions/cron` via
+                      `ww routines install`, and runs are isolated by active profile env.

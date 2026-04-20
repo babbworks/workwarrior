@@ -3,7 +3,7 @@
 # Controls how and where LLMs have access points in the system.
 # Managed via CTRL panel in browser UI.
 
-mode: local-only
+mode: off
 
 # Which features can use AI
 access_points:

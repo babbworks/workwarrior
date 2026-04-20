@@ -40,4 +40,13 @@ Risk notes:           bin/ww is serialized — do not run in parallel with any o
                       Service UDA classification (github*, gitlab*, etc.) must match the classify_uda()
                       function already added to uda-manager.sh in this session.
 
-Status:               pending
+Status:               complete — 2026-04-20
+
+Completion note:      `ww issues uda` is now ww-native in `bin/ww` (`list/install/group/help`).
+                      `install` is idempotent and requires bugwarrior config; `group github`
+                      writes canonical 15-field group to BOTH `.uda-groups` and
+                      `.taskrc` (`# === WW UDA GROUPS ===` portable metadata), with taskrc-authoritative
+                      sidecar healing (`.uda-groups` is refreshed from taskrc on `issues uda` commands). Updated interactive
+                      `uda-manager.sh` with service-uda warnings, install option, and inline
+                      type+label display. Tests added: `tests/test-issues-uda.bats` + updates
+                      to smoke/profile UDA coverage.

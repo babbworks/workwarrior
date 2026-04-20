@@ -189,7 +189,7 @@ These are merge blockers. Not advisory. Not optional.
 
 ## Canonical Task Source
 
-**`system/TASKS.md` is the only source of truth for open work.** `system/tasks/INDEX.md` is the scannable manifest of all 73+ task cards.
+**`system/TASKS.md` is the only source of truth for open work.** `system/tasks/INDEX.md` is the scannable manifest of task cards (see `tasks/cards/`; ~99 cards).
 
 - Orchestrator is the only agent that updates status fields
 - `pending/` is archive — nothing new is written there

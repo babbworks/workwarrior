@@ -174,6 +174,14 @@ teardown() {
     assert_output --partial "github_number"
 }
 
+@test "profile-uda list: classifies sync_* UDAs as github-sync service-managed" {
+    TASKRC="${WORKWARRIOR_BASE}/.taskrc" task rc.confirmation=no config uda.sync_id.type numeric 2>/dev/null || true
+    run bash "${UDA_SCRIPT}" list
+    assert_success
+    assert_output --partial "sync_id"
+    assert_output --partial "github-sync"
+}
+
 @test "profile-uda list: uncategorized UDAs hidden without --all" {
     TASKRC="${WORKWARRIOR_BASE}/.taskrc" task rc.confirmation=no config uda.hidden_uda.type string 2>/dev/null || true
     # Mark it uncategorized in .taskrc

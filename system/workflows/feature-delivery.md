@@ -91,7 +91,11 @@ CI context: the `sync-engine` CI job runs `test-github-sync.bats` and `test-sync
 4. Acceptance criteria check (each criterion from the task card individually)
 5. Write scope audit (verify no files modified outside declared scope)
 6. Simplify pass on all changed files
-7. Gate C check (help strings, docs, and CSSOT match implementation)
+7. Gate C check (help strings, docs, and CSSOT match implementation) — run:
+   ```bash
+   bash system/scripts/check-parity.sh
+   ```
+   Exit code must be `0` (CSSOT syntax lines must be reflected in mapped `ww … help` output).
 8. Gate E check (TODO/FIXME scan on changed files)
 
 **If HIGH FRAGILITY files are in scope:** add Step 9 — explicit sync/integration sign-off line.

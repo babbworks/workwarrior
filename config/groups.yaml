@@ -13,3 +13,10 @@
 #         - hobbies
 
 groups: {}
+  wwdev-group-1:
+    profiles:
+      - wwdev
+      - clark
+  test:
+    profiles:
+      - wwdev

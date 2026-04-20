@@ -48,12 +48,17 @@ Acceptance criteria:
 
   7. Services sidebar — low-hanging fruit
        Add a "Services" section to the sidebar nav below the four data sections.
-       Initial services exposed (read-only or simple action):
+       Initial services exposed (read-only first):
          - next        → calls ww next, renders recommended task in a card
          - schedule    → shows ww schedule status (enabled/disabled, last run)
-         - density     → shows ww profile density config + "Run now" button
+         - density     → shows ww profile density config
        Each service renders in the main content area as a new section.
        Services that require install show an install prompt instead of data.
+
+  8. SITE-007 carry-forward decisions
+       Preserve "Saves" naming in browser UI labels/routes.
+       Preserve existing icon system, including placeholder weapon icons.
+       Treat read-only service panels as acceptable for this wave.
 
 Write scope:          /Users/mp/ww/services/browser/server.py
                       /Users/mp/ww/services/browser/static/index.html

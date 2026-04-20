@@ -22,5 +22,11 @@ Risk notes:           Existing behavior affected: completion criteria and docs u
                       Tests currently covering write scope: parity script execution.
                       Rollback verification: parity gate rollback through file revert.
 
-Status:               pending
+Status:               complete — 2026-04-20
+
+Completion note:      Added `system/scripts/check-parity.sh` (maps each active CSSOT `syntax`
+                      line to help output; handles `i`→`ww issues`, profile/group/model action tables,
+                      `ww find` flags, timew summaries, `ww q` questions forms). Wired Gate C step into
+                      `system/workflows/feature-delivery.md`. Aligned `questions` CSSOT syntax with
+                      `ww help questions` text. BATS: `tests/test-parity.bats`.
 

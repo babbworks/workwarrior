@@ -83,7 +83,21 @@ Findings:
 
 ---
 
-### 6. Gate E — TODO/FIXME Scan
+### 6. Example Validation (UX-002)
+
+[ ] Not applicable to this task
+[ ] Applicable — ran approved examples for touched command families
+    [ ] Basic example executes successfully
+    [ ] Scoped-override example executes successfully
+    [ ] Advanced example executes successfully
+    Evidence:
+    - [family]: [basic command] → PASS / FAIL
+    - [family]: [scoped command] → PASS / FAIL
+    - [family]: [advanced command] → PASS / FAIL
+
+---
+
+### 7. Gate E — TODO/FIXME Scan
 
 Scan command run: git diff HEAD | grep -E '^\+.*\b(TODO|FIXME|HACK|XXX|PLACEHOLDER)\b'
 
@@ -93,7 +107,7 @@ Scan command run: git diff HEAD | grep -E '^\+.*\b(TODO|FIXME|HACK|XXX|PLACEHOLD
 
 ---
 
-### 7. HIGH FRAGILITY Sign-Off (if applicable)
+### 8. HIGH FRAGILITY Sign-Off (if applicable)
 
 [ ] Not applicable — no HIGH FRAGILITY files in write scope
 [ ] HIGH FRAGILITY files touched: [list]

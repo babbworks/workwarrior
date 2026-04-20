@@ -48,4 +48,4 @@ Fragility:            Low — new directory, no existing files modified
 
 Depends on:           TASK-WEB-001 design decisions (where tools/web/ fits in architecture)
 
-Status:               pending — unblock after TASK-WEB-001 design decisions answered
+Status:               parked — paused by operator; revisit after TASK-WEB-001 design decisions

@@ -42,6 +42,7 @@ fi
 # ============================================================================
 
 alias p='profile'
+alias p-none='deactivate_task_profile'
 
 # ============================================================================
 # STARTUP STATUS
@@ -70,7 +71,8 @@ _ww_startup_status() {
   fi
 }
 
-_ww_startup_status
+# Startup status intentionally disabled to keep new terminals quiet.
+# _ww_startup_status
 
 # ============================================================================
 # AI SENSING (lightweight — 1s timeout)
@@ -83,7 +85,7 @@ _ww_sense_ollama() {
     fi
   fi
 }
-{ _ww_sense_ollama & } 2>/dev/null  # background, suppress job control noise
+( _ww_sense_ollama &>/dev/null & )  # subshell owns the job; parent never reports it
 
 # ============================================================================
 # DONE

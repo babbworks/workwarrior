@@ -125,8 +125,9 @@ teardown() {
     assert_output --partial "uda"
 }
 
-@test "smoke: bin/ww issues uda redirects to profile uda" {
+@test "smoke: bin/ww issues uda defaults to list (ww-native surface)" {
     run env -u WARRIOR_PROFILE WORKWARRIOR_BASE="${WORKWARRIOR_BASE}" \
         WW_BASE="${WW_BASE}" bash "${WW_BASE}/bin/ww" issues uda
-    assert_output --partial "ww profile uda"
+    assert_success
+    assert_output --partial "No UDAs defined"
 }

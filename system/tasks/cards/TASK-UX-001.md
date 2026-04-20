@@ -24,5 +24,21 @@ Risk notes:           Existing behavior affected: output rendering and scriptabi
                       Tests currently covering write scope: integration tests plus manual output checks.
                       Rollback verification: formatter/flag behavior restore via revert.
 
-Status:               pending
+Implementation notes: Added default compact output policy via `WW_DEFAULT_OUTPUT_MODE`
+                      (from `lib/core-utils.sh`) and applied mode resolution in
+                      `parse_global_flags()` so default is compact, `--verbose`
+                      opts into expanded human mode, and `--json` remains explicit.
+                      Added compact/json support for `profile info`, compact support
+                      for `service info`, and compact branch for `timew extensions list`.
+                      Updated CLI help text, CSSOT output-mode policy wording, and
+                      usage examples.
+                      Manual checks passed:
+                        - `ww profile list`
+                        - `ww profile list --json`
+                        - `ww service list --json`
+                      `tests/test-scripts-integration.sh` could not be completed in
+                      sandbox due home-directory write restrictions (`~/.bashrc`);
+                      elevated re-run requires user approval.
+
+Status:               complete
 

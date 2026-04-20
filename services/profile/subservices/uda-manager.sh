@@ -122,6 +122,9 @@ classify_uda() {
     jira*)     echo "jira" ;;
     trello*)   echo "trello" ;;
     bw*)       echo "bugwarrior" ;;
+    sync_*)    echo "github-sync" ;;
+    density|densitywindow) echo "extension:twdensity" ;;
+    estimated|time_map)    echo "extension:taskcheck" ;;
     *)         echo "user" ;;
   esac
 }
@@ -149,7 +152,10 @@ display_udas() {
       local source
       source=$(classify_uda "$name")
       if [ "$source" != "user" ]; then
-        printf "    %2d. %-22s [%s]\n" $((i+1)) "$name" "$source"
+        local label="${UDA_ALIASES[$i]}"
+        [ -z "$label" ] && label="-"
+        printf "    %2d. %-22s (%-8s label:%-18s source:%s)\n" \
+          $((i+1)) "$name" "${UDA_TYPES[$i]}" "$label" "$source"
       fi
       i=$((i + 1))
     done
@@ -160,7 +166,10 @@ display_udas() {
     while [ $i -lt $count ]; do
       local name="${UDA_NAMES[$i]}"
       if [ "$(classify_uda "$name")" = "user" ]; then
-        printf "    %2d. %-22s (%s)\n" $((i+1)) "$name" "${UDA_TYPES[$i]}"
+        local label="${UDA_ALIASES[$i]}"
+        [ -z "$label" ] && label="-"
+        printf "    %2d. %-22s (%-8s label:%-18s)\n" \
+          $((i+1)) "$name" "${UDA_TYPES[$i]}" "$label"
         any_user=1
       fi
       i=$((i + 1))
@@ -169,10 +178,51 @@ display_udas() {
   else
     i=0
     while [ $i -lt $count ]; do
-      printf "  %2d. %-22s (%s)\n" $((i+1)) "${UDA_NAMES[$i]}" "${UDA_TYPES[$i]}"
+      local label="${UDA_ALIASES[$i]}"
+      [ -z "$label" ] && label="-"
+      printf "  %2d. %-22s (%-8s label:%-18s)\n" \
+        $((i+1)) "${UDA_NAMES[$i]}" "${UDA_TYPES[$i]}" "$label"
       i=$((i + 1))
     done
   fi
+}
+
+install_service_udas() {
+  if ! command -v bugwarrior >/dev/null 2>&1; then
+    echo "bugwarrior not installed. Install with:" >&2
+    echo "  pipx install bugwarrior && pipx inject bugwarrior setuptools" >&2
+    return 1
+  fi
+
+  local bugwarrior_config="${PROFILE_BASE}/.config/bugwarrior/bugwarriorrc"
+  if [ -f "${PROFILE_BASE}/.config/bugwarrior/bugwarrior.toml" ]; then
+    bugwarrior_config="${PROFILE_BASE}/.config/bugwarrior/bugwarrior.toml"
+  fi
+  if [ ! -f "$bugwarrior_config" ]; then
+    echo "Bugwarrior config not found for this profile. Run: ww issues custom" >&2
+    return 1
+  fi
+
+  local bw_udas
+  if ! bw_udas=$(BUGWARRIORRC="$bugwarrior_config" bugwarrior uda 2>/dev/null); then
+    echo "bugwarrior uda failed (check issue service credentials/config)." >&2
+    return 1
+  fi
+
+  local added=0 skipped=0
+  while IFS= read -r line; do
+    [ -z "$line" ] && continue
+    echo "$line" | grep -q '^#' && continue
+    local key="${line%%=*}"
+    if grep -q "^${key}=" "$TASKRC_FILE" 2>/dev/null; then
+      skipped=$((skipped + 1))
+    else
+      echo "$line" >> "$TASKRC_FILE"
+      added=$((added + 1))
+    fi
+  done <<< "$bw_udas"
+
+  echo "✓ Installed service UDAs: $added added, $skipped already present"
 }
 
 prompt_for_uda_properties() {
@@ -307,6 +357,7 @@ while true; do
   echo "  A - Add UDA"
   echo "  E - Edit UDA"
   echo "  D - Delete UDA"
+  echo "  I - Install service UDAs (bugwarrior uda; idempotent)"
   echo "  G - Group UDAs"
   echo "  Q - Quit"
   echo
@@ -342,6 +393,16 @@ while true; do
       u_alias="${UDA_ALIASES[$num]}"
       u_type="${UDA_TYPES[$num]}"
       u_values="${UDA_VALUES[$num]}"
+      source=$(classify_uda "$u_name")
+      if [ "$source" != "user" ]; then
+        echo "⚠ '$u_name' is service-managed ($source). Renaming can break sync."
+        read -p "Continue with edit/rename? (y/N): " warn_confirm
+        warn_confirm=$(echo "$warn_confirm" | tr '[:upper:]' '[:lower:]')
+        if [ "$warn_confirm" != "y" ]; then
+          echo "Edit aborted."
+          continue
+        fi
+      fi
       echo "--- Editing UDA '$u_name' ---"
       if prompt_for_uda_properties "$u_name" "$u_alias" "$u_type" "$u_values"; then
         apply_uda_changes "$u_name" "$NEW_UDA_NAME" "$NEW_UDA_ALIAS" "$NEW_UDA_TYPE" "$NEW_UDA_VALUES"
@@ -365,6 +426,10 @@ while true; do
         continue
       fi
       u_name="${UDA_NAMES[$num]}"
+      source=$(classify_uda "$u_name")
+      if [ "$source" != "user" ]; then
+        echo "⚠ '$u_name' is service-managed ($source). Deleting can break sync."
+      fi
       read -p "Are you sure you want to delete UDA '$u_name'? (y/N): " confirm
       confirm=$(echo "$confirm" | tr '[:upper:]' '[:lower:]')
       if [ "$confirm" = "y" ]; then
@@ -372,6 +437,9 @@ while true; do
       else
         echo "Deletion aborted."
       fi
+      ;;
+    i)
+      install_service_udas
       ;;
     g)
       group_udas

@@ -70,6 +70,7 @@
       <header id="content-header">
         <div class="header-row1">
           <span id="section-title">Tasks</span>
+          <span id="active-task-pill" class="hidden"></span>
           <div class="header-stats">
             <span id="stat-tasks-count" class="stat-item hidden"></span>
             <span id="stat-time-today" class="stat-item hidden"></span>
@@ -81,6 +82,10 @@
         <div class="header-row2" id="stat-context-bar">—</div>
       </header>
       <div id="content-area">
+        <!-- Global search overlay -->
+        <div id="search-overlay" class="hidden">
+          <div id="search-results"></div>
+        </div>
         <!-- Tasks -->
         <section class="section" id="section-tasks">
           <div class="section-resource-bar"><div id="tasklist-selector"></div></div>
@@ -89,12 +94,29 @@
             <input type="text" name="project" placeholder="project" />
             <input type="text" name="tags" placeholder="tags" />
             <select name="priority"><option value="">pri</option><option>H</option><option>M</option><option>L</option></select>
-            <input type="date" name="due" />
+            <input type="date" name="due" title="due date" />
+            <input type="date" name="scheduled" title="scheduled date (deferred)" />
+            <input type="date" name="wait" title="wait until date (hidden until)" />
             <button type="submit" class="btn-inline-submit">save</button>
             <button type="button" class="btn-inline-alt" id="btn-task-start">start</button>
           </form>
           <div class="section-toolbar">
             <input type="text" id="task-filter" class="inline-filter" placeholder="filter tasks…" />
+            <button class="btn-toolbar" id="btn-group-toggle" title="Toggle project grouping">group</button>
+          </div>
+          <div id="bulk-toolbar" class="hidden">
+            <label class="bulk-select-all"><input type="checkbox" id="bulk-select-all" /> all</label>
+            <span id="bulk-count">0 selected</span>
+            <button class="btn-bulk" data-op="done">✓ done</button>
+            <button class="btn-bulk" data-op="delete">✗ delete</button>
+            <span class="bulk-sep">|</span>
+            <input type="text" id="bulk-project-input" placeholder="set project…" class="bulk-input" />
+            <button class="btn-bulk" data-op="set-project">set proj</button>
+            <input type="text" id="bulk-tag-input" placeholder="tag…" class="bulk-input" />
+            <button class="btn-bulk" data-op="add-tag">+tag</button>
+            <button class="btn-bulk" data-op="remove-tag">-tag</button>
+            <select id="bulk-priority-select" class="bulk-input"><option value="">pri</option><option>H</option><option>M</option><option>L</option></select>
+            <button class="btn-bulk" data-op="set-priority">set pri</button>
           </div>
           <div class="task-list" id="task-list"><div class="skeleton-msg">Loading tasks…</div></div>
           <div class="task-detail hidden" id="task-detail"></div>
@@ -103,7 +125,7 @@
         <section class="section hidden" id="section-time">
           <div class="section-resource-bar"><div id="timew-selector"></div></div>
           <form class="add-form-inline" id="add-time-form">
-            <input type="text" name="tags" placeholder="@tags (e.g. +project +meeting)" autocomplete="off" list="timew-tags-list" style="width:180px" />
+            <input type="text" name="tags" id="timew-tag-input" placeholder="tags (e.g. dev review meeting)" autocomplete="off" list="timew-tags-list" style="width:180px" />
             <datalist id="timew-tags-list"></datalist>
             <input type="text" name="description" placeholder="description (logged to journal)" autocomplete="off" style="flex:1;min-width:140px" />
             <input type="text" name="duration" placeholder="duration (e.g. 30min, 1h)" style="width:130px" />
@@ -112,6 +134,7 @@
             <button type="button" class="btn-inline-alt" id="btn-timew-stop">■ stop</button>
             <button type="submit" class="btn-inline-alt" id="btn-timew-track">+ track</button>
           </form>
+          <div id="timew-tag-preview" class="timew-tag-preview"></div>
           <div class="time-today" id="time-today">Loading…</div>
           <div class="time-week" id="time-week"></div>
           <div class="time-intervals" id="time-intervals"></div>
@@ -334,8 +357,12 @@
               <span class="gun-title">Sword — Task Splitting</span>
               <span class="gun-attr">ww-native</span>
             </div>
+            <div class="sword-search-row">
+              <input type="text" id="sword-task-search" placeholder="search tasks to find ID…" autocomplete="off" />
+              <div class="sword-search-results" id="sword-search-results"></div>
+            </div>
             <form class="add-form-inline" id="sword-form">
-              <input type="number" name="task_id" placeholder="task ID" min="1" style="width:80px" />
+              <input type="number" name="task_id" id="sword-task-id" placeholder="task ID" min="1" style="width:80px" />
               <input type="number" name="parts" placeholder="parts" min="2" style="width:70px" />
               <input type="text" name="interval" placeholder="interval (1d)" style="width:100px" />
               <input type="text" name="prefix" placeholder="prefix (Part)" style="width:100px" />

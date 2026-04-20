@@ -62,4 +62,12 @@ Risk notes:           Nim build dependency is the main risk — if nim is absent
                       Disjoint write set from TASK-MCP-001 only if bin/ww edits are
                       serialized — dispatch after MCP-001 is merged.
 
-Status:               pending
+Status:               complete — 2026-04-20
+
+Completion note:      Implemented `ww timew extensions {list,install,remove,help}` in `bin/ww`
+                      (per-profile `$TIMEWARRIORDB/extensions/`, metadata `*.ww-ext.json`).
+                      Preset `billable` builds trev-dev/timew-billable with `nim c -d:release src/billable.nim`.
+                      Generic `install <https://…git>` supports billable layout, nimble, or first `.sh`.
+                      Doc: `docs/taskwarrior-extensions/timew-billable-integration.md`.
+                      CSSOT: `system/config/command-syntax.yaml` domain `timew`.
+                      BATS: `tests/test-timew-extensions.bats`.

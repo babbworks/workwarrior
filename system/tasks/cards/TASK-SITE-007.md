@@ -27,4 +27,12 @@ Write scope:          services/browser/static/index.html
 
 Fragility:            LOW — browser static files only. No CLI or lib changes.
 
-Status:               in-progress
+Closure note:         Closed as superseded by completed SITE wave cards and scoped
+                      carry-forward into TASK-SITE-006.
+                      Final decisions:
+                        - Keep "Saves" naming (do not rename to BookBuilder)
+                        - Keep sidebar/service icons, including placeholder weapon icons
+                        - Read-only service panels are acceptable for current wave
+                      Any remaining implementation work is tracked under TASK-SITE-006.
+
+Status:               complete

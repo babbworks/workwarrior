@@ -872,6 +872,16 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                 self._handle_data_projects()
             elif self.path == "/data/udas":
                 self._handle_data_udas()
+            elif self.path == "/data/sync":
+                self._handle_data_sync()
+            elif self.path == "/data/models":
+                self._handle_data_models()
+            elif self.path == "/data/questions":
+                self._handle_data_questions()
+            elif self.path.startswith("/data/profile-detail"):
+                self._handle_data_profile_detail()
+            elif self.path == "/data/warrior":
+                self._handle_data_warrior()
             else:
                 self._send_json(404, {"error": "not found"})
 
@@ -1585,8 +1595,9 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
             now_utc = time.gmtime()
             current_month = time.strftime("%Y-%m", now_utc)
             prev_month = time.strftime("%Y-%m", time.gmtime(time.time() - 32 * 86400))
+            prev2_month = time.strftime("%Y-%m", time.gmtime(time.time() - 65 * 86400))
             active_interval = None
-            for month in [prev_month, current_month]:
+            for month in [prev2_month, prev_month, current_month]:
                 data_file = os.path.join(data_dir, f"{month}.data")
                 if not os.path.isfile(data_file):
                     continue
@@ -1639,7 +1650,7 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
             )
             self._send_json(200, {
                 "ok": True,
-                "intervals": intervals[-50:],  # cap at 50 most recent
+                "intervals": intervals,  # full history for client-side week navigation
                 "today_total_seconds": today_total,
                 "week_total_seconds": week_total,
                 "active": active_interval is not None,
@@ -1673,7 +1684,7 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                     if body:
                         entries.append({"date": date, "body": body})
                 entries.reverse()  # most recent first
-                self._send_json(200, {"ok": True, "entries": entries[:20]})
+                self._send_json(200, {"ok": True, "entries": entries, "total": len(entries)})
             except OSError:
                 self._send_json(200, {"ok": True, "entries": []})
 
@@ -1986,6 +1997,408 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
             except Exception:
                 pass
             self._send_json(200, {"ok": True, "udas": udas})
+
+        # -- GET /data/sync --------------------------------------------------
+
+        def _handle_data_sync(self) -> None:
+            """
+            Return sync dashboard state for the active profile.
+            Reads bugwarrior config to detect configuration, and checks
+            the github-sync state.json for last sync timestamps.
+            """
+            paths = state.get_profile_paths()
+            if not paths:
+                self._send_json(200, {"ok": True, "configured": False, "error": "no active profile"})
+                return
+            profile = state.get_active_profile() or "—"
+            ww_base = paths.get("base", "")
+            # Check for bugwarrior config (.bugwarriorrc in profile base)
+            bw_config = os.path.join(ww_base, ".bugwarriorrc")
+            configured = os.path.isfile(bw_config)
+            repo = None
+            if configured:
+                try:
+                    import re as _re
+                    content = open(bw_config).read()
+                    m = _re.search(r'project_name\s*=\s*(.+)', content)
+                    if m:
+                        repo = m.group(1).strip()
+                except Exception:
+                    pass
+            # Check github-sync state file for last push/pull timestamps
+            state_file = os.path.join(ww_base, ".task", "github-sync", "state.json")
+            last_push = None
+            last_pull = None
+            pending_push = 0
+            if os.path.isfile(state_file):
+                try:
+                    with open(state_file) as fh:
+                        sync_data = json.load(fh)
+                    meta = sync_data.get("_meta", {})
+                    last_push = meta.get("last_push")
+                    last_pull = meta.get("last_pull")
+                    # Count tasks with dirty flag (pending push)
+                    for k, v in sync_data.items():
+                        if k.startswith("_"):
+                            continue
+                        if isinstance(v, dict) and v.get("dirty"):
+                            pending_push += 1
+                except Exception:
+                    pass
+            self._send_json(200, {
+                "ok": True,
+                "configured": configured,
+                "profile": profile,
+                "repo": repo,
+                "last_push": last_push,
+                "last_pull": last_pull,
+                "pending_push": pending_push,
+            })
+
+        # -- GET /data/models ------------------------------------------------
+
+        def _handle_data_models(self) -> None:
+            """
+            Parse config/models.yaml and return structured model list.
+            Returns [{name, provider, model_id, notes, active}] where
+            active indicates the current default model.
+            """
+            models_yaml = os.path.join(state.ww_base, "config", "models.yaml")
+            if not os.path.isfile(models_yaml):
+                self._send_json(200, {"ok": True, "models": [], "default": None})
+                return
+            try:
+                import re as _re
+                content = open(models_yaml).read()
+                # Parse default
+                dm = _re.search(r'^\s*default:\s*(.+)$', content, _re.MULTILINE)
+                default_name = dm.group(1).strip() if dm else None
+                # Parse model blocks: find models: section, then each key
+                models = []
+                in_models = False
+                in_providers = False
+                current_name = None
+                current = {}
+                for line in content.splitlines():
+                    if line.startswith('models:'):
+                        in_models = True
+                        in_providers = False
+                        continue
+                    if line.startswith('providers:'):
+                        # flush last model
+                        if current_name and current_name != 'default':
+                            models.append({**current, "name": current_name})
+                        in_providers = True
+                        in_models = False
+                        current_name = None
+                        current = {}
+                        continue
+                    if in_models:
+                        # top-level model name key (2-space indent key:)
+                        m = _re.match(r'^  (\w[\w\-_]*):\s*$', line)
+                        if m:
+                            if current_name and current_name != 'default':
+                                models.append({**current, "name": current_name})
+                            current_name = m.group(1)
+                            current = {}
+                            continue
+                        # nested key: value under model
+                        kv = _re.match(r'^    (\w+):\s*(.+)$', line)
+                        if kv and current_name:
+                            current[kv.group(1)] = kv.group(2).strip().strip('"')
+                # flush last
+                if current_name and current_name != 'default' and in_models:
+                    models.append({**current, "name": current_name})
+                # Annotate default
+                for m in models:
+                    m["active"] = (m["name"] == default_name)
+                    m.setdefault("provider", "unknown")
+                    m.setdefault("id", "")
+                    m.setdefault("notes", "")
+                self._send_json(200, {"ok": True, "models": models, "default": default_name})
+            except Exception as ex:
+                self._send_json(200, {"ok": False, "models": [], "error": str(ex)})
+
+        # -- GET /data/questions ---------------------------------------------
+
+        def _handle_data_questions(self) -> None:
+            """
+            Scan services/questions/templates/<service>/*.json and return
+            [{name, service, description, questions:[{id,text,type,required}]}]
+            """
+            templates_dir = os.path.join(state.ww_base, "services", "questions", "templates")
+            if not os.path.isdir(templates_dir):
+                self._send_json(200, {"ok": True, "templates": []})
+                return
+            templates = []
+            for service in sorted(os.listdir(templates_dir)):
+                svc_dir = os.path.join(templates_dir, service)
+                if not os.path.isdir(svc_dir):
+                    continue
+                for fname in sorted(os.listdir(svc_dir)):
+                    if not fname.endswith(".json"):
+                        continue
+                    try:
+                        with open(os.path.join(svc_dir, fname)) as fh:
+                            t = json.load(fh)
+                        templates.append({
+                            "name": t.get("name", fname[:-5]),
+                            "file": fname[:-5],
+                            "service": service,
+                            "description": t.get("description", ""),
+                            "questions": t.get("questions", []),
+                        })
+                    except Exception:
+                        pass
+            self._send_json(200, {"ok": True, "templates": templates})
+
+        # -- GET /data/profile-detail ----------------------------------------
+
+        def _handle_data_profile_detail(self) -> None:
+            """
+            Return stat counts for the requested profile name.
+            Query param: ?profile=<name>   (defaults to active profile)
+            """
+            from urllib.parse import urlparse, parse_qs
+            qs = parse_qs(urlparse(self.path).query)
+            profile_name = (qs.get("profile", [None])[0]) or state.get_active_profile()
+            if not profile_name:
+                self._send_json(200, {"ok": False, "error": "no profile"})
+                return
+            profile_dir = os.path.join(state.ww_base, "profiles", profile_name)
+            if not os.path.isdir(profile_dir):
+                self._send_json(200, {"ok": False, "error": f"profile not found: {profile_name}"})
+                return
+            import re as _re
+            result = {"ok": True, "name": profile_name, "task_count": 0, "journal_count": 0,
+                      "ledger_count": 0, "timew_hours": 0.0, "uda_count": 0}
+            # Task count via taskchampion sqlite — check both task/ and .task/ subdirs
+            for task_subdir in ["task", ".task"]:
+                task_db = os.path.join(profile_dir, task_subdir, "taskchampion.sqlite3")
+                if os.path.isfile(task_db):
+                    try:
+                        import sqlite3
+                        conn = sqlite3.connect(f"file:{task_db}?mode=ro", uri=True, timeout=2)
+                        cur = conn.execute("SELECT COUNT(*) FROM tasks WHERE data LIKE '%\"status\":\"pending\"%' OR data LIKE '%\"status\":\"active\"%'")
+                        result["task_count"] = cur.fetchone()[0]
+                        conn.close()
+                    except Exception:
+                        pass
+                    break
+            # Also check tasklists.yaml for a configured taskdata path
+            if result["task_count"] == 0:
+                tasklists_yaml = os.path.join(profile_dir, "tasklists.yaml")
+                if os.path.isfile(tasklists_yaml):
+                    try:
+                        content = open(tasklists_yaml).read()
+                        m = _re.search(r'^\s+taskdata:\s*(.+)$', content, _re.MULTILINE)
+                        if m:
+                            td = m.group(1).strip()
+                            db = os.path.join(td, "taskchampion.sqlite3")
+                            if os.path.isfile(db):
+                                import sqlite3
+                                conn = sqlite3.connect(f"file:{db}?mode=ro", uri=True, timeout=2)
+                                cur = conn.execute("SELECT COUNT(*) FROM tasks WHERE data LIKE '%\"status\":\"pending\"%' OR data LIKE '%\"status\":\"active\"%'")
+                                result["task_count"] = cur.fetchone()[0]
+                                conn.close()
+                    except Exception:
+                        pass
+            # Journal count — find journal files from jrnl.yaml or default {profile}.txt
+            journal_files = []
+            jrnl_yaml = os.path.join(profile_dir, "jrnl.yaml")
+            if os.path.isfile(jrnl_yaml):
+                try:
+                    for line in open(jrnl_yaml):
+                        m = _re.match(r'^\s+\w+:\s*(.+\.txt)', line)
+                        if m and os.path.isfile(m.group(1).strip()):
+                            journal_files.append(m.group(1).strip())
+                except Exception:
+                    pass
+            if not journal_files:
+                # Default: {profile}.txt inside journals/
+                default_j = os.path.join(profile_dir, "journals", f"{profile_name}.txt")
+                if os.path.isfile(default_j):
+                    journal_files.append(default_j)
+                else:
+                    # Fallback: any .txt in journals/
+                    jdir = os.path.join(profile_dir, "journals")
+                    if os.path.isdir(jdir):
+                        for f in os.listdir(jdir):
+                            if f.endswith(".txt"):
+                                journal_files.append(os.path.join(jdir, f))
+            for jf in journal_files:
+                try:
+                    content = open(jf).read()
+                    result["journal_count"] += len(_re.findall(r'\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}\]', content))
+                except Exception:
+                    pass
+            # UDA count from .taskrc
+            taskrc = os.path.join(profile_dir, ".taskrc")
+            if not os.path.isfile(taskrc):
+                taskrc = os.path.join(profile_dir, "task", ".taskrc")
+            if not os.path.isfile(taskrc):
+                taskrc = os.path.join(profile_dir, ".task", ".taskrc")
+            if os.path.isfile(taskrc):
+                try:
+                    uda_names = set()
+                    for line in open(taskrc):
+                        m = _re.match(r'^uda\.([^.]+)\.', line.strip())
+                        if m:
+                            uda_names.add(m.group(1))
+                    result["uda_count"] = len(uda_names)
+                except Exception:
+                    pass
+            # Creation date from profile dir mtime
+            try:
+                import datetime
+                mtime = os.path.getmtime(profile_dir)
+                result["created"] = datetime.datetime.fromtimestamp(mtime).strftime("%Y-%m-%d")
+            except Exception:
+                result["created"] = "—"
+            # File/settings info
+            files = {}
+            # taskrc path
+            taskrc_found = None
+            for tc_path in [os.path.join(profile_dir, ".taskrc"),
+                            os.path.join(profile_dir, "task", ".taskrc"),
+                            os.path.join(profile_dir, ".task", ".taskrc")]:
+                if os.path.isfile(tc_path):
+                    taskrc_found = tc_path
+                    break
+            files["taskrc"] = taskrc_found
+            # task data dir
+            task_data_dir = None
+            for td in [".task", "task"]:
+                p = os.path.join(profile_dir, td)
+                if os.path.isdir(p):
+                    task_data_dir = p
+                    break
+            files["task_data"] = task_data_dir
+            # timew db
+            timew_db = os.path.join(profile_dir, ".timewarrior")
+            files["timew_db"] = timew_db if os.path.isdir(timew_db) else None
+            # journals (name -> path from jrnl.yaml, or default)
+            journals_map = {}
+            if os.path.isfile(jrnl_yaml):
+                try:
+                    for line in open(jrnl_yaml):
+                        m = _re.match(r'^\s+(\w+):\s*(.+\.txt)', line)
+                        if m:
+                            journals_map[m.group(1)] = m.group(2).strip()
+                except Exception:
+                    pass
+            if not journals_map:
+                default_j = os.path.join(profile_dir, "journals", f"{profile_name}.txt")
+                if os.path.isfile(default_j):
+                    journals_map["default"] = default_j
+            files["journals"] = journals_map
+            # ledgers (name -> path from ledgers.yaml)
+            ledgers_map = {}
+            ledgers_yaml = os.path.join(profile_dir, "ledgers.yaml")
+            if os.path.isfile(ledgers_yaml):
+                try:
+                    for line in open(ledgers_yaml):
+                        m = _re.match(r'^\s+(\w+):\s*(.+)', line)
+                        if m:
+                            ledgers_map[m.group(1)] = m.group(2).strip()
+                except Exception:
+                    pass
+            files["ledgers"] = ledgers_map
+            result["files"] = files
+            self._send_json(200, result)
+
+        # -- GET /data/warrior -----------------------------------------------
+
+        def _handle_data_warrior(self) -> None:
+            """
+            Aggregate task stats for all profiles.
+            Returns [{name, task_count, active_count, top_task}] + aggregate totals.
+            Reads taskchampion sqlite for fast counts without spawning task processes.
+            """
+            profiles_base = os.path.join(state.ww_base, "profiles")
+            if not os.path.isdir(profiles_base):
+                self._send_json(200, {"ok": True, "profiles": [], "total_tasks": 0, "total_active": 0})
+                return
+            results = []
+            total_tasks = 0
+            total_active = 0
+            for pname in sorted(os.listdir(profiles_base)):
+                pdir = os.path.join(profiles_base, pname)
+                if not os.path.isdir(pdir):
+                    continue
+                # Try taskchampion sqlite (fast) — check .task/, task/, and tasklists.yaml
+                import sqlite3 as _sq3
+                import json as _json
+                import re as _re2
+                task_count = 0
+                active_count = 0
+                top_task = None
+
+                def _count_tc_db(db_path):
+                    nonlocal task_count, active_count, top_task
+                    tc = 0; ac = 0; top_urg = -999; top = None
+                    try:
+                        conn = _sq3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=2)
+                        rows = conn.execute("SELECT data FROM tasks WHERE data NOT NULL").fetchall()
+                        conn.close()
+                        for (data_str,) in rows:
+                            try:
+                                t = _json.loads(data_str)
+                                st = t.get("status", "")
+                                if st in ("pending", "active"):
+                                    tc += 1
+                                if st == "active":
+                                    ac += 1
+                                urg = float(t.get("urgency", 0))
+                                if st in ("pending", "active") and urg > top_urg:
+                                    top_urg = urg
+                                    top = t.get("description", "")[:60]
+                            except Exception:
+                                pass
+                        task_count += tc; active_count += ac
+                        if top and (top_task is None or tc > 0):
+                            top_task = top
+                        return True
+                    except Exception:
+                        return False
+
+                found = False
+                for task_subdir in [".task", "task"]:
+                    db = os.path.join(pdir, task_subdir, "taskchampion.sqlite3")
+                    if os.path.isfile(db):
+                        found = _count_tc_db(db)
+                        break
+                if not found:
+                    # Check tasklists.yaml for configured taskdata paths
+                    tly = os.path.join(pdir, "tasklists.yaml")
+                    if os.path.isfile(tly):
+                        try:
+                            for line in open(tly):
+                                m = _re2.match(r'^\s+taskdata:\s*(.+)', line)
+                                if m:
+                                    db = os.path.join(m.group(1).strip(), "taskchampion.sqlite3")
+                                    if os.path.isfile(db):
+                                        _count_tc_db(db)
+                                        break
+                        except Exception:
+                            pass
+                total_tasks += task_count
+                total_active += active_count
+                results.append({
+                    "name": pname,
+                    "task_count": task_count,
+                    "active_count": active_count,
+                    "top_task": top_task,
+                    "is_active": (pname == state.get_active_profile()),
+                })
+            _ap = state.get_active_profile()
+            self._send_json(200, {
+                "ok": True,
+                "profiles": results,
+                "total_tasks": total_tasks,
+                "total_active": total_active,
+                "active_profile": _ap,
+            })
 
         # -- GET /data/projects ---------------------------------------------
 
@@ -2420,6 +2833,10 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                 return active + [t for t in pending if t.get("uuid") not in {a["uuid"] for a in active}]
 
             try:
+                TASK_MUTATING = {"done", "start", "stop", "add", "annotate", "task_modify", "bulk"}
+                TIME_MUTATING = {"timew_start", "timew_stop", "timew_track"}
+                JOURNAL_MUTATING = {"journal_add"}
+
                 if action == "done":
                     tid = str(body.get("id", ""))
                     r = run_task(tid, "done")
@@ -2451,6 +2868,10 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                         cmd_parts.append(f"priority:{args_obj['priority']}")
                     if args_obj.get("due"):
                         cmd_parts.append(f"due:{args_obj['due']}")
+                    if args_obj.get("scheduled"):
+                        cmd_parts.append(f"scheduled:{args_obj['scheduled']}")
+                    if args_obj.get("wait"):
+                        cmd_parts.append(f"wait:{args_obj['wait']}")
                     for tag in args_obj.get("tags", []):
                         cmd_parts.append(f"+{tag}")
                     r = run_task(*cmd_parts)
@@ -2642,8 +3063,51 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                         fh.write(entry)
                     self._send_json(201, {"ok": True, "name": pname})
 
+                elif action == "bulk":
+                    ids = body.get("ids", [])
+                    op = body.get("op", "")
+                    args_obj = body.get("args", {})
+                    if not ids or not op:
+                        self._send_json(400, {"ok": False, "error": "ids and op required"})
+                        return
+                    results = []
+                    for tid in ids:
+                        tid = str(tid)
+                        if op == "done":
+                            r = run_task(tid, "done")
+                        elif op == "delete":
+                            r = run_task("rc.confirmation=no", tid, "delete")
+                        elif op == "modify":
+                            cmd_parts = [tid, "modify"]
+                            for k, v in args_obj.items():
+                                if k == "tags_add":
+                                    for tag in (v if isinstance(v, list) else [v]):
+                                        cmd_parts.append(f"+{tag}")
+                                elif k == "tags_remove":
+                                    for tag in (v if isinstance(v, list) else [v]):
+                                        cmd_parts.append(f"-{tag}")
+                                elif v == "":
+                                    cmd_parts.append(f"{k}:")
+                                else:
+                                    cmd_parts.append(f"{k}:{v}")
+                            r = run_task(*cmd_parts)
+                        else:
+                            self._send_json(400, {"ok": False, "error": f"unknown bulk op: {op}"})
+                            return
+                        results.append({"id": tid, "ok": r.returncode == 0})
+                    tasks = fetch_tasks()
+                    self._send_json(200, {"ok": True, "results": results, "tasks": tasks})
+
                 else:
                     self._send_json(400, {"ok": False, "error": f"unknown action: {action}"})
+                    return
+                # Broadcast mutation event to SSE clients for live refresh
+                if action in TASK_MUTATING:
+                    state.broadcast("data", json.dumps({"type": "tasks"}))
+                elif action in TIME_MUTATING:
+                    state.broadcast("data", json.dumps({"type": "time"}))
+                elif action in JOURNAL_MUTATING:
+                    state.broadcast("data", json.dumps({"type": "journal"}))
 
             except Exception as exc:
                 self._send_json(500, {"ok": False, "error": str(exc)})

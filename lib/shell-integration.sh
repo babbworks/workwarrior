@@ -532,6 +532,19 @@ use_task_profile() {
   return 0
 }
 
+# Deactivate the current profile by unsetting all profile env vars.
+# Usage: deactivate_task_profile  (or via alias: p-none)
+deactivate_task_profile() {
+  local prev="${WARRIOR_PROFILE:-}"
+  unset WARRIOR_PROFILE WORKWARRIOR_BASE TASKRC TASKDATA TIMEWARRIORDB BUGWARRIORRC
+  if [[ -n "$prev" ]]; then
+    echo "  ✓ deactivated  ·  was: ${prev}"
+  else
+    echo "  ✓ no profile was active"
+  fi
+  return 0
+}
+
 # Global journal function - operates on active profile's journal
 # Checks WORKWARRIOR_BASE is set (profile must be active)
 # Parses arguments to detect journal name

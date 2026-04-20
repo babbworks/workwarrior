@@ -16,7 +16,30 @@
       "Bash(bats /Users/mp/ww/tests/test-profile-name-validation.bats)",
       "Bash(bats /Users/mp/ww/tests/test-journal-addition.bats)",
       "Bash(ww deps:*)",
-      "Bash(claude --resume 4d2e5503-0dca-4ced-b88d-b97699200013)"
+      "Bash(claude --resume 4d2e5503-0dca-4ced-b88d-b97699200013)",
+      "Bash(export TASKRC=/Users/mp/ww/profiles/claude/.taskrc export TASKDATA=/Users/mp/ww/profiles/claude/.task export TIMEWARRIORDB=/Users/mp/ww/profiles/claude/.timewarrior __NEW_LINE_57fa90a53225b5b6__ echo \"=== Task summary ===\" task summary 2)",
+      "Bash(1 __NEW_LINE_57fa90a53225b5b6__ echo \"\" echo \"=== Time summary ===\" timew summary)",
+      "Bash(export TASKRC=/Users/mp/ww/profiles/claude/.taskrc)",
+      "Bash(export TASKDATA=/Users/mp/ww/profiles/claude/.task)",
+      "Bash(task all:*)",
+      "Bash(export TIMEWARRIORDB=/Users/mp/ww/profiles/claude/timewarrior)",
+      "Bash(timew start:*)",
+      "Bash(timew stop:*)",
+      "Bash(task 4 annotate \"Builder: taskRowHTML helper, buildGroupedHTML with overdue pinned group + project groups. Toggle btn persisted in localStorage. Group collapse state per-key.\")",
+      "Bash(task 4 done)",
+      "Bash(task 7 annotate \"Builder: #active-task-pill in header-row1. Pulse dot, truncated desc, elapsed. 30s refresh. Click → switchSection tasks + open inline detail.\")",
+      "Bash(task 7 done)",
+      "Bash(task 16 annotate \"Builder: full inline expansion — profile chips+remove, add member, rename inline, group cmd runner, switch-to buttons. Confirm-on-delete \\(no confirm\\(\\)\\).\")",
+      "Bash(task 16 done)",
+      "Bash(TASKRC=/Users/mp/ww/profiles/claude/.taskrc TASKDATA=/Users/mp/ww/profiles/claude/.task task 2 annotate \"complete: week nav prev/next via client-side filtering of 3-month interval cache; renderWeekBars\\(\\) with disabled next on current week; CSS .week-nav added\")",
+      "Bash(TASKRC=/Users/mp/ww/profiles/claude/.taskrc TASKDATA=/Users/mp/ww/profiles/claude/.task task 2 done)",
+      "Bash(TIMEWARRIORDB=/Users/mp/ww/profiles/claude/timewarrior timew stop)",
+      "Bash(TASKRC=/Users/mp/ww/profiles/claude/.taskrc TASKDATA=/Users/mp/ww/profiles/claude/.task task 3 annotate \"complete: server returns all entries \\(no cap\\); client-side date grouping \\(Today/Yesterday/date\\), collapsible groups with localStorage, load-more pagination 20/page, context bar shows page N/M\")",
+      "Bash(TASKRC=/Users/mp/ww/profiles/claude/.taskrc TASKDATA=/Users/mp/ww/profiles/claude/.task task 3 done)",
+      "Bash(find /Users/mp/ww -name *.yaml -path */questions/*)",
+      "Bash(find /Users/mp/ww -name *.yaml -path */q/*)",
+      "Bash(sqlite3 /Users/mp/ww/profiles/babb/.task/taskchampion.sqlite3 'SELECT COUNT\\(*\\) FROM tasks')",
+      "Bash(sqlite3 /Users/mp/ww/profiles/babb/.task/taskchampion.sqlite3 'SELECT data FROM tasks LIMIT 1')"
     ]
   }
 }

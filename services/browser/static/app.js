@@ -6,6 +6,7 @@
 
   // ── State ─────────────────────────────────────────────────────────────────
   let activeSection = 'tasks';
+  const scrollPositions = new Map(); // section → scrollTop
   let termMode = 'execute'; // 'execute' | 'filter'
   let cmdHistory = JSON.parse(localStorage.getItem('ww-cmd-history') || '[]');
   let historyIdx = -1;
@@ -42,6 +43,41 @@
   // ── Typeahead command cache ────────────────────────────────────────────────
   let wwCommands = []; // [{name, desc}] loaded from /data/commands
   let cachedTasks = []; // full task objects for detail panel lookup
+  let taskGroupMode = localStorage.getItem('ww-task-group-mode') === 'grouped';
+  let udaSchema = new Map(); // name → {type, label}
+  let bulkSelected = new Set(); // selected task IDs for bulk ops
+
+  async function loadUdaSchema() {
+    try {
+      const res = await fetch('/data/udas');
+      const data = await res.json();
+      udaSchema = new Map((data.udas || []).map(u => [u.name, u]));
+    } catch (_) {}
+  }
+
+  // ── Toast notifications ────────────────────────────────────────────────────
+  // Non-blocking feedback for mutations. Auto-dismisses after 2s with fade.
+  let toastContainer = null;
+
+  function initToasts() {
+    toastContainer = document.createElement('div');
+    toastContainer.id = 'toast-container';
+    document.body.appendChild(toastContainer);
+  }
+
+  function toast(msg, type = 'success', duration = 2000) {
+    if (!toastContainer) return;
+    const el = document.createElement('div');
+    el.className = `toast toast-${type}`;
+    el.textContent = msg;
+    toastContainer.appendChild(el);
+    // Trigger enter animation
+    requestAnimationFrame(() => el.classList.add('toast-visible'));
+    setTimeout(() => {
+      el.classList.remove('toast-visible');
+      el.addEventListener('transitionend', () => el.remove(), { once: true });
+    }, duration);
+  }
 
   // ── Sidebar ────────────────────────────────────────────────────────────────
   function initSidebar() {
@@ -77,9 +113,17 @@
     document.querySelectorAll('.nav-item').forEach(btn => {
       btn.addEventListener('click', () => switchSection(btn.dataset.section));
     });
+    document.getElementById('btn-group-toggle')?.addEventListener('click', () => {
+      taskGroupMode = !taskGroupMode;
+      localStorage.setItem('ww-task-group-mode', taskGroupMode ? 'grouped' : 'flat');
+      renderTasks(cachedTasks);
+    });
   }
 
   async function switchSection(name) {
+    // Save current section scroll before hiding
+    const contentArea = document.getElementById('content-area');
+    if (contentArea && activeSection) scrollPositions.set(activeSection, contentArea.scrollTop);
     activeSection = name;
     document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
     const el = document.getElementById('section-' + name);
@@ -100,6 +144,113 @@
     };
     sectionTitle.textContent = titleMap[name] || name;
     await loadSection(name);
+    // Restore scroll position after content loads
+    if (contentArea && scrollPositions.has(name)) {
+      contentArea.scrollTop = scrollPositions.get(name);
+    }
+  }
+
+  // ── Keyboard shortcuts ─────────────────────────────────────────────────────
+  // g+key: section navigation. ?: show overlay. Escape: focus terminal input.
+  // Skips when an input/textarea/select is focused.
+  const KB_SECTIONS = {
+    t: 'tasks',   T: 'time',    j: 'journal', l: 'ledger',
+    n: 'next',    s: 'schedule',c: 'cmd',     C: 'ctrl',
+    S: 'sync',    G: 'groups',  m: 'models',  N: 'network',
+    e: 'export',  q: 'questions',p: 'profile',w: 'warrior',
+    u: 'gun',     x: 'sword',
+  };
+
+  let gPrefixPending = false;
+  let gPrefixTimer = null;
+
+  function isInputFocused() {
+    const el = document.activeElement;
+    return el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable);
+  }
+
+  function initKeyboardShortcuts() {
+    document.addEventListener('keydown', (e) => {
+      if (isInputFocused()) { gPrefixPending = false; return; }
+
+      // Escape → focus terminal input
+      if (e.key === 'Escape') {
+        const ti = document.querySelector('.terminal-input');
+        if (ti) { ti.focus(); }
+        gPrefixPending = false;
+        closeShortcutOverlay();
+        return;
+      }
+
+      // ? → toggle shortcut overlay
+      if (e.key === '?') {
+        e.preventDefault();
+        toggleShortcutOverlay();
+        gPrefixPending = false;
+        return;
+      }
+
+      // g prefix handling
+      if (e.key === 'g' && !gPrefixPending) {
+        e.preventDefault();
+        gPrefixPending = true;
+        clearTimeout(gPrefixTimer);
+        gPrefixTimer = setTimeout(() => { gPrefixPending = false; }, 1500);
+        return;
+      }
+
+      if (gPrefixPending) {
+        gPrefixPending = false;
+        clearTimeout(gPrefixTimer);
+        const section = KB_SECTIONS[e.key];
+        if (section) {
+          e.preventDefault();
+          switchSection(section);
+          closeShortcutOverlay();
+        }
+      }
+    });
+  }
+
+  function toggleShortcutOverlay() {
+    let overlay = document.getElementById('shortcut-overlay');
+    if (overlay) { overlay.remove(); return; }
+    overlay = document.createElement('div');
+    overlay.id = 'shortcut-overlay';
+    overlay.innerHTML = `
+      <div class="shortcut-panel">
+        <div class="shortcut-title">Keyboard Shortcuts <span class="shortcut-close">×</span></div>
+        <div class="shortcut-grid">
+          <span class="shortcut-key">g t</span><span>Tasks</span>
+          <span class="shortcut-key">g T</span><span>Times</span>
+          <span class="shortcut-key">g j</span><span>Journal</span>
+          <span class="shortcut-key">g l</span><span>Ledger</span>
+          <span class="shortcut-key">g n</span><span>Next</span>
+          <span class="shortcut-key">g s</span><span>Schedule</span>
+          <span class="shortcut-key">g c</span><span>CMD</span>
+          <span class="shortcut-key">g C</span><span>CTRL</span>
+          <span class="shortcut-key">g S</span><span>Sync</span>
+          <span class="shortcut-key">g G</span><span>Groups</span>
+          <span class="shortcut-key">g m</span><span>Models</span>
+          <span class="shortcut-key">g N</span><span>Network</span>
+          <span class="shortcut-key">g e</span><span>Export</span>
+          <span class="shortcut-key">g q</span><span>Questions</span>
+          <span class="shortcut-key">g p</span><span>Profile</span>
+          <span class="shortcut-key">g w</span><span>Warrior</span>
+          <span class="shortcut-key">g u</span><span>Gun</span>
+          <span class="shortcut-key">g x</span><span>Sword</span>
+          <span class="shortcut-key">?</span><span>This overlay</span>
+          <span class="shortcut-key">Esc</span><span>Focus terminal</span>
+        </div>
+      </div>`;
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay || e.target.classList.contains('shortcut-close')) overlay.remove();
+    });
+    document.body.appendChild(overlay);
+  }
+
+  function closeShortcutOverlay() {
+    document.getElementById('shortcut-overlay')?.remove();
   }
 
   // ── Profile ────────────────────────────────────────────────────────────────
@@ -264,6 +415,18 @@
       resetConnTimeout();
     });
 
+    // Live data refresh: server broadcasts after mutations
+    sseSource.addEventListener('data', (e) => {
+      if (document.visibilityState === 'hidden') return;
+      try {
+        const d = JSON.parse(e.data);
+        const type = d.type;
+        if (type === 'tasks' && activeSection === 'tasks') loadTasks();
+        else if (type === 'time' && activeSection === 'time') loadTime();
+        else if (type === 'journal' && activeSection === 'journal') loadJournal();
+      } catch (_) {}
+    });
+
     sseSource.onerror = () => {
       setConnected(false);
       sseSource.close();
@@ -274,18 +437,32 @@
   }
 
   // ── Terminal line ──────────────────────────────────────────────────────────
+  let cachedJournalEntries = []; // populated by loadJournal for search use
+  let journalPage = 1;          // current page (20 entries per page)
+  let timeWeekOffset = 0;       // 0 = current week, -1 = last week, etc.
+  let cachedTimeIntervals = []; // all intervals from server for week navigation
+
   function setTermMode(mode) {
     termMode = mode;
+    const overlay = document.getElementById('search-overlay');
     if (mode === 'execute') {
       termPrompt.textContent = '❯ ';
       termPrompt.className = 'prompt-exec';
       termInput.value = '';
       termInput.dispatchEvent(new Event('input'));
-    } else {
+      if (overlay) overlay.classList.add('hidden');
+    } else if (mode === 'filter') {
       termPrompt.textContent = '/ ';
       termPrompt.className = 'prompt-filter';
       hintsBar.textContent = 'filtering ' + activeSection + ' — tab to execute mode';
       termInput.value = '';
+      if (overlay) overlay.classList.add('hidden');
+    } else if (mode === 'search') {
+      termPrompt.textContent = '🔍 ';
+      termPrompt.className = 'prompt-search';
+      hintsBar.textContent = 'global search — Escape to cancel';
+      termInput.value = '';
+      if (overlay) { overlay.classList.remove('hidden'); overlay.querySelector('#search-results').innerHTML = '<div class="search-hint">Start typing to search tasks and journals…</div>'; }
     }
   }
 
@@ -357,11 +534,20 @@
     termInput.addEventListener('keydown', async (e) => {
       if (e.key === 'Tab') {
         e.preventDefault();
+        if (termMode === 'search') { setTermMode('execute'); return; }
         setTermMode(termMode === 'execute' ? 'filter' : 'execute');
         return;
       }
 
+      // / in execute mode → global search
+      if (e.key === '/' && termMode === 'execute' && !termInput.value) {
+        e.preventDefault();
+        setTermMode('search');
+        return;
+      }
+
       if (e.key === 'Escape') {
+        if (termMode === 'search') { setTermMode('execute'); return; }
         if (!cmdOutput.classList.contains('hidden')) {
           hideOutput();
         } else {
@@ -414,9 +600,13 @@
       }
     });
 
-    // Typeahead hints
+    // Typeahead hints + live global search
     termInput.addEventListener('input', () => {
       const val = termInput.value.trim();
+      if (termMode === 'search') {
+        runGlobalSearch(val);
+        return;
+      }
       if (termMode === 'filter') {
         const rows = document.querySelectorAll(
           `#section-${activeSection} .task-row, #section-${activeSection} .journal-entry, #section-${activeSection} .ledger-row`
@@ -546,6 +736,7 @@
             body: JSON.stringify({ kind, name }),
           });
           await loadProfileResources();
+          toast(`✓ ${kind} '${name}' created`);
           form.remove();
           await onSelect(name);
         } else {
@@ -642,7 +833,7 @@
         await loadNext();
       });
     } catch (e) {
-      card.innerHTML = `<div class="empty-state">Error loading next task: ${e.message}</div>`;
+      renderError(card, `Next: ${e.message}`, loadNext);
       updateContextBar('next', null);
     }
   }
@@ -661,7 +852,7 @@
       </div>`;
       updateContextBar('schedule', data);
     } catch (e) {
-      card.innerHTML = `<div class="empty-state">Error: ${e.message}</div>`;
+      renderError(card, `Schedule: ${e.message}`, loadSchedule);
     }
   }
 
@@ -683,43 +874,61 @@
       }
       updateContextBar('tasks', data.tasks || []);
     } catch (e) {
-      list.innerHTML = `<div class="empty-state">Tasks error: ${e.message}</div>`;
+      renderError(list, `Tasks: ${e.message}`, loadTasks);
     }
+  }
+
+  // Returns HTML string for a single task row (used in both flat + grouped modes).
+  // hideProject=true omits the project badge (grouped mode shows it in the header).
+  function taskRowHTML(t, hideProject = false) {
+    const urg = (t.urgency || 0).toFixed(1);
+    const urgClass = t.urgency > 15 ? 'urg-high' : t.urgency > 10 ? 'urg-med' : t.urgency > 5 ? 'urg-low' : 'urg-none';
+    const project = (!hideProject && t.project) ? `<span class="badge-project">${t.project}</span>` : '';
+    const tags = (t.tags || []).map(g => `<span class="tag">${g}</span>`).join('');
+    const pri = t.priority ? `<span class="pri-dot pri-${t.priority.toLowerCase()}">${t.priority}</span>` : '';
+    const due = t.due ? renderDue(t.due) : '';
+    const sched = (!t.due && t.scheduled) ? renderScheduled(t.scheduled) : '';
+    const isActive = t.status === 'active';
+    const activeClass = isActive ? ' task-active' : '';
+    const startStop = isActive
+      ? `<button class="act-btn act-stop" data-id="${t.id}"><span class="btn-icon">■</span><span class="btn-word">stop</span></button>`
+      : `<button class="act-btn act-start" data-id="${t.id}"><span class="btn-icon">▶</span><span class="btn-word">start</span></button>`;
+    const checked = bulkSelected.has(t.id) ? ' checked' : '';
+    return `<div class="task-row${activeClass}" data-id="${t.id}" data-desc="${(t.description||'').replace(/"/g,'&quot;')}" data-project="${t.project || ''}" data-tags="${(t.tags || []).join(',')}">
+      <input type="checkbox" class="task-cb" data-id="${t.id}"${checked} />
+      <span class="urg ${urgClass}">${urg}</span>
+      ${project}
+      <span class="task-desc">${t.description}</span>
+      ${tags}${due}${sched}${pri}
+      <span class="task-actions">
+        ${startStop}
+        <button class="act-btn act-done" data-id="${t.id}"><span class="btn-icon">✓</span><span class="btn-word">done</span></button>
+      </span>
+    </div>
+    <div class="task-inline-detail hidden" id="tid-${t.id}"></div>`;
   }
 
   function renderTasks(tasks) {
     const list = document.getElementById('task-list');
     cachedTasks = tasks;
+    startActiveTaskRefresh();
 
     if (!tasks.length) {
       list.innerHTML = '<div class="empty-state">No pending tasks</div>';
       return;
     }
+
+    // Update toggle button appearance
+    const toggleBtn = document.getElementById('btn-group-toggle');
+    if (toggleBtn) toggleBtn.classList.toggle('active', taskGroupMode);
+
     tasks.sort((a, b) => (b.urgency || 0) - (a.urgency || 0));
-    try { list.innerHTML = tasks.map(t => {
-      const urg = (t.urgency || 0).toFixed(1);
-      const urgClass = t.urgency > 15 ? 'urg-high' : t.urgency > 10 ? 'urg-med' : t.urgency > 5 ? 'urg-low' : 'urg-none';
-      const project = t.project ? `<span class="badge-project">${t.project}</span>` : '';
-      const tags = (t.tags || []).map(g => `<span class="tag">${g}</span>`).join('');
-      const pri = t.priority ? `<span class="pri-dot pri-${t.priority.toLowerCase()}">${t.priority}</span>` : '';
-      const due = t.due ? renderDue(t.due) : '';
-      const isActive = t.status === 'active';
-      const activeClass = isActive ? ' task-active' : '';
-      const startStop = isActive
-        ? `<button class="act-btn act-stop" data-id="${t.id}"><span class="btn-icon">■</span><span class="btn-word">stop</span></button>`
-        : `<button class="act-btn act-start" data-id="${t.id}"><span class="btn-icon">▶</span><span class="btn-word">start</span></button>`;
-      return `<div class="task-row${activeClass}" data-id="${t.id}" data-desc="${(t.description||'').replace(/"/g,'&quot;')}" data-project="${t.project || ''}" data-tags="${(t.tags || []).join(',')}">
-        <span class="urg ${urgClass}">${urg}</span>
-        ${project}
-        <span class="task-desc">${t.description}</span>
-        ${tags}${due}${pri}
-        <span class="task-actions">
-          ${startStop}
-          <button class="act-btn act-done" data-id="${t.id}"><span class="btn-icon">✓</span><span class="btn-word">done</span></button>
-        </span>
-      </div>
-      <div class="task-inline-detail hidden" id="tid-${t.id}"></div>`;
-    }).join('');
+    try {
+      if (taskGroupMode) {
+        list.innerHTML = buildGroupedHTML(tasks);
+      } else {
+        list.innerHTML = tasks.map(t => taskRowHTML(t)).join('');
+      }
     } catch(renderErr) {
       list.innerHTML = `<div class="empty-state">Render error: ${renderErr.message}</div>`;
       return;
@@ -734,7 +943,8 @@
             body: JSON.stringify({ action:'done', id:parseInt(btn.dataset.id) }) });
           const data = await res.json();
           renderTasks(data.tasks || cachedTasks);
-        } catch (err) { console.error('done failed:', err); }
+          toast('✓ task done');
+        } catch (err) { toast('done failed', 'error'); }
       });
     });
     list.querySelectorAll('.act-start').forEach(btn => {
@@ -745,7 +955,8 @@
             body: JSON.stringify({ action:'start', id:parseInt(btn.dataset.id) }) });
           const data = await res.json();
           renderTasks(data.tasks || cachedTasks);
-        } catch (err) { console.error('start failed:', err); }
+          toast('▶ task started');
+        } catch (err) { toast('start failed', 'error'); }
       });
     });
     list.querySelectorAll('.act-stop').forEach(btn => {
@@ -756,7 +967,8 @@
             body: JSON.stringify({ action:'stop', id:parseInt(btn.dataset.id) }) });
           const data = await res.json();
           renderTasks(data.tasks || cachedTasks);
-        } catch (err) { console.error('stop failed:', err); }
+          toast('■ task stopped', 'info');
+        } catch (err) { toast('stop failed', 'error'); }
       });
     });
 
@@ -779,7 +991,231 @@
       });
     });
 
+    // Group headers: toggle collapse
+    list.querySelectorAll('.task-group-header').forEach(hdr => {
+      hdr.addEventListener('click', () => {
+        const key = hdr.dataset.group;
+        const body = hdr.nextElementSibling;
+        if (!body) return;
+        const collapsed = body.classList.toggle('hidden');
+        const stored = JSON.parse(localStorage.getItem('ww-group-collapsed') || '{}');
+        if (collapsed) stored[key] = true; else delete stored[key];
+        localStorage.setItem('ww-group-collapsed', JSON.stringify(stored));
+        hdr.classList.toggle('group-collapsed', collapsed);
+      });
+    });
+
+    // Bulk checkboxes
+    const bulkBar = document.getElementById('bulk-toolbar');
+    const bulkCount = document.getElementById('bulk-count');
+    const updateBulkBar = () => {
+      const n = bulkSelected.size;
+      if (bulkBar) bulkBar.classList.toggle('hidden', n === 0);
+      if (bulkCount) bulkCount.textContent = `${n} selected`;
+      const selAll = document.getElementById('bulk-select-all');
+      if (selAll) selAll.checked = n > 0 && n === cachedTasks.length;
+    };
+    list.querySelectorAll('.task-cb').forEach(cb => {
+      cb.addEventListener('change', (e) => {
+        e.stopPropagation();
+        const id = parseInt(cb.dataset.id);
+        if (cb.checked) bulkSelected.add(id); else bulkSelected.delete(id);
+        updateBulkBar();
+      });
+      cb.addEventListener('click', (e) => e.stopPropagation());
+    });
+    // Space on focused task row toggles checkbox
+    list.querySelectorAll('.task-row').forEach(row => {
+      row.setAttribute('tabindex', '0');
+      row.addEventListener('keydown', (e) => {
+        if (e.key === ' ') {
+          e.preventDefault();
+          const cb = row.querySelector('.task-cb');
+          if (cb) { cb.checked = !cb.checked; cb.dispatchEvent(new Event('change')); }
+        }
+      });
+    });
+    updateBulkBar();
+
     document.getElementById('task-filter').addEventListener('input', filterTasks);
+  }
+
+  async function doBulkAction(op, args) {
+    const ids = [...bulkSelected];
+    if (!ids.length) return;
+    const res = await fetch('/action', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'bulk', ids, op, args: args || {} }) });
+    const data = await res.json();
+    if (data.ok) {
+      bulkSelected.clear();
+      renderTasks(data.tasks || cachedTasks);
+      toast(`✓ ${op} applied to ${ids.length} task${ids.length !== 1 ? 's' : ''}`);
+    } else { toast('bulk action failed', 'error'); }
+  }
+
+  function initBulkToolbar() {
+    document.getElementById('bulk-select-all')?.addEventListener('change', (e) => {
+      const checked = e.target.checked;
+      if (checked) cachedTasks.forEach(t => bulkSelected.add(t.id));
+      else bulkSelected.clear();
+      renderTasks(cachedTasks);
+    });
+    document.getElementById('bulk-toolbar')?.querySelectorAll('.btn-bulk').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const op = btn.dataset.op;
+        if (op === 'done') await doBulkAction('done');
+        else if (op === 'delete') await doBulkAction('delete');
+        else if (op === 'set-project') {
+          const v = document.getElementById('bulk-project-input')?.value.trim();
+          if (v !== undefined) await doBulkAction('modify', { project: v });
+        } else if (op === 'add-tag') {
+          const t = document.getElementById('bulk-tag-input')?.value.trim();
+          if (t) await doBulkAction('modify', { tags_add: [t] });
+        } else if (op === 'remove-tag') {
+          const t = document.getElementById('bulk-tag-input')?.value.trim();
+          if (t) await doBulkAction('modify', { tags_remove: [t] });
+        } else if (op === 'set-priority') {
+          const p = document.getElementById('bulk-priority-select')?.value;
+          if (p !== undefined) await doBulkAction('modify', { priority: p });
+        }
+      });
+    });
+  }
+
+  function buildGroupedHTML(tasks) {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const collapsed = JSON.parse(localStorage.getItem('ww-group-collapsed') || '{}');
+    const overdue = tasks.filter(t => t.due && new Date(t.due.replace(/(\d{4})(\d{2})(\d{2})T.*/, '$1-$2-$3')) < today);
+    const overdueIds = new Set(overdue.map(t => t.id));
+    const rest = tasks.filter(t => !overdueIds.has(t.id));
+
+    // Group by project
+    const groups = new Map();
+    rest.forEach(t => {
+      const key = t.project || '__inbox__';
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(t);
+    });
+
+    let html = '';
+
+    // Overdue pinned group
+    if (overdue.length) {
+      const isCollapsed = collapsed['__overdue__'];
+      html += `<div class="task-group-header task-group-overdue${isCollapsed ? ' group-collapsed' : ''}" data-group="__overdue__">
+        <span class="group-name">Overdue</span>
+        <span class="group-meta">${overdue.length} task${overdue.length !== 1 ? 's' : ''}</span>
+      </div>
+      <div class="task-group-body${isCollapsed ? ' hidden' : ''}">
+        ${overdue.map(t => taskRowHTML(t)).join('')}
+      </div>`;
+    }
+
+    // Project groups (sorted by name, inbox last)
+    const sortedKeys = [...groups.keys()].sort((a, b) => {
+      if (a === '__inbox__') return 1;
+      if (b === '__inbox__') return -1;
+      return a.localeCompare(b);
+    });
+    sortedKeys.forEach(key => {
+      const group = groups.get(key);
+      const label = key === '__inbox__' ? 'inbox' : key;
+      const isCollapsed = collapsed[key];
+      const totalUrg = group.reduce((s, t) => s + (t.urgency || 0), 0);
+      html += `<div class="task-group-header${isCollapsed ? ' group-collapsed' : ''}" data-group="${key}">
+        <span class="group-name">${label}</span>
+        <span class="group-meta">${group.length} · ${totalUrg.toFixed(0)}u</span>
+      </div>
+      <div class="task-group-body${isCollapsed ? ' hidden' : ''}">
+        ${group.map(t => taskRowHTML(t, true)).join('')}
+      </div>`;
+    });
+    return html;
+  }
+
+  // ── Global search ──────────────────────────────────────────────────────────
+  function highlight(text, q) {
+    if (!q) return text;
+    const idx = text.toLowerCase().indexOf(q.toLowerCase());
+    if (idx < 0) return text;
+    return text.slice(0, idx) + `<mark>${text.slice(idx, idx + q.length)}</mark>` + text.slice(idx + q.length);
+  }
+
+  function runGlobalSearch(q) {
+    const resultsEl = document.getElementById('search-results');
+    if (!resultsEl) return;
+    if (!q) {
+      resultsEl.innerHTML = '<div class="search-hint">Start typing to search tasks and journals…</div>';
+      hintsBar.textContent = 'global search — Escape to cancel';
+      return;
+    }
+    const ql = q.toLowerCase();
+
+    // Tasks
+    const taskHits = cachedTasks.filter(t =>
+      (t.description || '').toLowerCase().includes(ql) ||
+      (t.project || '').toLowerCase().includes(ql) ||
+      (t.tags || []).some(tag => tag.toLowerCase().includes(ql))
+    );
+
+    // Journal
+    const journalHits = cachedJournalEntries.filter(e =>
+      (e.body || e.title || '').toLowerCase().includes(ql)
+    );
+
+    const taskHTML = taskHits.length
+      ? taskHits.slice(0, 15).map(t => {
+          const proj = t.project ? `<span class="badge-project">${t.project}</span> ` : '';
+          return `<div class="search-result search-result-task" data-id="${t.id}">
+            <span class="sr-icon">✦</span>
+            ${proj}<span class="sr-text">${highlight(t.description || '', q)}</span>
+          </div>`;
+        }).join('')
+      : '<div class="search-none">no matching tasks</div>';
+
+    const journalHTML = journalHits.length
+      ? journalHits.slice(0, 10).map((e, i) => {
+          const body = e.body || e.title || '';
+          const snippet = body.length > 80 ? body.slice(0, 78) + '…' : body;
+          return `<div class="search-result search-result-journal" data-idx="${e._idx ?? i}">
+            <span class="sr-icon">◈</span>
+            <span class="sr-date">${e.date || ''}</span>
+            <span class="sr-text">${highlight(snippet, q)}</span>
+          </div>`;
+        }).join('')
+      : '<div class="search-none">no matching journal entries</div>';
+
+    resultsEl.innerHTML = `
+      <div class="search-group-header">Tasks (${taskHits.length})</div>${taskHTML}
+      <div class="search-group-header">Journal (${journalHits.length})</div>${journalHTML}`;
+
+    hintsBar.textContent = `${taskHits.length + journalHits.length} results — Enter to navigate, Escape to cancel`;
+
+    // Click task result → switch to tasks, open inline detail
+    resultsEl.querySelectorAll('.search-result-task').forEach(el => {
+      el.addEventListener('click', async () => {
+        const id = parseInt(el.dataset.id);
+        setTermMode('execute');
+        await switchSection('tasks');
+        setTimeout(() => {
+          const row = document.querySelector(`.task-row[data-id="${id}"]`);
+          if (row) { row.scrollIntoView({ block: 'center' }); row.click(); }
+        }, 200);
+      });
+    });
+
+    // Click journal result → switch to journal section
+    resultsEl.querySelectorAll('.search-result-journal').forEach(el => {
+      el.addEventListener('click', async () => {
+        setTermMode('execute');
+        await switchSection('journal');
+        const idx = parseInt(el.dataset.idx);
+        setTimeout(() => {
+          const entries = document.querySelectorAll('.journal-entry');
+          if (entries[idx]) entries[idx].scrollIntoView({ block: 'center' });
+        }, 300);
+      });
+    });
   }
 
   // Service-managed UDA prefixes — these are read-only in the UI
@@ -807,18 +1243,36 @@
     const userUdas = allUdas.filter(([k]) => !isSvcUda(k));
 
     const dueFmt = t.due ? t.due.replace(/(\d{4})(\d{2})(\d{2})T.*/, '$1-$2-$3') : '';
+    const scheduledFmt = t.scheduled ? t.scheduled.replace(/(\d{4})(\d{2})(\d{2})T.*/, '$1-$2-$3') : '';
+    const waitFmt = t.wait ? t.wait.replace(/(\d{4})(\d{2})(\d{2})T.*/, '$1-$2-$3') : '';
     const entryFmt = t.entry ? t.entry.replace(/(\d{4})(\d{2})(\d{2})T.*/, '$1-$2-$3') : '';
     const urg = (t.urgency || 0).toFixed(1);
     const annotations = (t.annotations || []).map(a =>
       `<div class="annotation">↳ <span style="color:var(--muted);font-size:11px">${a.entry ? a.entry.replace(/(\d{4})(\d{2})(\d{2})T.*/, '$1-$2-$3') : ''}</span> ${a.description}</div>`
     ).join('');
 
-    // Editable user UDAs
+    // Editable user UDAs — type-aware inputs
     let userUdaHtml = '';
     if (userUdas.length) {
-      userUdaHtml = userUdas.map(([k, v]) =>
-        `<div class="task-detail-uda-row"><label class="task-detail-uda-label">${k}</label><input type="text" class="task-detail-uda-input" data-uda="${k}" value="${String(v ?? '').replace(/"/g, '&quot;')}" /></div>`
-      ).join('');
+      userUdaHtml = userUdas.map(([k, v]) => {
+        const def = udaSchema.get(k);
+        const utype = def?.type || 'string';
+        const label = def?.label || k;
+        const val = String(v ?? '').replace(/"/g, '&quot;');
+        let input;
+        if (utype === 'date') {
+          // TW date format 20250101T000000Z → YYYY-MM-DD
+          const dateFmt = val.replace(/(\d{4})(\d{2})(\d{2})T.*/, '$1-$2-$3');
+          input = `<input type="date" class="task-detail-uda-input" data-uda="${k}" data-type="date" value="${dateFmt}" />`;
+        } else if (utype === 'numeric') {
+          input = `<input type="number" class="task-detail-uda-input" data-uda="${k}" data-type="numeric" value="${val}" step="any" />`;
+        } else if (utype === 'duration') {
+          input = `<input type="text" class="task-detail-uda-input" data-uda="${k}" data-type="duration" value="${val}" placeholder="e.g. 2h 30m" pattern="[0-9a-zA-Z ]+" title="e.g. 2h, 30m, 1d" />`;
+        } else {
+          input = `<input type="text" class="task-detail-uda-input" data-uda="${k}" data-type="string" value="${val}" />`;
+        }
+        return `<div class="task-detail-uda-row"><label class="task-detail-uda-label" title="${utype}">${label}</label>${input}</div>`;
+      }).join('');
     }
 
     // Read-only service UDAs (collapsed)
@@ -837,6 +1291,8 @@
         <label>project</label><input type="text" data-field="te-project" value="${t.project || ''}" />
         <label>priority</label><select data-field="te-priority"><option value="">—</option><option${t.priority==='H'?' selected':''}>H</option><option${t.priority==='M'?' selected':''}>M</option><option${t.priority==='L'?' selected':''}>L</option></select>
         <label>due</label><input type="date" data-field="te-due" value="${dueFmt}" />
+        <label>sched</label><input type="date" data-field="te-scheduled" value="${scheduledFmt}" />
+        <label>wait</label><input type="date" data-field="te-wait" value="${waitFmt}" />
         <label>tags</label><input type="text" data-field="te-tags" value="${(t.tags || []).join(', ')}" />
         <label>status</label><span class="task-detail-ro">${t.status || 'pending'}</span>
         <label>urgency</label><span class="task-detail-ro">${urg}</span>
@@ -865,22 +1321,26 @@
     const jSelSlot = el.querySelector('.te-journal-sel-slot');
     if (jSelSlot) jSelSlot.appendChild(makeJournalSelect());
 
-    // Populate UDA autocomplete
-    (async () => {
-      try {
-        const res = await fetch('/data/udas');
-        const data = await res.json();
-        const dl = el.querySelector('#uda-autocomplete-list');
-        if (dl && data.udas) {
-          data.udas.forEach(u => {
-            const opt = document.createElement('option');
-            opt.value = u.name;
-            opt.label = `${u.name} (${u.type}) — ${u.label}`;
-            dl.appendChild(opt);
-          });
-        }
-      } catch (_) {}
-    })();
+    // Populate UDA autocomplete from cached schema
+    const dl = el.querySelector('#uda-autocomplete-list');
+    if (dl && udaSchema.size) {
+      udaSchema.forEach(u => {
+        const opt = document.createElement('option');
+        opt.value = u.name;
+        opt.label = `${u.name} (${u.type}) — ${u.label}`;
+        dl.appendChild(opt);
+      });
+    }
+    // Auto-switch value input type when a known UDA name is chosen
+    const nameInpAuto = el.querySelector('.te-add-uda-name');
+    const valInpAuto = el.querySelector('.te-add-uda-value');
+    nameInpAuto?.addEventListener('input', () => {
+      const def = udaSchema.get(nameInpAuto.value.trim());
+      if (!def || !valInpAuto) return;
+      const utype = def.type;
+      valInpAuto.type = utype === 'numeric' ? 'number' : utype === 'date' ? 'date' : 'text';
+      valInpAuto.placeholder = utype === 'duration' ? 'e.g. 2h 30m' : utype === 'date' ? 'YYYY-MM-DD' : 'value';
+    });
 
     // Add UDA button
     const addUdaBtn = el.querySelector('.te-add-uda-btn');
@@ -918,6 +1378,10 @@
       if (newPri !== (t.priority || '')) mods.priority = newPri || '';
       const newDue = gf('te-due').value;
       if (newDue !== dueFmt) mods.due = newDue || '';
+      const newSched = gf('te-scheduled').value;
+      if (newSched !== scheduledFmt) mods.scheduled = newSched || '';
+      const newWait = gf('te-wait').value;
+      if (newWait !== waitFmt) mods.wait = newWait || '';
       const oldTags = new Set(t.tags || []);
       const newTags = new Set(gf('te-tags').value.split(',').map(s => s.trim()).filter(Boolean));
       const tagsAdd = [...newTags].filter(x => !oldTags.has(x));
@@ -926,8 +1390,13 @@
       if (tagsRm.length) mods.tags_remove = tagsRm;
       el.querySelectorAll('.task-detail-uda-input').forEach(inp => {
         const k = inp.dataset.uda;
-        const v = inp.value.trim();
-        if (v !== String(t[k] ?? '')) mods[k] = v;
+        let v = inp.value.trim();
+        // Normalize date UDAs: YYYY-MM-DD → YYYYMMDDTHHMMSSZ for TW
+        if (inp.dataset.type === 'date' && v && /^\d{4}-\d{2}-\d{2}$/.test(v)) {
+          v = v.replace(/-/g, '') + 'T000000Z';
+        }
+        const orig = String(t[k] ?? '');
+        if (v !== orig) mods[k] = v;
       });
       if (!Object.keys(mods).length) return;
       const res = await fetch('/action', { method:'POST', headers:{'Content-Type':'application/json'},
@@ -1009,6 +1478,126 @@
     return `<span class="due ${cls}">${label}</span>`;
   }
 
+  function renderScheduled(scheduled) {
+    const ts = Date.parse(scheduled.replace(/(\d{4})(\d{2})(\d{2})T.*/, '$1-$2-$3'));
+    if (isNaN(ts)) return '';
+    const days = Math.round((ts - Date.now()) / 86400000);
+    if (days < 0) return ''; // past scheduled — don't show badge
+    const label = days === 0 ? 'sched: today' : `sched: in ${days}d`;
+    return `<span class="sched-badge">${label}</span>`;
+  }
+
+  // ── Time formatting — second and millisecond granularity ──────────────────
+  // s = seconds (float ok for sub-second). Used throughout time section.
+  function fmtDuration(s) {
+    if (s < 0) s = 0;
+    if (s < 1)    return `${Math.round(s * 1000)}ms`;
+    if (s < 60)   return `${s.toFixed(1)}s`;
+    if (s < 3600) return `${Math.floor(s / 60)}m ${Math.floor(s % 60)}s`;
+    return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m ${Math.floor(s % 60)}s`;
+  }
+
+  // Live elapsed timer for active tracking — updates every second
+  let activeTrackingInterval = null;
+  function startLiveElapsed(activeSinceISO) {
+    stopLiveElapsed();
+    const startMs = activeSinceISO
+      ? Date.parse(activeSinceISO.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/, '$1-$2-$3T$4:$5:$6Z'))
+      : null;
+    if (!startMs) return;
+    const badge = document.getElementById('term-profile-badge');
+    const updateElapsed = () => {
+      const elapsed = (Date.now() - startMs) / 1000;
+      const el = document.getElementById('timew-live-elapsed');
+      if (el) el.textContent = fmtDuration(elapsed);
+      // Also update terminal badge with elapsed if in time section
+      if (activeSection === 'time' && badge) {
+        const base = badge.dataset.base || badge.textContent;
+        badge.dataset.base = base;
+      }
+    };
+    updateElapsed();
+    activeTrackingInterval = setInterval(updateElapsed, 1000);
+  }
+  function stopLiveElapsed() {
+    if (activeTrackingInterval) { clearInterval(activeTrackingInterval); activeTrackingInterval = null; }
+  }
+
+  // Parse TW timestamp "20260413T104500Z" → milliseconds
+  function parseTwTs(ts) {
+    if (!ts) return 0;
+    return Date.parse(ts.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/, '$1-$2-$3T$4:$5:$6Z'));
+  }
+
+  // Get Monday 00:00 for the week at `offset` weeks from now
+  function weekStartFor(offset) {
+    const now = new Date();
+    const todayIdx = (now.getDay() + 6) % 7; // Mon=0
+    const mon = new Date(now);
+    mon.setHours(0,0,0,0);
+    mon.setDate(now.getDate() - todayIdx + offset * 7);
+    return mon;
+  }
+
+  function renderWeekBars(container, fmt) {
+    const dayMap = {};
+    const wkStart = weekStartFor(timeWeekOffset);
+    const wkEnd = new Date(wkStart); wkEnd.setDate(wkEnd.getDate() + 7);
+    cachedTimeIntervals.forEach(iv => {
+      const ts = parseTwTs(iv.start);
+      if (ts >= wkStart.getTime() && ts < wkEnd.getTime()) {
+        const d = iv.start.slice(0, 8);
+        dayMap[d] = (dayMap[d] || 0) + iv.duration;
+      }
+    });
+    const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const now = new Date();
+    const todayKey = now.toISOString().slice(0, 10).replace(/-/g, '');
+    const weekTotal = Object.values(dayMap).reduce((s, v) => s + v, 0);
+    const maxSec = 8 * 3600;
+
+    // Date range label
+    const wkEndDisp = new Date(wkEnd); wkEndDisp.setDate(wkEnd.getDate() - 1);
+    const rangeLabel = `${wkStart.toLocaleDateString([],{month:'short',day:'numeric'})} – ${wkEndDisp.toLocaleDateString([],{month:'short',day:'numeric'})}`;
+    const isCurrentWeek = timeWeekOffset === 0;
+
+    let html = `<div class="week-nav">
+      <button class="btn-week-nav" id="btn-week-prev">‹ prev</button>
+      <span class="week-range-label">${rangeLabel}</span>
+      <button class="btn-week-nav" id="btn-week-next"${isCurrentWeek ? ' disabled' : ''}>next ›</button>
+    </div>
+    <div class="week-bars">`;
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(wkStart);
+      d.setDate(wkStart.getDate() + i);
+      const key = d.toISOString().slice(0, 10).replace(/-/g, '');
+      const secs = dayMap[key] || 0;
+      const pct = Math.min(100, Math.round(secs / maxSec * 100));
+      const isToday = key === todayKey;
+      html += `<div class="week-day">
+        <span class="day-name${isToday ? ' day-current' : ''}">${dayNames[i]} ${d.getDate()}</span>
+        <div class="day-bar"><div class="day-fill${isToday ? ' day-fill-current' : ''}" style="width:${pct}%"></div></div>
+        <span class="day-total">${secs ? fmt(secs) : '—'}</span>
+      </div>`;
+    }
+    html += `<div class="week-total">Week total: ${fmt(weekTotal)}</div></div>`;
+    container.innerHTML = html;
+
+    container.querySelector('#btn-week-prev')?.addEventListener('click', () => {
+      timeWeekOffset--;
+      renderWeekBars(container, fmt);
+      // Re-render intervals for the new week
+      const section = document.getElementById('section-time');
+      if (section) { loadTime(); } // re-fetch so intervals update
+    });
+    container.querySelector('#btn-week-next')?.addEventListener('click', () => {
+      if (timeWeekOffset >= 0) return;
+      timeWeekOffset++;
+      renderWeekBars(container, fmt);
+      loadTime();
+    });
+  }
+
   async function loadTime() {
     const today = document.getElementById('time-today');
     const week  = document.getElementById('time-week');
@@ -1018,7 +1607,7 @@
       const data = await res.json();
       if (!data.ok) { today.innerHTML = `<div class="empty-state">${data.error || 'No active profile'}</div>`; return; }
 
-      const fmt = s => `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
+      const fmt = fmtDuration;
 
       // Populate task selector for time entry association
       try {
@@ -1044,51 +1633,41 @@
       if (data.active) {
         const sinceLocal = data.active_since ? new Date(
           data.active_since.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/,
-            '$1-$2-$3T$4:$5:$6Z')).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '';
-        todayHtml += `<span class="tracking-badge"><span class="pulse-dot"></span> tracking ${data.active_tags || ''}${sinceLocal ? ' since ' + sinceLocal : ''}</span>`;
+            '$1-$2-$3T$4:$5:$6Z')).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '';
+        const elapsedSec = data.active_since
+          ? (Date.now() - Date.parse(data.active_since.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/, '$1-$2-$3T$4:$5:$6Z'))) / 1000
+          : 0;
+        todayHtml += `<span class="tracking-badge"><span class="pulse-dot"></span> tracking ${data.active_tags || ''}</span>`;
+        todayHtml += `<span class="tracking-elapsed" id="timew-live-elapsed">${fmt(elapsedSec)}</span>`;
+        todayHtml += sinceLocal ? `<span class="idle-badge"> since ${sinceLocal}</span>` : '';
+        startLiveElapsed(data.active_since);
       } else {
+        stopLiveElapsed();
         todayHtml += `<span class="idle-badge">idle</span>`;
       }
       todayHtml += `</div>`;
       today.innerHTML = todayHtml;
 
-      // Update today's time stat in top bar
+      // Update today's time stat in top bar (second granularity)
       if (statTimeToday) {
-        statTimeToday.textContent = `${fmt(data.today_total_seconds)} today`;
+        statTimeToday.textContent = `${fmtDuration(data.today_total_seconds)} today`;
         statTimeToday.classList.remove('hidden');
       }
       updateContextBar('time', data);
 
-      // Per-day bars for the current week — label current day with accent color
-      const dayMap = {};
-      const maxSec = 8 * 3600; // 8 h = full bar
-      (data.intervals || []).forEach(iv => {
-        const d = iv.start.slice(0, 8);
-        dayMap[d] = (dayMap[d] || 0) + iv.duration;
-      });
-      const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-      const now = new Date();
-      const todayIdx = (now.getDay() + 6) % 7; // Mon=0
-      let weekHtml = '<div class="week-bars">';
-      for (let i = 0; i < 7; i++) {
-        const d = new Date(now);
-        d.setDate(now.getDate() - todayIdx + i);
-        const key = d.toISOString().slice(0, 10).replace(/-/g, '');
-        const secs = dayMap[key] || 0;
-        const pct = Math.min(100, Math.round(secs / maxSec * 100));
-        const isCurrent = i === todayIdx;
-        weekHtml += `<div class="week-day">
-          <span class="day-name${isCurrent ? ' day-current' : ''}">${days[i]} ${d.getDate()}</span>
-          <div class="day-bar"><div class="day-fill${isCurrent ? ' day-fill-current' : ''}" style="width:${pct}%"></div></div>
-          <span class="day-total">${secs ? fmt(secs) : '—'}</span>
-        </div>`;
-      }
-      weekHtml += `<div class="week-total">Week total: ${fmt(data.week_total_seconds)}</div></div>`;
-      week.innerHTML = weekHtml;
+      // Cache all intervals for week navigation
+      cachedTimeIntervals = data.intervals || [];
+      renderWeekBars(week, fmt);
 
-      // Recent intervals grouped by local date
+      // Recent intervals for selected week, grouped by local date
       const byDay = {};
-      [...(data.intervals || [])].reverse().slice(0, 20).forEach(iv => {
+      const wkStart = weekStartFor(timeWeekOffset);
+      const wkEnd = new Date(wkStart); wkEnd.setDate(wkEnd.getDate() + 7);
+      const weekIvs = cachedTimeIntervals.filter(iv => {
+        const ts = parseTwTs(iv.start);
+        return ts >= wkStart.getTime() && ts < wkEnd.getTime();
+      });
+      [...weekIvs].reverse().slice(0, 30).forEach(iv => {
         const d = new Date(iv.start.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/, '$1-$2-$3T$4:$5:$6Z'));
         const key = d.toLocaleDateString([], {weekday:'short', month:'short', day:'numeric'});
         if (!byDay[key]) byDay[key] = [];
@@ -1178,7 +1757,7 @@
         });
       });
     } catch (e) {
-      today.textContent = `Error: ${e.message}`;
+      renderError(today, `Time: ${e.message}`, loadTime);
     }
   }
 
@@ -1197,7 +1776,155 @@
                .replace(/@(\w+)/g, '<span class="journal-tag">@$1</span>');
   }
 
+  // ── Journal helpers ──────────────────────────────────────────────────────
+
+  const PAGE_SIZE = 20;
+
+  function journalDateLabel(dateStr) {
+    // dateStr: "YYYY-MM-DD HH:MM"
+    const entryDate = dateStr.slice(0, 10); // "YYYY-MM-DD"
+    const now = new Date();
+    const todayStr = now.toISOString().slice(0, 10);
+    const yestD = new Date(now); yestD.setDate(yestD.getDate() - 1);
+    const yesterdayStr = yestD.toISOString().slice(0, 10);
+    if (entryDate === todayStr) return 'Today';
+    if (entryDate === yesterdayStr) return 'Yesterday';
+    const [y, m, d] = entryDate.split('-');
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `${months[parseInt(m,10)-1]} ${parseInt(d,10)}, ${y}`;
+  }
+
+  function journalEntryHTML(e, i) {
+    const lines = e.body.split('\n').filter(Boolean);
+    const preview = lines.slice(0, 3).join('\n');
+    const hasMore = lines.length > 3;
+    return `<div class="journal-entry" data-idx="${i}">
+      <div class="entry-date">${fmtJournalDate(e.date)}</div>
+      <div class="entry-body" id="jentry-${i}">${highlightTags(preview)}</div>
+      ${hasMore ? `<button class="entry-more" data-idx="${i}" data-full="${encodeURIComponent(e.body)}">show more</button>` : ''}
+      <div class="entry-actions">
+        <button class="act-btn entry-annotate-btn" data-idx="${i}" data-date="${e.date}" data-body="${encodeURIComponent(e.body)}">+ annotate</button>
+        <button class="act-btn entry-journal-btn" data-idx="${i}" data-date="${e.date}" data-body="${encodeURIComponent(e.body)}">→ journal</button>
+      </div>
+      <div class="entry-action-row hidden" id="jaction-${i}"></div>
+    </div>`;
+  }
+
+  function wireJournalEntryEvents(list) {
+    list.querySelectorAll('.entry-more').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = btn.dataset.idx;
+        document.getElementById(`jentry-${idx}`).innerHTML = highlightTags(decodeURIComponent(btn.dataset.full));
+        btn.remove();
+      });
+    });
+    list.querySelectorAll('.entry-annotate-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = btn.dataset.idx;
+        const row = document.getElementById(`jaction-${idx}`);
+        if (!row.classList.contains('hidden')) { row.classList.add('hidden'); row.innerHTML = ''; return; }
+        row.innerHTML = `<div class="task-detail-input"><input type="text" placeholder="annotate this entry…" id="jann-input-${idx}" /><span class="jann-jsel-slot"></span><button class="btn-inline-submit" id="jann-btn-${idx}">add</button></div>`;
+        row.classList.remove('hidden');
+        row.querySelector('.jann-jsel-slot')?.appendChild(makeJournalSelect());
+        document.getElementById(`jann-input-${idx}`).focus();
+        const submit = async () => {
+          const note = document.getElementById(`jann-input-${idx}`).value.trim();
+          if (!note) return;
+          const ref = `[re: ${btn.dataset.date}] ${note}`;
+          const jSel = row.querySelector('.journal-target-select');
+          await sendJournalNote(ref, jSel);
+          await loadJournal();
+        };
+        document.getElementById(`jann-btn-${idx}`).addEventListener('click', submit);
+        document.getElementById(`jann-input-${idx}`).addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); submit(); } });
+      });
+    });
+    list.querySelectorAll('.entry-journal-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = btn.dataset.idx;
+        const row = document.getElementById(`jaction-${idx}`);
+        if (!row.classList.contains('hidden')) { row.classList.add('hidden'); row.innerHTML = ''; return; }
+        const bodyPreview = decodeURIComponent(btn.dataset.body).split('\n')[0].slice(0, 60);
+        row.innerHTML = `<div class="task-detail-input"><input type="text" placeholder="new journal note about: ${bodyPreview}…" id="jnote-input-${idx}" /><span class="jnote-jsel-slot"></span><button class="btn-inline-alt" id="jnote-btn-${idx}">→ journal</button></div>`;
+        row.classList.remove('hidden');
+        row.querySelector('.jnote-jsel-slot')?.appendChild(makeJournalSelect());
+        document.getElementById(`jnote-input-${idx}`).focus();
+        const submit = async () => {
+          const note = document.getElementById(`jnote-input-${idx}`).value.trim();
+          if (!note) return;
+          const jSel = row.querySelector('.journal-target-select');
+          await sendJournalNote(note, jSel);
+          await loadJournal();
+        };
+        document.getElementById(`jnote-btn-${idx}`).addEventListener('click', submit);
+        document.getElementById(`jnote-input-${idx}`).addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); submit(); } });
+      });
+    });
+  }
+
+  function renderJournalPage(list) {
+    const total = cachedJournalEntries.length;
+    const visible = cachedJournalEntries.slice(0, journalPage * PAGE_SIZE);
+    const totalPages = Math.ceil(total / PAGE_SIZE);
+
+    // Group by date label
+    const groups = new Map(); // label → [{entry, idx}, ...]
+    visible.forEach((e, idx) => {
+      const label = journalDateLabel(e.date);
+      if (!groups.has(label)) groups.set(label, []);
+      groups.get(label).push({ e, idx });
+    });
+
+    let html = '';
+    for (const [label, items] of groups) {
+      const storageKey = `ww-jgrp-${label}`;
+      const collapsed = localStorage.getItem(storageKey) === '1';
+      const colClass = collapsed ? ' jgrp-collapsed' : '';
+      html += `<div class="journal-date-group">
+        <div class="journal-date-header${colClass}" data-label="${encodeURIComponent(label)}">
+          <span class="jgrp-label">${label}</span>
+          <span class="jgrp-count">${items.length}</span>
+        </div>
+        <div class="journal-date-body${collapsed ? ' hidden' : ''}">
+          ${items.map(({ e, idx }) => journalEntryHTML(e, idx)).join('')}
+        </div>
+      </div>`;
+    }
+
+    if (visible.length < total) {
+      const remaining = total - visible.length;
+      html += `<div class="journal-load-more"><button class="btn-load-more" id="btn-journal-more">load ${Math.min(PAGE_SIZE, remaining)} more <span class="load-more-count">(${remaining} remaining)</span></button></div>`;
+    }
+
+    list.innerHTML = html;
+
+    // Wire group collapse toggles
+    list.querySelectorAll('.journal-date-header').forEach(hdr => {
+      hdr.addEventListener('click', () => {
+        const label = decodeURIComponent(hdr.dataset.label);
+        const body = hdr.nextElementSibling;
+        const collapsed = hdr.classList.toggle('jgrp-collapsed');
+        body.classList.toggle('hidden', collapsed);
+        localStorage.setItem(`ww-jgrp-${label}`, collapsed ? '1' : '0');
+      });
+    });
+
+    // Wire load-more
+    document.getElementById('btn-journal-more')?.addEventListener('click', () => {
+      journalPage++;
+      renderJournalPage(list);
+      wireJournalEntryEvents(list);
+    });
+
+    wireJournalEntryEvents(list);
+
+    // Update context bar with page info
+    const pagesLoaded = Math.min(journalPage, totalPages);
+    updateContextBar('journal', { entries: cachedJournalEntries, _pages: `${pagesLoaded}/${totalPages}` });
+  }
+
   async function loadJournal() {
+    journalPage = 1;
     const list = document.getElementById('journal-list');
     try {
       const res = await fetch('/data/journal');
@@ -1207,73 +1934,8 @@
         updateContextBar('journal', { entries: [] });
         return;
       }
-      updateContextBar('journal', data);
-      list.innerHTML = data.entries.map((e, i) => {
-        const lines = e.body.split('\n').filter(Boolean);
-        const preview = lines.slice(0, 3).join('\n');
-        const hasMore = lines.length > 3;
-        return `<div class="journal-entry" data-idx="${i}">
-          <div class="entry-date">${fmtJournalDate(e.date)}</div>
-          <div class="entry-body" id="jentry-${i}">${highlightTags(preview)}</div>
-          ${hasMore ? `<button class="entry-more" data-idx="${i}" data-full="${encodeURIComponent(e.body)}">show more</button>` : ''}
-          <div class="entry-actions">
-            <button class="act-btn entry-annotate-btn" data-idx="${i}" data-date="${e.date}" data-body="${encodeURIComponent(e.body)}">+ annotate</button>
-            <button class="act-btn entry-journal-btn" data-idx="${i}" data-date="${e.date}" data-body="${encodeURIComponent(e.body)}">→ journal</button>
-          </div>
-          <div class="entry-action-row hidden" id="jaction-${i}"></div>
-        </div>`;
-      }).join('');
-      list.querySelectorAll('.entry-more').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const idx = btn.dataset.idx;
-          document.getElementById(`jentry-${idx}`).innerHTML = highlightTags(decodeURIComponent(btn.dataset.full));
-          btn.remove();
-        });
-      });
-      // Annotate: add a follow-up entry referencing this one
-      list.querySelectorAll('.entry-annotate-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const idx = btn.dataset.idx;
-          const row = document.getElementById(`jaction-${idx}`);
-          if (!row.classList.contains('hidden')) { row.classList.add('hidden'); row.innerHTML = ''; return; }
-          row.innerHTML = `<div class="task-detail-input"><input type="text" placeholder="annotate this entry…" id="jann-input-${idx}" /><span class="jann-jsel-slot"></span><button class="btn-inline-submit" id="jann-btn-${idx}">add</button></div>`;
-          row.classList.remove('hidden');
-          row.querySelector('.jann-jsel-slot')?.appendChild(makeJournalSelect());
-          document.getElementById(`jann-input-${idx}`).focus();
-          const submit = async () => {
-            const note = document.getElementById(`jann-input-${idx}`).value.trim();
-            if (!note) return;
-            const ref = `[re: ${btn.dataset.date}] ${note}`;
-            const jSel = row.querySelector('.journal-target-select');
-            await sendJournalNote(ref, jSel);
-            await loadJournal();
-          };
-          document.getElementById(`jann-btn-${idx}`).addEventListener('click', submit);
-          document.getElementById(`jann-input-${idx}`).addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); submit(); } });
-        });
-      });
-      // Journal note: add a new entry referencing this one
-      list.querySelectorAll('.entry-journal-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const idx = btn.dataset.idx;
-          const row = document.getElementById(`jaction-${idx}`);
-          if (!row.classList.contains('hidden')) { row.classList.add('hidden'); row.innerHTML = ''; return; }
-          const bodyPreview = decodeURIComponent(btn.dataset.body).split('\n')[0].slice(0, 60);
-          row.innerHTML = `<div class="task-detail-input"><input type="text" placeholder="new journal note about: ${bodyPreview}…" id="jnote-input-${idx}" /><span class="jnote-jsel-slot"></span><button class="btn-inline-alt" id="jnote-btn-${idx}">→ journal</button></div>`;
-          row.classList.remove('hidden');
-          row.querySelector('.jnote-jsel-slot')?.appendChild(makeJournalSelect());
-          document.getElementById(`jnote-input-${idx}`).focus();
-          const submit = async () => {
-            const note = document.getElementById(`jnote-input-${idx}`).value.trim();
-            if (!note) return;
-            const jSel = row.querySelector('.journal-target-select');
-            await sendJournalNote(note, jSel);
-            await loadJournal();
-          };
-          document.getElementById(`jnote-btn-${idx}`).addEventListener('click', submit);
-          document.getElementById(`jnote-input-${idx}`).addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); submit(); } });
-        });
-      });
+      cachedJournalEntries = data.entries.map((e, i) => ({ ...e, _idx: i }));
+      renderJournalPage(list);
       // Client-side search
       document.getElementById('journal-search')?.addEventListener('input', (e) => {
         const q = e.target.value.toLowerCase();
@@ -1282,7 +1944,7 @@
         });
       });
     } catch (e) {
-      list.innerHTML = `<div class="empty-state">Error: ${e.message}</div>`;
+      renderError(list, `Journal: ${e.message}`, loadJournal);
     }
   }
 
@@ -1388,8 +2050,59 @@
         });
       });
     } catch(e) {
-      balDiv.innerHTML = `<div class="empty-state">Error: ${e.message}</div>`;
+      renderError(balDiv, `Ledger: ${e.message}`, loadLedger);
     }
+  }
+
+  // ── Error state helper ────────────────────────────────────────────────────
+  // Renders an error message + retry button inside container.
+  // retryFn is called on retry click (shows skeleton briefly first).
+  function renderError(container, msg, retryFn) {
+    if (!container) return;
+    container.innerHTML = `<div class="error-state"><span class="error-msg">⚠ ${msg}</span><button class="btn-retry">retry</button></div>`;
+    container.querySelector('.btn-retry')?.addEventListener('click', () => {
+      container.innerHTML = '<div class="skeleton-msg">Retrying…</div>';
+      setTimeout(retryFn, 300);
+    });
+  }
+
+  // ── Active task header indicator ──────────────────────────────────────────
+  let activeTaskIndicatorInterval = null;
+
+  function updateActiveTaskIndicator() {
+    const pill = document.getElementById('active-task-pill');
+    if (!pill) return;
+    const activeTask = cachedTasks.find(t => t.status === 'active');
+    if (!activeTask) {
+      pill.classList.add('hidden');
+      pill.innerHTML = '';
+      // Also un-highlight stat-tasks-count
+      if (statTasksCount) statTasksCount.classList.remove('stat-active');
+      return;
+    }
+    // Compute elapsed since task.start
+    const startMs = activeTask.start
+      ? Date.parse(activeTask.start.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/, '$1-$2-$3T$4:$5:$6Z'))
+      : null;
+    const elapsed = startMs ? fmtDuration((Date.now() - startMs) / 1000) : '';
+    const desc = activeTask.description.length > 40
+      ? activeTask.description.slice(0, 38) + '…'
+      : activeTask.description;
+    pill.innerHTML = `<span class="atask-dot">●</span><span class="atask-desc">${desc}</span>${elapsed ? `<span class="atask-elapsed">${elapsed}</span>` : ''}`;
+    pill.classList.remove('hidden');
+    pill.dataset.taskId = activeTask.id;
+    // Highlight count
+    if (statTasksCount) statTasksCount.classList.add('stat-active');
+  }
+
+  function startActiveTaskRefresh() {
+    stopActiveTaskRefresh();
+    updateActiveTaskIndicator();
+    activeTaskIndicatorInterval = setInterval(updateActiveTaskIndicator, 30000);
+  }
+
+  function stopActiveTaskRefresh() {
+    if (activeTaskIndicatorInterval) { clearInterval(activeTaskIndicatorInterval); activeTaskIndicatorInterval = null; }
   }
 
   // ── Context bar + date stat ────────────────────────────────────────────────
@@ -1414,7 +2127,8 @@
     } else if (section === 'journal') {
       const count = (data.entries || []).length;
       const last  = count ? data.entries[0].date : '—';
-      statContextBar.textContent = `entries: ${count}  ·  last: ${last}`;
+      const pageInfo = data._pages ? `  ·  page ${data._pages}` : '';
+      statContextBar.textContent = `entries: ${count}${pageInfo}  ·  last: ${last}`;
     } else if (section === 'ledger') {
       const assets = (data.balances || []).find(b => b.account.startsWith('assets'));
       statContextBar.textContent = assets ? `assets: ${assets.amount}` : 'no balance data';
@@ -1533,14 +2247,41 @@
 
   // ── Service panel loaders ────────────────────────────────────────────────
 
+  function relTime(ts) {
+    if (!ts) return '—';
+    const diff = Date.now() - new Date(ts).getTime();
+    if (isNaN(diff) || diff < 0) return ts;
+    const s = Math.floor(diff / 1000);
+    if (s < 60) return `${s}s ago`;
+    const m = Math.floor(s / 60);
+    if (m < 60) return `${m}m ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h ago`;
+    return `${Math.floor(h / 24)}d ago`;
+  }
+
   async function loadSync() {
     const body = document.getElementById('sync-body');
     try {
-      const res = await fetch('/cmd', { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ cmd: 'issues help' }) });
-      const data = await res.json();
-      body.innerHTML = `<pre class="service-output">${data.output || 'Sync service available. Use buttons below.'}</pre>`;
-    } catch (_) { body.innerHTML = '<div class="empty-state">Sync service unavailable</div>'; }
+      const res = await fetch('/data/sync');
+      const d = await res.json();
+      if (!d.ok) {
+        body.innerHTML = `<div class="error-state"><span class="error-msg">⚠ ${d.error || 'Sync error'}</span></div>`;
+        return;
+      }
+      const statusBadge = d.configured
+        ? `<span class="sync-badge sync-badge-enabled">enabled</span>`
+        : `<span class="sync-badge sync-badge-disabled">not configured</span>`;
+      body.innerHTML = `
+        <div class="sync-dashboard">
+          <div class="sync-row"><span class="sync-label">status</span>${statusBadge}</div>
+          <div class="sync-row"><span class="sync-label">profile</span><span class="sync-val">${d.profile}</span></div>
+          ${d.repo ? `<div class="sync-row"><span class="sync-label">repo</span><span class="sync-val">${d.repo}</span></div>` : ''}
+          <div class="sync-row"><span class="sync-label">last pull</span><span class="sync-val">${relTime(d.last_pull)}</span></div>
+          <div class="sync-row"><span class="sync-label">last push</span><span class="sync-val">${relTime(d.last_push)}</span></div>
+          <div class="sync-row"><span class="sync-label">pending push</span><span class="sync-val ${d.pending_push > 0 ? 'sync-pending' : ''}">${d.pending_push} task${d.pending_push === 1 ? '' : 's'}</span></div>
+        </div>`;
+    } catch (e) { renderError(body, `Sync: ${e.message}`, loadSync); }
   }
 
   async function loadGroups() {
@@ -1552,43 +2293,196 @@
         body.innerHTML = '<div class="empty-state">No groups defined. Create one above or use: ww group create &lt;name&gt; [profiles...]</div>';
         return;
       }
-      body.innerHTML = Object.entries(data.groups).map(([name, profiles]) =>
-        `<div class="group-card">
-          <div class="group-name">${name}</div>
-          <div class="group-profiles">${profiles.join(', ') || 'empty'}</div>
-          <div style="margin-top:6px;display:flex;gap:4px">
-            <button class="act-btn group-show-btn" data-name="${name}">show</button>
-            <button class="act-btn group-delete-btn" data-name="${name}">delete</button>
+
+      body.innerHTML = Object.entries(data.groups).map(([name, profiles]) => {
+        const chips = profiles.map(p =>
+          `<span class="group-profile-chip">${p}<button class="group-chip-remove" data-group="${name}" data-profile="${p}" title="remove">×</button></span>`
+        ).join('');
+        return `<div class="group-card" data-group="${name}">
+          <div class="group-card-header">
+            <span class="group-name group-name-editable" data-group="${name}" title="click to rename">${name}</span>
+            <div class="group-card-actions">
+              <button class="act-btn group-expand-btn" data-group="${name}">▼</button>
+              <button class="act-btn group-delete-btn" data-group="${name}">delete</button>
+            </div>
           </div>
-        </div>`
-      ).join('');
-      body.querySelectorAll('.group-show-btn').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const r = await fetch('/cmd', { method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({ cmd: `group show ${btn.dataset.name}` }) });
-          const d = await r.json();
-          alert(d.output || 'no data');
+          <div class="group-expand-body hidden" data-for="${name}">
+            <div class="group-chips-row">${chips || '<span class="muted-label">no members</span>'}</div>
+            <div class="group-add-member-row">
+              <input type="text" class="group-add-input" placeholder="add profile…" autocomplete="off" />
+              <button class="btn-inline-submit group-add-btn" data-group="${name}">add</button>
+            </div>
+            <div class="group-cmd-row">
+              <input type="text" class="group-cmd-input" placeholder="run ww command on group…" autocomplete="off" />
+              <button class="btn-inline-submit group-run-btn" data-group="${name}">run</button>
+            </div>
+            <pre class="group-cmd-out hidden"></pre>
+            <div class="group-members-switch">
+              ${profiles.map(p => `<button class="act-btn group-switch-btn" data-profile="${p}">switch → ${p}</button>`).join('')}
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+
+      // Expand toggle
+      body.querySelectorAll('.group-expand-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const expandBody = body.querySelector(`.group-expand-body[data-for="${btn.dataset.group}"]`);
+          if (!expandBody) return;
+          const open = expandBody.classList.toggle('hidden');
+          btn.textContent = open ? '▼' : '▲';
         });
       });
+
+      // Delete with toast confirm
       body.querySelectorAll('.group-delete-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
-          if (!confirm(`Delete group "${btn.dataset.name}"?`)) return;
+          const name = btn.dataset.group;
+          // Inline confirm: second click confirms
+          if (btn.dataset.confirm !== '1') {
+            btn.textContent = 'confirm?'; btn.dataset.confirm = '1';
+            setTimeout(() => { btn.textContent = 'delete'; delete btn.dataset.confirm; }, 3000);
+            return;
+          }
           await fetch('/cmd', { method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({ cmd: `group delete ${btn.dataset.name}` }) });
+            body: JSON.stringify({ cmd: `group delete ${name}` }) });
+          toast(`group '${name}' deleted`, 'info');
           await loadGroups();
         });
       });
-    } catch (_) { body.innerHTML = '<div class="empty-state">Error loading groups</div>'; }
+
+      // Remove profile chip
+      body.querySelectorAll('.group-chip-remove').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const { group, profile } = btn.dataset;
+          await fetch('/cmd', { method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ cmd: `group remove ${group} ${profile}` }) });
+          toast(`removed ${profile} from ${group}`, 'info');
+          await loadGroups();
+        });
+      });
+
+      // Add member
+      body.querySelectorAll('.group-add-btn').forEach(btn => {
+        const card = btn.closest('.group-card');
+        btn.addEventListener('click', async () => {
+          const input = card?.querySelector('.group-add-input');
+          const profile = input?.value.trim();
+          if (!profile) return;
+          await fetch('/cmd', { method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ cmd: `group add ${btn.dataset.group} ${profile}` }) });
+          toast(`added ${profile} to ${btn.dataset.group}`);
+          await loadGroups();
+        });
+      });
+
+      // Run command on group
+      body.querySelectorAll('.group-run-btn').forEach(btn => {
+        const card = btn.closest('.group-card');
+        btn.addEventListener('click', async () => {
+          const input = card?.querySelector('.group-cmd-input');
+          const cmd = input?.value.trim();
+          if (!cmd) return;
+          const out = card?.querySelector('.group-cmd-out');
+          out.textContent = 'running…'; out.classList.remove('hidden');
+          const r = await fetch('/cmd', { method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ cmd: `group run ${btn.dataset.group} ${cmd}` }) });
+          const d = await r.json();
+          out.textContent = d.output || d.error || 'done';
+        });
+      });
+
+      // Switch to profile
+      body.querySelectorAll('.group-switch-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          await fetch('/profile', { method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ profile: btn.dataset.profile }) });
+          toast(`switched to ${btn.dataset.profile}`);
+          location.reload();
+        });
+      });
+
+      // Inline rename (click on group name)
+      body.querySelectorAll('.group-name-editable').forEach(nameEl => {
+        nameEl.addEventListener('click', () => {
+          if (nameEl.querySelector('input')) return;
+          const oldName = nameEl.dataset.group;
+          const inp = document.createElement('input');
+          inp.type = 'text'; inp.value = oldName;
+          inp.className = 'group-rename-input';
+          nameEl.innerHTML = ''; nameEl.appendChild(inp); inp.focus(); inp.select();
+          const commit = async () => {
+            const newName = inp.value.trim();
+            if (newName && newName !== oldName) {
+              await fetch('/cmd', { method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({ cmd: `group rename ${oldName} ${newName}` }) });
+              toast(`renamed to ${newName}`);
+              await loadGroups();
+            } else { nameEl.textContent = oldName; }
+          };
+          inp.addEventListener('blur', commit);
+          inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') inp.blur(); if (e.key === 'Escape') { nameEl.textContent = oldName; } });
+        });
+      });
+
+    } catch (e) { renderError(body, `Groups: ${e.message}`, loadGroups); }
   }
 
   async function loadModels() {
     const body = document.getElementById('models-body');
     try {
-      const res = await fetch('/cmd', { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ cmd: 'model list' }) });
-      const data = await res.json();
-      body.innerHTML = `<pre class="service-output">${data.output || 'No models configured'}</pre>`;
-    } catch (_) { body.innerHTML = '<div class="empty-state">Error loading models</div>'; }
+      const res = await fetch('/data/models');
+      const d = await res.json();
+      if (!d.ok || !d.models.length) {
+        body.innerHTML = `<div class="empty-state">No models configured. Use 'ww model add' or detect ollama below.</div>`;
+        return;
+      }
+      // Collect unique providers for filter tabs
+      const providers = [...new Set(d.models.map(m => m.provider))];
+      const filterTabs = providers.length > 2
+        ? `<div class="model-filter-tabs">
+            <button class="model-tab active" data-prov="">all</button>
+            ${providers.map(p => `<button class="model-tab" data-prov="${p}">${p}</button>`).join('')}
+           </div>`
+        : '';
+      const cards = d.models.map(m => `
+        <div class="model-card ${m.active ? 'model-card-active' : ''}" data-prov="${m.provider}">
+          <div class="model-card-header">
+            <span class="model-prov-badge">${m.provider}</span>
+            <span class="model-name">${m.name}</span>
+            ${m.active ? '<span class="model-default-badge">default</span>' : ''}
+          </div>
+          <div class="model-card-body">
+            <span class="model-id">${m.id}</span>
+            ${m.notes ? `<span class="model-notes">${m.notes}</span>` : ''}
+          </div>
+          ${!m.active ? `<button class="btn-inline-alt model-set-default" data-name="${m.name}">set default</button>` : ''}
+        </div>`).join('');
+      body.innerHTML = filterTabs + `<div class="model-card-list">${cards}</div>`;
+      // Provider filter
+      body.querySelectorAll('.model-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          body.querySelectorAll('.model-tab').forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+          const prov = tab.dataset.prov;
+          body.querySelectorAll('.model-card').forEach(card => {
+            card.style.display = (!prov || card.dataset.prov === prov) ? '' : 'none';
+          });
+        });
+      });
+      // Set default
+      body.querySelectorAll('.model-set-default').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          btn.textContent = '…';
+          btn.disabled = true;
+          const r = await fetch('/cmd', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cmd: `model set ${btn.dataset.name}` }) });
+          const rd = await r.json();
+          if (rd.ok) { toast(`default → ${btn.dataset.name}`); await loadModels(); }
+          else { toast(rd.output || 'set failed', 'error'); btn.textContent = 'set default'; btn.disabled = false; }
+        });
+      });
+    } catch (e) { renderError(body, `Models: ${e.message}`, loadModels); }
   }
 
   async function loadNetwork() {
@@ -1609,17 +2503,85 @@
         </div>`;
       });
       body.innerHTML = html || '<div class="empty-state">No checks completed</div>';
-    } catch (_) { body.innerHTML = '<div class="empty-state">Network check failed</div>'; }
+    } catch (e) { renderError(body, `Network: ${e.message}`, loadNetwork); }
   }
 
   async function loadQuestions() {
     const body = document.getElementById('questions-body');
     try {
-      const res = await fetch('/cmd', { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ cmd: 'q list' }) });
-      const data = await res.json();
-      body.innerHTML = `<pre class="service-output">${data.output || 'No templates. Create one below.'}</pre>`;
-    } catch (_) { body.innerHTML = '<div class="empty-state">Questions service unavailable</div>'; }
+      const res = await fetch('/data/questions');
+      const d = await res.json();
+      if (!d.ok || !d.templates.length) {
+        body.innerHTML = `<div class="empty-state">No templates. Use 'ww q new' in the terminal to create one.</div>`;
+        return;
+      }
+      body.innerHTML = d.templates.map((t, ti) => `
+        <div class="q-card" id="qcard-${ti}">
+          <div class="q-card-header">
+            <div class="q-card-title">
+              <span class="q-svc-badge">${t.service}</span>
+              <span class="q-name">${t.name}</span>
+            </div>
+            ${t.description ? `<div class="q-desc">${t.description}</div>` : ''}
+          </div>
+          <button class="btn-inline-alt q-run-btn" data-ti="${ti}">run</button>
+          <div class="q-form hidden" id="qform-${ti}">
+            <div class="q-inputs" id="qinputs-${ti}">
+              ${t.questions.map((q, qi) => `
+                <div class="q-input-row">
+                  <label class="q-label">${q.text}${q.required ? ' *' : ''}</label>
+                  <input type="text" class="q-answer" data-qi="${qi}" placeholder="answer…" />
+                </div>`).join('')}
+            </div>
+            <div class="q-form-actions">
+              <button class="btn-inline-submit q-submit-btn" data-ti="${ti}">submit</button>
+              <button class="btn-inline-alt q-cancel-btn" data-ti="${ti}">cancel</button>
+            </div>
+          </div>
+        </div>`).join('');
+
+      body.querySelectorAll('.q-run-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const ti = btn.dataset.ti;
+          document.getElementById(`qform-${ti}`).classList.toggle('hidden');
+          const firstInput = document.querySelector(`#qinputs-${ti} .q-answer`);
+          firstInput?.focus();
+        });
+      });
+      body.querySelectorAll('.q-cancel-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const ti = btn.dataset.ti;
+          document.getElementById(`qform-${ti}`).classList.add('hidden');
+          document.querySelectorAll(`#qinputs-${ti} .q-answer`).forEach(inp => { inp.value = ''; });
+        });
+      });
+      body.querySelectorAll('.q-submit-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const ti = parseInt(btn.dataset.ti, 10);
+          const tmpl = d.templates[ti];
+          const answers = [...document.querySelectorAll(`#qinputs-${ti} .q-answer`)].map(inp => inp.value.trim());
+          const date = new Date().toISOString().slice(0, 10);
+          const lines = [`[q:${tmpl.file}] ${date}`];
+          tmpl.questions.forEach((q, qi) => {
+            lines.push(`Q: ${q.text}`);
+            lines.push(`A: ${answers[qi] || '—'}`);
+          });
+          const entry = lines.join('\n');
+          btn.textContent = '…'; btn.disabled = true;
+          const r = await fetch('/action', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'journal_add', body: entry }) });
+          const rd = await r.json();
+          if (rd.ok) {
+            toast(`✓ ${tmpl.name} recorded`);
+            document.getElementById(`qform-${ti}`).classList.add('hidden');
+            document.querySelectorAll(`#qinputs-${ti} .q-answer`).forEach(inp => { inp.value = ''; });
+          } else {
+            toast('submit failed', 'error');
+          }
+          btn.textContent = 'submit'; btn.disabled = false;
+        });
+      });
+    } catch (e) { renderError(body, `Questions: ${e.message}`, loadQuestions); }
   }
 
   async function loadProjects() {
@@ -1643,7 +2605,7 @@
           </div>
         </div>`;
       }).join('');
-    } catch (_) { body.innerHTML = '<div class="empty-state">Error loading projects</div>'; }
+    } catch (e) { renderError(body, `Projects: ${e.message}`, loadProjects); }
   }
 
   async function loadProfileScreen() {
@@ -1653,46 +2615,160 @@
       const profData = await profRes.json();
       const profiles = profData.profiles || [];
       const active = profData.active || '';
-      let html = `<select id="profile-detail-select" class="resource-select" style="font-size:12px;padding:4px 8px;margin-bottom:8px">`;
+      let html = `<select id="profile-detail-select" class="resource-select" style="font-size:12px;padding:4px 8px;margin-bottom:10px">`;
       profiles.forEach(p => { html += `<option value="${p}"${p === active ? ' selected' : ''}>${p}</option>`; });
-      html += `</select><div id="profile-detail-content"><div class="skeleton-msg">Loading…</div></div>`;
+      html += `</select>
+        <div id="profile-detail-content"><div class="skeleton-msg">Loading…</div></div>
+        <div class="profile-create-section">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px;padding-top:12px;border-top:1px solid var(--border)">create profile</div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input type="text" id="new-profile-name" placeholder="profile name…" class="task-input" style="max-width:160px" />
+            <button class="btn-inline-submit" id="btn-create-profile">create</button>
+          </div>
+          <div id="create-profile-out" style="font-size:11px;margin-top:4px;color:var(--muted)"></div>
+        </div>`;
       body.innerHTML = html;
+
       const loadDetail = async (name) => {
         const content = document.getElementById('profile-detail-content');
         try {
-          const res = await fetch('/cmd', { method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({ cmd: 'profile info ' + name }) });
-          const data = await res.json();
-          content.innerHTML = `<pre class="service-output">${data.output || 'No info'}</pre>`;
-        } catch (_) { content.innerHTML = '<div class="empty-state">Error</div>'; }
+          const res = await fetch(`/data/profile-detail?profile=${encodeURIComponent(name)}`);
+          const d = await res.json();
+          if (!d.ok) { content.innerHTML = `<div class="error-state"><span class="error-msg">⚠ ${d.error}</span></div>`; return; }
+          const isActive = name === active;
+          const f = d.files || {};
+          const shorten = p => p ? p.replace(/^\/Users\/[^/]+\//, '~/') : '—';
+          const fileRow = (label, val) => `<div class="profile-file-row"><span class="profile-file-lbl">${label}</span><span class="profile-file-val">${val}</span></div>`;
+          // journal rows
+          let journalRows = '';
+          const journals = f.journals || {};
+          const jKeys = Object.keys(journals);
+          if (jKeys.length === 0) {
+            journalRows = fileRow('journal', '—');
+          } else if (jKeys.length === 1) {
+            journalRows = fileRow('journal', shorten(journals[jKeys[0]]));
+          } else {
+            journalRows = jKeys.map(k => fileRow(`journal · ${k}`, shorten(journals[k]))).join('');
+          }
+          // ledger rows
+          let ledgerRows = '';
+          const ledgers = f.ledgers || {};
+          const lKeys = Object.keys(ledgers);
+          if (lKeys.length === 0) {
+            ledgerRows = fileRow('ledger', '—');
+          } else if (lKeys.length === 1) {
+            ledgerRows = fileRow('ledger', shorten(ledgers[lKeys[0]]));
+          } else {
+            ledgerRows = lKeys.map(k => fileRow(`ledger · ${k}`, shorten(ledgers[k]))).join('');
+          }
+          content.innerHTML = `
+            <div class="profile-stat-header">
+              <span class="profile-name-label">${d.name}</span>
+              ${isActive ? '<span class="profile-active-badge">active</span>' : `<button class="btn-inline-alt profile-switch-btn" data-name="${d.name}">switch to</button>`}
+            </div>
+            <div class="profile-stat-grid">
+              <div class="profile-stat"><span class="stat-val">${d.task_count}</span><span class="stat-lbl">tasks</span></div>
+              <div class="profile-stat"><span class="stat-val">${d.journal_count}</span><span class="stat-lbl">journal entries</span></div>
+              <div class="profile-stat"><span class="stat-val">${d.uda_count}</span><span class="stat-lbl">UDAs</span></div>
+              <div class="profile-stat"><span class="stat-val">${d.created}</span><span class="stat-lbl">created</span></div>
+            </div>
+            <div class="profile-files-section">
+              ${fileRow('taskrc', shorten(f.taskrc))}
+              ${fileRow('task data', shorten(f.task_data))}
+              ${fileRow('timewarrior', shorten(f.timew_db))}
+              ${journalRows}
+              ${ledgerRows}
+            </div>
+            <div class="profile-delete-row">
+              ${!isActive ? `<button class="btn-inline-danger profile-delete-btn" data-name="${d.name}">delete profile</button>` : ''}
+            </div>`;
+          // Switch profile
+          content.querySelector('.profile-switch-btn')?.addEventListener('click', async (ev) => {
+            const pName = ev.target.dataset.name;
+            const r = await fetch('/profile', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ profile: pName }) });
+            const rd = await r.json();
+            if (rd.ok) { toast(`switched to ${pName}`); location.reload(); }
+            else { toast(rd.error || 'switch failed', 'error'); }
+          });
+          // Delete with inline confirmation
+          content.querySelector('.profile-delete-btn')?.addEventListener('click', (ev) => {
+            const pName = ev.target.dataset.name;
+            ev.target.outerHTML = `<span style="font-size:12px;color:var(--error)">delete ${pName}? </span><button class="btn-inline-danger profile-delete-confirm" data-name="${pName}">yes, delete</button><button class="btn-inline-alt profile-delete-cancel">cancel</button>`;
+            content.querySelector('.profile-delete-cancel')?.addEventListener('click', () => loadDetail(name));
+            content.querySelector('.profile-delete-confirm')?.addEventListener('click', async (ev2) => {
+              const r = await fetch('/cmd', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cmd: `profile remove ${pName} --yes` }) });
+              const rd = await r.json();
+              if (rd.ok) { toast(`deleted ${pName}`); await loadProfileScreen(); }
+              else { toast(rd.output || 'delete failed', 'error'); }
+            });
+          });
+        } catch (e) { renderError(content, `Profile: ${e.message}`, () => loadDetail(name)); }
       };
+
       document.getElementById('profile-detail-select')?.addEventListener('change', (e) => loadDetail(e.target.value));
+      // Create profile
+      document.getElementById('btn-create-profile')?.addEventListener('click', async () => {
+        const nameInput = document.getElementById('new-profile-name');
+        const pName = nameInput.value.trim();
+        const out = document.getElementById('create-profile-out');
+        if (!pName) { out.textContent = 'name required'; return; }
+        out.textContent = 'creating…';
+        const r = await fetch('/cmd', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cmd: `profile create ${pName}` }) });
+        const rd = await r.json();
+        if (rd.ok) { toast(`created ${pName}`); nameInput.value = ''; out.textContent = ''; await loadProfileScreen(); }
+        else { out.textContent = rd.output || 'create failed'; }
+      });
+      document.getElementById('new-profile-name')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); document.getElementById('btn-create-profile')?.click(); } });
+
       await loadDetail(active || profiles[0] || '');
-    } catch (_) { body.innerHTML = '<div class="empty-state">Error</div>'; }
+    } catch (e) { renderError(body, `Profile screen: ${e.message}`, loadProfileScreen); }
   }
 
   async function loadWarrior() {
     const body = document.getElementById('warrior-body');
     try {
-      const profRes = await fetch('/data/profiles');
-      const profData = await profRes.json();
-      const profiles = profData.profiles || [];
-      const active = profData.active || '';
+      const res = await fetch('/data/warrior');
+      const d = await res.json();
+      if (!d.ok) { renderError(body, 'Warrior data failed', loadWarrior); return; }
+      const profiles = d.profiles || [];
+      const active = d.active_profile || '';
 
-      let html = `<div style="margin-bottom:12px;font-size:12px;color:var(--muted)">
-        <span style="color:var(--text)">${profiles.length}</span> profiles ·
-        active: <span style="color:var(--accent)">${active || 'none'}</span>
+      // Aggregate header
+      let html = `<div class="warrior-agg-row">
+        <div class="warrior-agg-stat"><span class="stat-val">${profiles.length}</span><span class="stat-lbl">profiles</span></div>
+        <div class="warrior-agg-stat"><span class="stat-val">${d.total_tasks}</span><span class="stat-lbl">total tasks</span></div>
+        <div class="warrior-agg-stat"><span class="stat-val" style="color:var(--success)">${d.total_active}</span><span class="stat-lbl">active</span></div>
       </div>`;
 
-      // Global stats summary
-      html += '<div class="warrior-global-stats">';
-      for (const p of profiles.slice(0, 10)) {
-        html += `<div class="group-card"><div class="group-name">${p}${p === active ? ' ✱' : ''}</div>`;
-        html += `<div class="group-profiles" id="warrior-stat-${p}">loading…</div></div>`;
+      // Per-profile cards
+      html += '<div class="warrior-profile-list">';
+      for (const p of profiles) {
+        const urgHigh = Math.min(p.task_count, Math.ceil(p.task_count * 0.3));
+        const urgMed  = Math.min(p.task_count - urgHigh, Math.ceil(p.task_count * 0.4));
+        const urgLow  = p.task_count - urgHigh - urgMed;
+        const barTotal = p.task_count || 1;
+        const activeDot = p.active_count > 0 ? '<span class="warrior-active-dot"></span>' : '';
+        html += `<div class="warrior-profile-card ${p.is_active ? 'warrior-card-active' : ''}">
+          <div class="warrior-card-header">
+            <span class="warrior-prof-name">${p.name}</span>
+            ${activeDot}
+            ${p.is_active ? '<span class="warrior-current-badge">active</span>' : ''}
+            <span class="warrior-task-count">${p.task_count} tasks</span>
+          </div>
+          ${p.top_task ? `<div class="warrior-top-task">${p.top_task}</div>` : ''}
+          ${p.task_count > 0 ? `<div class="warrior-urg-bar" title="${p.task_count} tasks">
+            <div class="urg-seg urg-high" style="width:${(urgHigh/barTotal*100).toFixed(1)}%"></div>
+            <div class="urg-seg urg-med"  style="width:${(urgMed/barTotal*100).toFixed(1)}%"></div>
+            <div class="urg-seg urg-low"  style="width:${(urgLow/barTotal*100).toFixed(1)}%"></div>
+          </div>` : ''}
+        </div>`;
       }
       html += '</div>';
 
-      // Global settings access
+      // Global settings
       html += `<div style="margin-top:12px;padding-top:8px;border-top:1px solid var(--border)">
         <div style="font-size:11px;color:var(--muted);margin-bottom:6px">global settings</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
@@ -1705,31 +2781,16 @@
 
       body.innerHTML = html;
 
-      // Load per-profile task counts
-      for (const p of profiles.slice(0, 10)) {
-        try {
-          const res = await fetch('/cmd', { method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({ cmd: `profile stats ${p}` }) });
-          const data = await res.json();
-          const el = document.getElementById(`warrior-stat-${p}`);
-          if (el) {
-            const lines = (data.output || '').split('\n').filter(l => l.trim()).slice(0, 4);
-            el.textContent = lines.join(' · ') || 'no stats';
-          }
-        } catch (_) {}
-      }
-
-      // Wire global settings buttons
       const wOut = document.getElementById('warrior-output');
       const wCmd = async (cmd) => {
         wOut.className = 'cmd-unified-output'; wOut.textContent = 'loading…';
-        const res = await fetch('/cmd', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ cmd }) });
-        const data = await res.json(); wOut.textContent = data.output || 'done';
+        const r = await fetch('/cmd', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ cmd }) });
+        const rd = await r.json(); wOut.textContent = rd.output || 'done';
       };
       document.getElementById('btn-w-version')?.addEventListener('click', () => wCmd('version'));
       document.getElementById('btn-w-deps')?.addEventListener('click', () => wCmd('deps check'));
       document.getElementById('btn-w-shortcuts')?.addEventListener('click', () => wCmd('shortcut list'));
-    } catch (_) { body.innerHTML = '<div class="empty-state">Error loading warrior</div>'; }
+    } catch (e) { renderError(body, `Warrior: ${e.message}`, loadWarrior); }
   }
 
   // ── Add forms ──────────────────────────────────────────────────────────────
@@ -1819,15 +2880,18 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'add', args: {
           description: desc,
-          project:  fd.get('project')  || undefined,
-          priority: fd.get('priority') || undefined,
-          due:      fd.get('due')      || undefined,
+          project:   fd.get('project')   || undefined,
+          priority:  fd.get('priority')  || undefined,
+          due:       fd.get('due')       || undefined,
+          scheduled: fd.get('scheduled') || undefined,
+          wait:      fd.get('wait')      || undefined,
           tags,
         }}),
       });
       const data = await res.json();
       if (data.ok) {
         renderTasks(data.tasks || []);
+        toast(andStart ? '▶ task added + started' : '✓ task added');
         // If "start", start the newly created task (last in list by ID)
         if (andStart && data.tasks?.length) {
           const newest = data.tasks.reduce((a, b) => (b.id > a.id ? b : a), data.tasks[0]);
@@ -1841,7 +2905,7 @@
         }
         taskForm.reset();
         if (taskDueInput) taskDueInput.value = futureDateStr(2);
-      }
+      } else { toast('add failed', 'error'); }
     }
 
     taskForm?.addEventListener('submit', async (e) => {
@@ -1854,7 +2918,8 @@
     // Helper: get tags and log description to journal if provided
     async function timeFormAction(actionName, extraArgs) {
       const form = document.getElementById('add-time-form');
-      const tags = form?.querySelector('input[name="tags"]')?.value?.trim() || '';
+      const rawTags = form?.querySelector('input[name="tags"]')?.value?.trim() || '';
+      const tags = rawTags.toLowerCase().replace(/\s+/g, ' ');
       const desc = form?.querySelector('input[name="description"]')?.value?.trim() || '';
       const taskSel = document.getElementById('time-task-select');
       const taskDesc = taskSel?.selectedOptions[0]?.textContent;
@@ -1871,13 +2936,15 @@
     }
 
     document.getElementById('btn-timew-start')?.addEventListener('click', async () => {
-      await timeFormAction('timew_start');
+      const { tags } = await timeFormAction('timew_start');
+      toast(`▶ tracking${tags ? ': ' + tags : ''}`);
       await loadTime();
     });
 
     document.getElementById('btn-timew-stop')?.addEventListener('click', async () => {
       await fetch('/action', { method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ action: 'timew_stop' }) });
+      toast('■ tracking stopped', 'info');
       await loadTime();
     });
 
@@ -1887,6 +2954,7 @@
       const duration = form.querySelector('input[name="duration"]')?.value || '';
       if (!duration) return;
       await timeFormAction('timew_track', { duration });
+      toast('✓ time logged');
       await loadTime();
       form.querySelector('input[name="tags"]').value = '';
       form.querySelector('input[name="description"]').value = '';
@@ -1915,9 +2983,10 @@
       });
       const data = await res.json();
       if (data.ok) {
+        toast('✓ journal entry added');
         await loadJournal();
         e.target.reset();
-      }
+      } else { toast('journal failed', 'error'); }
     });
 
     // ── Ledger ─────────────────────────────────────────────────────────────
@@ -2007,6 +3076,45 @@
         showGunOutput('error: ' + err.message, true);
       }
     });
+
+    // ── Sword task search ──────────────────────────────────────────────────
+    const swordSearchInput = document.getElementById('sword-task-search');
+    const swordSearchResults = document.getElementById('sword-search-results');
+    if (swordSearchInput && swordSearchResults) {
+      swordSearchInput.addEventListener('input', async () => {
+        const q = swordSearchInput.value.trim().toLowerCase();
+        if (!q) { swordSearchResults.innerHTML = ''; return; }
+        // Ensure we have tasks cached
+        let tasks = cachedTasks;
+        if (!tasks.length) {
+          const res = await fetch('/data/tasks');
+          const d = await res.json();
+          cachedTasks = d.tasks || [];
+          tasks = cachedTasks;
+        }
+        const hits = tasks.filter(t =>
+          (t.description || '').toLowerCase().includes(q) ||
+          (t.project || '').toLowerCase().includes(q) ||
+          String(t.id).startsWith(q)
+        ).slice(0, 8);
+        if (!hits.length) { swordSearchResults.innerHTML = '<div class="sword-no-results">no tasks found</div>'; return; }
+        swordSearchResults.innerHTML = hits.map(t =>
+          `<div class="sword-result-row" data-id="${t.id}">
+            <span class="sword-res-id">${t.id}</span>
+            <span class="sword-res-desc">${t.description}</span>
+            ${t.project ? `<span class="sword-res-proj">${t.project}</span>` : ''}
+            <span class="sword-res-urg">${(t.urgency || 0).toFixed(1)}</span>
+          </div>`
+        ).join('');
+        swordSearchResults.querySelectorAll('.sword-result-row').forEach(row => {
+          row.addEventListener('click', () => {
+            document.getElementById('sword-task-id').value = row.dataset.id;
+            swordSearchResults.innerHTML = '';
+            swordSearchInput.value = '';
+          });
+        });
+      });
+    }
 
     // ── Sword ──────────────────────────────────────────────────────────────
     document.getElementById('sword-form')?.addEventListener('submit', async (e) => {
@@ -2157,30 +3265,81 @@
         if (!d.ok) out.className = 'cmd-unified-output error';
       } catch (e) { out.textContent = 'error: ' + e.message; out.className = 'cmd-unified-output error'; }
     };
-    document.getElementById('btn-bb-status')?.addEventListener('click', () => bbCmd('find bookbuilder'));
+    document.getElementById('btn-bb-status')?.addEventListener('click', async () => {
+      const out = bbOut(); out.className = 'cmd-unified-output'; out.textContent = 'checking…';
+      try {
+        const r = await fetch('/cmd', { method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ cmd: 'find bookbuilder' }) });
+        const d = await r.json();
+        const installed = d.ok && d.output && !d.output.includes('not found') && !d.output.includes('No such');
+        if (installed) {
+          const r2 = await fetch('/cmd', { method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ cmd: 'bookbuilder status' }) });
+          const d2 = await r2.json();
+          out.textContent = d2.output || 'bookbuilder status returned empty';
+        } else {
+          out.textContent = 'bookbuilder not installed — running in journal mode\n\nInstall: pip install peers8862-bookbuilder\n        or: pipx install peers8862-bookbuilder';
+        }
+      } catch (e) { out.textContent = 'error: ' + e.message; }
+    });
     document.getElementById('btn-bb-search')?.addEventListener('click', () => {
-      const term = prompt('Search knowledge base:');
-      if (term) bbCmd(`find --type journal ${term}`);
+      const body = document.getElementById('bookbuilder-body');
+      const existing = body?.querySelector('.bb-search-row');
+      if (existing) { existing.remove(); return; }
+      const row = document.createElement('div');
+      row.className = 'bb-search-row task-detail-input';
+      row.style.cssText = 'margin-top:8px';
+      const inp = document.createElement('input');
+      inp.type = 'text'; inp.placeholder = 'search knowledge base…';
+      inp.className = 'inline-filter'; inp.style.flex = '1';
+      const btn2 = document.createElement('button');
+      btn2.textContent = 'go'; btn2.className = 'btn-inline-submit';
+      const doSearch = async () => {
+        const t = inp.value.trim();
+        if (!t) return;
+        const out = bbOut(); out.className = 'cmd-unified-output'; out.textContent = 'searching…';
+        const r = await fetch('/cmd', { method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ cmd: `bookbuilder search ${t}` }) });
+        const d = await r.json();
+        if (d.ok && d.output && !d.output.includes('not found')) {
+          out.textContent = d.output;
+        } else {
+          // Fallback: search journal for [saved] entries matching term
+          const ql = t.toLowerCase();
+          const hits = cachedJournalEntries.filter(e => (e.body || '').toLowerCase().includes(ql) && (e.body || '').includes('[saved]'));
+          out.textContent = hits.length
+            ? 'journal saves matching "' + t + '":\n' + hits.map(e => '  ' + e.body.split('\n')[0]).join('\n')
+            : 'no results (bookbuilder not installed; searched journal saves)';
+        }
+        row.remove();
+      };
+      btn2.addEventListener('click', doSearch);
+      inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); doSearch(); } if (e.key === 'Escape') row.remove(); });
+      row.appendChild(inp); row.appendChild(btn2);
+      body?.insertBefore(row, body.querySelector('div[style]') || body.firstChild);
+      inp.focus();
     });
-    document.getElementById('btn-bb-inbox')?.addEventListener('click', () => {
-      const out = bbOut();
-      out.className = 'cmd-unified-output';
-      out.textContent = 'BookBuilder inbox:\n  bookbuilder inbox\n  bookbuilder inbox --status want_to_read\n\nRun from terminal: bookbuilder inbox';
-    });
-    document.getElementById('btn-bb-run')?.addEventListener('click', () => {
-      const out = bbOut();
-      out.className = 'cmd-unified-output';
-      out.textContent = 'Run the full pipeline from terminal:\n  bookbuilder run\n\nOr individual stages:\n  bookbuilder ingest\n  bookbuilder fetch\n  bookbuilder analyze\n  bookbuilder cluster\n  bookbuilder build\n  bookbuilder agents';
-    });
+    document.getElementById('btn-bb-inbox')?.addEventListener('click', () => bbCmd('bookbuilder inbox'));
+    document.getElementById('btn-bb-run')?.addEventListener('click', () => bbCmd('bookbuilder run'));
     document.getElementById('bb-add-form')?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const url = e.target.querySelector('input[name="url"]')?.value?.trim();
       if (!url) return;
       const out = bbOut();
       out.className = 'cmd-unified-output'; out.textContent = `saving: ${url}…`;
-      // Log to journal as a saved item
-      await sendJournalNote(`[saved] ${url}`, null);
-      out.textContent = `✓ saved to journal: ${url}\n\nTo add to bookbuilder knowledge base:\n  bookbuilder add ${url}`;
+      // Try bookbuilder add first
+      const r = await fetch('/cmd', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ cmd: `bookbuilder add ${url}` }) });
+      const d = await r.json();
+      if (d.ok && d.output && !d.output.includes('not found')) {
+        out.textContent = `✓ added to bookbuilder: ${url}\n${d.output}`;
+        toast('✓ saved to bookbuilder');
+      } else {
+        // Fallback: journal
+        await sendJournalNote(`[saved] ${url}`, null);
+        out.textContent = `✓ saved to journal (bookbuilder not installed): ${url}\n\nInstall: pipx install peers8862-bookbuilder`;
+        toast('✓ saved to journal');
+      }
       e.target.reset();
     });
 
@@ -2478,8 +3637,25 @@
     el.className = 'gun-output' + (isError ? ' error' : '');
   }
 
+  // ── Time tag preview ────────────────────────────────────────────────────────
+  function initTimewTagPreview() {
+    const input = document.getElementById('timew-tag-input');
+    const preview = document.getElementById('timew-tag-preview');
+    if (!input || !preview) return;
+    input.addEventListener('input', () => {
+      const raw = input.value;
+      const tags = raw.trim().toLowerCase().replace(/\s+/g, ' ').split(' ').filter(Boolean);
+      if (!tags.length) { preview.innerHTML = ''; return; }
+      preview.innerHTML = tags.map(t => `<span class="tag-preview-chip">${t}</span>`).join('');
+    });
+  }
+
   // ── Init ───────────────────────────────────────────────────────────────────
   async function init() {
+    initToasts();
+    initKeyboardShortcuts();
+    initBulkToolbar();
+    initTimewTagPreview();
     initSidebar();
     initNav();
     initProfilePill();
@@ -2499,7 +3675,21 @@
       }
     });
 
+    // Active task pill click → switch to tasks + open detail
+    document.getElementById('active-task-pill')?.addEventListener('click', async () => {
+      const pill = document.getElementById('active-task-pill');
+      const id = parseInt(pill?.dataset.taskId);
+      await switchSection('tasks');
+      if (id) {
+        setTimeout(() => {
+          const row = document.querySelector(`.task-row[data-id="${id}"]`);
+          if (row) row.click();
+        }, 200);
+      }
+    });
+
     loadCommands();
+    loadUdaSchema();
     await refreshCtrlState();
 
     // Update warrior stats
@@ -2524,6 +3714,14 @@
     await loadTimewTags();
     applyAiMeta();
     await loadSection(activeSection);
+
+    // 30s polling fallback for active section (paused when tab hidden)
+    setInterval(() => {
+      if (document.visibilityState === 'hidden') return;
+      if (activeSection === 'tasks') loadTasks();
+      else if (activeSection === 'time') loadTime();
+      else if (activeSection === 'journal') { journalPage = 1; loadJournal(); }
+    }, 30000);
 
     termInput.focus();
   }

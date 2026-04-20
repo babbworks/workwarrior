@@ -20,7 +20,7 @@ This catches environmental and sourcing failures that produce misleading cascade
 - `task config` value is readable back via `grep` from `.taskrc` (format sanity)
 - `sync-permissions` write→read round-trip
 - `bin/ww profile help` exits 0 and includes `uda`
-- `bin/ww issues uda` redirects to `ww profile uda`
+- `bin/ww issues uda` exposes ww-native subcommands (`list/install/group/help`)
 
 **If any smoke test fails, stop. Fix the environment before running anything else.**
 

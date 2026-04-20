@@ -22,5 +22,17 @@ Risk notes:           Existing behavior affected: user guidance quality and supp
                       Tests currently covering write scope: manual example execution checklist.
                       Rollback verification: docs/template revert.
 
-Status:               pending
+Implementation notes: Added an approved examples library with tiered examples
+                      (basic, scoped override, advanced) for major command
+                      families in `docs/usage-examples.md` and mirrored it in
+                      `services/README.md`.
+                      Added examples-library policy + curated per-family
+                      command map in CSSOT (`system/config/command-syntax.yaml`).
+                      Extended verifier template with explicit example-validation
+                      checklist section for UX-002 and follow-on tasks.
+                      Validation:
+                        - `rg -n "Examples:" /Users/mp/ww/bin/ww /Users/mp/ww/services /Users/mp/ww/docs/usage-examples.md`
+                        - Manual example run suite: 30 commands, 30 pass, 0 fail.
+
+Status:               complete
 

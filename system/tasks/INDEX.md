@@ -1,44 +1,55 @@
 # Task Card Index
 
-Last updated: 2026-04-11 11:04
-Total: 73 cards
+Last updated: 2026-04-20 (CRON complete; WARLOCK parked)
+Total: 99 task cards in `tasks/cards/` (browser UI cards TASK-SITE-011 … TASK-SITE-034 are complete). Card `Status:` field is authoritative; this file is a scannable index.
 
 ## Priority Queue
 
 | Priority | Card | Goal |
 |----------|------|------|
-| NEXT | TASK-QUAL-002 | Automate docs/help parity checks (Gate C) |
-| HIGH | TASK-ISSUES-001 | Fix ww issues uda routing |
-| HIGH | TASK-SITE-007 | Browser UI completion (ongoing) |
-| MEDIUM | TASK-SITE-006 | Wave 5: export, typeahead, keyboard shortcuts |
-| MEDIUM | TASK-UX-001 | Standardize human/compact/json output modes |
-| MEDIUM | TASK-UX-002 | Command examples library (help + docs) |
-| MEDIUM | TASK-TIMEW-001 | TimeWarrior extension manager (sync + billable) |
-| MEDIUM | TASK-DESIGN-001 | Service category design quiz |
+| NEXT | TASK-SITE-006 | Wave 5: export + terminal UX + services sidebar polish |
+| HIGH | TASK-SITE-011 | ~~Remove alert()/prompt() — inline UI~~ **complete** |
+| HIGH | TASK-SITE-012 | ~~Toast notification system~~ **complete** |
+| HIGH | TASK-SITE-015 | ~~Keyboard shortcuts — g+key nav + ? overlay~~ **complete** |
+| HIGH | TASK-SITE-017 | ~~Task grouping by project + overdue float~~ **complete** |
+| HIGH | TASK-SITE-021 | ~~Active task persistent header indicator~~ **complete** |
+| HIGH | TASK-SITE-022 | ~~Second + ms time display granularity~~ **complete** |
+| HIGH | TASK-SITE-032 | ~~Groups panel inline view~~ **complete** |
+| MEDIUM | TASK-SITE-013 | ~~Error states with retry buttons~~ **complete** |
+| MEDIUM | TASK-SITE-016 | ~~Global search tasks + journals~~ **complete** |
+| MEDIUM | TASK-SITE-018 | ~~Type-aware UDA inputs~~ **complete** |
+| MEDIUM | TASK-SITE-019 | ~~Scheduled + wait fields in task form~~ **complete** |
+| MEDIUM | TASK-SITE-020 | ~~Bulk task operations~~ **complete** |
+| MEDIUM | TASK-SITE-023 | ~~Previous/next week navigation in time~~ **complete** |
+| MEDIUM | TASK-SITE-025 | ~~Journal date grouping + pagination~~ **complete** |
+| MEDIUM | TASK-SITE-026 | ~~Sync panel dashboard~~ **complete** |
+| MEDIUM | TASK-SITE-027 | ~~Models panel structured list~~ **complete** |
+| MEDIUM | TASK-SITE-028 | ~~Questions run-template from UI~~ **complete** |
+| MEDIUM | TASK-SITE-030 | ~~Profile screen structured stats~~ **complete** |
+| MEDIUM | TASK-SITE-031 | ~~Warrior aggregate urgency view~~ **complete** |
+| LOW | TASK-SITE-014 | ~~Section scroll position memory~~ **complete** |
+| LOW | TASK-SITE-024 | ~~Time entry tag format clarity~~ **complete** |
+| LOW | TASK-SITE-029 | ~~BookBuilder real integration~~ **complete** |
+| LOW | TASK-SITE-033 | ~~Sword panel task search~~ **complete** |
+| LOW | TASK-SITE-034 | ~~Live data refresh via SSE + polling~~ **complete** |
 | LOW | TASK-EXT-CAL-001 | Calendar integration (parked) |
-| LOW | TASK-EXT-CRON-001 | Recurring tasks via TW + journals/ledgers |
+| PARKED | TASK-EXT-WARLOCK-001 | task-warlock Next.js UI adoption (paused) |
 | PARKED | TASK-TC-001 | TaskChampion multi-device sync |
-| PARKED | TASK-EXT-WARLOCK-001 | task-warlock Next.js UI adoption |
 
-## In-Progress (1)
+## In-Progress (0)
 
-- **TASK-SITE-007** — Transform the browser UI from a basic data viewer into a full
+- _(none)_
 
-## Pending (11)
+## Pending (4)
 
-- **TASK-DESIGN-001** — Quiz the user about each service category that has no implementation yet.
 - **TASK-EXT-GUN-001-EXPLORE** — Read-only audit of taskgun source to answer the five limitations
 - **TASK-EXT-SWORD-001** — Define and build the Sword weapon — a second sidebar weapon
-- **TASK-EXT-WARLOCK-001** — Adopt task-warlock (Next.js web UI) as the foundation for ww's
-- **TASK-ISSUES-001** — `ww issues uda` currently passes through directly to bugwarrior's own `uda`
-- **TASK-QUAL-002** — Enforce Gate C by detecting mismatch between command behavior, help text, and docs/CSSOT.
 - **TASK-SITE-001** — Deliver a locally-served, terminal-aesthetic web interface for Workwarrior
 - **TASK-SITE-006** — Complete the browser service with static export, a redesigned terminal
-- **TASK-TIMEW-001** — Add ww timew extensions as a per-profile TimeWarrior extension manager.
-- **TASK-UX-001** — Default to compact human output while enabling explicit `--json` for review/automation use
-- **TASK-UX-002** — Provide validated examples for every major command family to reduce adoption friction.
 
-## Complete (56)
+## Complete (87)
+
+*Bullets below are a partial roll-up; any card with `Status: complete` in `tasks/cards/` counts toward this total.*
 
 - **TASK-1.1** — Copy devsystem CLAUDE.md to project root so all agents can cold-start.
 - **TASK-1.2** — Copy devsystem services-CLAUDE.md so Builder agents can write correct
@@ -51,6 +62,14 @@ Total: 73 cards
 - **TASK-CLI-002** — Implement consistent handling of `--profile`, `--global`, `--json`, `--compact`, `--verbos
 - **TASK-CLI-003** — Make help text uniform in structure, examples, and flag documentation across commands.
 - **TASK-CLI-004** — Preserve legacy command forms while nudging users to preferred syntax.
+- **TASK-DESIGN-001** — Service overview stubs for undeveloped service categories (design-only).
+- **TASK-TIMEW-001** — Per-profile `ww timew extensions` + timew-billable integration doc.
+- **TASK-QUAL-002** — `check-parity.sh`: CSSOT syntax vs mapped `ww … help` (Gate C automation).
+- **TASK-ISSUES-001** — ww-native `issues uda` subcommands + idempotent install + github group shortcut.
+- **TASK-SITE-007** — Browser UI overhaul meta-card closed; residual scope migrated into TASK-SITE-006.
+- **TASK-UX-001** — Compact-default output policy + `--json` support consistency across core read/list flows.
+- **TASK-UX-002** — Approved examples library per command family + verifier example-validation checklist.
+- **TASK-EXT-CRON-001** — `ww routines` recurring-task microservice with profile-scoped `.config/routines` storage.
 - **TASK-EXT-CHECK-001** — Surface taskcheck as `ww schedule` — an automatic task scheduler
 - **TASK-EXT-DENSITY-001** — Add due-date density scoring to ww profiles. TWDensity adds a
 - **TASK-EXT-GUN-001** — Surface taskgun as `ww gun` for generating deadline-spaced task
@@ -82,7 +101,7 @@ Total: 73 cards
 - **TASK-SYNC-001** — The entire sync engine (6 files, 17 functions) has zero BATS tests.
 - **TASK-SYNC-002** — Three specific bugs found by Explorer B can silently corrupt or permanently
 - **TASK-SYNC-003** — Sync operations currently make silent assumptions about environment
-- **TASK-SYNC-004** — lib/sync-pull.sh:100 contains `# TODO: Implement proper tag sync` with no
+- **TASK-SYNC-004** — Resolved Gate E tag-sync TODO in `sync-pull.sh`; follow-up label sync in TASK-SYNC-005
 - **TASK-SYNC-005** — sync-pull.sh currently skips tag sync during pull. GitHub labels are not
 - **TASK-SYNC-006** — The current label sync only handles priority and generic tag pass-through.
 - **TASK-SYNC-007** — Rich TaskWarrior UDAs (goals, deliverables, scope description,

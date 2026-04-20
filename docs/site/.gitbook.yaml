@@ -1,0 +1,8 @@
+root: ./
+
+structure:
+  readme: ./whyworkwarrior.md      # This makes Why Work Warrior the default landing / first loaded page
+  summary: ./SUMMARY.md            # Uses the clean sidebar navigation we built
+
+# Optional: Nice-to-have settings
+title: Why Work Warrior

@@ -16,6 +16,14 @@ models:
     provider: ollama
     id: llama3.2:latest
     notes: "auto-detected"
+  gemma4-31b-cloud:
+    provider: ollama
+    id: gemma4:31b-cloud
+    notes: "auto-detected"
+  gpt-oss-120b-cloud:
+    provider: ollama
+    id: gpt-oss:120b-cloud
+    notes: "auto-detected"
 providers:
   openai:
     type: openai

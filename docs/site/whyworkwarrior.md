@@ -1,4 +1,4 @@
-# Why Workwarrior
+# Why Workwarrior?
 
 Most productivity tools force you into one paradigm. Task managers don't track time. Time trackers don't do accounting. Journals live in a separate app. Ledgers live in another. And none of them understand that you might have three completely different work contexts that should never touch each other.
 

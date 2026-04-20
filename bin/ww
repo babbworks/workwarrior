@@ -10,7 +10,7 @@ set -euo pipefail
 
 WW_BASE="${WW_BASE:-$HOME/ww}"
 WW_VERSION="1.0.0"
-WW_OUTPUT_MODE="human"
+WW_OUTPUT_MODE="${WW_DEFAULT_OUTPUT_MODE:-compact}"
 WW_VERBOSE=0
 WW_FLAG_PROFILE=""
 WW_FLAG_GLOBAL=0
@@ -68,9 +68,11 @@ Commands:
   gun         Bulk task series generator (taskgun by @hamzamohdzubair)
   next        CFS-inspired next task recommendation (scheduler by @ftapajos)
   schedule    Auto-scheduler with toggle system (taskcheck by @00sapo)
+  routines    Recurring task routines (allgreed/cron integration)
   mcp         MCP server for AI agent task access (taskwarrior-mcp by @hnsstrk)
   browser     Local web UI server (start, stop, status)
   extensions  External tool extensions registry
+  timew       TimeWarrior — per-profile `timew` extensions under \$TIMEWARRIORDB/extensions/
   find        Search across profiles and data types
   custom      Custom services (journal configuration, etc.)
   q           Questions service (templated workflows for tasks, journals, etc.)
@@ -88,6 +90,10 @@ Global Options:
   --compact         Terse human-readable output
   --verbose         Expanded human-readable output
   --help            Show command usage (same as 'ww help')
+
+Output Mode Policy:
+  Default output is compact human. Use --verbose for expanded human detail,
+  or --json for machine-readable output on supported read/list/status/check commands.
 
 Compatibility:
   Plural command aliases remain supported ('groups', 'models', 'journals', 'ledgers',
@@ -158,6 +164,13 @@ Extensions Commands:
   ww extensions taskwarrior info taskwiki
   ww extensions taskwarrior cards
 
+Timew Extension Commands (per-profile; requires active profile):
+  ww timew extensions list
+  ww timew extensions install billable
+  ww timew extensions install https://github.com/org/repo.git
+  ww timew extensions remove <name>
+  ww timew extensions help
+
 Find Commands:
   ww find <term>               Search across profiles
   ww find --type journal <t>   Search a specific data type
@@ -182,6 +195,16 @@ Schedule Commands:
   ww schedule config          Open profile's taskcheck config
   ww schedule install         Install taskcheck via pipx
   ww schedule help            Show schedule help and attribution
+
+Routines Commands:
+  ww routines list            List routine definition files for active profile
+  ww routines add "<desc>" --frequency weekly [--name <name>] [--run-now]
+  ww routines new <name>      Create a routine definition template
+  ww routines edit <name>     Edit a routine definition
+  ww routines run [name]      Run all routines or a specific routine
+  ww routines status          Show runtime status and last run metadata
+  ww routines install         Install/update allgreed/cron source
+  ww routines help            Show routines help and attribution
 
 Next Commands:
   ww next                     Show recommended next task (requires active profile)
@@ -242,6 +265,7 @@ Examples:
   ww models                   List models (shortcut)
   ww extensions taskwarrior list --status active
   ww find invoice
+  ww routines list
   ww deps check               Check dependency status
   ww version                  Show version
   ww help groups              Show groups help
@@ -305,14 +329,15 @@ UDA Subcommands:
   uda perm <name> [tokens]   Show or set sync permissions
 
 Global Options:
-  --json           Supported for: list
-  --compact        Supported for: list
+  --json           Supported for: list, info
+  --compact        Supported for: list, info (default)
   --verbose        Add detail where supported
 
 Examples:
   ww profile create work
   ww profile list
   ww --json profile list
+  ww --json profile info work
   ww profile info work
   ww profile backup work
   ww profile import work-backup-20260101.tar.gz
@@ -341,7 +366,8 @@ Actions:
 
 Global Options:
   --json           Supported for: list, info
-  --compact        Supported for: list
+  --compact        Supported for: list, info (default)
+  --verbose        Expanded human detail for info/list
 
 Examples:
   ww service list
@@ -349,6 +375,7 @@ Examples:
   ww service help groups
   ww --json service list
   ww --compact service list
+  ww --compact service info custom
 EOF
 }
 
@@ -504,6 +531,12 @@ show_service_help() {
       ;;
     extensions)
       cmd_extensions help
+      ;;
+    timew)
+      cmd_timew help
+      ;;
+    routines)
+      cmd_routines help
       ;;
     find)
       cmd_find --help
@@ -684,8 +717,10 @@ parse_global_flags() {
     WW_OUTPUT_MODE="json"
   elif [[ $WW_FLAG_COMPACT -eq 1 ]]; then
     WW_OUTPUT_MODE="compact"
-  else
+  elif [[ $WW_VERBOSE -eq 1 ]]; then
     WW_OUTPUT_MODE="human"
+  else
+    WW_OUTPUT_MODE="${WW_DEFAULT_OUTPUT_MODE:-compact}"
   fi
 
   WW_MAIN_ARGS=("${args[@]}")
@@ -727,6 +762,95 @@ resolve_scope_context() {
   export TASKDATA="$selected_base/.task"
   export TIMEWARRIORDB="$selected_base/.timewarrior"
   set_last_profile "$selected_profile" >/dev/null 2>&1 || true
+}
+
+count_named_yaml_entries() {
+  local file_path="$1"
+  local section_name="$2"
+
+  if [[ ! -f "$file_path" ]]; then
+    echo "0"
+    return 0
+  fi
+
+  awk -v section="$section_name" '
+    BEGIN { in_section=0; count=0 }
+    $0 ~ "^" section ":" { in_section=1; next }
+    in_section && /^[^ ]/ { in_section=0 }
+    in_section && /^  [a-zA-Z0-9_-]+:/ {
+      name=$1
+      sub(":", "", name)
+      if (name != "default") count++
+    }
+    END { print count+0 }
+  ' "$file_path"
+}
+
+show_profile_info_compact() {
+  local profile_name="$1"
+  local profile_base="$WW_BASE/profiles/$profile_name"
+  local taskrc_path="$profile_base/.taskrc"
+  local taskdata_path="$profile_base/.task"
+  local timewdb_path="$profile_base/.timewarrior"
+  local journals_path="$profile_base/jrnl.yaml"
+  local ledgers_path="$profile_base/ledgers.yaml"
+  local journals_count
+  journals_count="$(count_named_yaml_entries "$journals_path" "journals")"
+  local ledgers_count
+  ledgers_count="$(count_named_yaml_entries "$ledgers_path" "ledgers")"
+
+  printf '%s taskrc=%s taskdata=%s timewdb=%s journals=%s ledgers=%s\n' \
+    "$profile_name" \
+    "$([[ -f "$taskrc_path" ]] && echo yes || echo no)" \
+    "$([[ -d "$taskdata_path" ]] && echo yes || echo no)" \
+    "$([[ -d "$timewdb_path" ]] && echo yes || echo no)" \
+    "$journals_count" \
+    "$ledgers_count"
+}
+
+show_profile_info_json() {
+  local profile_name="$1"
+  local profile_base="$WW_BASE/profiles/$profile_name"
+  local taskrc_path="$profile_base/.taskrc"
+  local taskdata_path="$profile_base/.task"
+  local timewdb_path="$profile_base/.timewarrior"
+  local journals_path="$profile_base/jrnl.yaml"
+  local ledgers_path="$profile_base/ledgers.yaml"
+  local journals_count
+  journals_count="$(count_named_yaml_entries "$journals_path" "journals")"
+  local ledgers_count
+  ledgers_count="$(count_named_yaml_entries "$ledgers_path" "ledgers")"
+
+  python3 - "$profile_name" "$profile_base" "$taskrc_path" "$taskdata_path" "$timewdb_path" "$journals_path" "$ledgers_path" "$journals_count" "$ledgers_count" << 'PY'
+import json
+import os
+import sys
+
+name, base, taskrc, taskdata, timewdb, journals, ledgers, jcount, lcount = sys.argv[1:]
+obj = {
+    "profile": name,
+    "base": base,
+    "paths": {
+        "taskrc": taskrc,
+        "taskdata": taskdata,
+        "timewarriordb": timewdb,
+        "journals": journals,
+        "ledgers": ledgers,
+    },
+    "exists": {
+        "taskrc": os.path.isfile(taskrc),
+        "taskdata": os.path.isdir(taskdata),
+        "timewarriordb": os.path.isdir(timewdb),
+        "journals": os.path.isfile(journals),
+        "ledgers": os.path.isfile(ledgers),
+    },
+    "counts": {
+        "journals": int(jcount),
+        "ledgers": int(lcount),
+    },
+}
+print(json.dumps(obj, indent=2))
+PY
 }
 
 # ============================================================================
@@ -773,7 +897,21 @@ cmd_profile() {
         echo "Usage: ww profile info <name>"
         exit 1
       fi
-      "$WW_BASE/scripts/manage-profiles.sh" info "$@"
+      if ! validate_profile_name "$1" >/dev/null 2>&1; then
+        log_error "Invalid profile name: $1"
+        exit 1
+      fi
+      if [[ ! -d "$WW_BASE/profiles/$1" ]]; then
+        log_error "Profile '$1' does not exist"
+        exit 1
+      fi
+      if [[ "$WW_OUTPUT_MODE" == "json" ]]; then
+        show_profile_info_json "$1"
+      elif [[ "$WW_OUTPUT_MODE" == "compact" ]]; then
+        show_profile_info_compact "$1"
+      else
+        "$WW_BASE/scripts/manage-profiles.sh" info "$@"
+      fi
       ;;
     delete)
       if [[ -z "$1" ]]; then
@@ -1063,6 +1201,14 @@ cmd_service() {
           printf ',"active_profile":"%s"' "$WARRIOR_PROFILE"
         fi
         printf '}\n'
+      elif [[ "$WW_OUTPUT_MODE" == "compact" ]]; then
+        if [[ -n "${WARRIOR_PROFILE:-}" ]]; then
+          printf '%s resolved=%s global=%s profile=%s active_profile=%s\n' \
+            "$category" "$merged_count" "$global_count" "$profile_count" "$WARRIOR_PROFILE"
+        else
+          printf '%s resolved=%s global=%s profile=%s\n' \
+            "$category" "$merged_count" "$global_count" "$profile_count"
+        fi
       else
         echo "Service category: $category"
         echo "Description: $desc"
@@ -1237,6 +1383,362 @@ cmd_extensions() {
     log_error "Extensions service not found"
     exit 1
   fi
+}
+
+# ============================================================================
+# TIMEW COMMAND — per-profile extensions under $TIMEWARRIORDB/extensions/
+# ============================================================================
+
+_timew_require_profile_db() {
+  if [[ -z "${TIMEWARRIORDB:-}" ]]; then
+    log_error "No active profile — TIMEWARRIORDB is not set."
+    echo "Activate a profile (e.g. p-work) or run: ww --profile <name> timew ..." >&2
+    exit 1
+  fi
+}
+
+_timew_extensions_dir() {
+  echo "${TIMEWARRIORDB}/extensions"
+}
+
+_timew_write_meta() {
+  # args: <install_name> <source_url> <version_string>
+  local inst_name="$1"
+  local src="$2"
+  local ver="$3"
+  local meta
+  meta="$(_timew_extensions_dir)/${inst_name}.ww-ext.json"
+  if ! command -v python3 &>/dev/null; then
+    log_warning "python3 not found — skipping metadata sidecar for ${inst_name}"
+    return 0
+  fi
+  python3 - "$inst_name" "$src" "$ver" "$meta" << 'PY'
+import json, sys
+name, src, ver, path = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+obj = {"name": name, "source": src, "version": ver}
+with open(path, "w", encoding="utf-8") as f:
+    json.dump(obj, f, indent=2)
+    f.write("\n")
+PY
+}
+
+_timew_read_meta_field() {
+  local inst_name="$1"
+  local field="$2"
+  local meta
+  meta="$(_timew_extensions_dir)/${inst_name}.ww-ext.json"
+  [[ -f "$meta" ]] || return 1
+  python3 - "$meta" "$field" << 'PY' 2>/dev/null || true
+import json, sys
+path, field = sys.argv[1], sys.argv[2]
+with open(path, encoding="utf-8") as f:
+    d = json.load(f)
+print(d.get(field, "") or "")
+PY
+}
+
+_timew_list_extensions_json() {
+  local extdir
+  extdir="$(_timew_extensions_dir)"
+  mkdir -p "$extdir"
+  python3 - "$extdir" << 'PY'
+import json, os, sys
+extdir = sys.argv[1]
+rows = []
+if not os.path.isdir(extdir):
+    print("[]")
+    sys.exit(0)
+for name in sorted(os.listdir(extdir)):
+    path = os.path.join(extdir, name)
+    if name.endswith(".ww-ext.json"):
+        continue
+    if not os.path.isfile(path):
+        continue
+    if not os.access(path, os.X_OK):
+        continue
+    meta_path = os.path.join(extdir, f"{name}.ww-ext.json")
+    src = ver = ""
+    if os.path.isfile(meta_path):
+        try:
+            with open(meta_path, encoding="utf-8") as f:
+                m = json.load(f)
+            src = m.get("source") or ""
+            ver = m.get("version") or ""
+        except Exception:
+            pass
+    rows.append({"name": name, "source": src, "version": ver})
+print(json.dumps(rows, indent=2))
+PY
+}
+
+_timew_list_extensions_human() {
+  local extdir
+  extdir="$(_timew_extensions_dir)"
+  mkdir -p "$extdir"
+  printf "%-16s %-48s %s\n" "NAME" "SOURCE" "VERSION"
+  local any=0
+  while IFS= read -r -d '' f; do
+    any=1
+    local base src ver
+    base="$(basename "$f")"
+    src="$(_timew_read_meta_field "$base" source 2>/dev/null || true)"
+    ver="$(_timew_read_meta_field "$base" version 2>/dev/null || true)"
+    printf "%-16s %-48s %s\n" "$base" "${src:-—}" "${ver:-—}"
+  done < <(command find "$extdir" -maxdepth 1 -type f ! -name '*.ww-ext.json' -perm -111 -print0 2>/dev/null || true)
+  if [[ "$any" -eq 0 ]]; then
+    echo "(no executable extensions in ${extdir})"
+  fi
+}
+
+_timew_install_billable() {
+  local upstream="https://github.com/trev-dev/timew-billable"
+  _timew_require_profile_db
+  local extdir tmp clone ver bin_out
+  extdir="$(_timew_extensions_dir)"
+  mkdir -p "$extdir"
+  if ! command -v nim &>/dev/null; then
+    log_error "nim not found — timew-billable builds from Nim source."
+    echo "Install Nim (https://nim-lang.org/install.html) e.g.:" >&2
+    echo "  brew install nim    # macOS" >&2
+    echo "  curl https://nim-lang.org/choosenim/init.sh -sSf | sh" >&2
+    exit 1
+  fi
+  tmp="$(mktemp -d "${TMPDIR:-/tmp}/ww-timew-billable.XXXXXX")"
+  clone="${tmp}/timew-billable"
+  git clone --depth 1 "$upstream" "$clone"
+  ( cd "$clone" && nim c -d:release src/billable.nim )
+  ver="$(cd "$clone" && git describe --tags --always 2>/dev/null || echo unknown)"
+  bin_out=""
+  for c in "${clone}/billable" "${clone}/src/billable"; do
+    if [[ -f "$c" && -x "$c" ]]; then
+      bin_out="$c"
+      break
+    fi
+  done
+  if [[ -z "$bin_out" ]]; then
+    rm -rf "$tmp"
+    log_error "Build finished but billable binary not found (expected ${clone}/billable or ${clone}/src/billable)"
+    exit 1
+  fi
+  install -m 0755 "$bin_out" "${extdir}/billable"
+  _timew_write_meta "billable" "$upstream" "$ver"
+  rm -rf "$tmp"
+  echo ""
+  echo "Installed: ${extdir}/billable"
+  echo "Upstream:  trev-dev/timew-billable · MIT License"
+  echo "            ${upstream}"
+  log_success "timew-billable installed as 'billable' (run: timew report billable)"
+}
+
+_timew_install_from_url() {
+  local url="$1"
+  _timew_require_profile_db
+  if [[ ! "$url" =~ ^https?:// ]]; then
+    log_error "URL must start with http:// or https://"
+    exit 1
+  fi
+  local extdir tmp clone name ver bin_out
+  extdir="$(_timew_extensions_dir)"
+  mkdir -p "$extdir"
+  name="$(basename "$url" .git)"
+  name="${name%.git}"
+  if [[ ! "$name" =~ ^[A-Za-z0-9._-]+$ ]]; then
+    log_error "Derived extension name '$name' is not safe — use a simpler repo URL basename"
+    exit 1
+  fi
+  tmp="$(mktemp -d "${TMPDIR:-/tmp}/ww-timew-ext.XXXXXX")"
+  clone="${tmp}/repo"
+  git clone --depth 1 "$url" "$clone"
+  ver="$(cd "$clone" && git describe --tags --always 2>/dev/null || echo unknown)"
+  bin_out=""
+  if [[ -f "${clone}/src/billable.nim" ]]; then
+    if ! command -v nim &>/dev/null; then
+      rm -rf "$tmp"
+      log_error "Repository looks like timew-billable (src/billable.nim) but nim is not installed."
+      exit 1
+    fi
+    ( cd "$clone" && nim c -d:release src/billable.nim )
+    for c in "${clone}/billable" "${clone}/src/billable"; do
+      if [[ -f "$c" && -x "$c" ]]; then
+        bin_out="$c"
+        break
+      fi
+    done
+    install_name="billable"
+  elif find "$clone" -maxdepth 1 -name '*.nimble' -print -quit | grep -q .; then
+    if ! command -v nimble &>/dev/null; then
+      rm -rf "$tmp"
+      log_error "Found a .nimble package but nimble is not installed."
+      exit 1
+    fi
+    ( cd "$clone" && (nimble build --accept 2>/dev/null || nimble -y build 2>/dev/null || nimble build) )
+    # pick first executable in clone root or bin/
+    if [[ -d "${clone}/bin" ]]; then
+      bin_out="$(find "${clone}/bin" -maxdepth 1 -type f -perm -111 2>/dev/null | head -1 || true)"
+    fi
+    if [[ -z "$bin_out" ]]; then
+      bin_out="$(find "$clone" -maxdepth 1 -type f -perm -111 ! -name '*.nim' 2>/dev/null | head -1 || true)"
+    fi
+    install_name="$name"
+  elif [[ -f "${clone}/setup.py" || -f "${clone}/pyproject.toml" ]]; then
+    rm -rf "$tmp"
+    log_error "Python-based timew extensions are not auto-installed yet."
+    echo "Clone manually, install into a venv, and symlink the entry script into:" >&2
+    echo "  ${extdir}/" >&2
+    exit 1
+  else
+    local shf
+    shf="$(find "$clone" -maxdepth 2 -type f -name '*.sh' 2>/dev/null | head -1 || true)"
+    if [[ -n "$shf" ]]; then
+      install_name="$name"
+      bin_out="$shf"
+      chmod +x "$bin_out" 2>/dev/null || true
+    else
+      rm -rf "$tmp"
+      log_error "Could not detect a supported build (Nim billable, nimble package, or executable .sh)."
+      exit 1
+    fi
+  fi
+  if [[ -z "$bin_out" || ! -x "$bin_out" ]]; then
+    rm -rf "$tmp"
+    log_error "Build or detection failed — no executable produced."
+    exit 1
+  fi
+  install -m 0755 "$bin_out" "${extdir}/${install_name}"
+  _timew_write_meta "$install_name" "$url" "$ver"
+  rm -rf "$tmp"
+  echo "Installed: ${extdir}/${install_name}  (source: ${url})"
+  log_success "timew extension '${install_name}' installed"
+}
+
+cmd_timew_extensions() {
+  local action="${1:-}"
+  shift 2>/dev/null || true
+
+  case "$action" in
+    list)
+      _timew_require_profile_db
+      if [[ "$WW_OUTPUT_MODE" == "json" ]]; then
+        _timew_list_extensions_json
+      elif [[ "$WW_OUTPUT_MODE" == "compact" ]]; then
+        local extdir
+        extdir="$(_timew_extensions_dir)"
+        mkdir -p "$extdir"
+        while IFS= read -r -d '' f; do
+          basename "$f"
+        done < <(command find "$extdir" -maxdepth 1 -type f ! -name '*.ww-ext.json' -perm -111 -print0 2>/dev/null || true)
+      else
+        echo "TimeWarrior extensions (profile: ${WARRIOR_PROFILE:-?}):"
+        echo "  TIMEWARRIORDB=${TIMEWARRIORDB}"
+        echo ""
+        _timew_list_extensions_human
+      fi
+      ;;
+    install)
+      local what="${1:-}"
+      if [[ -z "$what" ]]; then
+        log_error "Missing install target — use: billable  or  https://github.com/..."
+        exit 1
+      fi
+      shift 2>/dev/null || true
+      if [[ "$what" == "billable" ]]; then
+        _timew_install_billable
+      elif [[ "$what" =~ ^https?:// ]]; then
+        _timew_install_from_url "$what"
+      else
+        log_error "Unknown preset '$what' — use: billable  or a full git URL"
+        exit 1
+      fi
+      ;;
+    remove)
+      local name="${1:-}"
+      if [[ -z "$name" ]]; then
+        log_error "Usage: ww timew extensions remove <name>"
+        exit 1
+      fi
+      if [[ ! "$name" =~ ^[A-Za-z0-9._-]+$ ]]; then
+        log_error "Invalid extension name"
+        exit 1
+      fi
+      _timew_require_profile_db
+      local extdir f meta
+      extdir="$(_timew_extensions_dir)"
+      f="${extdir}/${name}"
+      meta="${extdir}/${name}.ww-ext.json"
+      if [[ ! -f "$f" ]]; then
+        log_error "Extension not found: $f"
+        exit 1
+      fi
+      rm -f "$f" "$meta"
+      log_success "Removed extension '${name}' from active profile"
+      ;;
+    help|-h|--help)
+      cat << 'EOF'
+Timew extensions — per-profile installs under $TIMEWARRIORDB/extensions/
+
+Usage:
+  ww timew extensions list
+  ww timew extensions install billable
+  ww timew extensions install https://github.com/org/repo.git
+  ww timew extensions remove <name>
+  ww timew extensions help
+
+Requires an active ww profile (TIMEWARRIORDB). Use:
+  ww --profile <name> timew extensions list
+
+Powered by timew-billable · trev-dev
+  https://github.com/trev-dev/timew-billable · MIT License
+
+See also: docs/taskwarrior-extensions/timew-billable-integration.md
+EOF
+      ;;
+    "")
+      cmd_timew_extensions help
+      ;;
+    *)
+      log_error "Unknown timew extensions action: $action"
+      cmd_timew_extensions help
+      exit 1
+      ;;
+  esac
+}
+
+cmd_timew() {
+  local sub="${1:-}"
+  shift 2>/dev/null || true
+
+  case "$sub" in
+    extensions)
+      cmd_timew_extensions "$@"
+      ;;
+    help|-h|--help)
+      cat << 'EOF'
+Timew — TimeWarrior helpers
+
+Usage:
+  ww timew extensions <list|install|remove|help>
+
+Examples:
+  ww timew extensions list
+  ww timew extensions install billable
+  ww timew extensions remove billable
+
+Per-profile extensions live in:
+  $TIMEWARRIORDB/extensions/
+
+Documentation:
+  docs/taskwarrior-extensions/timew-billable-integration.md
+EOF
+      ;;
+    "")
+      cmd_timew help
+      ;;
+    *)
+      log_error "Unknown timew subcommand: $sub"
+      cmd_timew help
+      exit 1
+      ;;
+  esac
 }
 
 # ============================================================================
@@ -2196,6 +2698,536 @@ cmd_ledger() {
 }
 
 # ============================================================================
+# ROUTINES COMMAND
+# ============================================================================
+
+cmd_routines() {
+  local subcommand="${1:-list}"
+  shift 2>/dev/null || true
+
+  _routines_require_profile() {
+    if [[ -z "${WORKWARRIOR_BASE:-}" || -z "${TASKRC:-}" || -z "${TASKDATA:-}" ]]; then
+      log_error "No active profile — activate one first: p-<profile-name>"
+      exit 1
+    fi
+  }
+
+  _routines_dir() {
+    echo "${WORKWARRIOR_BASE:-}/.config/routines"
+  }
+
+  _routines_state_file() {
+    echo "$(_routines_dir)/.ww-routines-state.json"
+  }
+
+  _routines_install_dir() {
+    echo "${WW_BASE}/tools/extensions/cron"
+  }
+
+  _routines_validate_name() {
+    local routine_name="${1:-}"
+    [[ "$routine_name" =~ ^[A-Za-z0-9._-]+$ ]]
+  }
+
+  _routines_routine_path() {
+    local routine_name="$1"
+    echo "$(_routines_dir)/${routine_name}.py"
+  }
+
+  _routines_slugify() {
+    local text="${1:-}"
+    python3 - "$text" << 'PY'
+import re
+import sys
+text = sys.argv[1].strip().lower()
+slug = re.sub(r'[^a-z0-9]+', '_', text).strip('_')
+print(slug or "routine")
+PY
+  }
+
+  _routines_class_name() {
+    local text="${1:-}"
+    python3 - "$text" << 'PY'
+import re
+import sys
+parts = re.findall(r'[A-Za-z0-9]+', sys.argv[1])
+if not parts:
+    print("Routine")
+else:
+    print("".join(p[:1].upper() + p[1:] for p in parts))
+PY
+  }
+
+  _routines_list_names() {
+    local routines_dir
+    routines_dir="$(_routines_dir)"
+    mkdir -p "$routines_dir"
+    while IFS= read -r -d '' f; do
+      basename "$f" .py
+    done < <(command find "$routines_dir" -maxdepth 1 -type f -name "*.py" ! -name "cron.py" -print0 2>/dev/null | sort -z)
+  }
+
+  _routines_state_update() {
+    local routine_name="$1"
+    local status="$2"
+    local exit_code="$3"
+    local duration_ms="$4"
+    local state_file
+    state_file="$(_routines_state_file)"
+    mkdir -p "$(dirname "$state_file")"
+    python3 - "$state_file" "$routine_name" "$status" "$exit_code" "$duration_ms" << 'PY'
+import datetime
+import json
+import os
+import sys
+
+state_file, routine_name, status, exit_code, duration_ms = sys.argv[1:]
+data = {}
+if os.path.isfile(state_file):
+    try:
+        with open(state_file, encoding="utf-8") as f:
+            data = json.load(f) or {}
+    except Exception:
+        data = {}
+data[routine_name] = {
+    "last_run_utc": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    "status": status,
+    "exit_code": int(exit_code),
+    "duration_ms": int(duration_ms),
+}
+with open(state_file, "w", encoding="utf-8") as f:
+    json.dump(data, f, indent=2, sort_keys=True)
+PY
+  }
+
+  _routines_render_list_json() {
+    local routines_dir
+    routines_dir="$(_routines_dir)"
+    local state_file
+    state_file="$(_routines_state_file)"
+    python3 - "$routines_dir" "$state_file" << 'PY'
+import json
+import os
+import sys
+
+routines_dir, state_file = sys.argv[1:]
+state = {}
+if os.path.isfile(state_file):
+    try:
+        with open(state_file, encoding="utf-8") as f:
+            state = json.load(f) or {}
+    except Exception:
+        state = {}
+rows = []
+if os.path.isdir(routines_dir):
+    for name in sorted(os.listdir(routines_dir)):
+        if not name.endswith(".py") or name == "cron.py":
+            continue
+        path = os.path.join(routines_dir, name)
+        if not os.path.isfile(path):
+            continue
+        key = name[:-3]
+        row = {
+            "name": key,
+            "path": path,
+            "last_run_utc": "",
+            "status": "",
+            "exit_code": None,
+        }
+        if key in state and isinstance(state[key], dict):
+            meta = state[key]
+            row["last_run_utc"] = str(meta.get("last_run_utc", "") or "")
+            row["status"] = str(meta.get("status", "") or "")
+            row["exit_code"] = meta.get("exit_code")
+        rows.append(row)
+print(json.dumps(rows, indent=2))
+PY
+  }
+
+  _routines_run_one() {
+    local routine_file="$1"
+    local routine_name="$2"
+    local routines_dir
+    routines_dir="$(_routines_dir)"
+    local install_dir
+    install_dir="$(_routines_install_dir)"
+    local start_ms end_ms duration_ms rc
+    start_ms=$(( $(date +%s) * 1000 ))
+    if PYTHONPATH="${routines_dir}:${install_dir}:${PYTHONPATH:-}" \
+      TASKRC="${TASKRC}" TASKDATA="${TASKDATA}" WORKWARRIOR_BASE="${WORKWARRIOR_BASE}" \
+      python3 "$routine_file"; then
+      end_ms=$(( $(date +%s) * 1000 ))
+      duration_ms=$(( end_ms - start_ms ))
+      _routines_state_update "$routine_name" "success" "0" "$duration_ms"
+      return 0
+    fi
+    rc=$?
+    end_ms=$(( $(date +%s) * 1000 ))
+    duration_ms=$(( end_ms - start_ms ))
+    _routines_state_update "$routine_name" "failed" "$rc" "$duration_ms"
+    return "$rc"
+  }
+
+  case "$subcommand" in
+    install)
+      if ! command -v git &>/dev/null; then
+        log_error "git not found. Install git to use 'ww routines install'."
+        exit 1
+      fi
+      local install_dir
+      install_dir="$(_routines_install_dir)"
+      mkdir -p "$(dirname "$install_dir")"
+      if [[ -d "${install_dir}/.git" ]]; then
+        echo "Updating allgreed/cron source..."
+        git -C "$install_dir" pull --quiet
+      else
+        echo "Installing allgreed/cron source..."
+        git clone --quiet https://github.com/allgreed/cron.git "$install_dir"
+      fi
+      if [[ ! -f "${install_dir}/cron.py" ]]; then
+        log_error "Install completed but cron.py not found in ${install_dir}"
+        exit 1
+      fi
+      if [[ -n "${WORKWARRIOR_BASE:-}" ]]; then
+        local routines_dir
+        routines_dir="$(_routines_dir)"
+        mkdir -p "$routines_dir"
+        ln -sf "${install_dir}/cron.py" "${routines_dir}/cron.py"
+      fi
+      log_success "allgreed/cron installed at ${install_dir}"
+      ;;
+    list)
+      _routines_require_profile
+      local routines_dir
+      routines_dir="$(_routines_dir)"
+      local names=()
+      mapfile -t names < <(_routines_list_names)
+      if [[ "$WW_OUTPUT_MODE" == "json" ]]; then
+        _routines_render_list_json
+      elif [[ "$WW_OUTPUT_MODE" == "compact" ]]; then
+        if (( ${#names[@]} > 0 )); then
+          printf '%s\n' "${names[@]}"
+        fi
+      else
+        echo "Routines (${WARRIOR_PROFILE:-active}):"
+        echo "  Directory: ${routines_dir}"
+        if (( ${#names[@]} == 0 )); then
+          echo "  (none)"
+        else
+          printf '  - %s\n' "${names[@]}"
+        fi
+      fi
+      ;;
+    add)
+      _routines_require_profile
+      local description="${1:-}"
+      shift 2>/dev/null || true
+      if [[ -z "$description" ]]; then
+        log_error "Description required"
+        echo "Usage: ww routines add \"<description>\" --frequency weekly [--name <name>] [--run-now]"
+        exit 1
+      fi
+
+      local frequency="weekly"
+      local explicit_name=""
+      local run_now=0
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          --frequency)
+            frequency="${2:-}"
+            shift 2
+            ;;
+          --name)
+            explicit_name="${2:-}"
+            shift 2
+            ;;
+          --run-now)
+            run_now=1
+            shift
+            ;;
+          *)
+            log_error "Unknown flag for routines add: $1"
+            echo "Usage: ww routines add \"<description>\" --frequency weekly [--name <name>] [--run-now]"
+            exit 1
+            ;;
+        esac
+      done
+
+      local cadence_class=""
+      case "${frequency,,}" in
+        daily) cadence_class="Daily" ;;
+        weekly) cadence_class="Weekly" ;;
+        monthly) cadence_class="Monthly" ;;
+        yearly) cadence_class="Yearly" ;;
+        *)
+          log_error "Unsupported frequency: ${frequency}. Use one of: daily, weekly, monthly, yearly."
+          exit 1
+          ;;
+      esac
+
+      local routine_name=""
+      if [[ -n "$explicit_name" ]]; then
+        routine_name="$explicit_name"
+      else
+        routine_name="$(_routines_slugify "$description")"
+      fi
+      if ! _routines_validate_name "$routine_name"; then
+        log_error "Invalid routine name. Use letters, numbers, dot, underscore, or hyphen."
+        exit 1
+      fi
+
+      local class_name
+      class_name="$(_routines_class_name "$routine_name")"
+      local routines_dir
+      routines_dir="$(_routines_dir)"
+      mkdir -p "$routines_dir"
+      local routine_path
+      routine_path="$(_routines_routine_path "$routine_name")"
+      if [[ -f "$routine_path" ]]; then
+        log_error "Routine already exists: ${routine_path}"
+        exit 1
+      fi
+
+      cat > "$routine_path" << EOF
+#!/usr/bin/env python3
+\"\"\"Workwarrior routine: ${routine_name}
+
+Generated by: ww routines add
+\"\"\"
+
+from cron import main, Task as T, ${cadence_class}
+
+
+class ${class_name}(${cadence_class}):
+    task = T("${description}")
+
+
+if __name__ == "__main__":
+    main()
+EOF
+      chmod +x "$routine_path"
+
+      local install_dir
+      install_dir="$(_routines_install_dir)"
+      if [[ -f "${install_dir}/cron.py" && ! -f "${routines_dir}/cron.py" ]]; then
+        ln -sf "${install_dir}/cron.py" "${routines_dir}/cron.py"
+      fi
+      log_success "Created routine from shortcut: ${routine_path}"
+      if [[ "$run_now" -eq 1 ]]; then
+        echo "Running routine: ${routine_name}"
+        if ! _routines_run_one "$routine_path" "$routine_name"; then
+          log_error "Routine failed: ${routine_name}"
+          exit 1
+        fi
+        log_success "Routine run complete: ${routine_name}"
+      elif [[ "${WW_ROUTINES_NO_EDIT:-0}" != "1" ]]; then
+        "${EDITOR:-vi}" "$routine_path"
+      fi
+      ;;
+    new)
+      _routines_require_profile
+      local routine_name="${1:-}"
+      if [[ -z "$routine_name" ]]; then
+        log_error "Routine name required"
+        echo "Usage: ww routines new <name>"
+        exit 1
+      fi
+      if ! _routines_validate_name "$routine_name"; then
+        log_error "Invalid routine name. Use letters, numbers, dot, underscore, or hyphen."
+        exit 1
+      fi
+      local routines_dir
+      routines_dir="$(_routines_dir)"
+      mkdir -p "$routines_dir"
+      local routine_path
+      routine_path="$(_routines_routine_path "$routine_name")"
+      if [[ -f "$routine_path" ]]; then
+        log_error "Routine already exists: ${routine_path}"
+        exit 1
+      fi
+      cat > "$routine_path" << EOF
+#!/usr/bin/env python3
+\"\"\"Workwarrior routine: ${routine_name}
+
+Requires allgreed/cron runtime. Install with:
+  ww routines install
+\"\"\"
+
+from cron import main, Task as T, Weekly
+
+
+class ${routine_name}(Weekly):
+    task = T("Replace with your recurring task description")
+
+
+if __name__ == "__main__":
+    main()
+EOF
+      chmod +x "$routine_path"
+      local install_dir
+      install_dir="$(_routines_install_dir)"
+      if [[ -f "${install_dir}/cron.py" && ! -f "${routines_dir}/cron.py" ]]; then
+        ln -sf "${install_dir}/cron.py" "${routines_dir}/cron.py"
+      fi
+      log_success "Created routine template: ${routine_path}"
+      if [[ "${WW_ROUTINES_NO_EDIT:-0}" != "1" ]]; then
+        "${EDITOR:-vi}" "$routine_path"
+      fi
+      ;;
+    edit)
+      _routines_require_profile
+      local routine_name="${1:-}"
+      if [[ -z "$routine_name" ]]; then
+        log_error "Routine name required"
+        echo "Usage: ww routines edit <name>"
+        exit 1
+      fi
+      local routine_path
+      routine_path="$(_routines_routine_path "$routine_name")"
+      if [[ ! -f "$routine_path" ]]; then
+        log_error "Routine not found: ${routine_path}"
+        exit 1
+      fi
+      "${EDITOR:-vi}" "$routine_path"
+      ;;
+    run)
+      _routines_require_profile
+      if ! command -v python3 &>/dev/null; then
+        log_error "python3 not found"
+        exit 1
+      fi
+      local routine_name="${1:-}"
+      local failures=0
+      if [[ -n "$routine_name" ]]; then
+        local routine_path
+        routine_path="$(_routines_routine_path "$routine_name")"
+        if [[ ! -f "$routine_path" ]]; then
+          log_error "Routine not found: ${routine_path}"
+          exit 1
+        fi
+        echo "Running routine: ${routine_name}"
+        if ! _routines_run_one "$routine_path" "$routine_name"; then
+          failures=1
+        fi
+      else
+        local names=()
+        mapfile -t names < <(_routines_list_names)
+        if (( ${#names[@]} == 0 )); then
+          echo "No routines defined."
+          return 0
+        fi
+        local name
+        for name in "${names[@]}"; do
+          local routine_path
+          routine_path="$(_routines_routine_path "$name")"
+          echo "Running routine: ${name}"
+          if ! _routines_run_one "$routine_path" "$name"; then
+            failures=$((failures + 1))
+          fi
+        done
+      fi
+      if [[ "$failures" -gt 0 ]]; then
+        log_error "One or more routines failed"
+        exit 1
+      fi
+      log_success "Routines run complete"
+      ;;
+    status)
+      _routines_require_profile
+      local routines_dir
+      routines_dir="$(_routines_dir)"
+      local install_dir
+      install_dir="$(_routines_install_dir)"
+      local state_file
+      state_file="$(_routines_state_file)"
+      local names=()
+      mapfile -t names < <(_routines_list_names)
+      if [[ "$WW_OUTPUT_MODE" == "json" ]]; then
+        python3 - "$routines_dir" "$install_dir" "$state_file" << 'PY'
+import json
+import os
+import sys
+
+routines_dir, install_dir, state_file = sys.argv[1:]
+state = {}
+if os.path.isfile(state_file):
+    try:
+        with open(state_file, encoding="utf-8") as f:
+            state = json.load(f) or {}
+    except Exception:
+        state = {}
+names = []
+if os.path.isdir(routines_dir):
+    for name in sorted(os.listdir(routines_dir)):
+        if name.endswith(".py") and name != "cron.py":
+            names.append(name[:-3])
+print(json.dumps({
+    "profile": os.environ.get("WARRIOR_PROFILE", ""),
+    "routines_dir": routines_dir,
+    "runtime_installed": os.path.isfile(os.path.join(install_dir, "cron.py")),
+    "count": len(names),
+    "routines": names,
+    "state": state,
+}, indent=2))
+PY
+      elif [[ "$WW_OUTPUT_MODE" == "compact" ]]; then
+        printf 'profile=%s count=%s runtime=%s\n' \
+          "${WARRIOR_PROFILE:-active}" \
+          "${#names[@]}" \
+          "$([[ -f "${install_dir}/cron.py" ]] && echo installed || echo missing)"
+      else
+        echo "Routines status for profile '${WARRIOR_PROFILE:-active}':"
+        echo "  directory: ${routines_dir}"
+        echo "  runtime:   $([[ -f "${install_dir}/cron.py" ]] && echo installed || echo missing) (${install_dir})"
+        echo "  count:     ${#names[@]}"
+        echo "  state:     ${state_file}"
+      fi
+      ;;
+    help|-h|--help|"")
+      cat << 'EOF'
+Routines Command — Recurring Task Generator
+
+Creates and runs profile-scoped Python routine definitions for recurring tasks.
+Integrated with allgreed/cron.
+
+Usage:
+  ww routines list            List routine definitions
+  ww routines add "<desc>" --frequency weekly [--name <name>] [--run-now]
+  ww routines new <name>      Create routine template and open in editor
+  ww routines edit <name>     Edit an existing routine
+  ww routines run [name]      Run all routines or one routine
+  ww routines status          Show runtime status + last run metadata
+  ww routines install         Install/update allgreed/cron source runtime
+  ww routines help            Show this help
+
+Storage:
+  profiles/<name>/.config/routines/
+    *.py                      Routine definitions
+    cron.py                   Runtime shim (linked from install)
+    .ww-routines-state.json   Last run metadata
+
+Examples:
+  ww routines install
+  ww routines add "Clean room" --frequency weekly
+  ww routines add "Clean room" --frequency weekly --run-now
+  ww routines new clean_room
+  ww routines list
+  ww routines run
+  ww routines run clean_room
+
+Powered by allgreed/cron · allgreed
+  https://github.com/allgreed/cron
+EOF
+      ;;
+    *)
+      log_error "Unknown routines subcommand: $subcommand"
+      cmd_routines help
+      exit 1
+      ;;
+  esac
+}
+
+# ============================================================================
 # SCHEDULE COMMAND
 # ============================================================================
 
@@ -3017,8 +4049,14 @@ _issues_uda_install() {
 
     local taskrc="${WORKWARRIOR_BASE}/.taskrc"
     local bugwarrior_config="${WORKWARRIOR_BASE}/.config/bugwarrior/bugwarriorrc"
-    [[ -f "${WORKWARRIOR_BASE}/.config/bugwarrior/bugwarrior.toml" ]] && \
+    if [[ -f "${WORKWARRIOR_BASE}/.config/bugwarrior/bugwarrior.toml" ]]; then
         bugwarrior_config="${WORKWARRIOR_BASE}/.config/bugwarrior/bugwarrior.toml"
+    fi
+    if [[ ! -f "$bugwarrior_config" ]]; then
+        log_error "Bugwarrior configuration not found"
+        echo "Run 'ww issues custom' to configure the issues service" >&2
+        exit 1
+    fi
 
     local bw_udas
     if ! bw_udas=$(BUGWARRIORRC="${bugwarrior_config}" bugwarrior uda 2>/dev/null); then
@@ -3042,49 +4080,105 @@ _issues_uda_install() {
 }
 
 _issues_uda_group() {
-    # Create or update a UDA group in .taskrc for a known service prefix.
+    # Create or update a UDA group in BOTH:
+    #  - ${WORKWARRIOR_BASE}/.uda-groups   (fast, simple sidecar)
+    #  - ${WORKWARRIOR_BASE}/.taskrc       (portable metadata block)
     local svc_name="$1"
     local taskrc="${WORKWARRIOR_BASE}/.taskrc"
+    local group_file="${WORKWARRIOR_BASE}/.uda-groups"
 
-    local prefix
+    local uda_list=""
     case "${svc_name}" in
-        github)  prefix="github" ;;
-        gitlab)  prefix="gitlab" ;;
-        jira)    prefix="jira" ;;
-        trello)  prefix="trello" ;;
-        sync)    prefix="sync" ;;
+        github)
+            # Standard bugwarrior GitHub group (15 fields) — no manual selection.
+            uda_list="github_number,github_repo,github_url,github_title,github_state,github_user,github_milestone,github_project,github_namespace,github_type,github_labels,github_created_at,github_updated_at,github_closed_at,github_body"
+            ;;
+        gitlab|jira|trello|sync)
+            local prefix="${svc_name}"
+            uda_list=$(grep -E "^uda\\.${prefix}[^.]+\\.type=" "${taskrc}" 2>/dev/null \
+                | awk -F. '{print $2}' | sort -u | tr '\n' ',' | sed 's/,$//' || true)
+            ;;
         *)
             log_error "Unknown service '${svc_name}'. Known: github gitlab jira trello sync"
             exit 1 ;;
     esac
-
-    local uda_list
-    uda_list=$(grep -E "^uda\\.${prefix}[^.]+\\.type=" "${taskrc}" 2>/dev/null \
-        | awk -F. '{print $2}' | sort -u | tr '\n' ',' | sed 's/,$//' || true)
 
     if [[ -z "${uda_list}" ]]; then
         log_error "No ${svc_name} UDAs found in .taskrc. Run: ww issues uda install"
         exit 1
     fi
 
-    local group_line="# group:${svc_name} udas:${uda_list}"
+    # 1) Sidecar file (.uda-groups)
+    if grep -q "^${svc_name}:" "${group_file}" 2>/dev/null; then
+        if sed --version >/dev/null 2>&1; then
+            sed -i "s|^${svc_name}:.*|${svc_name}: ${uda_list}|" "${group_file}"
+        else
+            sed -i.bak "s|^${svc_name}:.*|${svc_name}: ${uda_list}|" "${group_file}" && rm -f "${group_file}.bak"
+        fi
+    else
+        echo "${svc_name}: ${uda_list}" >> "${group_file}"
+    fi
 
+    # 2) Portable taskrc metadata block (# === WW UDA GROUPS ===)
+    local group_line="# group:${svc_name} udas:${uda_list}"
     if grep -q "^# === WW UDA GROUPS ===" "${taskrc}" 2>/dev/null; then
         if grep -q "^# group:${svc_name} " "${taskrc}" 2>/dev/null; then
-            sed -i.bak "s|^# group:${svc_name} .*|${group_line}|" "${taskrc}" \
-                && rm -f "${taskrc}.bak"
+            sed -i.bak "s|^# group:${svc_name} .*|${group_line}|" "${taskrc}" && rm -f "${taskrc}.bak"
         else
             sed -i.bak "/^# === END WW UDA GROUPS ===/i\\
 ${group_line}" "${taskrc}" && rm -f "${taskrc}.bak"
         fi
     else
-        printf '\n# === WW UDA GROUPS ===\n%s\n# === END WW UDA GROUPS ===\n' \
-            "${group_line}" >> "${taskrc}"
+        printf '\n# === WW UDA GROUPS ===\n%s\n# === END WW UDA GROUPS ===\n' "${group_line}" >> "${taskrc}"
     fi
 
     local count
     count=$(echo "${uda_list}" | tr ',' '\n' | wc -l | tr -d ' ')
-    echo "✓ Group '${svc_name}' written — ${count} UDAs: ${uda_list}"
+    echo "✓ Group '${svc_name}' written to .uda-groups and .taskrc metadata — ${count} UDAs"
+}
+
+_issues_uda_sync_sidecar_from_taskrc() {
+    # taskrc-authoritative sync: rewrite .uda-groups from the taskrc metadata block.
+    local taskrc="${WORKWARRIOR_BASE}/.taskrc"
+    local group_file="${WORKWARRIOR_BASE}/.uda-groups"
+    local tmp
+    tmp="$(mktemp "${TMPDIR:-/tmp}/ww-uda-groups.XXXXXX")"
+
+    if [[ ! -f "$taskrc" ]]; then
+        rm -f "$tmp"
+        return 0
+    fi
+
+    # Extract lines like: "# group:github udas:a,b,c ..."
+    # Use awk for portability across BSD/GNU sed.
+    awk '
+      /^# === WW UDA GROUPS ===/ { in_block=1; next }
+      /^# === END WW UDA GROUPS ===/ { in_block=0; next }
+      in_block && /^# group:/ {
+        line=$0
+        sub(/^# group:/, "", line)
+        split(line, parts, " ")
+        grp=parts[1]
+        uds=""
+        for (i=2; i<=length(parts); i++) {
+          if (parts[i] ~ /^udas:/) {
+            uds=substr(parts[i], 6)
+            break
+          }
+        }
+        if (grp != "" && uds != "") {
+          print grp ": " uds
+        }
+      }
+    ' "$taskrc" > "$tmp"
+
+    # If no taskrc metadata exists, leave sidecar untouched.
+    if [[ ! -s "$tmp" ]]; then
+        rm -f "$tmp"
+        return 0
+    fi
+
+    mv "$tmp" "$group_file"
 }
 
 # ============================================================================
@@ -3183,6 +4277,8 @@ EOF
     uda)
       local uda_sub="${1:-list}"; shift || true
       local uda_script="$WW_BASE/services/profile/subservices/profile-uda.sh"
+      # Keep .uda-groups in sync from taskrc metadata (taskrc is authority).
+      _issues_uda_sync_sidecar_from_taskrc
       case "$uda_sub" in
         help|--help|-h)
           cat << 'EOF'
@@ -3366,6 +4462,9 @@ main() {
     extensions)
       cmd_extensions "$@"
       ;;
+    timew)
+      cmd_timew "$@"
+      ;;
     find)
       cmd_find "$@"
       ;;
@@ -3389,6 +4488,9 @@ main() {
       ;;
     schedule)
       cmd_schedule "$@"
+      ;;
+    routines)
+      cmd_routines "$@"
       ;;
     mcp)
       cmd_mcp "$@"

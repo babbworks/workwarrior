@@ -5,6 +5,30 @@ Each entry: date, decision, context, and why — so future sessions don't re-lit
 
 ---
 
+## 2026-04-20 — `ww routines` design settled; WARLOCK adoption paused
+
+**Decision:** Implement TASK-EXT-CRON-001 now as `ww routines` with profile-scoped storage at `profiles/<name>/.config/routines/`. Keep run trigger manual (`ww routines run`), use template-first authoring (`ww routines new <name>`), and require Python runtime only (no nix dependency at ww runtime). `TASK-EXT-WARLOCK-001` moved to parked/paused state pending broader web architecture decisions.
+
+**Context:** Operator requested to skip gun work, pause warlock, and proceed with cron integration. Clarification requested whether microservice data should live with service code or in `.config`.
+
+**Why:** Existing project precedent stores profile-scoped service config/state under `.config/` (`taskcheck`, `bugwarrior`, sync permissions). This keeps runtime/user-authored files in profile data space while command/runtime code remains in repo.
+
+**Consequence:** `ww routines` commands now operate on `.config/routines` per profile and write run metadata there; `ww routines install` places upstream source under `$WW_BASE/tools/extensions/cron`. Future work should treat warlock as explicitly parked unless reopened by operator.
+
+---
+
+## 2026-04-20 — Integration scripts that touch `~/.bashrc` require elevated write context in agent runs
+
+**Decision:** Treat profile-creation/integration test failures caused by `~/.bashrc` writes as environment constraints, not product regressions, when running in sandboxed agent mode.
+
+**Context:** During TASK-UX-001 verification, `tests/test-scripts-integration.sh` failed because profile creation attempted to write `~/.bashrc` via shell-integration helpers and sandboxed execution blocked home-directory writes (`Operation not permitted` on `.bashrc.tmp` rename). The test passed earlier steps and failed only at shell rc mutation.
+
+**Why:** The integration script currently assumes host-level write access to shell rc files. In agent sandboxes this may be denied or require explicit elevated permission approval, which can abort verification independently of code correctness.
+
+**Consequence:** Future agents should either (a) run this integration test with approved elevated permissions, or (b) provide a test-safe rc override path for integration mode so writes stay within workspace temp files. Do not treat this specific failure signature as an immediate CLI behavior regression.
+
+---
+
 ## 2026-04-09 — `ww browser` service architecture: live server + static export hybrid
 
 **Decision:** `ww browser` runs a Python3 stdlib HTTP server (ThreadingHTTPServer — required for SSE + concurrent POST) as the primary experience. Static snapshot export (`ww browser export`) is a secondary path for sharing/publishing. No external dependencies — Python3 stdlib + vanilla JS only.

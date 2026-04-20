@@ -47,4 +47,8 @@ Tests required:       None — document deliverables only.
 
 Fragility:            None — new files only, no existing code touched.
 
-Status:               pending
+Status:               complete — 2026-04-20
+
+Completion note:      Added `services/<name>/service-overview.md` for all 12 interview-queue
+                      categories plus new `services/saves/` (design-only stubs: Purpose, User,
+                      command sketch, data/integrations, open questions). No executable services added.

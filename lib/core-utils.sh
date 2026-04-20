@@ -10,6 +10,7 @@
 # Base directories — guarded so re-sourcing (e.g. source ~/.bashrc) doesn't error on readonly
 if [[ -z "${CORE_UTILS_LOADED:-}" ]]; then
   readonly WW_BASE="${WW_BASE:-$HOME/ww}"
+  readonly WW_DEFAULT_OUTPUT_MODE="${WW_DEFAULT_OUTPUT_MODE:-compact}"
   PROFILES_DIR="${PROFILES_DIR:-$WW_BASE/profiles}"
   readonly SERVICES_DIR="${SERVICES_DIR:-$WW_BASE/services}"
   readonly RESOURCES_DIR="${RESOURCES_DIR:-$WW_BASE/resources}"
