@@ -882,6 +882,8 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                 self._handle_data_profile_detail()
             elif self.path == "/data/warrior":
                 self._handle_data_warrior()
+            elif self.path == "/export/snapshot":
+                self._handle_export_snapshot()
             else:
                 self._send_json(404, {"error": "not found"})
 
@@ -2510,6 +2512,130 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                 "journal": journal_entries,
                 "balances": balances,
             })
+
+        # -- GET /export/snapshot -------------------------------------------
+
+        def _handle_export_snapshot(self) -> None:
+            """Generate a self-contained static HTML snapshot of the active profile."""
+            paths = state.get_profile_paths()
+            profile = state.get_active_profile() or "unknown"
+            exported_at = time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime())
+
+            tasks, journal_entries, balances = [], [], []
+
+            if paths:
+                env_t = {**os.environ, "TASKRC": paths["taskrc"], "TASKDATA": paths["taskdata"]}
+                try:
+                    r1 = subprocess.run(["task", "rc.confirmation=no", "status:pending", "export"],
+                        capture_output=True, text=True, timeout=10, env=env_t)
+                    r2 = subprocess.run(["task", "rc.confirmation=no", "status:active", "export"],
+                        capture_output=True, text=True, timeout=10, env=env_t)
+                    pending = json.loads(r1.stdout) if r1.stdout.strip() else []
+                    active = json.loads(r2.stdout) if r2.stdout.strip() else []
+                    tasks = active + [t for t in pending if t.get("uuid") not in {a["uuid"] for a in active}]
+                    tasks.sort(key=lambda t: t.get("urgency", 0), reverse=True)
+                except Exception:
+                    pass
+                try:
+                    import re as _re
+                    content_j = open(paths["journal_file"]).read()
+                    parts = _re.split(r'\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2})\]', content_j)
+                    for i in range(1, len(parts) - 1, 2):
+                        body = parts[i + 1].strip()
+                        if body:
+                            journal_entries.append({"date": parts[i], "body": body})
+                    journal_entries.reverse()
+                    journal_entries = journal_entries[:30]
+                except Exception:
+                    pass
+                try:
+                    bal = subprocess.run(
+                        ["hledger", "-f", paths["ledger_file"], "balance", "--flat", "--no-total"],
+                        capture_output=True, text=True, timeout=10)
+                    import re as _re2
+                    if bal.returncode == 0:
+                        for line in bal.stdout.splitlines():
+                            m = _re2.match(r'\s+([-$£€\d,. ]+\S)\s{2,}(\S+.*)', line.rstrip())
+                            if m:
+                                balances.append({"amount": m.group(1).strip(), "account": m.group(2).strip()})
+                except Exception:
+                    pass
+
+            def esc(s):
+                return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+            task_rows = ""
+            for t in tasks:
+                pri = t.get("priority", "")
+                pri_cls = {"H": "pri-h", "M": "pri-m", "L": "pri-l"}.get(pri, "")
+                tags = ", ".join(t.get("tags", []))
+                due = (t.get("due", "") or "")[:10]
+                task_rows += (
+                    f'<tr><td>{esc(t.get("description",""))}</td>'
+                    f'<td>{esc(t.get("project",""))}</td>'
+                    f'<td>{esc(tags)}</td>'
+                    f'<td class="{pri_cls}">{esc(pri)}</td>'
+                    f'<td>{esc(due)}</td></tr>\n'
+                )
+
+            journal_html = ""
+            for e in journal_entries:
+                body_lines = esc(e["body"]).replace("\n", "<br>")
+                journal_html += f'<div class="j-entry"><div class="j-date">{esc(e["date"])}</div><div class="j-body">{body_lines}</div></div>\n'
+
+            bal_rows = "".join(
+                f'<tr><td>{esc(b["account"])}</td><td class="bal-amt">{esc(b["amount"])}</td></tr>\n'
+                for b in balances
+            )
+
+            html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ww snapshot · {esc(profile)}</title>
+<style>
+  *, *::before, *::after {{ box-sizing: border-box; }}
+  body {{ font-family: 'JetBrains Mono', 'Fira Mono', monospace; background: #0e0e0e; color: #d0d0d0; margin: 0; padding: 24px; font-size: 13px; line-height: 1.5; }}
+  h1 {{ font-size: 16px; color: #fff; margin: 0 0 4px; }}
+  .meta {{ color: #666; font-size: 11px; margin-bottom: 32px; }}
+  h2 {{ font-size: 13px; color: #aaa; border-bottom: 1px solid #222; padding-bottom: 6px; margin: 28px 0 12px; text-transform: uppercase; letter-spacing: .08em; }}
+  table {{ width: 100%; border-collapse: collapse; margin-bottom: 16px; }}
+  th {{ text-align: left; font-size: 10px; color: #555; text-transform: uppercase; letter-spacing: .06em; padding: 4px 8px 4px 0; border-bottom: 1px solid #222; }}
+  td {{ padding: 5px 8px 5px 0; border-bottom: 1px solid #1a1a1a; vertical-align: top; }}
+  .pri-h {{ color: #e74c3c; font-weight: bold; }}
+  .pri-m {{ color: #e67e22; }}
+  .pri-l {{ color: #888; }}
+  .j-entry {{ margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #1a1a1a; }}
+  .j-date {{ font-size: 10px; color: #555; margin-bottom: 4px; }}
+  .j-body {{ color: #c8c8c8; }}
+  .bal-amt {{ text-align: right; font-variant-numeric: tabular-nums; color: #7ec8a0; }}
+  .empty {{ color: #444; font-style: italic; }}
+</style>
+</head>
+<body>
+<h1>workwarrior · {esc(profile)}</h1>
+<div class="meta">exported {esc(exported_at)} · {len(tasks)} tasks · {len(journal_entries)} journal entries</div>
+
+<h2>Tasks</h2>
+{"<table><thead><tr><th>Description</th><th>Project</th><th>Tags</th><th>Pri</th><th>Due</th></tr></thead><tbody>" + task_rows + "</tbody></table>" if tasks else '<p class="empty">no pending tasks</p>'}
+
+<h2>Journal</h2>
+{journal_html if journal_html else '<p class="empty">no journal entries</p>'}
+
+<h2>Ledger</h2>
+{"<table><thead><tr><th>Account</th><th style='text-align:right'>Balance</th></tr></thead><tbody>" + bal_rows + "</tbody></table>" if balances else '<p class="empty">no ledger data</p>'}
+</body>
+</html>"""
+
+            body = html.encode("utf-8")
+            filename = f"ww-snapshot-{profile}-{time.strftime('%Y%m%d')}.html"
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
 
         # -- GET /data/next -------------------------------------------------
 

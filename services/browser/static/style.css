@@ -159,6 +159,7 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 #terminal-input-row { display: flex; align-items: center; padding: 6px 12px; gap: 4px; }
 .prompt-exec { color: var(--term-green); font-size: 14px; user-select: none; }
 .prompt-filter { color: var(--accent); font-size: 14px; user-select: none; }
+.prompt-context { color: var(--muted); font-size: 13px; user-select: none; }
 #term-input { flex: 1; background: none; border: none; outline: none; color: var(--text); font-family: inherit; font-size: 13px; caret-color: var(--term-green); }
 
 /* ── Utility ──────────────────────────────────────────────────────────────── */

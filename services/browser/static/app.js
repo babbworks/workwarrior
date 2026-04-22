@@ -10,6 +10,7 @@
   let termMode = 'execute'; // 'execute' | 'filter'
   let cmdHistory = JSON.parse(localStorage.getItem('ww-cmd-history') || '[]');
   let historyIdx = -1;
+  let termContextCmd = null; // non-null = context mode: next Enter prepends this cmd
   let sseRetryDelay = 1000;
   let connTimeout = null;
   let sseSource = null;
@@ -159,6 +160,28 @@
     S: 'sync',    G: 'groups',  m: 'models',  N: 'network',
     e: 'export',  q: 'questions',p: 'profile',w: 'warrior',
     u: 'gun',     x: 'sword',
+  };
+
+  // Compound commands that enter context mode (next Enter appends free-form args)
+  const TERM_CONTEXT_CMDS = {
+    'task add': 'task add',    't add': 'task add',
+    'journal add': 'journal add', 'j add': 'journal add',
+    'journal entry': 'journal add', 'j entry': 'journal add',
+    'ledger add': 'ledger add', 'l add': 'ledger add',
+    'time track': 'time track', 'timew track': 'time track',
+  };
+
+  // Single-token commands that navigate to a section (no execution)
+  const TERM_SECTION_NAV = {
+    'tasks': 'tasks', 'task': 'tasks',
+    'time': 'time',   'timew': 'time',
+    'journal': 'journal', 'j': 'journal',
+    'ledger': 'ledger',   'l': 'ledger',
+    'next': 'next',        'schedule': 'schedule', 'sync': 'sync',
+    'groups': 'groups',    'models': 'models',     'network': 'network',
+    'export': 'export',    'questions': 'questions', 'saves': 'bookbuilder',
+    'projects': 'projects','cmd': 'cmd',            'ctrl': 'ctrl',
+    'warrior': 'warrior',
   };
 
   let gPrefixPending = false;
@@ -466,6 +489,22 @@
     }
   }
 
+  function setTermContext(cmd) {
+    termContextCmd = cmd;
+    const ctxEl = document.getElementById('term-context');
+    if (cmd) {
+      if (ctxEl) { ctxEl.textContent = cmd; ctxEl.classList.remove('hidden'); }
+      termPrompt.textContent = '  ›  ';
+      termPrompt.className = 'prompt-context';
+      hintsBar.textContent = `${cmd} › type args — Escape to cancel`;
+    } else {
+      if (ctxEl) { ctxEl.textContent = ''; ctxEl.classList.add('hidden'); }
+      termPrompt.textContent = '❯ ';
+      termPrompt.className = 'prompt-exec';
+      termInput.dispatchEvent(new Event('input')); // restore hints
+    }
+  }
+
   function showOutput(text, isError) {
     cmdOutput.textContent = text;
     cmdOutput.className = isError ? 'error' : '';
@@ -548,6 +587,7 @@
 
       if (e.key === 'Escape') {
         if (termMode === 'search') { setTermMode('execute'); return; }
+        if (termContextCmd) { setTermContext(null); termInput.value = ''; return; }
         if (!cmdOutput.classList.contains('hidden')) {
           hideOutput();
         } else {
@@ -579,9 +619,32 @@
 
       if (e.key === 'Enter') {
         const val = termInput.value.trim();
-        if (!val) return;
-        termInput.value = '';
+        if (!val && !termContextCmd) return;
         if (termMode === 'execute') {
+          // Context mode: prepend primed command to args
+          if (termContextCmd) {
+            const fullCmd = val ? `${termContextCmd} ${val}` : termContextCmd;
+            termInput.value = '';
+            setTermContext(null);
+            await execCmd(fullCmd);
+            return;
+          }
+          // Single-token section nav
+          const navTarget = TERM_SECTION_NAV[val.toLowerCase()];
+          if (navTarget) {
+            termInput.value = '';
+            await switchSection(navTarget);
+            termInput.dispatchEvent(new Event('input'));
+            return;
+          }
+          // Compound context command → enter context mode
+          const ctxCmd = TERM_CONTEXT_CMDS[val.toLowerCase()];
+          if (ctxCmd) {
+            termInput.value = '';
+            setTermContext(ctxCmd);
+            return;
+          }
+          termInput.value = '';
           await execCmd(val);
           termInput.dispatchEvent(new Event('input'));
         } else {
@@ -603,6 +666,10 @@
     // Typeahead hints + live global search
     termInput.addEventListener('input', () => {
       const val = termInput.value.trim();
+      if (termContextCmd) {
+        hintsBar.textContent = `${termContextCmd} › type args — Escape to cancel`;
+        return;
+      }
       if (termMode === 'search') {
         runGlobalSearch(val);
         return;
@@ -3251,6 +3318,23 @@
       out.className = 'cmd-unified-output'; out.textContent = 'running…';
       const res = await fetch('/cmd', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ cmd: 'export json' }) });
       const data = await res.json(); out.textContent = data.output || 'done';
+    });
+    document.getElementById('btn-export-snapshot')?.addEventListener('click', async () => {
+      const out = document.getElementById('export-output');
+      out.className = 'cmd-unified-output'; out.textContent = 'generating snapshot…';
+      try {
+        const res = await fetch('/export/snapshot');
+        if (!res.ok) { out.textContent = 'error: ' + res.status; return; }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const profile = document.getElementById('header-profile')?.textContent?.trim() || 'profile';
+        a.href = url;
+        a.download = `ww-snapshot-${profile}-${new Date().toISOString().slice(0,10)}.html`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        out.textContent = 'snapshot downloaded';
+      } catch (err) { out.textContent = 'error: ' + err.message; }
     });
     // BookBuilder / Saves buttons
     const bbOut = () => document.getElementById('bb-output');

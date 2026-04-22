@@ -27,6 +27,25 @@ Current phase: Phase 2 active — browser UI, AI integration, weapons, heuristic
 
 ---
 
+## Community Service — Phase 3 Planning
+
+Spec status: architecture settled 2026-04-20. Cards pending Gate A (acceptance criteria to be filled before dispatch).
+
+| Priority | ID | Goal | Depends On |
+|---|---|---|---|
+| H | [TASK-COMM-001](tasks/cards/TASK-COMM-001.md) | Community storage layer — `community.db` schema + migrations | — |
+| H | [TASK-COMM-002](tasks/cards/TASK-COMM-002.md) | Community bash CLI — `services/community/` | COMM-001 |
+| H | [TASK-COMM-009](tasks/cards/TASK-COMM-009.md) | Warrior service — promote from stub, community mgmt, cross-profile read | COMM-001 |
+| H | [TASK-COMM-004](tasks/cards/TASK-COMM-004.md) | Browser `/data/community/*` server endpoints | COMM-001 |
+| H | [TASK-COMM-003](tasks/cards/TASK-COMM-003.md) | Browser community section — 4 views (Unified/Journal/Tasks/Comments) | COMM-004 |
+| M | [TASK-COMM-005](tasks/cards/TASK-COMM-005.md) | Journal annotation append — timestamped separator format | — |
+| M | [TASK-COMM-006](tasks/cards/TASK-COMM-006.md) | Journal metadata markers — `@tags`/`@project`/`@priority` at creation | — |
+| M | [TASK-COMM-007](tasks/cards/TASK-COMM-007.md) | Journal filter buttons — Annotated / Rejournaled / All Comments | COMM-005, COMM-006 |
+| M | [TASK-COMM-008](tasks/cards/TASK-COMM-008.md) | Task annotation copy-back — approve/deny + community prefix control | COMM-002 |
+| L | [TASK-COMM-010](tasks/cards/TASK-COMM-010.md) | Warrior cross-profile annotation write — phase 2, blocked on COMM-009 | COMM-009 |
+
+---
+
 ## Queued Backlog (Phase 2+)
 
 | ID | Status | Goal |

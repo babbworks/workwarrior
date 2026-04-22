@@ -5,6 +5,30 @@ Each entry: date, decision, context, and why — so future sessions don't re-lit
 
 ---
 
+## 2026-04-20 — Community Service architecture settled
+
+**Decision:** Community Service is a global aggregation layer grouping task and journal items into named, shareable collections. Primary use: export/sharing for colleagues and teaching. Ten task cards created (TASK-COMM-001..010).
+
+**Key decisions:**
+- `community.db` SQLite at `$WW_BASE/.community/community.db` — global, not per-profile
+- `source_ref` format: `{profile}.task.{uuid}` or `{profile}.journal.{date-slug}`
+- Community entries show both captured-state (snapshot at add-time) and live current state
+- Community-editable fields: community tags/priority/comments only; source fields read-only
+- Journal annotation format: `---\n[YYYY-MM-DD HH:MM] text` appended to jrnl plain text
+- Journal metadata: `@tags:x @project:y @priority:H` inline markers, scanner-parsed
+- Rejournal backlinks: scan-based (acceptable breakage risk); no forward-ref index
+- Task annotation copy-back: real `task annotate` write, opt-in approve/deny modal, optional `[community:name]` prefix
+- Warrior service promoted from stub to control plane; cross-profile read in phase 1, cross-profile write in phase 2 (COMM-010)
+- No timewarrior in community layer
+- Plain-text-integrity clause revised: jrnl files ARE modified (annotation append, metadata markers at creation)
+- Community accessible from global Warrior context — no profile-switching required
+
+**Why:** Community's purpose is assembly for export/sharing, not task management. Tasks shown in simplified screened view. Warrior is the meta-profile control plane enabling global access.
+
+**Consequence:** COMM-001 (storage) is the root dependency for most other COMM tasks. Journal scanner (COMM-005) is the shared utility for annotation parsing, metadata parsing, and filter buttons.
+
+---
+
 ## 2026-04-20 — `ww routines` design settled; WARLOCK adoption paused
 
 **Decision:** Implement TASK-EXT-CRON-001 now as `ww routines` with profile-scoped storage at `profiles/<name>/.config/routines/`. Keep run trigger manual (`ww routines run`), use template-first authoring (`ww routines new <name>`), and require Python runtime only (no nix dependency at ww runtime). `TASK-EXT-WARLOCK-001` moved to parked/paused state pending broader web architecture decisions.

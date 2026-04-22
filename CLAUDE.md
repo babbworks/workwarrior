@@ -4,6 +4,8 @@ All project context, agent roles, gates, task board, and working conventions liv
 
 **Read `system/ONBOARDING.md` first. It is the single entry point for any agent session.**
 
+Session profile for Taskwarrior / Timewarrior / jrnl / hledger is `WW_PROFILE` in `.claude/ww/config`. Per-session init, task lifecycle, UDA/ledger gates, and parallel sub-agent time rules: `@.claude/ww/ww-agent-guidance.md`.
+
 Key files (in read order):
 1. `system/ONBOARDING.md` — orientation, current phase, hard rules, how work gets done
 2. `system/CLAUDE.md` — directory map, agent model, scripting standards, fragility markers, hard gates
