@@ -41,3 +41,4 @@ Fragility:            Low — browser static files only
 Depends on:           TASK-COMM-004
 
 Status:               pending
+Taskwarrior:          wwdev task 12 (28ef082f-687c-4972-9f21-69db2b4ffa8f) status:pending

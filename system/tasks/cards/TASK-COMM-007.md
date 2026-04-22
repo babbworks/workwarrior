@@ -32,3 +32,4 @@ Fragility:            Low — additive UI and endpoint changes
 Depends on:           TASK-COMM-005, TASK-COMM-006
 
 Status:               pending
+Taskwarrior:          wwdev task 15 (cda7a6c8-3f99-4043-8c5e-5acb63fe56f4) status:pending

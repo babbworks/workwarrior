@@ -1,8 +1,8 @@
 # Task Card Template
 
-Copy this template for every new task. All 8 fields are required before a Builder can be dispatched (Gate A).
+Copy this template for every new task. All 9 fields are required before a Builder can be dispatched (Gate A).
 
-Orchestrator fills in all fields before dispatch. Builder fills in `Risk notes` before touching any file. Orchestrator updates `Status`.
+Orchestrator fills in all fields before dispatch. Builder fills in `Risk notes` before touching any file. Orchestrator updates `Status` and `Taskwarrior`.
 
 ---
 
@@ -44,6 +44,7 @@ Risk notes:           [ORCHESTRATOR fills in: known risks from Explorer output o
                       - Rollback verification: [how you confirmed rollback works]]
 
 Status:               pending
+Taskwarrior:          wwdev task <id> (<uuid>) status:pending
 ```
 
 ---
@@ -57,6 +58,11 @@ Status:               pending
 | `blocked` | Waiting on another task or external dependency |
 | `in-review` | Verifier is running; awaiting sign-off |
 | `complete` | Verifier signed off; Docs agent closed; Orchestrator confirmed |
+
+`Taskwarrior` field rule:
+- Must exist on every non-closed card.
+- Format: `Taskwarrior:          wwdev task <id> (<uuid>) status:<pending|completed|...>`
+- If card status changes, update the Taskwarrior row in the same turn (and vice versa).
 
 ---
 
@@ -106,4 +112,5 @@ Risk notes:           (Orchestrator) Explorer B identified dry-run as a document
                       Rollback confirmed: git checkout reverts both files cleanly.
 
 Status:               pending
+Taskwarrior:          wwdev task <id> (<uuid>) status:pending
 ```

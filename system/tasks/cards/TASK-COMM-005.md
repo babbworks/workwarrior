@@ -35,3 +35,4 @@ Fragility:            Medium — modifies jrnl plain text files; scanner must be
                       robust to varied jrnl entry formats
 
 Status:               pending
+Taskwarrior:          wwdev task 13 (74190028-270c-4dfc-8fff-830ec5078cdd) status:pending

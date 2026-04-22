@@ -35,3 +35,4 @@ Fragility:            SERIALIZED: bin/ww
 Depends on:           Design decision on what Sword does
 
 Status:               pending
+Taskwarrior:          wwdev task 20 (5568435d-ee09-4d17-8d21-745ddcbb772c) status:pending

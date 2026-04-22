@@ -452,10 +452,17 @@ ledgers:
 EOF
   fi
 
-  # Default list file
-  local default_list="$list_dir/global_default.list"
-  if [[ ! -f "$default_list" ]]; then
-    echo "# List: global_default" > "$default_list"
+  # Simple lists (list.py) — lists.yaml + default "tasks" file
+  local lists_config="$base/lists.yaml"
+  if [[ ! -f "$lists_config" ]]; then
+    cat > "$lists_config" << EOF
+lists:
+  default: tasks
+EOF
+  fi
+  local tasks_list_file="$list_dir/tasks"
+  if [[ ! -f "$tasks_list_file" ]]; then
+    touch "$tasks_list_file"
   fi
 
   # Minimal .taskrc (if missing)
@@ -717,14 +724,21 @@ list() {
   fi
 
   local list_dir="$WW_SCOPE_BASE/list"
-  local default_list_file="$list_dir/${WW_SCOPE_PROFILE}_default.list"
+  mkdir -p "$list_dir"
 
-  if [[ ! -f "$default_list_file" ]]; then
-    mkdir -p "$list_dir"
-    echo "# List: ${WW_SCOPE_PROFILE}_default" > "$default_list_file"
+  local list_basename="tasks"
+  local lists_yaml="$WW_SCOPE_BASE/lists.yaml"
+  if [[ -f "$lists_yaml" ]]; then
+    local line
+    line=$(grep -E '^[[:space:]]*default:[[:space:]]*' "$lists_yaml" | head -1 || true)
+    if [[ -n "$line" ]]; then
+      list_basename="${line##*:}"
+      list_basename=$(echo "$list_basename" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    fi
   fi
+  [[ -z "$list_basename" ]] && list_basename="tasks"
 
-  python3 "${WW_BASE:-$HOME/ww}/tools/list/list.py" -t "$list_dir" "${args[@]}"
+  python3 "${WW_BASE:-$HOME/ww}/tools/list/list.py" -t "$list_dir" -l "$list_basename" "${args[@]}"
   return $?
 }
 

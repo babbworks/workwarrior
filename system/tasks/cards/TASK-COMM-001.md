@@ -36,3 +36,4 @@ Risk notes:           (Orchestrator) Global storage path must not collide with a
                       profile path. $WW_BASE/.community/ is clear of all existing paths.
 
 Status:               pending
+Taskwarrior:          wwdev task 8 (c5a14e24-4705-46ae-aab4-c1fdafe8c9f6) status:pending

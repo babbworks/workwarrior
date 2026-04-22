@@ -35,7 +35,9 @@
         <button class="nav-item" data-section="time"><span class="nav-icon icon-time">⭕</span><span class="nav-label">Times</span></button>
         <button class="nav-item" data-section="journal"><span class="nav-icon icon-journal">╱</span><span class="nav-label">Journals</span></button>
         <button class="nav-item" data-section="ledger"><span class="nav-icon icon-ledger">═</span><span class="nav-label">Ledgers</span></button>
+        <button class="nav-item" data-section="lists"><span class="nav-icon icon-lists">•</span><span class="nav-label">Lists</span></button>
         <div class="nav-divider"></div>
+        <button class="community-footer-btn" data-section="community"><span class="community-footer-icon">◎</span><span class="community-footer-label">Community</span></button>
         <div class="nav-group-label">services</div>
         <button class="nav-item" data-section="next"><span class="nav-icon">▶</span><span class="nav-label">Next</span></button>
         <button class="nav-item" data-section="schedule"><span class="nav-icon">⏱</span><span class="nav-label">Schedule</span></button>
@@ -103,6 +105,7 @@
           <div class="section-toolbar">
             <input type="text" id="task-filter" class="inline-filter" placeholder="filter tasks…" />
             <button class="btn-toolbar" id="btn-group-toggle" title="Toggle project grouping">group</button>
+            <button class="btn-toolbar" id="btn-show-done-tasks" title="Show completed tasks">done</button>
           </div>
           <div id="bulk-toolbar" class="hidden">
             <label class="bulk-select-all"><input type="checkbox" id="bulk-select-all" /> all</label>
@@ -119,6 +122,7 @@
             <button class="btn-bulk" data-op="set-priority">set pri</button>
           </div>
           <div class="task-list" id="task-list"><div class="skeleton-msg">Loading tasks…</div></div>
+          <div class="task-list hidden" id="task-done-list"></div>
           <div class="task-detail hidden" id="task-detail"></div>
         </section>
         <!-- Times -->
@@ -144,6 +148,18 @@
           <div class="section-resource-bar"><div id="journal-selector"></div></div>
           <form class="add-form-inline" id="add-journal-form">
             <textarea name="entry" placeholder="New journal entry… (Enter to submit, Shift+Enter for newline)" rows="2"></textarea>
+            <div class="journal-meta-row">
+              <input type="text" name="project" id="journal-project-input" class="journal-meta-select" placeholder="@project" autocomplete="off" list="journal-projects-dl" />
+              <datalist id="journal-projects-dl"></datalist>
+              <input type="text" name="tags" id="journal-tags-input" class="journal-meta-select" placeholder="@tags (comma-sep)" autocomplete="off" list="journal-tags-list" />
+              <datalist id="journal-tags-list"></datalist>
+              <select name="priority" id="journal-priority-select" class="resource-select journal-meta-select">
+                <option value="">@priority</option>
+                <option value="H">H</option>
+                <option value="M">M</option>
+                <option value="L">L</option>
+              </select>
+            </div>
           </form>
           <input type="text" id="journal-search" class="inline-filter" placeholder="search entries…" style="margin-bottom:8px;width:100%" />
           <div class="journal-list" id="journal-list"><div class="skeleton-msg">Loading journal…</div></div>
@@ -196,6 +212,23 @@
           <div class="hledger-output hidden" id="hledger-output"></div>
           <input type="text" id="ledger-search" class="inline-filter" placeholder="search transactions…" style="margin:8px 0;width:100%" />
           <div class="ledger-recent" id="ledger-recent"></div>
+        </section>
+        <!-- Lists (simple list.py) -->
+        <section class="section hidden" id="section-lists">
+          <div class="list-attribution">t · <a href="https://github.com/sjl/t" target="_blank" rel="noopener">sjl/t</a> · MIT</div>
+          <div class="section-resource-bar"><div id="list-selector"></div></div>
+          <form class="add-form-inline" id="add-list-form">
+            <input type="text" name="text" placeholder="Add item…" autocomplete="off" style="flex:1;min-width:200px" />
+            <button type="submit" class="btn-inline-submit">add item</button>
+            <button type="button" class="btn-inline-alt" id="list-create-btn">new list</button>
+            <button type="button" class="btn-inline-alt" id="list-refresh-btn">refresh</button>
+          </form>
+          <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+            <input type="text" id="list-filter" class="inline-filter" placeholder="filter items…" style="flex:1" />
+            <button type="button" class="btn-inline-alt" id="list-show-done-btn">show done</button>
+          </div>
+          <div class="list-items" id="list-items"><div class="skeleton-msg">Loading lists…</div></div>
+          <div class="list-items hidden" id="list-done-items"></div>
         </section>
         <!-- Next -->
         <section class="section hidden" id="section-next">
@@ -274,6 +307,60 @@
               </div>
               <div class="cmd-unified-output hidden" id="export-output"></div>
             </div>
+          </div>
+        </section>
+        <!-- Community -->
+        <section class="section hidden" id="section-community">
+          <div class="service-panel" id="community-panel">
+            <div class="service-panel-header">Community</div>
+            <p class="community-hint">Choose a <strong>collection</strong>, then pick a <strong>journal line</strong> or <strong>task</strong> from this profile. This bar stays visible while you scroll entries.</p>
+            <div class="community-controls-sticky">
+              <div class="community-toolbar">
+                <label class="community-select-wrap">
+                  <span class="community-toolbar-label">collection</span>
+                  <select id="community-select" class="resource-select"></select>
+                </label>
+                <form class="add-form-inline community-create-form" id="community-create-form">
+                  <input type="text" name="name" placeholder="new community name" autocomplete="off" pattern="[a-zA-Z0-9_-]+" title="letters, numbers, hyphen, underscore" style="width:160px" />
+                  <button type="submit" class="btn-inline-submit">create</button>
+                </form>
+              </div>
+              <div class="community-add-strip">
+                <div class="community-add-row">
+                  <span class="community-toolbar-label">from journal</span>
+                  <select id="community-journal-pick" class="resource-select" style="flex:1;min-width:180px" aria-label="Journal entry to add"></select>
+                  <button type="button" class="btn-inline-submit" id="btn-community-add-journal" title="Add selected journal entry to the collection">+ add journal</button>
+                </div>
+                <div class="community-meta-row">
+                  <input type="text" id="comm-j-project" class="comm-meta-input" placeholder="project" autocomplete="off" list="comm-projects-dl" />
+                  <input type="text" id="comm-j-tags" class="comm-meta-input" placeholder="tags" autocomplete="off" list="comm-tags-dl" />
+                  <select id="comm-j-priority" class="resource-select comm-meta-sel" aria-label="Community priority for journal entry">
+                    <option value="">pri</option><option>H</option><option>M</option><option>L</option>
+                  </select>
+                </div>
+                <div class="community-add-row">
+                  <span class="community-toolbar-label">from tasks</span>
+                  <select id="community-task-pick" class="resource-select" style="flex:1;min-width:180px" aria-label="Task to add"></select>
+                  <button type="button" class="btn-inline-submit" id="btn-community-add-task" title="Add selected task to the collection">+ add task</button>
+                </div>
+                <div class="community-meta-row">
+                  <input type="text" id="comm-t-project" class="comm-meta-input" placeholder="project" autocomplete="off" list="comm-projects-dl" />
+                  <input type="text" id="comm-t-tags" class="comm-meta-input" placeholder="tags" autocomplete="off" list="comm-tags-dl" />
+                  <select id="comm-t-priority" class="resource-select comm-meta-sel" aria-label="Community priority for task">
+                    <option value="">pri</option><option>H</option><option>M</option><option>L</option>
+                  </select>
+                  <datalist id="comm-projects-dl"></datalist>
+                  <datalist id="comm-tags-dl"></datalist>
+                </div>
+              </div>
+              <div class="community-view-tabs" id="community-view-tabs">
+                <button type="button" class="community-tab active" data-view="unified">Unified</button>
+                <button type="button" class="community-tab" data-view="journal">Journal</button>
+                <button type="button" class="community-tab" data-view="tasks">Tasks</button>
+                <button type="button" class="community-tab" data-view="comments">Comments</button>
+              </div>
+            </div>
+            <div class="service-panel-body" id="community-body"><div class="skeleton-msg">Loading…</div></div>
           </div>
         </section>
         <!-- Questions -->

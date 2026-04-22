@@ -37,3 +37,4 @@ Fragility:            Medium — writes to taskwarrior data; cross-profile TASKR
 Depends on:           TASK-COMM-002, TASK-COMM-009 (for cross-profile TASKRC resolution)
 
 Status:               pending
+Taskwarrior:          wwdev task 16 (65f031d7-89ee-400f-960d-754ba5f67484) status:pending

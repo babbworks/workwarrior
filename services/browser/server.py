@@ -13,9 +13,12 @@ Endpoints:
   GET  /data/tasks    → pending task list for active profile
   GET  /data/time     → time tracking intervals and totals for active profile
   GET  /data/journal  → recent journal entries for active profile
+  GET  /data/lists    → simple list items (tools/list) for active named list
   GET  /data/ledger   → account balances and recent transactions for active profile
-  POST /action        → task mutation (start/stop/done/add/annotate/journal_add/ledger_add/timew_start/timew_stop/timew_track)
-  POST /resource/create → create a new named resource (journal/ledger/tasklist/timew)
+  GET  /data/community/list → JSON list of communities (global .community db)
+  GET  /data/community/<name>?view=… → entries for one community (view hint for UI)
+  POST /action        → task mutation (incl. list_add/list_finish/list_edit/list_remove; community_add)
+  POST /resource/create → create a new named resource (journal/ledger/tasklist/timew/lists)
   GET  /              → minimal placeholder HTML
 
 State files (written on start, removed on clean shutdown):
@@ -28,6 +31,7 @@ CLI:
 
 import argparse
 import http.server
+import importlib.util
 import json
 import os
 import queue
@@ -38,6 +42,8 @@ import subprocess
 import sys
 import threading
 import time
+from typing import Any
+from urllib.parse import parse_qs, unquote, urlparse
 
 
 # ---------------------------------------------------------------------------
@@ -45,6 +51,36 @@ import time
 # ---------------------------------------------------------------------------
 
 VERSION = "1.0.0"
+
+# Lazy import of services/community/community_store.py (same tree as this file).
+_community_store_mod: Any = "_pending"
+
+
+def _load_community_store():
+    """Return the community_store module, or None if load fails."""
+    global _community_store_mod
+    if _community_store_mod is None:
+        return None
+    if _community_store_mod != "_pending":
+        return _community_store_mod
+    store_path = os.path.normpath(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "community", "community_store.py")
+    )
+    if not os.path.isfile(store_path):
+        _community_store_mod = None
+        return None
+    try:
+        spec = importlib.util.spec_from_file_location("ww_community_store", store_path)
+        if spec is None or spec.loader is None:
+            _community_store_mod = None
+            return None
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        _community_store_mod = mod
+        return mod
+    except Exception:
+        _community_store_mod = None
+        return None
 
 # Subcommands that POST /cmd is permitted to invoke.
 # This is the security boundary — bare shell commands are rejected with 400.
@@ -62,6 +98,7 @@ ALLOWED_SUBCOMMANDS = frozenset([
     "gun", "next", "sword",
     # services
     "sync", "q", "questions",
+    "community",
     # management
     "remove",
 ])
@@ -348,6 +385,7 @@ class ServerState:
         self._active_ledger: str = "default"
         self._active_tasklist: str = "default"
         self._active_timew: str = "default"
+        self._active_list: str = "default"
 
     # -- Profile helpers -----------------------------------------------------
 
@@ -370,6 +408,7 @@ class ServerState:
           ledgers:  {name: path, ...}
           tasklists: {"default": {taskrc, taskdata}} (future: multiple)
           timew:     {"default": path} (future: multiple)
+          lists:     {name: basename, ...}  — basename is list.py -l value (file in profile/list/)
         Returns empty dict when no profile is active.
         """
         import re as _re
@@ -486,17 +525,40 @@ class ServerState:
         if not timew:
             timew["default"] = os.path.join(base, ".timewarrior")
 
+        # Simple lists (tools/list) — lists.yaml maps logical name → basename (-l)
+        lists_map: dict = {}
+        lists_yaml = os.path.join(base, "lists.yaml")
+        if os.path.isfile(lists_yaml):
+            try:
+                content = open(lists_yaml).read()
+                in_lists = False
+                for line in content.splitlines():
+                    if line.strip() == "lists:":
+                        in_lists = True
+                        continue
+                    if in_lists:
+                        m = _re.match(r"^  ([a-zA-Z0-9_-]+):\s*([a-zA-Z0-9_-]+)\s*$", line)
+                        if m:
+                            lists_map[m.group(1)] = m.group(2)
+                        elif line and not line.startswith(" "):
+                            in_lists = False
+            except OSError:
+                pass
+        if not lists_map:
+            lists_map = {"default": "tasks"}
+
         return {
             "journals":  journals,
             "ledgers":   ledgers,
             "tasklists": tasklists,
             "timew":     timew,
+            "lists":     lists_map,
         }
 
     def get_profile_paths(self) -> dict:
         """
         Return resolved absolute paths for the currently selected resources.
-        Respects active_journal / active_ledger / active_tasklist / active_timew
+        Respects active_journal / active_ledger / active_tasklist / active_timew / active_list
         session selections. Falls back to 'default' when selection is missing.
         Returns an empty dict when no profile is active.
         """
@@ -504,23 +566,30 @@ class ServerState:
         if not resources:
             return {}
 
+        profile = self.get_active_profile()
         journals  = resources["journals"]
         ledgers   = resources["ledgers"]
         tasklists = resources["tasklists"]
         timew     = resources["timew"]
+        lists_m   = resources.get("lists", {"default": "tasks"})
 
         journal_key  = self._active_journal  if self._active_journal  in journals  else "default"
         ledger_key   = self._active_ledger   if self._active_ledger   in ledgers   else "default"
         tasklist_key = self._active_tasklist if self._active_tasklist in tasklists else "default"
         timew_key    = self._active_timew    if self._active_timew    in timew     else "default"
+        list_key     = self._active_list     if self._active_list     in lists_m   else "default"
 
         tl = tasklists.get(tasklist_key, tasklists.get("default", {}))
+        list_dir = os.path.join(self.ww_base, "profiles", profile, "list")
+        list_basename = lists_m.get(list_key, lists_m.get("default", "tasks"))
         return {
             "taskrc":        tl.get("taskrc", ""),
             "taskdata":      tl.get("taskdata", ""),
             "timewarriordb": timew.get(timew_key, timew.get("default", "")),
             "journal_file":  journals.get(journal_key, journals.get("default", "")),
             "ledger_file":   ledgers.get(ledger_key, ledgers.get("default", "")),
+            "list_dir":      list_dir,
+            "list_basename": list_basename,
         }
 
     def set_active_profile(self, name: str) -> bool:
@@ -541,11 +610,12 @@ class ServerState:
             self._active_ledger   = "default"
             self._active_tasklist = "default"
             self._active_timew    = "default"
+            self._active_list     = "default"
         return True
 
     def set_active_resource(self, kind: str, name: str) -> bool:
         """
-        Switch the active named resource (journals/ledgers/tasklists/timew).
+        Switch the active named resource (journals/ledgers/tasklists/timew/lists).
         Returns True if the resource name exists in the current profile.
         """
         resources = self.get_profile_resources()
@@ -558,6 +628,7 @@ class ServerState:
             "ledgers":   "_active_ledger",
             "tasklists": "_active_tasklist",
             "timew":     "_active_timew",
+            "lists":     "_active_list",
         }
         attr = attr_map.get(kind)
         if not attr:
@@ -783,8 +854,31 @@ def _ping_thread(state: ServerState) -> None:
 
 
 # ---------------------------------------------------------------------------
-# TimeWarrior timestamp helper
+# Simple list tool (tools/list) + TimeWarrior timestamp helper
 # ---------------------------------------------------------------------------
+
+def _list_py_script(ww_base: str) -> str:
+    return os.path.join(ww_base, "tools", "list", "list.py")
+
+
+def _run_list_py(ww_base: str, list_dir: str, list_basename: str, extra: list) -> subprocess.CompletedProcess:
+    """Invoke bundled list.py with -t and -l (basename). extra are additional argv tokens."""
+    cmd = [sys.executable, _list_py_script(ww_base), "-t", list_dir, "-l", list_basename] + list(extra)
+    return subprocess.run(cmd, capture_output=True, text=True, timeout=25, env={**os.environ})
+
+
+def _parse_list_py_stdout(stdout: str) -> list:
+    """Parse default `list` output lines: 'prefix - description'."""
+    items: list[dict] = []
+    for raw in (stdout or "").splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        m = re.match(r"^(\S+)\s+-\s+(.*)$", line)
+        if m:
+            items.append({"prefix": m.group(1), "text": m.group(2)})
+    return items
+
 
 def _parse_timew_ts(ts_str: str) -> float:
     """Parse a TimeWarrior UTC timestamp string like '20260403T090012Z' to Unix time."""
@@ -836,12 +930,14 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                     os.path.join(self.STATIC_DIR, "style.css"),
                     "text/css",
                 )
-            elif self.path == "/data/tasks":
+            elif self.path == "/data/tasks" or self.path.startswith("/data/tasks?"):
                 self._handle_data_tasks()
             elif self.path == "/data/time":
                 self._handle_data_time()
             elif self.path == "/data/journal":
                 self._handle_data_journal()
+            elif self.path == "/data/lists" or self.path.startswith("/data/lists?"):
+                self._handle_data_lists()
             elif self.path == "/data/ledger":
                 self._handle_data_ledger()
             elif self.path == "/data/commands":
@@ -870,6 +966,8 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                 self._handle_data_timew_tags()
             elif self.path == "/data/projects":
                 self._handle_data_projects()
+            elif self.path == "/data/task-meta":
+                self._handle_data_task_meta()
             elif self.path == "/data/udas":
                 self._handle_data_udas()
             elif self.path == "/data/sync":
@@ -882,6 +980,8 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                 self._handle_data_profile_detail()
             elif self.path == "/data/warrior":
                 self._handle_data_warrior()
+            elif self.path.startswith("/data/community/"):
+                self._handle_data_community_path()
             elif self.path == "/export/snapshot":
                 self._handle_export_snapshot()
             else:
@@ -1554,27 +1654,38 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
         # -- GET /data/tasks -------------------------------------------------
 
         def _handle_data_tasks(self) -> None:
-            """Return pending and active tasks for the active profile as JSON."""
+            """Return pending/active (default) or completed (done=1) tasks for the active profile."""
             paths = state.get_profile_paths()
             if not paths:
                 self._send_json(200, {"ok": False, "error": "no active profile", "tasks": []})
                 return
+            qs = parse_qs(urlparse(self.path).query)
+            show_done = qs.get('done', [''])[0] == '1'
             env = {**os.environ, "TASKRC": paths["taskrc"], "TASKDATA": paths["taskdata"]}
             try:
-                result = subprocess.run(
-                    ["task", "rc.confirmation=no", "status:pending", "export"],
-                    capture_output=True, text=True, timeout=10, env=env,
-                )
-                tasks = json.loads(result.stdout) if result.stdout.strip() else []
-                # Also collect active tasks (may overlap with pending export)
-                result2 = subprocess.run(
-                    ["task", "rc.confirmation=no", "status:active", "export"],
-                    capture_output=True, text=True, timeout=10, env=env,
-                )
-                active = json.loads(result2.stdout) if result2.stdout.strip() else []
-                # Merge: active tasks first, pending de-duped by uuid
-                all_tasks = active + [t for t in tasks if t.get("uuid") not in {a["uuid"] for a in active}]
-                self._send_json(200, {"ok": True, "tasks": all_tasks})
+                if show_done:
+                    result = subprocess.run(
+                        ["task", "rc.confirmation=no", "status:completed", "export"],
+                        capture_output=True, text=True, timeout=10, env=env,
+                    )
+                    tasks = json.loads(result.stdout) if result.stdout.strip() else []
+                    tasks.sort(key=lambda t: t.get("end", t.get("modified", "")), reverse=True)
+                    self._send_json(200, {"ok": True, "tasks": tasks, "done": True})
+                else:
+                    result = subprocess.run(
+                        ["task", "rc.confirmation=no", "status:pending", "export"],
+                        capture_output=True, text=True, timeout=10, env=env,
+                    )
+                    tasks = json.loads(result.stdout) if result.stdout.strip() else []
+                    # Also collect active tasks (may overlap with pending export)
+                    result2 = subprocess.run(
+                        ["task", "rc.confirmation=no", "status:active", "export"],
+                        capture_output=True, text=True, timeout=10, env=env,
+                    )
+                    active = json.loads(result2.stdout) if result2.stdout.strip() else []
+                    # Merge: active tasks first, pending de-duped by uuid
+                    all_tasks = active + [t for t in tasks if t.get("uuid") not in {a["uuid"] for a in active}]
+                    self._send_json(200, {"ok": True, "tasks": all_tasks})
             except Exception as exc:
                 self._send_json(200, {"ok": False, "error": str(exc), "tasks": []})
 
@@ -1689,6 +1800,39 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                 self._send_json(200, {"ok": True, "entries": entries, "total": len(entries)})
             except OSError:
                 self._send_json(200, {"ok": True, "entries": []})
+
+        # -- GET /data/lists -------------------------------------------------
+
+        def _handle_data_lists(self) -> None:
+            """Return open items from the active simple list via tools/list/list.py."""
+            paths = state.get_profile_paths()
+            if not paths:
+                self._send_json(200, {"ok": False, "error": "no active profile", "items": []})
+                return
+            list_dir = paths.get("list_dir", "")
+            list_basename = paths.get("list_basename", "tasks")
+            if not list_dir:
+                self._send_json(200, {"ok": False, "error": "no list directory", "items": []})
+                return
+            try:
+                os.makedirs(list_dir, exist_ok=True)
+            except OSError:
+                pass
+            qs = parse_qs(urlparse(self.path).query)
+            show_done = qs.get('done', [''])[0] == '1'
+            extra = ['--done'] if show_done else []
+            r = _run_list_py(state.ww_base, list_dir, list_basename, extra)
+            if r.returncode != 0:
+                err = (r.stderr or r.stdout or "list failed").strip()
+                self._send_json(200, {"ok": False, "error": err, "items": []})
+                return
+            items = _parse_list_py_stdout(r.stdout or "")
+            self._send_json(200, {
+                "ok": True,
+                "items": items,
+                "list_basename": list_basename,
+                "active_list": state._active_list,
+            })
 
         # -- GET /data/ledger ------------------------------------------------
 
@@ -2402,6 +2546,41 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                 "active_profile": _ap,
             })
 
+        # -- GET /data/community/* ------------------------------------------
+
+        def _community_shell_json(self, args: list) -> dict:
+            """List/show communities via community_store (in-process)."""
+            mod = _load_community_store()
+            if mod is None:
+                return {"ok": False, "error": "community_store unavailable", "communities": []}
+            try:
+                if args == ["list"]:
+                    return mod.list_communities(state.ww_base)
+                if len(args) == 2 and args[0] == "show":
+                    return mod.show_community(state.ww_base, args[1])
+            except Exception as exc:
+                return {"ok": False, "error": str(exc), "communities": []}
+            return {"ok": False, "error": "bad community request", "communities": []}
+
+        def _handle_data_community_path(self) -> None:
+            """GET /data/community/list or /data/community/<name>?view=…"""
+            parsed = urlparse(self.path)
+            tail = unquote(parsed.path[len("/data/community/") :].strip("/"))
+            qs = parse_qs(parsed.query)
+            view = (qs.get("view", ["unified"])[0] or "unified").lower()
+            if view not in ("unified", "journal", "tasks", "comments"):
+                view = "unified"
+            if not tail or tail == "list":
+                body = self._community_shell_json(["list"])
+                self._send_json(200, body)
+                return
+            if "/" in tail:
+                self._send_json(400, {"ok": False, "error": "invalid community path"})
+                return
+            body = self._community_shell_json(["show", tail])
+            body["view"] = view
+            self._send_json(200, body)
+
         # -- GET /data/projects ---------------------------------------------
 
         def _handle_data_projects(self) -> None:
@@ -2437,6 +2616,29 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                 self._send_json(200, {"ok": True, "projects": projects})
             except Exception as exc:
                 self._send_json(200, {"ok": False, "error": str(exc), "projects": {}})
+
+        # -- GET /data/task-meta --------------------------------------------
+
+        def _handle_data_task_meta(self) -> None:
+            """Return task projects and tags from taskwarrior for use in dropdowns."""
+            paths = state.get_profile_paths()
+            if not paths:
+                self._send_json(200, {"ok": False, "projects": [], "tags": []})
+                return
+            env = {**os.environ, "TASKRC": paths["taskrc"], "TASKDATA": paths["taskdata"]}
+            projects, tags = [], []
+            try:
+                r = subprocess.run(["task", "_projects"], capture_output=True, text=True, timeout=5, env=env)
+                projects = [p.strip() for p in (r.stdout or "").splitlines() if p.strip()]
+            except Exception:
+                pass
+            try:
+                r = subprocess.run(["task", "_tags"], capture_output=True, text=True, timeout=5, env=env)
+                tags = [t.strip() for t in (r.stdout or "").splitlines()
+                        if t.strip() and t.strip() == t.strip().lower()]
+            except Exception:
+                pass
+            self._send_json(200, {"ok": True, "projects": sorted(projects), "tags": sorted(tags)})
 
         # -- GET /data/all (for export) -------------------------------------
 
@@ -2695,6 +2897,7 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                     "ledger":   state._active_ledger,
                     "tasklist": state._active_tasklist,
                     "timew":    state._active_timew,
+                    "list":     state._active_list,
                 },
             })
 
@@ -2703,7 +2906,7 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
         def _handle_resource(self) -> None:
             """
             Switch the active named resource for the current profile session.
-            Body: {"kind": "journals"|"ledgers"|"tasklists"|"timew", "name": "<key>"}
+            Body: {"kind": "journals"|"ledgers"|"tasklists"|"timew"|"lists", "name": "<key>"}
             """
             body = self._read_json_body()
             if body is None:
@@ -2723,7 +2926,7 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
         def _handle_resource_create(self) -> None:
             """
             Create a new named resource for the active profile.
-            Body: {"kind": "journals"|"ledgers"|"tasklists"|"timew", "name": "<key>"}
+            Body: {"kind": "journals"|"ledgers"|"tasklists"|"timew"|"lists", "name": "<key>"}
 
             - Validates the name (alphanumeric, hyphens, underscores only).
             - Creates the backing files/dirs on disk.
@@ -2738,7 +2941,7 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
             kind = body.get("kind", "")
             name = body.get("name", "").strip()
 
-            valid_kinds = ("journals", "ledgers", "tasklists", "timew")
+            valid_kinds = ("journals", "ledgers", "tasklists", "timew", "lists")
             if kind not in valid_kinds:
                 self._send_json(400, {"ok": False, "error": f"kind must be one of {valid_kinds}"})
                 return
@@ -2767,6 +2970,8 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                     self._create_tasklist_resource(profile_base, name, _re)
                 elif kind == "timew":
                     self._create_timew_resource(profile_base, name, _re)
+                elif kind == "lists":
+                    self._create_list_resource(profile_base, name, _re)
             except _ResourceConflict as exc:
                 self._send_json(409, {"ok": False, "error": str(exc)})
             except _ResourceBadRequest as exc:
@@ -2873,6 +3078,26 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
             self._yaml_insert(config_path, "timew:", f"  {name}: {timew_dir}", name, _re)
             self._finish_create("timew", name, timew_dir)
 
+        def _create_list_resource(self, profile_base, name, _re):
+            """Register a new list.py list (basename = name, file profile/list/<name>)."""
+            if name == "default":
+                raise _ResourceBadRequest("use a name other than 'default' (default list already exists)")
+            list_dir = os.path.join(profile_base, "list")
+            os.makedirs(list_dir, exist_ok=True)
+            config_path = os.path.join(profile_base, "lists.yaml")
+            if not os.path.isfile(config_path):
+                with open(config_path, "w") as fh:
+                    fh.write("lists:\n  default: tasks\n")
+                tasks_path = os.path.join(list_dir, "tasks")
+                if not os.path.isfile(tasks_path):
+                    open(tasks_path, "a").close()
+            list_file = os.path.join(list_dir, name)
+            if os.path.exists(list_file):
+                raise _ResourceConflict(f"list file '{name}' already exists")
+            open(list_file, "a").close()
+            self._yaml_insert(config_path, "lists:", f"  {name}: {name}", name, _re)
+            self._finish_create("lists", name, list_file)
+
         # -- GET /data/commands ----------------------------------------------
 
         def _handle_data_commands(self) -> None:
@@ -2921,10 +3146,15 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
               add                 — create a new task
               annotate            — add annotation to a task
               journal_add         — append an entry to the profile's journal file
+              list_add            — add a line to the active simple list (list.py)
+              list_finish         — mark done (-f prefix)
+              list_edit           — edit item (-e prefix text)
+              list_remove         — remove item (-r prefix)
               ledger_add          — append a transaction to the profile's ledger file
               timew_start         — start time tracking with optional tags
               timew_stop          — stop current time tracking
               timew_track         — record a past time interval with duration and tags
+              community_add       — add active-profile task or journal snapshot to a global community
             """
             body = self._read_json_body()
             if body is None:
@@ -2962,6 +3192,8 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                 TASK_MUTATING = {"done", "start", "stop", "add", "annotate", "task_modify", "bulk"}
                 TIME_MUTATING = {"timew_start", "timew_stop", "timew_track"}
                 JOURNAL_MUTATING = {"journal_add"}
+                LIST_MUTATING = {"list_add", "list_finish", "list_edit", "list_remove"}
+                COMMUNITY_MUTATING = {"community_add"}
 
                 if action == "done":
                     tid = str(body.get("id", ""))
@@ -3012,12 +3244,25 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                     self._send_json(200, {"ok": r.returncode == 0, "output": r.stdout or r.stderr, "tasks": tasks})
 
                 elif action == "journal_add":
-                    entry_text = body.get("args", {}).get("entry", "").strip()
+                    args_j = body.get("args", {})
+                    entry_text = args_j.get("entry", "").strip()
                     if not entry_text:
                         self._send_json(400, {"ok": False, "error": "entry required"})
                         return
+                    # Optional metadata markers (@project, @tags, @priority) appended after text
+                    meta_parts = []
+                    jrnl_project = (args_j.get("project") or "").strip()
+                    jrnl_tags = (args_j.get("tags") or "").strip()
+                    jrnl_priority = (args_j.get("priority") or "").strip()
+                    if jrnl_project:
+                        meta_parts.append(f"@project:{jrnl_project}")
+                    if jrnl_tags:
+                        meta_parts.append(f"@tags:{jrnl_tags}")
+                    if jrnl_priority:
+                        meta_parts.append(f"@priority:{jrnl_priority}")
+                    full_text = entry_text + (" " + " ".join(meta_parts) if meta_parts else "")
                     # Optional journal override — write to a specific named journal
-                    journal_name = body.get("args", {}).get("journal", "")
+                    journal_name = args_j.get("journal", "")
                     target_file = paths["journal_file"]
                     if journal_name:
                         resources = state.get_profile_resources()
@@ -3026,10 +3271,69 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                             target_file = journals[journal_name]
                     import time as time_mod
                     timestamp = time_mod.strftime("%Y-%m-%d %H:%M")
-                    line = f"\n[{timestamp}] {entry_text}\n"
+                    line = f"\n[{timestamp}] {full_text}\n"
                     with open(target_file, "a") as fh:
                         fh.write(line)
                     self._send_json(200, {"ok": True, "output": "entry added"})
+
+                elif action == "list_add":
+                    args_o = body.get("args") or {}
+                    item_text = str(args_o.get("text", "")).strip()
+                    if not item_text or "\n" in item_text:
+                        self._send_json(400, {"ok": False, "error": "text required (single line)"})
+                        return
+                    list_dir = paths.get("list_dir", "")
+                    list_bn = paths.get("list_basename", "tasks")
+                    if not list_dir:
+                        self._send_json(400, {"ok": False, "error": "list_dir missing"})
+                        return
+                    os.makedirs(list_dir, exist_ok=True)
+                    r = _run_list_py(state.ww_base, list_dir, list_bn, [item_text])
+                    self._send_json(200, {
+                        "ok": r.returncode == 0,
+                        "output": (r.stdout or r.stderr or "").strip(),
+                    })
+
+                elif action == "list_finish":
+                    prefix = str((body.get("args") or {}).get("prefix", "")).strip()
+                    if not prefix:
+                        self._send_json(400, {"ok": False, "error": "prefix required"})
+                        return
+                    list_dir = paths.get("list_dir", "")
+                    list_bn = paths.get("list_basename", "tasks")
+                    r = _run_list_py(state.ww_base, list_dir, list_bn, ["-f", prefix])
+                    self._send_json(200, {
+                        "ok": r.returncode == 0,
+                        "output": (r.stdout or r.stderr or "").strip(),
+                    })
+
+                elif action == "list_edit":
+                    args_o = body.get("args") or {}
+                    prefix = str(args_o.get("prefix", "")).strip()
+                    new_text = str(args_o.get("text", "")).strip()
+                    if not prefix or not new_text:
+                        self._send_json(400, {"ok": False, "error": "prefix and text required"})
+                        return
+                    list_dir = paths.get("list_dir", "")
+                    list_bn = paths.get("list_basename", "tasks")
+                    r = _run_list_py(state.ww_base, list_dir, list_bn, ["-e", prefix, new_text])
+                    self._send_json(200, {
+                        "ok": r.returncode == 0,
+                        "output": (r.stdout or r.stderr or "").strip(),
+                    })
+
+                elif action == "list_remove":
+                    prefix = str((body.get("args") or {}).get("prefix", "")).strip()
+                    if not prefix:
+                        self._send_json(400, {"ok": False, "error": "prefix required"})
+                        return
+                    list_dir = paths.get("list_dir", "")
+                    list_bn = paths.get("list_basename", "tasks")
+                    r = _run_list_py(state.ww_base, list_dir, list_bn, ["-r", prefix])
+                    self._send_json(200, {
+                        "ok": r.returncode == 0,
+                        "output": (r.stdout or r.stderr or "").strip(),
+                    })
 
                 elif action == "ledger_add":
                     args_obj = body.get("args", {})
@@ -3189,6 +3493,137 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                         fh.write(entry)
                     self._send_json(201, {"ok": True, "name": pname})
 
+                elif action == "community_add":
+                    mod = _load_community_store()
+                    if mod is None:
+                        self._send_json(500, {"ok": False, "error": "community_store unavailable"})
+                        return
+                    args_o = body.get("args") or {}
+                    comm = (args_o.get("community") or "").strip()
+                    kind = (args_o.get("kind") or "").strip().lower()
+                    profile = state.get_active_profile() or ""
+                    if not comm or not kind:
+                        self._send_json(400, {"ok": False, "error": "community and kind required"})
+                        return
+                    if not re.match(r"^[a-zA-Z0-9_-]+$", comm):
+                        self._send_json(400, {"ok": False, "error": "invalid community name"})
+                        return
+                    if not profile:
+                        self._send_json(400, {"ok": False, "error": "no active profile"})
+                        return
+                    comm_tags = (args_o.get("community_tags") or "").strip() or None
+                    comm_priority = (args_o.get("community_priority") or "").strip() or None
+                    comm_project = (args_o.get("community_project") or "").strip() or None
+                    if kind == "task":
+                        tid = str(args_o.get("task_id", "")).strip()
+                        if not tid:
+                            self._send_json(400, {"ok": False, "error": "task_id required"})
+                            return
+                        r = subprocess.run(
+                            ["task", "rc.confirmation=no", tid, "export"],
+                            capture_output=True, text=True, timeout=15, env=env,
+                        )
+                        if r.returncode != 0 or not (r.stdout or "").strip():
+                            self._send_json(
+                                400,
+                                {"ok": False, "error": "task not found", "detail": (r.stderr or r.stdout or "")[:300]},
+                            )
+                            return
+                        try:
+                            arr = json.loads(r.stdout)
+                        except json.JSONDecodeError:
+                            self._send_json(400, {"ok": False, "error": "invalid task export"})
+                            return
+                        if not arr:
+                            self._send_json(400, {"ok": False, "error": "task export empty"})
+                            return
+                        task_obj = arr[0]
+                        uuid = str(task_obj.get("uuid") or "")
+                        if not uuid:
+                            self._send_json(400, {"ok": False, "error": "task has no uuid"})
+                            return
+                        source_ref = f"{profile}.task.{uuid}"
+                        out = mod.add_entry(
+                            state.ww_base, comm, source_ref, task_obj,
+                            community_tags=comm_tags,
+                            community_priority=comm_priority,
+                            community_project=comm_project,
+                        )
+                    elif kind == "journal":
+                        date_hdr = (args_o.get("journal_date") or "").strip()
+                        if not date_hdr:
+                            self._send_json(400, {"ok": False, "error": "journal_date required"})
+                            return
+                        journal_notebook = (args_o.get("journal") or "").strip() or "default"
+                        journal_file = paths["journal_file"]
+                        if journal_notebook != "default":
+                            resources = state.get_profile_resources()
+                            journals = (resources or {}).get("journals", {})
+                            if journal_notebook in journals:
+                                journal_file = journals[journal_notebook]
+                        if not journal_file or not os.path.isfile(journal_file):
+                            self._send_json(400, {"ok": False, "error": "journal file not found"})
+                            return
+                        out = mod.add_journal_from_file(
+                            state.ww_base, comm, profile, journal_file, date_hdr, journal_notebook,
+                            community_tags=comm_tags,
+                            community_priority=comm_priority,
+                            community_project=comm_project,
+                        )
+                    else:
+                        self._send_json(400, {"ok": False, "error": "kind must be task or journal"})
+                        return
+                    self._send_json(200, out)
+
+                elif action == "community_comment_save":
+                    # Save a comment on a community entry without writing to the journal.
+                    args_cs = body.get("args") or {}
+                    cs_text = args_cs.get("entry", "").strip()
+                    cs_id = str(args_cs.get("entry_id", "")).strip()
+                    if not cs_text or not cs_id:
+                        self._send_json(400, {"ok": False, "error": "entry and entry_id required"})
+                        return
+                    mod = _load_community_store()
+                    if mod is None:
+                        self._send_json(500, {"ok": False, "error": "community_store unavailable"})
+                        return
+                    out = mod.add_comment(state.ww_base, int(cs_id), cs_text)
+                    self._send_json(200, out)
+
+                elif action == "community_journal_entry":
+                    # Add a journal entry referencing a specific community entry.
+                    # Writes a comment on the community entry AND appends to the profile journal
+                    # with a structured backlink so both sides can be scanned/parsed.
+                    args_o = body.get("args") or {}
+                    entry_text = args_o.get("entry", "").strip()
+                    entry_id_str = str(args_o.get("entry_id", "")).strip()
+                    if not entry_text or not entry_id_str:
+                        self._send_json(400, {"ok": False, "error": "entry and entry_id required"})
+                        return
+                    mod = _load_community_store()
+                    if mod is None:
+                        self._send_json(500, {"ok": False, "error": "community_store unavailable"})
+                        return
+                    entry_id_int = int(entry_id_str)
+                    # Resolve source_ref and description snippet for backlink
+                    backlink_meta = mod.get_entry_meta(state.ww_base, entry_id_int)
+                    source_ref = backlink_meta.get("source_ref", "")
+                    cap = backlink_meta.get("captured_state", {})
+                    desc_snippet = (cap.get("description") or cap.get("body") or "")[:80]
+                    # Post a comment on the community entry
+                    cmt_out = mod.add_comment(state.ww_base, entry_id_int, entry_text)
+                    # Append to journal with backlink so the entry can be correlated
+                    import time as time_mod
+                    timestamp = time_mod.strftime("%Y-%m-%d %H:%M")
+                    backlink = f" [community-ref:{entry_id_int}|{source_ref}|{desc_snippet}]" if source_ref else ""
+                    line = f"\n[{timestamp}] {entry_text}{backlink}\n"
+                    try:
+                        with open(paths["journal_file"], "a") as fh:
+                            fh.write(line)
+                    except OSError:
+                        pass
+                    self._send_json(200, {**cmt_out, "journal_written": True, "backlink": backlink.strip()})
+
                 elif action == "bulk":
                     ids = body.get("ids", [])
                     op = body.get("op", "")
@@ -3234,6 +3669,10 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                     state.broadcast("data", json.dumps({"type": "time"}))
                 elif action in JOURNAL_MUTATING:
                     state.broadcast("data", json.dumps({"type": "journal"}))
+                elif action in LIST_MUTATING:
+                    state.broadcast("data", json.dumps({"type": "lists"}))
+                elif action in COMMUNITY_MUTATING:
+                    state.broadcast("data", json.dumps({"type": "community"}))
 
             except Exception as exc:
                 self._send_json(500, {"ok": False, "error": str(exc)})

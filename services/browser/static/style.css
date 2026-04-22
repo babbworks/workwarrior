@@ -267,9 +267,13 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 .task-detail-svc-udas summary:hover { color: var(--text); }
 .task-detail-svc-udas[open] summary { margin-bottom: 6px; }
 
-/* Entry action buttons (journal, ledger, time) */
-.entry-actions { display: none; gap: 4px; margin-top: 4px; padding-left: 8px; }
-.journal-entry:hover .entry-actions { display: flex; }
+/* Entry action buttons (journal, ledger, time) — always show on touch / coarse pointers */
+.entry-actions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; padding-left: 8px; }
+@media (hover: hover) and (pointer: fine) {
+  .entry-actions { display: none; }
+  .journal-entry:hover .entry-actions,
+  .journal-entry:focus-within .entry-actions { display: flex; }
+}
 .entry-action-row { margin-top: 4px; }
 .ledger-row-actions { display: none; gap: 4px; margin-left: 12px; flex-shrink: 0; }
 .ledger-row:hover .ledger-row-actions { display: inline-flex; }
@@ -299,6 +303,15 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 .entry-date { font-size:11px; color:var(--muted); margin-bottom:4px; }
 .entry-body { font-size:13px; white-space:pre-wrap; }
 .entry-more { background:none; border:none; color:var(--accent); font-family:inherit; font-size:11px; cursor:pointer; padding:4px 0; }
+
+/* ── Simple lists (list.py) ───────────────────────────────────────────────── */
+.list-items { font-size: 13px; }
+.list-row { display: flex; align-items: center; gap: 10px; padding: var(--row-gap) 4px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.list-row:hover { background: var(--surface); }
+.list-prefix { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11px; color: var(--muted); min-width: 2.5em; }
+.list-text { flex: 1; min-width: 140px; }
+.list-row-actions { display: flex; gap: 4px; align-items: center; margin-left: auto; }
+.list-row-actions .act-btn { font-size: 11px; }
 
 /* ── Ledger section ───────────────────────────────────────────────────────── */
 .balance-row { display:flex; justify-content:space-between; padding:4px 0; font-size:12px; border-bottom:1px solid var(--border); }
@@ -637,6 +650,53 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 .btn-week-nav:not(:disabled):hover { border-color: var(--accent); color: var(--accent); }
 .week-range-label { color: var(--text); font-size: 12px; }
 
+/* ── Community panel ─────────────────────────────────────────────────────── */
+.community-hint { font-size: 11px; color: var(--muted); line-height: 1.45; margin: 0 0 10px; max-width: 52em; }
+#section-community .community-controls-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--bg);
+  padding-bottom: 6px;
+  margin-bottom: 4px;
+  box-shadow: 0 8px 10px -6px rgba(0, 0, 0, 0.45);
+}
+/* Scroll entries inside the panel so collection / add-journal controls stay on screen */
+#section-community #community-body {
+  max-height: min(62vh, 540px);
+  overflow-y: auto;
+  margin-top: 6px;
+  padding: 4px 6px 10px 0;
+}
+.community-toolbar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; margin-bottom: 10px; }
+.community-add-strip { margin-bottom: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; }
+.community-add-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.community-select-wrap { display: flex; flex-direction: column; gap: 2px; }
+.community-toolbar-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; display: inline-block; width: 72px; flex-shrink: 0; }
+.community-create-form { margin: 0; flex: 1; min-width: 200px; }
+.community-view-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.community-tab { background: var(--bg); border: 1px solid var(--border); color: var(--muted); font-family: inherit; font-size: 11px; padding: 4px 10px; border-radius: 3px; cursor: pointer; }
+.community-tab:hover { border-color: var(--accent); color: var(--accent); }
+.community-tab.active { border-color: var(--accent); color: var(--accent); background: rgba(88,166,255,0.08); }
+.community-entry-card { border: 1px solid var(--border); border-radius: 4px; padding: 8px 10px; margin-bottom: 8px; background: var(--bg); }
+.community-entry-head { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+.community-entry-head code { color: var(--accent); font-size: 11px; }
+.community-task-slim { font-size: 12px; }
+.community-task-desc { display: block; margin: 4px 0; color: var(--text); }
+.community-task-meta { font-size: 11px; color: var(--muted); }
+.community-journal-body { font-size: 12px; color: var(--text); white-space: pre-wrap; }
+.community-raw { font-size: 11px; color: var(--muted); overflow-x: auto; max-height: 200px; margin-top: 4px; }
+.community-annotations { margin-top: 8px; padding-top: 6px; border-top: 1px dashed var(--border); }
+.ann-h { font-size: 10px; color: var(--muted); text-transform: uppercase; margin-bottom: 4px; }
+.community-cmt { font-size: 11px; color: var(--text); margin: 3px 0; }
+.community-cmt-t { color: var(--muted); margin-right: 6px; }
+.community-dual { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.dual-h { font-size: 10px; color: var(--muted); margin-bottom: 4px; }
+.dual-pre { font-size: 10px; max-height: 160px; overflow: auto; margin: 0; padding: 6px; background: var(--surface); border: 1px solid var(--border); border-radius: 3px; white-space: pre-wrap; }
+.community-comment-row { border-bottom: 1px solid var(--border); padding: 8px 0; }
+.community-comment-meta { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+.community-comment-body { font-size: 12px; color: var(--text); white-space: pre-wrap; }
+
 /* ── Toast notifications ──────────────────────────────────────────────────── */
 #toast-container { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 6px; z-index: 9999; pointer-events: none; }
 .toast { background: var(--surface); border: 1px solid var(--border); color: var(--text); font-family: inherit; font-size: 12px; padding: 7px 12px; border-radius: 4px; opacity: 0; transform: translateY(6px); transition: opacity 200ms ease, transform 200ms ease; }
@@ -644,3 +704,65 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 .toast.toast-success { border-left: 3px solid var(--success); }
 .toast.toast-error   { border-left: 3px solid var(--error); color: var(--error); }
 .toast.toast-info    { border-left: 3px solid var(--accent); }
+
+/* ── Community footer nav button — mirrors .warrior-stats exactly ─────────── */
+.community-footer-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 12px; width: 100%;
+  background: none; border: none;
+  cursor: pointer; color: var(--muted);
+}
+.community-footer-btn:hover { background: var(--bg); }
+.community-footer-btn.active { color: var(--accent); }
+.community-footer-icon { font-size: 14px; font-weight: bold; color: var(--muted); }
+.community-footer-label { font-size: 11px; color: var(--muted); }
+.community-footer-btn:hover .community-footer-icon,
+.community-footer-btn:hover .community-footer-label { color: var(--text); }
+.community-footer-btn.active .community-footer-icon,
+.community-footer-btn.active .community-footer-label { color: var(--accent); }
+
+/* ── Lists attribution ───────────────────────────────────────────────────── */
+.list-attribution { font-size: 10px; color: var(--muted); padding: 4px 0 2px; letter-spacing: 0.04em; }
+.list-attribution a { color: var(--muted); text-decoration: none; }
+.list-attribution a:hover { color: var(--accent); text-decoration: underline; }
+
+/* ── Journal meta row ────────────────────────────────────────────────────── */
+.journal-meta-row { display: flex; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+.journal-meta-select { font-size: 11px; min-width: 80px; max-width: 160px; }
+
+/* ── Community meta row (project/tags/priority under add strips) ─────────── */
+.community-meta-row { display: flex; gap: 6px; margin: 2px 0 6px 0; padding-left: 80px; flex-wrap: wrap; align-items: center; }
+.comm-meta-sel { font-size: 11px; min-width: 70px; max-width: 120px; }
+.comm-meta-input { background: var(--surface); border: 1px solid var(--border); color: var(--text); font-family: inherit; font-size: 11px; padding: 3px 6px; border-radius: 3px; outline: none; width: 110px; }
+.comm-meta-input:focus { border-color: var(--accent); }
+
+/* ── Community per-entry journal form ─────────────────────────────────────── */
+.community-entry-journal { margin-top: 8px; padding-top: 6px; border-top: 1px dashed var(--border); }
+.community-journal-form { display: flex; gap: 6px; align-items: center; }
+.community-jrnl-input { flex: 1; min-width: 0; background: var(--surface); border: 1px solid var(--border); color: var(--text); font-family: inherit; font-size: 11px; padding: 4px 8px; border-radius: 3px; outline: none; }
+.community-jrnl-input:focus { border-color: var(--accent); }
+.community-jrnl-submit { font-size: 11px; padding: 4px 10px; }
+
+/* ── Journal backlinks (community-ref markers) ───────────────────────────── */
+.journal-backlink { display: inline-block; font-size: 11px; color: var(--accent); background: rgba(88,166,255,0.08); border: 1px solid rgba(88,166,255,0.25); border-radius: 3px; padding: 1px 6px; margin: 2px 0; cursor: pointer; white-space: nowrap; }
+.journal-backlink:hover { background: rgba(88,166,255,0.18); }
+.community-entry-highlight { animation: comm-flash 2s ease-out; }
+@keyframes comm-flash { 0%, 30% { background: rgba(88,166,255,0.18); border-color: var(--accent); } 100% { background: var(--bg); border-color: var(--border); } }
+
+/* ── Task → community inline panel ──────────────────────────────────────── */
+.task-comm-panel { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 6px 4px; background: var(--surface); border-top: 1px solid var(--border); font-size: 12px; }
+.task-comm-label { font-size: 10px; color: var(--muted); white-space: nowrap; }
+.task-comm-sel { min-width: 100px; font-size: 11px; }
+.task-comm-input { background: var(--bg); border: 1px solid var(--border); color: var(--text); font-family: inherit; font-size: 11px; padding: 3px 6px; border-radius: 3px; outline: none; width: 100px; }
+.task-comm-input:focus { border-color: var(--accent); }
+.task-comm-pri { font-size: 11px; min-width: 48px; }
+
+/* ── Community entry metadata badges ──────────────────────────────────────── */
+.comm-tag-badge { font-size: 10px; background: rgba(88,166,255,0.12); color: var(--accent); border-radius: 2px; padding: 1px 5px; margin-left: 3px; }
+
+/* ── Done tasks list ───────────────────────────────────────────────────────── */
+.done-tasks-header { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; padding: 8px 4px 4px; border-top: 1px solid var(--border); margin-top: 8px; }
+.task-row-done { opacity: 0.55; cursor: default; }
+.task-row-done:hover { background: none; }
+.done-task-desc { text-decoration: line-through; color: var(--muted); }
+.task-date-muted { font-size: 10px; color: var(--muted); margin-left: auto; }

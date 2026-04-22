@@ -78,3 +78,4 @@ Rollback:             git checkout services/browser/
 Fragility:            Low — services/browser/ only, no lib or bin/ww changes
 
 Status:               pending
+Taskwarrior:          wwdev task 24 (2a6ed647-c0b5-4634-b346-ce1d656b9d75) status:pending

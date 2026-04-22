@@ -82,5 +82,6 @@ Risk notes:           TaskChampion sync server options: self-hosted (taskchampio
                       where data consistency across machines is a hard requirement.
 
 Status:               parked — requires design review before implementation
+Taskwarrior:          wwdev task 25 (d3161040-4c13-4275-9bea-312d2806afbb) status:pending
                       Unblock when: ww profile backup/restore is proven stable and
                       at least one commercial use case is actively requesting sync

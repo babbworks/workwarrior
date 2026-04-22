@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Dev launcher for running Workwarrior directly from this repo.
+# Keeps WW_BASE pinned to repo root so browser/static + services resolve here.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_BASE="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+export WW_BASE="${REPO_BASE}"
+
+exec "${REPO_BASE}/bin/ww" "$@"

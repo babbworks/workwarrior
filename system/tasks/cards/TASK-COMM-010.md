@@ -33,3 +33,4 @@ Blocked by:           TASK-COMM-009 (must be complete and verified first)
 Wait until:           COMM-009 complete and Verifier signed off
 
 Status:               pending
+Taskwarrior:          wwdev task 17 (5cd2dde2-10fc-4133-bfab-5c296504ee7b) status:pending

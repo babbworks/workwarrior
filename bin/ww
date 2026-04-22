@@ -71,6 +71,7 @@ Commands:
   routines    Recurring task routines (allgreed/cron integration)
   mcp         MCP server for AI agent task access (taskwarrior-mcp by @hnsstrk)
   browser     Local web UI server (start, stop, status)
+  community   Global shared collections ($WW_BASE/.community/)
   extensions  External tool extensions registry
   timew       TimeWarrior — per-profile `timew` extensions under \$TIMEWARRIORDB/extensions/
   find        Search across profiles and data types
@@ -547,6 +548,9 @@ show_service_help() {
     q|questions)
       cmd_questions help
       ;;
+    community)
+      cmd_community help
+      ;;
     shortcut)
       cmd_shortcut help
       ;;
@@ -1004,6 +1008,7 @@ service_category_description() {
     verify) echo "Validation scripts for integrity and config checks" ;;
     custom) echo "Interactive profile configuration helpers" ;;
     groups) echo "Profile grouping and membership management" ;;
+    community) echo "Global shared collections and cross-profile entries" ;;
     models) echo "LLM provider/model registry configuration" ;;
     ctrl) echo "AI and command-line settings control plane" ;;
     extensions) echo "External tool extension registries" ;;
@@ -1015,7 +1020,7 @@ service_category_description() {
 service_category_scope() {
   local category="$1"
   case "$category" in
-    groups|models|ctrl|extensions|x-delete)
+    groups|models|ctrl|extensions|x-delete|community)
       echo "Global scope (active profile not required)"
       ;;
     *)
@@ -1029,6 +1034,7 @@ service_category_syntax() {
   case "$category" in
     profile) echo "ww profile <create|list|info|delete|backup>" ;;
     groups) echo "ww group <list|show|create|add|remove|delete>" ;;
+    community) echo "ww community <list|show|create|add>" ;;
     models) echo "ww model <name type base_url [api_key_env]|list|providers|env|check|show|add-provider|remove-provider|add-model|set-default|remove-model>" ;;
     ctrl) echo "ww ctrl <status|ai-mode|ai-cmd|prompt-ww|prompt-ai|ui-model-indicator>" ;;
     extensions) echo "ww extensions <tool> <action>" ;;
@@ -1311,6 +1317,19 @@ DEPS_HELP_EOF
       exit 1
       ;;
   esac
+}
+
+# ============================================================================
+# COMMUNITY COMMAND
+# ============================================================================
+
+cmd_community() {
+  local comm_sh="${WW_BASE}/services/community/community.sh"
+  if [[ ! -f "$comm_sh" ]]; then
+    log_error "Community service not found at ${comm_sh}"
+    exit 1
+  fi
+  bash "$comm_sh" "$@"
 }
 
 # ============================================================================
@@ -4506,6 +4525,9 @@ main() {
       ;;
     q|questions)
       cmd_questions "$@"
+      ;;
+    community)
+      cmd_community "$@"
       ;;
     shortcut)
       cmd_shortcut "$@"

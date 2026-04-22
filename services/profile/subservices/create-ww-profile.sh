@@ -16,7 +16,7 @@ TIMEWDB="$BASE/.timewarrior"
 JOURNALS="$BASE/journals"
 LEDGERS="$BASE/ledgers"
 LIST_DIR="$BASE/list"
-DEFAULT_LIST_FILE="$LIST_DIR/${PROFILE_NAME}_default.list"
+LISTS_YAML="$BASE/lists.yaml"
 
 HOOKSRC=$(find ~/ww/services/profile/ -name "on-modify.timewarrior" 2>/dev/null | head -n 1)
 TASKRC_SRC="$HOME/ww/functions/tasks/default-taskrc/.taskrc"
@@ -58,7 +58,11 @@ echo "🔧 Creating Workwarrior profile: $PROFILE_NAME"
 echo
 
 mkdir -p "$TASKDATA/hooks" "$TIMEWDB" "$JOURNALS" "$LEDGERS" "$LIST_DIR"
-touch "$DEFAULT_LIST_FILE"
+cat > "$LISTS_YAML" << EOF
+lists:
+  default: tasks
+EOF
+touch "$LIST_DIR/tasks"
 
 # --- Customization Prompts ---
 taskrc_custom_path=""; taskrc_source=""
@@ -134,10 +138,10 @@ add_alias_to_section "$MAIN_ALIAS" "# -- Workwarrior Profile Aliases ---"
 echo "✓ Created profile aliases: p-$PROFILE_NAME and $PROFILE_NAME"
 
 # --- List Tool Alias Creation ---
-LIST_ALIAS="alias list-$PROFILE_NAME='python3 \"$HOME/ww/tools/list/list.py\" -t \"$LIST_DIR\"'"
+LIST_ALIAS="alias list-$PROFILE_NAME='python3 \"$HOME/ww/tools/list/list.py\" -t \"$LIST_DIR\" -l tasks'"
 add_alias_to_section "$LIST_ALIAS" "# -- Direct Aliases for List tool ---"
 echo "✓ Created list-$PROFILE_NAME alias"
-echo "✓ Created default list file: $DEFAULT_LIST_FILE"
+echo "✓ Created lists.yaml and default list (tasks) in $LIST_DIR"
 
 # --- Install Timewarrior hook ---
 if [[ -f "$HOOKSRC" ]]; then
@@ -245,7 +249,7 @@ echo "📁 Location: $BASE"
 echo "📝 Default Journal: $default_journal_file"
 echo "💰 Ledgers: $PROFILE_NAME"
 echo "🗂  TaskRC: $TASKRC_DEST"
-echo "🗒  List: $DEFAULT_LIST_FILE"
+echo "🗒  Lists: $LISTS_YAML + $LIST_DIR/tasks (use list or list-$PROFILE_NAME)"
 echo
 echo "👉 Run: source $SHELL_RC"
 echo "👉 Then use: j-$PROFILE_NAME for direct journal access"

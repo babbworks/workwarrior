@@ -1,7 +1,7 @@
 # Task Card Index
 
-Last updated: 2026-04-20 (CRON complete; WARLOCK parked)
-Total: 99 task cards in `tasks/cards/` (browser UI cards TASK-SITE-011 … TASK-SITE-034 are complete). Card `Status:` field is authoritative; this file is a scannable index.
+Last updated: 2026-04-22 (added TASK-SITE-035 lists stabilization follow-up)
+Total: 100 task cards in `tasks/cards/` (browser UI cards TASK-SITE-011 … TASK-SITE-034 are complete). Card `Status:` field is authoritative; this file is a scannable index.
 
 ## Priority Queue
 
@@ -40,12 +40,13 @@ Total: 99 task cards in `tasks/cards/` (browser UI cards TASK-SITE-011 … TASK-
 
 - _(none)_
 
-## Pending (4)
+## Pending (5)
 
 - **TASK-EXT-GUN-001-EXPLORE** — Read-only audit of taskgun source to answer the five limitations
 - **TASK-EXT-SWORD-001** — Define and build the Sword weapon — a second sidebar weapon
 - **TASK-SITE-001** — Deliver a locally-served, terminal-aesthetic web interface for Workwarrior
 - **TASK-SITE-006** — Complete the browser service with static export, a redesigned terminal
+- **TASK-SITE-035** — Lists service stabilization (save reliability, multi-list UX, inline controls)
 
 ## Complete (87)
 

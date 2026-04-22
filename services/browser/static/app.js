@@ -45,8 +45,19 @@
   let wwCommands = []; // [{name, desc}] loaded from /data/commands
   let cachedTasks = []; // full task objects for detail panel lookup
   let taskGroupMode = localStorage.getItem('ww-task-group-mode') === 'grouped';
+  let taskShowDone = false;
   let udaSchema = new Map(); // name → {type, label}
   let bulkSelected = new Set(); // selected task IDs for bulk ops
+  let communityState = { names: [], selected: '', entries: [], view: 'unified' };
+
+  function esc(s) {
+    if (s == null || s === undefined) return '';
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
 
   async function loadUdaSchema() {
     try {
@@ -114,10 +125,28 @@
     document.querySelectorAll('.nav-item').forEach(btn => {
       btn.addEventListener('click', () => switchSection(btn.dataset.section));
     });
+    document.querySelector('.community-footer-btn')?.addEventListener('click', (e) => {
+      switchSection(e.currentTarget.dataset.section);
+    });
     document.getElementById('btn-group-toggle')?.addEventListener('click', () => {
       taskGroupMode = !taskGroupMode;
       localStorage.setItem('ww-task-group-mode', taskGroupMode ? 'grouped' : 'flat');
       renderTasks(cachedTasks);
+    });
+    document.getElementById('btn-show-done-tasks')?.addEventListener('click', async () => {
+      taskShowDone = !taskShowDone;
+      const btn = document.getElementById('btn-show-done-tasks');
+      btn?.classList.toggle('active', taskShowDone);
+      const liveList = document.getElementById('task-list');
+      const doneList = document.getElementById('task-done-list');
+      if (taskShowDone) {
+        liveList?.classList.add('hidden');
+        doneList?.classList.remove('hidden');
+        await loadDoneTasks();
+      } else {
+        liveList?.classList.remove('hidden');
+        if (doneList) { doneList.classList.add('hidden'); doneList.innerHTML = ''; }
+      }
     });
   }
 
@@ -132,16 +161,19 @@
     document.querySelectorAll('.nav-item').forEach(b => {
       b.classList.toggle('active', b.dataset.section === name);
     });
+    const cfBtn = document.querySelector('.community-footer-btn');
+    if (cfBtn) cfBtn.classList.toggle('active', name === 'community');
     // CMD/CTRL/weapon button active states
     document.querySelectorAll('.cmd-ctrl-btn').forEach(b => b.classList.toggle('active', b.dataset.section === name));
     document.getElementById('btn-weapon-gun')?.classList.toggle('active', name === 'gun');
     document.getElementById('btn-weapon-sword')?.classList.toggle('active', name === 'sword');
     const titleMap = {
-      tasks:'Tasks', time:'Times', journal:'Journals', ledger:'Ledgers',
+      tasks:'Tasks', time:'Times', journal:'Journals', ledger:'Ledgers', lists:'Lists',
       next:'Next', schedule:'Schedule', gun:'Gun', cmd:'CMD', ctrl:'CTRL',
       sync:'Sync', groups:'Groups', models:'Models', network:'Network',
       export:'Export', questions:'Questions', bookbuilder:'BookBuilder',
-      profile:'Profile', warrior:'Warrior', projects:'Projects', sword:'Sword'
+      profile:'Profile', warrior:'Warrior', projects:'Projects', sword:'Sword',
+      community:'Community'
     };
     sectionTitle.textContent = titleMap[name] || name;
     await loadSection(name);
@@ -155,11 +187,11 @@
   // g+key: section navigation. ?: show overlay. Escape: focus terminal input.
   // Skips when an input/textarea/select is focused.
   const KB_SECTIONS = {
-    t: 'tasks',   T: 'time',    j: 'journal', l: 'ledger',
+    t: 'tasks',   T: 'time',    j: 'journal', l: 'ledger', L: 'lists',
     n: 'next',    s: 'schedule',c: 'cmd',     C: 'ctrl',
     S: 'sync',    G: 'groups',  m: 'models',  N: 'network',
     e: 'export',  q: 'questions',p: 'profile',w: 'warrior',
-    u: 'gun',     x: 'sword',
+    u: 'gun',     x: 'sword',   o: 'community',
   };
 
   // Compound commands that enter context mode (next Enter appends free-form args)
@@ -177,11 +209,12 @@
     'time': 'time',   'timew': 'time',
     'journal': 'journal', 'j': 'journal',
     'ledger': 'ledger',   'l': 'ledger',
+    'lists': 'lists',
     'next': 'next',        'schedule': 'schedule', 'sync': 'sync',
     'groups': 'groups',    'models': 'models',     'network': 'network',
     'export': 'export',    'questions': 'questions', 'saves': 'bookbuilder',
     'projects': 'projects','cmd': 'cmd',            'ctrl': 'ctrl',
-    'warrior': 'warrior',
+    'warrior': 'warrior',  'community': 'community',
   };
 
   let gPrefixPending = false;
@@ -248,6 +281,7 @@
           <span class="shortcut-key">g T</span><span>Times</span>
           <span class="shortcut-key">g j</span><span>Journal</span>
           <span class="shortcut-key">g l</span><span>Ledger</span>
+          <span class="shortcut-key">g L</span><span>Lists</span>
           <span class="shortcut-key">g n</span><span>Next</span>
           <span class="shortcut-key">g s</span><span>Schedule</span>
           <span class="shortcut-key">g c</span><span>CMD</span>
@@ -260,6 +294,7 @@
           <span class="shortcut-key">g q</span><span>Questions</span>
           <span class="shortcut-key">g p</span><span>Profile</span>
           <span class="shortcut-key">g w</span><span>Warrior</span>
+          <span class="shortcut-key">g o</span><span>Community</span>
           <span class="shortcut-key">g u</span><span>Gun</span>
           <span class="shortcut-key">g x</span><span>Sword</span>
           <span class="shortcut-key">?</span><span>This overlay</span>
@@ -385,6 +420,7 @@
         await loadProfileResources();
         await loadAccounts();
         await loadTimewTags();
+        await loadTaskMeta();
         await loadSection(activeSection);
       }
     } catch (_) { }
@@ -447,6 +483,8 @@
         if (type === 'tasks' && activeSection === 'tasks') loadTasks();
         else if (type === 'time' && activeSection === 'time') loadTime();
         else if (type === 'journal' && activeSection === 'journal') loadJournal();
+        else if (type === 'lists' && activeSection === 'lists') loadLists();
+        else if (type === 'community' && activeSection === 'community') loadCommunity();
       } catch (_) {}
     });
 
@@ -676,7 +714,7 @@
       }
       if (termMode === 'filter') {
         const rows = document.querySelectorAll(
-          `#section-${activeSection} .task-row, #section-${activeSection} .journal-entry, #section-${activeSection} .ledger-row`
+          `#section-${activeSection} .task-row, #section-${activeSection} .journal-entry, #section-${activeSection} .ledger-row, #section-${activeSection} .list-row`
         );
         const visible = [...rows].filter(r => r.style.display !== 'none').length;
         hintsBar.textContent = `filtering ${visible} item${visible !== 1 ? 's' : ''} in ${activeSection} — tab to execute mode`;
@@ -699,6 +737,7 @@
   // ── Resource selectors (journals / ledgers / tasklists / timew) ─────────────
 
   let profileResources = null;
+  let taskMetaCache = { projects: [], tags: [] };
 
   async function loadProfileResources() {
     try {
@@ -706,6 +745,34 @@
       const data = await res.json();
       if (data.ok) profileResources = data;
     } catch (_) {}
+  }
+
+  async function loadTaskMeta() {
+    try {
+      const res = await fetch('/data/task-meta');
+      const data = await res.json();
+      if (data.ok) {
+        taskMetaCache = { projects: data.projects || [], tags: data.tags || [] };
+        populateTaskMetaDropdowns();
+      }
+    } catch (_) {}
+  }
+
+  function populateTaskMetaDropdowns() {
+    const { projects, tags } = taskMetaCache;
+    const projOptions = projects.map(p => `<option value="${esc(p)}">`).join('');
+    const tagOptions  = tags.map(t => `<option value="${esc(t)}">`).join('');
+    // Journal project datalist
+    const jProjDl = document.getElementById('journal-projects-dl');
+    if (jProjDl) jProjDl.innerHTML = projOptions;
+    // Journal tags datalist
+    const jTagsDl = document.getElementById('journal-tags-list');
+    if (jTagsDl) jTagsDl.innerHTML = tagOptions;
+    // Community project/tag datalists
+    const cProjDl = document.getElementById('comm-projects-dl');
+    if (cProjDl) cProjDl.innerHTML = projOptions;
+    const cTagsDl = document.getElementById('comm-tags-dl');
+    if (cTagsDl) cTagsDl.innerHTML = tagOptions;
   }
 
   function renderResourceSelector(containerId, kind, activeKey, onSelect) {
@@ -830,6 +897,8 @@
       renderResourceSelector('journal-selector', 'journals', active.journal, () => loadJournal());
     } else if (section === 'ledger') {
       renderResourceSelector('ledger-selector', 'ledgers', active.ledger, () => loadLedger());
+    } else if (section === 'lists') {
+      renderResourceSelector('list-selector', 'lists', active.list || 'default', () => loadLists());
     }
   }
 
@@ -840,6 +909,7 @@
     else if (name === 'time') await loadTime();
     else if (name === 'journal') await loadJournal();
     else if (name === 'ledger') await loadLedger();
+    else if (name === 'lists') await loadLists();
     else if (name === 'next') await loadNext();
     else if (name === 'schedule') await loadSchedule();
     else if (name === 'gun') updateContextBar('gun', null);
@@ -850,6 +920,7 @@
     else if (name === 'network') { updateContextBar('network', null); await loadNetwork(); }
     else if (name === 'export') updateContextBar('export', null);
     else if (name === 'questions') { updateContextBar('questions', null); await loadQuestions(); }
+    else if (name === 'community') { updateContextBar('community', null); populateTaskMetaDropdowns(); await loadCommunity(); }
     else if (name === 'bookbuilder') updateContextBar('bookbuilder', null);
     else if (name === 'projects') { updateContextBar('projects', null); await loadProjects(); }
     else if (name === 'ctrl') { await refreshCtrlState(); updateContextBar('ctrl', null); }
@@ -945,6 +1016,80 @@
     }
   }
 
+  async function loadDoneTasks() {
+    const list = document.getElementById('task-done-list');
+    if (!list) return;
+    list.innerHTML = '<div class="skeleton-msg">Loading completed tasks…</div>';
+    try {
+      const res = await fetch('/data/tasks?done=1');
+      const data = await res.json();
+      if (!data.ok) {
+        list.innerHTML = `<div class="empty-state">${data.error || 'failed'}</div>`;
+        return;
+      }
+      const tasks = data.tasks || [];
+      if (!tasks.length) {
+        list.innerHTML = '<div class="empty-state">No completed tasks</div>';
+        return;
+      }
+      list.innerHTML = `<div class="done-tasks-header">Completed — ${tasks.length} task${tasks.length !== 1 ? 's' : ''}</div>` +
+        tasks.map(t => {
+          const endRaw = t.end ? t.end.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2}).*/, '$1-$2-$3 $4:$5') : '';
+          const proj = t.project ? `<span class="badge-project">${esc(t.project)}</span>` : '';
+          const tags = (t.tags || []).map(g => `<span class="tag">${esc(g)}</span>`).join('');
+          const pri = t.priority ? `<span class="pri-dot pri-${t.priority.toLowerCase()}">${t.priority}</span>` : '';
+          const uuid = t.uuid || '';
+          return `<div class="done-task-row" data-uuid="${esc(uuid)}">
+            <div class="done-task-main">
+              <span class="done-task-check">✓</span>
+              <span class="done-task-desc">${esc(t.description || '')}</span>
+            </div>
+            <div class="done-task-meta">
+              ${proj}${tags}${pri}
+              ${endRaw ? `<span class="done-task-date">completed ${esc(endRaw)}</span>` : ''}
+              <button class="done-task-revive" data-uuid="${esc(uuid)}" title="Revive this task">↩ revive</button>
+            </div>
+          </div>`;
+        }).join('');
+
+      list.querySelectorAll('.done-task-revive').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const uuid = btn.dataset.uuid;
+          if (!uuid) return;
+          btn.disabled = true;
+          btn.textContent = '…';
+          try {
+            const r = await fetch('/action', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'task_modify', id: uuid, args: { status: 'pending' } }),
+            });
+            const d = await r.json();
+            if (d.ok) {
+              toast('Task revived');
+              btn.closest('.done-task-row')?.remove();
+              const header = list.querySelector('.done-tasks-header');
+              const remaining = list.querySelectorAll('.done-task-row').length;
+              if (header) header.textContent = `Completed — ${remaining} task${remaining !== 1 ? 's' : ''}`;
+              if (!remaining) list.innerHTML = '<div class="empty-state">No completed tasks</div>';
+              if (cachedTasks !== undefined) await loadTasks();
+            } else {
+              toast(d.output || d.error || 'revive failed', 'error');
+              btn.disabled = false;
+              btn.textContent = '↩ revive';
+            }
+          } catch (e) {
+            toast(e.message, 'error');
+            btn.disabled = false;
+            btn.textContent = '↩ revive';
+          }
+        });
+      });
+    } catch (e) {
+      list.innerHTML = `<div class="empty-state">Error: ${esc(e.message)}</div>`;
+    }
+  }
+
   // Returns HTML string for a single task row (used in both flat + grouped modes).
   // hideProject=true omits the project badge (grouped mode shows it in the header).
   function taskRowHTML(t, hideProject = false) {
@@ -970,6 +1115,7 @@
       <span class="task-actions">
         ${startStop}
         <button class="act-btn act-done" data-id="${t.id}"><span class="btn-icon">✓</span><span class="btn-word">done</span></button>
+        <button class="act-btn act-to-community" data-id="${t.id}"><span class="btn-icon">◎</span><span class="btn-word">comm</span></button>
       </span>
     </div>
     <div class="task-inline-detail hidden" id="tid-${t.id}"></div>`;
@@ -1036,6 +1182,66 @@
           renderTasks(data.tasks || cachedTasks);
           toast('■ task stopped', 'info');
         } catch (err) { toast('stop failed', 'error'); }
+      });
+    });
+
+    list.querySelectorAll('.act-to-community').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const tid = btn.dataset.id;
+        const detailDiv = document.getElementById('tid-' + tid);
+        if (!detailDiv) return;
+        // Toggle
+        if (!detailDiv.classList.contains('hidden') && detailDiv.dataset.mode === 'community') {
+          detailDiv.classList.add('hidden'); detailDiv.innerHTML = ''; return;
+        }
+        list.querySelectorAll('.task-inline-detail').forEach(d => { d.classList.add('hidden'); d.innerHTML = ''; });
+        detailDiv.dataset.mode = 'community';
+        detailDiv.classList.remove('hidden');
+        detailDiv.innerHTML = '<div class="skeleton-msg" style="font-size:12px">Loading collections…</div>';
+        let names = [];
+        try {
+          const lr = await fetch('/data/community/list');
+          const ld = await lr.json();
+          if (ld.ok) names = (ld.communities || []).map(c => c.name);
+        } catch (_) {}
+        if (!names.length) {
+          detailDiv.innerHTML = '<div class="empty-state" style="font-size:12px">No collections yet. Open <strong>Community</strong> to create one.</div>';
+          return;
+        }
+        const projOpts = taskMetaCache.projects.map(p => `<option value="${esc(p)}">`).join('');
+        const tagOpts  = taskMetaCache.tags.map(t => `<option value="${esc(t)}">`).join('');
+        detailDiv.innerHTML = `
+          <div class="task-comm-panel">
+            <label class="task-comm-label">collection</label>
+            <select class="resource-select task-comm-sel">${names.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('')}</select>
+            <label class="task-comm-label">project</label>
+            <input type="text" class="task-comm-input task-comm-proj" placeholder="project" autocomplete="off" list="task-comm-proj-dl" />
+            <datalist id="task-comm-proj-dl">${projOpts}</datalist>
+            <label class="task-comm-label">tags</label>
+            <input type="text" class="task-comm-input task-comm-tags" placeholder="tags" autocomplete="off" list="task-comm-tags-dl" />
+            <datalist id="task-comm-tags-dl">${tagOpts}</datalist>
+            <label class="task-comm-label">priority</label>
+            <select class="resource-select task-comm-pri"><option value="">—</option><option>H</option><option>M</option><option>L</option></select>
+            <button type="button" class="btn-inline-submit task-comm-send">→ community</button>
+          </div>`;
+        detailDiv.querySelector('.task-comm-send').addEventListener('click', async () => {
+          const comm = detailDiv.querySelector('.task-comm-sel').value;
+          if (!comm) { toast('pick a collection', 'error'); return; }
+          const args = {
+            community: comm, kind: 'task', task_id: tid,
+            community_project: detailDiv.querySelector('.task-comm-proj').value.trim() || undefined,
+            community_tags:    detailDiv.querySelector('.task-comm-tags').value.trim() || undefined,
+            community_priority: detailDiv.querySelector('.task-comm-pri').value.trim() || undefined,
+          };
+          const r = await fetch('/action', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'community_add', args }),
+          });
+          const d = await r.json();
+          if (d.ok) { toast('task added to community'); detailDiv.classList.add('hidden'); detailDiv.innerHTML = ''; }
+          else toast(d.error || 'add failed', 'error');
+        });
       });
     });
 
@@ -1528,11 +1734,22 @@
     });
   }
 
-  // Terminal filter mode pushes into the inline filter box for the tasks section
+  // Terminal filter mode pushes into the inline filter box for tasks / lists
   document.addEventListener('filter', (e) => {
-    if (e.detail.section !== 'tasks') return;
-    const fi = document.getElementById('task-filter');
-    if (fi) { fi.value = e.detail.query; filterTasks(); }
+    if (e.detail.section === 'tasks') {
+      const fi = document.getElementById('task-filter');
+      if (fi) { fi.value = e.detail.query; filterTasks(); }
+      return;
+    }
+    if (e.detail.section === 'lists') {
+      const lf = document.getElementById('list-filter');
+      if (!lf) return;
+      lf.value = e.detail.query;
+      const q = lf.value.toLowerCase();
+      document.querySelectorAll('#list-items .list-row').forEach(el => {
+        el.style.display = (!q || el.textContent.toLowerCase().includes(q)) ? '' : 'none';
+      });
+    }
   });
 
   function renderDue(due) {
@@ -1839,9 +2056,33 @@
 
   // Wrap @tags in body text with accent-colored span
   function highlightTags(text) {
-    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-               .replace(/@(\w+)/g, '<span class="journal-tag">@$1</span>');
+    return text
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      // Render community backlinks as clickable navigation targets
+      .replace(/\[community-ref:(\d+)\|([^\]|]*)\|([^\]]*)\]/g, (_, entryId, sourceRef, descSnip) => {
+        const label = descSnip.trim() || sourceRef.trim() || `entry #${entryId}`;
+        return `<span class="journal-backlink" data-entry-id="${entryId}" title="Community entry: ${esc(sourceRef)}" onclick="window.__navigateCommunityEntry(${entryId})">⟵ ${esc(label.slice(0, 60))}${label.length > 60 ? '…' : ''}</span>`;
+      })
+      .replace(/@(\w[\w:.-]*)/g, '<span class="journal-tag">@$1</span>');
   }
+
+  // Global helper called by inline onclick in journal backlinks
+  window.__navigateCommunityEntry = async function(entryId) {
+    communityState.pendingHighlight = parseInt(entryId);
+    await switchSection('community');
+    // After entries load, scroll to and flash the entry
+    const poll = setInterval(() => {
+      const card = document.querySelector(`.community-entry-card[data-id="${entryId}"]`);
+      if (card) {
+        clearInterval(poll);
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        card.classList.add('community-entry-highlight');
+        setTimeout(() => card.classList.remove('community-entry-highlight'), 2000);
+        communityState.pendingHighlight = null;
+      }
+    }, 80);
+    setTimeout(() => clearInterval(poll), 3000); // give up after 3s
+  };
 
   // ── Journal helpers ──────────────────────────────────────────────────────
 
@@ -1872,6 +2113,7 @@
       <div class="entry-actions">
         <button class="act-btn entry-annotate-btn" data-idx="${i}" data-date="${e.date}" data-body="${encodeURIComponent(e.body)}">+ annotate</button>
         <button class="act-btn entry-journal-btn" data-idx="${i}" data-date="${e.date}" data-body="${encodeURIComponent(e.body)}">→ journal</button>
+        <button class="act-btn entry-community-btn" data-idx="${i}" data-date="${e.date}">→ community</button>
       </div>
       <div class="entry-action-row hidden" id="jaction-${i}"></div>
     </div>`;
@@ -1925,6 +2167,47 @@
         };
         document.getElementById(`jnote-btn-${idx}`).addEventListener('click', submit);
         document.getElementById(`jnote-input-${idx}`).addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); submit(); } });
+      });
+    });
+    list.querySelectorAll('.entry-community-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const idx = btn.dataset.idx;
+        const dateHdr = btn.dataset.date;
+        const row = document.getElementById(`jaction-${idx}`);
+        if (!row.classList.contains('hidden')) { row.classList.add('hidden'); row.innerHTML = ''; return; }
+        row.innerHTML = '<div class="skeleton-msg">Loading collections…</div>';
+        row.classList.remove('hidden');
+        let names = [];
+        try {
+          const lr = await fetch('/data/community/list');
+          const list = await lr.json();
+          if (list.ok && Array.isArray(list.communities)) names = list.communities.map(c => c.name);
+        } catch (_) {}
+        if (!names.length) {
+          row.innerHTML = '<div class="empty-state" style="font-size:12px">No collections yet. Open the <strong>Community</strong> tab and create one, or run <code>ww community create …</code> in the terminal.</div>';
+          return;
+        }
+        row.innerHTML = `<div class="task-detail-input jcomm-row"><label class="community-select-wrap" style="flex:1;min-width:0;margin:0"><span class="community-toolbar-label">collection</span><select class="resource-select jcomm-sel" style="width:100%"></select></label><button type="button" class="btn-inline-submit jcomm-btn">add</button></div>`;
+        const sel = row.querySelector('.jcomm-sel');
+        names.forEach(n => {
+          const o = document.createElement('option');
+          o.value = n;
+          o.textContent = n;
+          sel.appendChild(o);
+        });
+        const submit = async () => {
+          const comm = sel.value;
+          if (!comm) return;
+          const d = await postAddJournalToCommunity(comm, dateHdr);
+          if (d.ok) {
+            toast('journal entry added to collection');
+            row.classList.add('hidden');
+            row.innerHTML = '';
+          } else {
+            toast(d.error || 'add failed', 'error');
+          }
+        };
+        row.querySelector('.jcomm-btn').addEventListener('click', submit);
       });
     });
   }
@@ -2012,6 +2295,168 @@
       });
     } catch (e) {
       renderError(list, `Journal: ${e.message}`, loadJournal);
+    }
+  }
+
+  let cachedListItems = [];
+  let listShowDone = false;
+
+  function _listEscAttr(s) {
+    return String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+  }
+
+  function _listEscText(s) {
+    return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function wireListRowEvents(box) {
+    box.querySelectorAll('.list-done-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const prefix = btn.getAttribute('data-prefix');
+        const res = await fetch('/action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'list_finish', args: { prefix } }),
+        });
+        const d = await res.json();
+        if (d.ok) { toast('✓ done'); await loadLists(); }
+        else toast(d.error || d.output || 'failed', 'error');
+      });
+    });
+    box.querySelectorAll('.list-edit-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const row = btn.closest('.list-row');
+        if (!row) return;
+        const prefix = btn.getAttribute('data-prefix');
+        const textSpan = row.querySelector('.list-text');
+        const cur = textSpan ? textSpan.textContent : '';
+        const act = row.querySelector('.list-row-actions');
+        if (!act) return;
+        act.innerHTML = `<input type="text" class="inline-filter list-edit-input" style="flex:1;min-width:140px" value="${_listEscAttr(cur)}" />
+          <button type="button" class="act-btn list-edit-save">save</button>
+          <button type="button" class="act-btn list-edit-cancel">×</button>`;
+        const inp = act.querySelector('.list-edit-input');
+        const runSave = async () => {
+          const nv = inp.value.trim();
+          if (!nv) return;
+          try {
+            const res = await fetch('/action', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'list_edit', args: { prefix, text: nv } }),
+            });
+            const d = await res.json();
+            if (d.ok) { toast('✓ updated'); await loadLists(); }
+            else toast(d.error || d.output || 'failed', 'error');
+          } catch (err) {
+            toast(`list edit failed: ${err.message}`, 'error');
+          }
+        };
+        act.querySelector('.list-edit-save')?.addEventListener('click', runSave);
+        inp?.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Enter') {
+            ev.preventDefault();
+            runSave();
+          }
+        });
+        act.querySelector('.list-edit-cancel')?.addEventListener('click', () => loadLists());
+        inp?.focus();
+      });
+    });
+    box.querySelectorAll('.list-remove-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const prefix = btn.getAttribute('data-prefix');
+        if (!prefix) return;
+        try {
+          const res = await fetch('/action', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'list_remove', args: { prefix } }),
+          });
+          const d = await res.json();
+          if (d.ok) { toast('✓ removed'); await loadLists(); }
+          else toast(d.error || d.output || 'remove failed', 'error');
+        } catch (err) {
+          toast(`list remove failed: ${err.message}`, 'error');
+        }
+      });
+    });
+  }
+
+  function renderListRows() {
+    const box = document.getElementById('list-items');
+    if (!box) return;
+    if (!cachedListItems.length) {
+      box.innerHTML = '<div class="empty-state">No items — add one above</div>';
+      return;
+    }
+    box.innerHTML = cachedListItems.map((it, i) => `
+      <div class="list-row" data-idx="${i}">
+        <span class="list-prefix">${_listEscText(it.prefix)}</span>
+        <span class="list-text">${_listEscText(it.text)}</span>
+        <span class="list-row-actions">
+          <button type="button" class="act-btn list-done-btn" data-prefix="${_listEscAttr(it.prefix)}"><span class="btn-icon">✓</span><span class="btn-word">done</span></button>
+          <button type="button" class="act-btn list-edit-btn" data-prefix="${_listEscAttr(it.prefix)}"><span class="btn-icon">✎</span><span class="btn-word">edit</span></button>
+          <button type="button" class="act-btn list-remove-btn" data-prefix="${_listEscAttr(it.prefix)}"><span class="btn-icon">−</span><span class="btn-word">remove</span></button>
+        </span>
+      </div>`).join('');
+    wireListRowEvents(box);
+  }
+
+  async function loadLists() {
+    const box = document.getElementById('list-items');
+    if (!box) return;
+    try {
+      const res = await fetch('/data/lists');
+      const data = await res.json();
+      if (!data.ok) {
+        box.innerHTML = `<div class="empty-state">${_listEscText(data.error || 'Could not load lists')}</div>`;
+        cachedListItems = [];
+        updateContextBar('lists', { items: [] });
+        return;
+      }
+      cachedListItems = data.items || [];
+      renderListRows();
+      const lf = document.getElementById('list-filter');
+      if (lf && lf.value) {
+        const q = lf.value.toLowerCase();
+        document.querySelectorAll('#list-items .list-row').forEach(el => {
+          el.style.display = (!q || el.textContent.toLowerCase().includes(q)) ? '' : 'none';
+        });
+      }
+      updateContextBar('lists', { items: cachedListItems, basename: data.list_basename });
+      if (lf && !lf.dataset.wired) {
+        lf.dataset.wired = '1';
+        lf.addEventListener('input', () => {
+          const q = lf.value.toLowerCase();
+          document.querySelectorAll('#list-items .list-row').forEach(el => {
+            el.style.display = (!q || el.textContent.toLowerCase().includes(q)) ? '' : 'none';
+          });
+        });
+      }
+    } catch (e) {
+      box.innerHTML = `<div class="empty-state">${_listEscText(e.message)}</div>`;
+      cachedListItems = [];
+    }
+  }
+
+  async function loadListDone() {
+    const box = document.getElementById('list-done-items');
+    if (!box) return;
+    try {
+      const res = await fetch('/data/lists?done=1');
+      const data = await res.json();
+      if (!data.ok || !data.items?.length) {
+        box.innerHTML = '<div class="empty-state">No completed items.</div>';
+        return;
+      }
+      box.innerHTML = data.items.map(it => `
+        <div class="list-row list-row-done">
+          <span class="list-prefix">${_listEscText(it.prefix)}</span>
+          <span class="list-text" style="text-decoration:line-through;opacity:.5">${_listEscText(it.text)}</span>
+        </div>`).join('');
+    } catch (e) {
+      box.innerHTML = `<div class="empty-state">${_listEscText(e.message)}</div>`;
     }
   }
 
@@ -2199,6 +2644,10 @@
     } else if (section === 'ledger') {
       const assets = (data.balances || []).find(b => b.account.startsWith('assets'));
       statContextBar.textContent = assets ? `assets: ${assets.amount}` : 'no balance data';
+    } else if (section === 'lists') {
+      const n = (data.items || []).length;
+      const bn = data.basename || '—';
+      statContextBar.textContent = `open: ${n}  ·  file: ${bn}`;
     } else if (section === 'next') {
       if (data && data.description) {
         statContextBar.textContent = `recommended: ${data.description}  ·  urgency: ${(data.urgency || 0).toFixed(1)}`;
@@ -2214,7 +2663,7 @@
       const aiPart = (ai.mode !== 'off' && ai.cmd_ai && ai.provider)
         ? ` · ai: ${ai.provider}${ai.model ? '/' + ai.model : ''}`
         : (ai.mode === 'off' || !ai.cmd_ai ? ' · ai: off' : '');
-      statContextBar.textContent = `unified command interface · tasks · times · journals · ledgers${aiPart}`;
+      statContextBar.textContent = `unified command interface · tasks · times · journals · ledgers · lists${aiPart}`;
     } else if (section === 'sync') {
       statContextBar.textContent = 'github sync · push · pull · status';
     } else if (section === 'groups') {
@@ -2237,6 +2686,8 @@
       statContextBar.textContent = 'profile details and statistics';
     } else if (section === 'warrior') {
       statContextBar.textContent = 'global overview · all profiles';
+    } else if (section === 'community') {
+      statContextBar.textContent = 'shared collections · global .community db';
     } else {
       statContextBar.textContent = '—';
     }
@@ -2571,6 +3022,329 @@
       });
       body.innerHTML = html || '<div class="empty-state">No checks completed</div>';
     } catch (e) { renderError(body, `Network: ${e.message}`, loadNetwork); }
+  }
+
+  function communityEntryKind(ref) {
+    if (!ref) return 'other';
+    if (ref.includes('.journal.')) return 'journal';
+    if (ref.includes('.task.')) return 'task';
+    return 'other';
+  }
+
+  function communityCitationLine(entry) {
+    const cap = entry.captured_state || {};
+    const k = communityEntryKind(entry.source_ref);
+    if (k === 'task') return cap.description || entry.source_ref;
+    if (k === 'journal') {
+      const b = cap.body || cap.text || '';
+      return b ? String(b).split('\n')[0].slice(0, 120) : entry.source_ref;
+    }
+    return entry.source_ref;
+  }
+
+  function wireCommunityJournalForms(container) {
+    container.querySelectorAll('.community-journal-form').forEach(form => {
+      const entryId = parseInt(form.dataset.entryId);
+      const input = form.querySelector('.community-jrnl-input');
+
+      async function doSave(withJournal) {
+        const text = (input?.value || '').trim();
+        if (!text) return;
+        const action = withJournal ? 'community_journal_entry' : 'community_comment_save';
+        try {
+          const r = await fetch('/action', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action, args: { entry_id: entryId, entry: text } }),
+          });
+          const d = await r.json();
+          if (d.ok) {
+            toast(withJournal ? '✓ saved + journaled' : '✓ saved');
+            if (input) input.value = '';
+            await loadCommunityEntries();
+          } else {
+            toast(d.error || 'failed', 'error');
+          }
+        } catch (err) {
+          toast(err.message, 'error');
+        }
+      }
+
+      form.querySelector('.community-jrnl-save')?.addEventListener('click', () => doSave(false));
+      form.addEventListener('submit', (e) => { e.preventDefault(); doSave(true); });
+    });
+  }
+
+  function renderCommunityBody() {
+    const body = document.getElementById('community-body');
+    if (!body) return;
+    const view = communityState.view;
+    const all = (communityState.entries || []).slice();
+
+    if (view === 'comments') {
+      const rows = [];
+      all.forEach(en => {
+        (en.comments || []).forEach(c => {
+          rows.push({ comment: c, entry: en });
+        });
+      });
+      rows.sort((a, b) => String(b.comment.created_at).localeCompare(String(a.comment.created_at)));
+      body.innerHTML = rows.length
+        ? rows.map(r => `<div class="community-comment-row">
+            <div class="community-comment-meta">${esc(r.comment.created_at)} · ${esc(communityCitationLine(r.entry))}</div>
+            <div class="community-comment-body">${esc(r.comment.body)}</div>
+          </div>`).join('')
+        : '<div class="empty-state">No comments yet</div>';
+      wireCommunityJournalForms(body);
+      return;
+    }
+
+    let entries = all;
+    if (view === 'journal') entries = all.filter(e => communityEntryKind(e.source_ref) === 'journal');
+    else if (view === 'tasks') entries = all.filter(e => communityEntryKind(e.source_ref) === 'task');
+    entries.sort((a, b) => String(b.added_at).localeCompare(String(a.added_at)));
+
+    body.innerHTML = entries.length
+      ? entries.map(en => renderCommunityEntryCard(en, view)).join('')
+      : '<div class="empty-state">No entries in this view</div>';
+    wireCommunityJournalForms(body);
+  }
+
+  function renderCommunityEntryCard(en, view) {
+    const kind = communityEntryKind(en.source_ref);
+    const cap = en.captured_state || {};
+    let main = '';
+    if (kind === 'task') {
+      const tags = Array.isArray(cap.tags) ? cap.tags.join(', ') : (cap.tags || '');
+      main = `<div class="community-task-slim">
+        ${cap.project ? `<span class="badge-project">${esc(cap.project)}</span>` : ''}
+        <span class="community-task-desc">${esc(cap.description || '—')}</span>
+        <div class="community-task-meta">${esc(cap.status || '')}${tags ? ' · ' + esc(tags) : ''}${cap.due ? ' · due ' + esc(cap.due) : ''}</div>
+      </div>`;
+      const live = en.live_state;
+      if (live && JSON.stringify(cap) !== JSON.stringify(live)) {
+        main += `<div class="community-dual"><div><div class="dual-h">captured</div><pre class="dual-pre">${esc(JSON.stringify(cap, null, 2))}</pre></div>
+          <div><div class="dual-h">live</div><pre class="dual-pre">${esc(JSON.stringify(live, null, 2))}</pre></div></div>`;
+      }
+    } else if (kind === 'journal') {
+      const bodyTxt = cap.body || cap.text || '—';
+      main = `<div class="community-journal-body">${esc(bodyTxt)}</div>`;
+    } else {
+      main = `<pre class="community-raw">${esc(JSON.stringify(cap, null, 2))}</pre>`;
+    }
+    const ann = (en.comments || []).length
+      ? `<div class="community-annotations"><div class="ann-h">${view === 'journal' ? 'annotations' : 'comments'}</div>${en.comments.map(c =>
+        `<div class="community-cmt"><span class="community-cmt-t">${esc(c.created_at)}</span> ${esc(c.body)}</div>`).join('')}</div>`
+      : '';
+    const journalForm = `<div class="community-entry-journal">
+      <form class="community-journal-form" data-entry-id="${en.id}" onsubmit="return false;">
+        <input type="text" class="community-jrnl-input" placeholder="add note…" autocomplete="off" />
+        <button type="button" class="btn-inline-alt community-jrnl-save">save</button>
+        <button type="submit" class="btn-inline-submit community-jrnl-journal">→ journal</button>
+      </form>
+    </div>`;
+    const commMeta = [
+      en.community_project ? `<span class="badge-project">${esc(en.community_project)}</span>` : '',
+      en.community_tags ? `<span class="comm-tag-badge">${esc(en.community_tags)}</span>` : '',
+      en.community_priority ? `<span class="pri-dot pri-${(en.community_priority||'').toLowerCase()}">${esc(en.community_priority)}</span>` : '',
+    ].filter(Boolean).join('');
+    return `<div class="community-entry-card" data-id="${en.id}">
+      <div class="community-entry-head"><code>${esc(en.source_ref)}</code> · <span class="muted">${esc(en.added_at)}</span>${commMeta ? ' ' + commMeta : ''}</div>
+      ${main}
+      ${ann}
+      ${journalForm}
+    </div>`;
+  }
+
+  async function loadCommunityEntries() {
+    const body = document.getElementById('community-body');
+    const name = communityState.selected;
+    if (!name) return;
+    body.innerHTML = '<div class="skeleton-msg">Loading…</div>';
+    try {
+      const res = await fetch(`/data/community/${encodeURIComponent(name)}?view=${encodeURIComponent(communityState.view)}`);
+      const d = await res.json();
+      if (!d.ok) {
+        body.innerHTML = `<div class="empty-state">${esc(d.error || 'failed to load')}</div>`;
+        communityState.entries = [];
+        return;
+      }
+      communityState.entries = d.entries || [];
+      renderCommunityBody();
+    } catch (e) {
+      renderError(body, e.message, loadCommunityEntries);
+    }
+  }
+
+  async function postAddJournalToCommunity(comm, journalDate) {
+    const jn = (profileResources && profileResources.active && profileResources.active.journal) || 'default';
+    const r = await fetch('/action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'community_add',
+        args: { community: comm, kind: 'journal', journal_date: journalDate, journal: jn },
+      }),
+    });
+    return r.json();
+  }
+
+  async function refreshCommunityPickers() {
+    const taskSel = document.getElementById('community-task-pick');
+    const jSel = document.getElementById('community-journal-pick');
+    if (!taskSel || !jSel) return;
+    taskSel.innerHTML = '<option value="">— pick task —</option>';
+    jSel.innerHTML = '<option value="">— pick journal entry —</option>';
+    try {
+      const tr = await fetch('/data/tasks');
+      const td = await tr.json();
+      if (td.ok && Array.isArray(td.tasks)) {
+        td.tasks.forEach(t => {
+          const o = document.createElement('option');
+          o.value = String(t.id);
+          const d = (t.description || '').slice(0, 200);
+          o.textContent = `${t.id} · ${d.slice(0, 72)}${d.length > 72 ? '…' : ''}`;
+          taskSel.appendChild(o);
+        });
+      }
+    } catch (_) {}
+    try {
+      const jr = await fetch('/data/journal');
+      const jd = await jr.json();
+      if (jd.ok && Array.isArray(jd.entries)) {
+        jd.entries.forEach(en => {
+          const o = document.createElement('option');
+          o.value = en.date;
+          const preview = (en.body || '').split('\n')[0].slice(0, 64);
+          o.textContent = `${en.date} · ${preview}${(en.body || '').length > 64 ? '…' : ''}`;
+          jSel.appendChild(o);
+        });
+      }
+    } catch (_) {}
+  }
+
+  async function loadCommunity() {
+    const body = document.getElementById('community-body');
+    const sel = document.getElementById('community-select');
+    try {
+      const lr = await fetch('/data/community/list');
+      const list = await lr.json();
+      if (!list.ok) {
+        renderError(body, list.error || 'list failed', loadCommunity);
+        return;
+      }
+      const comms = list.communities || [];
+      communityState.names = comms.map(c => c.name);
+      const prev = communityState.selected;
+      sel.innerHTML = comms.length
+        ? comms.map(c => `<option value="${c.name}">${esc(c.name)} (${c.entry_count})</option>`).join('')
+        : '<option value="">— no communities —</option>';
+      await refreshCommunityPickers();
+      if (!communityState.names.length) {
+        communityState.selected = '';
+        communityState.entries = [];
+        body.innerHTML = '<div class="empty-state">No communities yet. Create one above or run <code>ww community create &lt;name&gt;</code> in the terminal.</div>';
+        return;
+      }
+      if (!prev || !communityState.names.includes(prev)) communityState.selected = communityState.names[0];
+      else communityState.selected = prev;
+      sel.value = communityState.selected;
+      await loadCommunityEntries();
+    } catch (e) {
+      renderError(body, `Community: ${e.message}`, loadCommunity);
+    }
+  }
+
+  function initCommunityPanel() {
+    const tabs = document.getElementById('community-view-tabs');
+    const sel = document.getElementById('community-select');
+    const form = document.getElementById('community-create-form');
+    tabs?.addEventListener('click', (e) => {
+      const t = e.target.closest('.community-tab');
+      if (!t) return;
+      tabs.querySelectorAll('.community-tab').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      communityState.view = t.dataset.view || 'unified';
+      renderCommunityBody();
+    });
+    sel?.addEventListener('change', async () => {
+      communityState.selected = sel.value;
+      await loadCommunityEntries();
+    });
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      const raw = (fd.get('name') || '').toString().trim();
+      if (!raw) return;
+      const r = await fetch('/cmd', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cmd: `community create ${raw}` }),
+      });
+      const rd = await r.json();
+      if (rd.ok) {
+        toast(`community ${raw} created`);
+        form.reset();
+        communityState.selected = raw;
+        await loadCommunity();
+      } else {
+        toast((rd.output || 'create failed').trim(), 'error');
+      }
+    });
+
+    document.getElementById('btn-community-add-task')?.addEventListener('click', async () => {
+      const comm = document.getElementById('community-select')?.value;
+      const tid = document.getElementById('community-task-pick')?.value;
+      if (!comm) { toast('pick a collection first', 'error'); return; }
+      if (!tid) { toast('pick a task', 'error'); return; }
+      const args = {
+        community: comm, kind: 'task', task_id: tid,
+        community_project: (document.getElementById('comm-t-project')?.value || '').trim() || undefined,
+        community_tags: (document.getElementById('comm-t-tags')?.value || '').trim() || undefined,
+        community_priority: (document.getElementById('comm-t-priority')?.value || '').trim() || undefined,
+      };
+      const r = await fetch('/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'community_add', args }),
+      });
+      const d = await r.json();
+      if (d.ok) {
+        toast('task added to collection');
+        await loadCommunityEntries();
+        await refreshCommunityPickers();
+      } else {
+        toast(d.error || 'add failed', 'error');
+      }
+    });
+
+    document.getElementById('btn-community-add-journal')?.addEventListener('click', async () => {
+      const comm = document.getElementById('community-select')?.value;
+      const dateHdr = document.getElementById('community-journal-pick')?.value;
+      if (!comm) { toast('pick a collection first', 'error'); return; }
+      if (!dateHdr) { toast('pick a journal entry', 'error'); return; }
+      const jn = (profileResources && profileResources.active && profileResources.active.journal) || 'default';
+      const r = await fetch('/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'community_add',
+          args: {
+            community: comm, kind: 'journal', journal_date: dateHdr, journal: jn,
+            community_project: (document.getElementById('comm-j-project')?.value || '').trim() || undefined,
+            community_tags: (document.getElementById('comm-j-tags')?.value || '').trim() || undefined,
+            community_priority: (document.getElementById('comm-j-priority')?.value || '').trim() || undefined,
+          },
+        }),
+      });
+      const d = await r.json();
+      if (d.ok) {
+        toast('journal entry added to collection');
+        await loadCommunityEntries();
+      } else {
+        toast(d.error || 'add failed', 'error');
+      }
+    });
   }
 
   async function loadQuestions() {
@@ -3043,10 +3817,17 @@
       const fd = new FormData(e.target);
       const entry = fd.get('entry')?.trim();
       if (!entry) return;
+      const args = { entry };
+      const project = (document.getElementById('journal-project-input')?.value || fd.get('project') || '').trim();
+      const tags = (fd.get('tags') || '').trim();
+      const priority = (fd.get('priority') || '').trim();
+      if (project) args.project = project;
+      if (tags) args.tags = tags;
+      if (priority) args.priority = priority;
       const res = await fetch('/action', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'journal_add', args: { entry } }),
+        body: JSON.stringify({ action: 'journal_add', args }),
       });
       const data = await res.json();
       if (data.ok) {
@@ -3054,6 +3835,69 @@
         await loadJournal();
         e.target.reset();
       } else { toast('journal failed', 'error'); }
+    });
+
+    // ── Lists (list.py) ─────────────────────────────────────────────────────
+    const addListForm = document.getElementById('add-list-form');
+    async function submitListItem(formEl) {
+      const fd = new FormData(formEl);
+      const text = (fd.get('text') || '').toString().trim();
+      if (!text) return;
+      try {
+        const res = await fetch('/action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'list_add', args: { text } }),
+        });
+        const data = await res.json();
+        if (data.ok) {
+          toast('✓ item added');
+          await loadLists();
+          formEl.reset();
+        } else {
+          toast(data.error || data.output || 'list add failed', 'error');
+        }
+      } catch (err) {
+        toast(`list add failed: ${err.message}`, 'error');
+      }
+    }
+    addListForm?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      await submitListItem(e.target);
+    });
+    addListForm?.querySelector('input[name="text"]')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        addListForm.requestSubmit();
+      }
+    });
+    document.getElementById('list-refresh-btn')?.addEventListener('click', async () => {
+      await loadProfileResources();
+      await refreshResourceSelectors('lists');
+      await loadLists();
+      toast('↻ lists refreshed', 'info');
+    });
+    document.getElementById('list-create-btn')?.addEventListener('click', () => {
+      const container = document.getElementById('list-selector');
+      if (!container || !profileResources) return;
+      const sel = container.querySelector('select.resource-select');
+      if (!sel) return;
+      showResourceCreateForm(container, 'lists', sel, () => loadLists());
+    });
+    document.getElementById('list-show-done-btn')?.addEventListener('click', async () => {
+      listShowDone = !listShowDone;
+      const btn = document.getElementById('list-show-done-btn');
+      const doneBox = document.getElementById('list-done-items');
+      if (listShowDone) {
+        btn.textContent = 'hide done';
+        btn.classList.add('active');
+        doneBox?.classList.remove('hidden');
+        await loadListDone();
+      } else {
+        btn.textContent = 'show done';
+        btn.classList.remove('active');
+        doneBox?.classList.add('hidden');
+      }
     });
 
     // ── Ledger ─────────────────────────────────────────────────────────────
@@ -3742,6 +4586,7 @@
     initTimewTagPreview();
     initSidebar();
     initNav();
+    initCommunityPanel();
     initProfilePill();
     initTerminal();
     initDensity();
@@ -3805,6 +4650,7 @@
       if (activeSection === 'tasks') loadTasks();
       else if (activeSection === 'time') loadTime();
       else if (activeSection === 'journal') { journalPage = 1; loadJournal(); }
+      else if (activeSection === 'lists') loadLists();
     }, 30000);
 
     termInput.focus();

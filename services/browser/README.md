@@ -32,7 +32,9 @@ ww browser export                 # generate a self-contained offline HTML snaps
 | GET    | /data/ctrl              | Effective CTRL/AI settings + resolved active provider/model |
 | GET    | /data/profile-resources | All named resources + current selections for active profile |
 | GET    | /data/all               | Aggregate snapshot for static export |
-| POST   | /action                 | Task/journal/ledger mutation (done/start/stop/add/annotate/journal_add/ledger_add) |
+| GET    | /data/community/list    | Communities + entry counts (global `services/community/community.sh`) |
+| GET    | /data/community/<name> | Entries for one community; optional `?view=unified|journal|tasks|comments` (hint for UI) |
+| POST   | /action                 | Task/journal/ledger mutation; `community_add` snapshots a task or journal line into a global community |
 | GET    | /                       | Web UI (index.html) |
 
 ## Multi-resource support

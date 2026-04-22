@@ -45,3 +45,4 @@ Fragility:            Medium — new lib; reads foreign profile data (read-only,
 Depends on:           TASK-COMM-001
 
 Status:               pending
+Taskwarrior:          wwdev task 10 (c1cc443f-069f-418d-8cbb-e5744d00f787) status:pending

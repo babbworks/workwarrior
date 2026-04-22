@@ -49,3 +49,4 @@ Fragility:            Low — new directory, no existing files modified
 Depends on:           TASK-WEB-001 design decisions (where tools/web/ fits in architecture)
 
 Status:               parked — paused by operator; revisit after TASK-WEB-001 design decisions
+Taskwarrior:          wwdev task 21 (0e9cbfae-bfa6-4972-9609-ba0c82def3fd) status:pending
