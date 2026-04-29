@@ -63,26 +63,42 @@ def connect(ww_base: str) -> sqlite3.Connection:
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
     conn.executescript(COMMUNITY_DDL)
-    # Migrate: add community_project if the column doesn't exist yet
-    try:
-        conn.execute("ALTER TABLE community_entries ADD COLUMN community_project TEXT")
-        conn.commit()
-    except Exception:
-        pass
+    for migration in [
+        "ALTER TABLE community_entries ADD COLUMN community_project TEXT",
+        "ALTER TABLE communities ADD COLUMN archived_at TEXT",
+        "ALTER TABLE communities ADD COLUMN description TEXT",
+    ]:
+        try:
+            conn.execute(migration)
+            conn.commit()
+        except Exception:
+            pass
     return conn
 
 
-def list_communities(ww_base: str) -> dict[str, Any]:
+def list_communities(ww_base: str, include_archived: bool = False) -> dict[str, Any]:
     conn = connect(ww_base)
     try:
+        where = "" if include_archived else "WHERE c.archived_at IS NULL"
         rows = conn.execute(
-            """
-            SELECT c.name, COUNT(e.id) AS cnt FROM communities c
+            f"""
+            SELECT c.name, c.description, c.archived_at, COUNT(e.id) AS cnt
+            FROM communities c
             LEFT JOIN community_entries e ON e.community_id = c.id
+            {where}
             GROUP BY c.id ORDER BY c.name
             """
         ).fetchall()
-        return {"ok": True, "communities": [{"name": r["name"], "entry_count": int(r["cnt"])} for r in rows]}
+        return {"ok": True, "communities": [
+            {
+                "name": r["name"],
+                "description": r["description"],
+                "entry_count": int(r["cnt"]),
+                "archived": r["archived_at"] is not None,
+                "archived_at": r["archived_at"],
+            }
+            for r in rows
+        ]}
     finally:
         conn.close()
 
@@ -90,7 +106,9 @@ def list_communities(ww_base: str) -> dict[str, Any]:
 def show_community(ww_base: str, name: str) -> dict[str, Any]:
     conn = connect(ww_base)
     try:
-        row = conn.execute("SELECT id, name FROM communities WHERE name=?", (name,)).fetchone()
+        row = conn.execute(
+            "SELECT id, name, description, archived_at FROM communities WHERE name=?", (name,)
+        ).fetchone()
         if not row:
             return {"ok": False, "error": "community not found", "name": name, "entries": []}
         cid = row["id"]
@@ -137,7 +155,14 @@ def show_community(ww_base: str, name: str) -> dict[str, Any]:
                     ],
                 }
             )
-        return {"ok": True, "name": name, "entries": entries}
+        return {
+            "ok": True,
+            "name": name,
+            "description": row["description"],
+            "archived": row["archived_at"] is not None,
+            "archived_at": row["archived_at"],
+            "entries": entries,
+        }
     finally:
         conn.close()
 
@@ -223,6 +248,23 @@ def get_entry_meta(ww_base: str, entry_id: int) -> dict[str, Any]:
         conn.close()
 
 
+def remove_entry(ww_base: str, community_name: str, entry_id: int) -> dict[str, Any]:
+    """Remove an entry (and its comments) from a community."""
+    conn = connect(ww_base)
+    try:
+        row = conn.execute(
+            "SELECT e.id FROM community_entries e JOIN communities c ON e.community_id=c.id WHERE e.id=? AND c.name=?",
+            (entry_id, community_name),
+        ).fetchone()
+        if not row:
+            return {"ok": False, "error": "entry not found in community"}
+        conn.execute("DELETE FROM community_entries WHERE id=?", (entry_id,))
+        conn.commit()
+        return {"ok": True, "entry_id": entry_id}
+    finally:
+        conn.close()
+
+
 def add_comment(ww_base: str, entry_id: int, body: str) -> dict[str, Any]:
     """Insert a comment row on a community entry and return ok/id."""
     conn = connect(ww_base)
@@ -236,6 +278,192 @@ def add_comment(ww_base: str, entry_id: int, body: str) -> dict[str, Any]:
         )
         conn.commit()
         return {"ok": True, "comment_id": cur.lastrowid, "entry_id": entry_id}
+    finally:
+        conn.close()
+
+
+def archive_community(ww_base: str, name: str) -> dict[str, Any]:
+    conn = connect(ww_base)
+    try:
+        row = conn.execute("SELECT id FROM communities WHERE name=?", (name,)).fetchone()
+        if not row:
+            return {"ok": False, "error": "community not found"}
+        conn.execute("UPDATE communities SET archived_at=datetime('now') WHERE name=?", (name,))
+        conn.commit()
+        return {"ok": True, "name": name, "archived": True}
+    finally:
+        conn.close()
+
+
+def unarchive_community(ww_base: str, name: str) -> dict[str, Any]:
+    conn = connect(ww_base)
+    try:
+        row = conn.execute("SELECT id FROM communities WHERE name=?", (name,)).fetchone()
+        if not row:
+            return {"ok": False, "error": "community not found"}
+        conn.execute("UPDATE communities SET archived_at=NULL WHERE name=?", (name,))
+        conn.commit()
+        return {"ok": True, "name": name, "archived": False}
+    finally:
+        conn.close()
+
+
+def set_community_description(ww_base: str, name: str, description: str) -> dict[str, Any]:
+    conn = connect(ww_base)
+    try:
+        row = conn.execute("SELECT id FROM communities WHERE name=?", (name,)).fetchone()
+        if not row:
+            return {"ok": False, "error": "community not found"}
+        conn.execute("UPDATE communities SET description=? WHERE name=?", (description.strip() or None, name))
+        conn.commit()
+        return {"ok": True, "name": name, "description": description.strip() or None}
+    finally:
+        conn.close()
+
+
+def rename_community(ww_base: str, old_name: str, new_name: str) -> dict[str, Any]:
+    conn = connect(ww_base)
+    try:
+        row = conn.execute("SELECT id FROM communities WHERE name=?", (old_name,)).fetchone()
+        if not row:
+            return {"ok": False, "error": "community not found"}
+        clash = conn.execute("SELECT id FROM communities WHERE name=?", (new_name,)).fetchone()
+        if clash:
+            return {"ok": False, "error": "name already taken"}
+        conn.execute("UPDATE communities SET name=? WHERE name=?", (new_name, old_name))
+        conn.commit()
+        return {"ok": True, "old_name": old_name, "name": new_name}
+    except sqlite3.IntegrityError:
+        return {"ok": False, "error": "name already taken"}
+    finally:
+        conn.close()
+
+
+def modify_entry(
+    ww_base: str,
+    entry_id: int,
+    community_tags: str | None = None,
+    community_priority: str | None = None,
+    community_project: str | None = None,
+    is_community_derivative: bool | None = None,
+) -> dict[str, Any]:
+    conn = connect(ww_base)
+    try:
+        row = conn.execute("SELECT id FROM community_entries WHERE id=?", (entry_id,)).fetchone()
+        if not row:
+            return {"ok": False, "error": "entry not found"}
+        fields, vals = [], []
+        if community_tags is not None:
+            fields.append("community_tags=?"); vals.append(community_tags or None)
+        if community_priority is not None:
+            fields.append("community_priority=?"); vals.append(community_priority or None)
+        if community_project is not None:
+            fields.append("community_project=?"); vals.append(community_project or None)
+        if is_community_derivative is not None:
+            fields.append("is_community_derivative=?"); vals.append(1 if is_community_derivative else 0)
+        if not fields:
+            return {"ok": False, "error": "no fields to update"}
+        vals.append(entry_id)
+        conn.execute(f"UPDATE community_entries SET {', '.join(fields)} WHERE id=?", vals)
+        conn.commit()
+        return {"ok": True, "entry_id": entry_id}
+    finally:
+        conn.close()
+
+
+def refresh_entry(ww_base: str, community_name: str, entry_id: int, captured: dict[str, Any]) -> dict[str, Any]:
+    """Overwrite the captured_state snapshot for an entry (e.g. after task status change)."""
+    conn = connect(ww_base)
+    try:
+        row = conn.execute(
+            "SELECT e.id FROM community_entries e JOIN communities c ON e.community_id=c.id WHERE e.id=? AND c.name=?",
+            (entry_id, community_name),
+        ).fetchone()
+        if not row:
+            return {"ok": False, "error": "entry not found in community"}
+        conn.execute(
+            "UPDATE community_entries SET captured_state=? WHERE id=?",
+            (json.dumps(captured, ensure_ascii=False), entry_id),
+        )
+        conn.commit()
+        return {"ok": True, "entry_id": entry_id}
+    finally:
+        conn.close()
+
+
+def move_entry(ww_base: str, entry_id: int, from_community: str, to_community: str) -> dict[str, Any]:
+    """Move an entry from one community to another."""
+    conn = connect(ww_base)
+    try:
+        from_row = conn.execute(
+            "SELECT e.id, e.source_ref FROM community_entries e JOIN communities c ON e.community_id=c.id WHERE e.id=? AND c.name=?",
+            (entry_id, from_community),
+        ).fetchone()
+        if not from_row:
+            return {"ok": False, "error": "entry not found in source community"}
+        to_row = conn.execute("SELECT id FROM communities WHERE name=?", (to_community,)).fetchone()
+        if not to_row:
+            return {"ok": False, "error": "destination community not found"}
+        # Check for duplicate source_ref in destination
+        dup = conn.execute(
+            "SELECT id FROM community_entries WHERE community_id=? AND source_ref=?",
+            (to_row["id"], from_row["source_ref"]),
+        ).fetchone()
+        if dup:
+            return {"ok": False, "error": "entry already exists in destination community"}
+        conn.execute(
+            "UPDATE community_entries SET community_id=? WHERE id=?",
+            (to_row["id"], entry_id),
+        )
+        conn.commit()
+        return {"ok": True, "entry_id": entry_id, "from": from_community, "to": to_community}
+    finally:
+        conn.close()
+
+
+def recent_entries(ww_base: str, n: int = 10) -> dict[str, Any]:
+    """Return the N most recently added entries across all non-archived communities."""
+    conn = connect(ww_base)
+    try:
+        rows = conn.execute(
+            """
+            SELECT e.id, e.source_ref, e.added_at, e.community_tags, e.community_priority,
+                   e.community_project, e.is_community_derivative, c.name AS community_name
+            FROM community_entries e
+            JOIN communities c ON e.community_id = c.id
+            WHERE c.archived_at IS NULL
+            ORDER BY datetime(e.added_at) DESC, e.id DESC
+            LIMIT ?
+            """,
+            (max(1, n),),
+        ).fetchall()
+        return {"ok": True, "entries": [
+            {
+                "id": r["id"],
+                "community_name": r["community_name"],
+                "source_ref": r["source_ref"],
+                "added_at": r["added_at"],
+                "community_tags": r["community_tags"],
+                "community_priority": r["community_priority"],
+                "community_project": r["community_project"],
+                "is_community_derivative": bool(r["is_community_derivative"]),
+            }
+            for r in rows
+        ]}
+    finally:
+        conn.close()
+
+
+def mark_comment_copied(ww_base: str, comment_id: int) -> dict[str, Any]:
+    """Mark a comment as copied back to its source task."""
+    conn = connect(ww_base)
+    try:
+        row = conn.execute("SELECT id FROM community_comments WHERE id=?", (comment_id,)).fetchone()
+        if not row:
+            return {"ok": False, "error": "comment not found"}
+        conn.execute("UPDATE community_comments SET copied_to_source=1 WHERE id=?", (comment_id,))
+        conn.commit()
+        return {"ok": True, "comment_id": comment_id}
     finally:
         conn.close()
 
@@ -281,7 +509,8 @@ def main() -> int:
     wb = sys.argv[2]
     try:
         if cmd == "list":
-            print(json.dumps(list_communities(wb)))
+            include_archived = "--all" in sys.argv
+            print(json.dumps(list_communities(wb, include_archived=include_archived)))
         elif cmd == "show":
             if len(sys.argv) < 4:
                 print(json.dumps({"ok": False, "error": "name required"}))
@@ -315,6 +544,134 @@ def main() -> int:
             out = add_journal_from_file(wb, sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6], nb)
             print(json.dumps(out))
             return 0 if out.get("ok") else 1
+        elif cmd == "remove-entry":
+            # remove-entry <wb> <community> <entry_id>
+            if len(sys.argv) < 5:
+                print(json.dumps({"ok": False, "error": "remove-entry ww community entry_id"}))
+                return 1
+            try:
+                eid = int(sys.argv[4])
+            except ValueError:
+                print(json.dumps({"ok": False, "error": "entry_id must be an integer"}))
+                return 1
+            out = remove_entry(wb, sys.argv[3], eid)
+            print(json.dumps(out))
+            return 0 if out.get("ok") else 1
+        elif cmd == "add-comment":
+            # add-comment <wb> <entry_id> <body>
+            if len(sys.argv) < 5:
+                print(json.dumps({"ok": False, "error": "add-comment ww entry_id body"}))
+                return 1
+            try:
+                eid = int(sys.argv[3])
+            except ValueError:
+                print(json.dumps({"ok": False, "error": "entry_id must be an integer"}))
+                return 1
+            out = add_comment(wb, eid, sys.argv[4])
+            print(json.dumps(out))
+            return 0 if out.get("ok") else 1
+        elif cmd == "entry-meta":
+            # entry-meta <wb> <entry_id>
+            if len(sys.argv) < 4:
+                print(json.dumps({"ok": False, "error": "entry-meta ww entry_id"}))
+                return 1
+            try:
+                eid = int(sys.argv[3])
+            except ValueError:
+                print(json.dumps({"ok": False, "error": "entry_id must be an integer"}))
+                return 1
+            out = get_entry_meta(wb, eid)
+            if not out:
+                print(json.dumps({"ok": False, "error": "entry not found"}))
+                return 1
+            out["ok"] = True
+            print(json.dumps(out))
+            return 0
+        elif cmd == "archive":
+            # archive <wb> <name>
+            if len(sys.argv) < 4:
+                print(json.dumps({"ok": False, "error": "archive ww name"})); return 1
+            out = archive_community(wb, sys.argv[3])
+            print(json.dumps(out)); return 0 if out.get("ok") else 1
+        elif cmd == "unarchive":
+            if len(sys.argv) < 4:
+                print(json.dumps({"ok": False, "error": "unarchive ww name"})); return 1
+            out = unarchive_community(wb, sys.argv[3])
+            print(json.dumps(out)); return 0 if out.get("ok") else 1
+        elif cmd == "describe":
+            # describe <wb> <name> <description>
+            if len(sys.argv) < 5:
+                print(json.dumps({"ok": False, "error": "describe ww name description"})); return 1
+            out = set_community_description(wb, sys.argv[3], sys.argv[4])
+            print(json.dumps(out)); return 0 if out.get("ok") else 1
+        elif cmd == "rename":
+            # rename <wb> <old> <new>
+            if len(sys.argv) < 5:
+                print(json.dumps({"ok": False, "error": "rename ww old new"})); return 1
+            out = rename_community(wb, sys.argv[3], sys.argv[4])
+            print(json.dumps(out)); return 0 if out.get("ok") else 1
+        elif cmd == "modify-entry":
+            # modify-entry <wb> <entry_id> [--tags x] [--priority H] [--project p] [--derivative 0|1]
+            if len(sys.argv) < 4:
+                print(json.dumps({"ok": False, "error": "modify-entry ww entry_id [opts]"})); return 1
+            try:
+                eid = int(sys.argv[3])
+            except ValueError:
+                print(json.dumps({"ok": False, "error": "entry_id must be integer"})); return 1
+            args = sys.argv[4:]
+            def _flag(flag):
+                try: return args[args.index(flag) + 1]
+                except (ValueError, IndexError): return None
+            out = modify_entry(
+                wb, eid,
+                community_tags=_flag("--tags"),
+                community_priority=_flag("--priority"),
+                community_project=_flag("--project"),
+                is_community_derivative=(
+                    {"1": True, "0": False}.get(_flag("--derivative") or "", None)
+                ),
+            )
+            print(json.dumps(out)); return 0 if out.get("ok") else 1
+        elif cmd == "refresh-entry":
+            # refresh-entry <wb> <community> <entry_id> <path.json>
+            if len(sys.argv) < 6:
+                print(json.dumps({"ok": False, "error": "refresh-entry ww community entry_id jsonpath"})); return 1
+            try:
+                eid = int(sys.argv[4])
+            except ValueError:
+                print(json.dumps({"ok": False, "error": "entry_id must be integer"})); return 1
+            with open(sys.argv[5], encoding="utf-8") as fh:
+                cap = json.load(fh)
+            out = refresh_entry(wb, sys.argv[3], eid, cap)
+            print(json.dumps(out)); return 0 if out.get("ok") else 1
+        elif cmd == "move-entry":
+            # move-entry <wb> <entry_id> <from_community> <to_community>
+            if len(sys.argv) < 6:
+                print(json.dumps({"ok": False, "error": "move-entry ww entry_id from to"})); return 1
+            try:
+                eid = int(sys.argv[3])
+            except ValueError:
+                print(json.dumps({"ok": False, "error": "entry_id must be integer"})); return 1
+            out = move_entry(wb, eid, sys.argv[4], sys.argv[5])
+            print(json.dumps(out)); return 0 if out.get("ok") else 1
+        elif cmd == "recent":
+            # recent <wb> [n]
+            n = 10
+            if len(sys.argv) >= 4:
+                try: n = int(sys.argv[3])
+                except ValueError: pass
+            out = recent_entries(wb, n)
+            print(json.dumps(out)); return 0 if out.get("ok") else 1
+        elif cmd == "mark-copied":
+            # mark-copied <wb> <comment_id>
+            if len(sys.argv) < 4:
+                print(json.dumps({"ok": False, "error": "mark-copied ww comment_id"})); return 1
+            try:
+                cid = int(sys.argv[3])
+            except ValueError:
+                print(json.dumps({"ok": False, "error": "comment_id must be integer"})); return 1
+            out = mark_comment_copied(wb, cid)
+            print(json.dumps(out)); return 0 if out.get("ok") else 1
         else:
             print(json.dumps({"ok": False, "error": f"unknown cmd {cmd}"}))
             return 1

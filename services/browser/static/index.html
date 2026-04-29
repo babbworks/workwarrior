@@ -16,14 +16,14 @@
       <div class="profile-row">
         <div class="profile-pill" id="profile-pill">—</div>
         <button class="profile-info-btn" id="btn-profile-screen" title="Profile info">P</button>
+        <ul class="profile-switcher hidden" id="profile-switcher"></ul>
       </div>
-      <ul class="profile-switcher hidden" id="profile-switcher"></ul>
       <div class="cmd-ctrl-row">
         <button class="cmd-ctrl-btn" id="btn-nav-cmd" data-section="cmd" title="CMD — unified commands">CMD</button>
         <button class="cmd-ctrl-btn" id="btn-nav-ctrl" data-section="ctrl" title="CTRL — settings">CTRL</button>
       </div>
       <div class="weapons-bar">
-        <button class="weapon-btn" id="btn-weapon-sword" title="Sword — coming soon">⚔</button>
+        <button class="weapon-btn" id="btn-weapon-sword" title="Sword — split a task into sequential subtasks">⚔</button>
         <button class="weapon-btn" id="btn-weapon-gun" title="Gun — bulk task series">🔫</button>
         <button class="weapon-btn weapon-disabled" title="Bat — coming soon">🏏</button>
         <button class="weapon-btn weapon-disabled" title="Fire — coming soon">🔥</button>
@@ -36,8 +36,9 @@
         <button class="nav-item" data-section="journal"><span class="nav-icon icon-journal">╱</span><span class="nav-label">Journals</span></button>
         <button class="nav-item" data-section="ledger"><span class="nav-icon icon-ledger">═</span><span class="nav-label">Ledgers</span></button>
         <button class="nav-item" data-section="lists"><span class="nav-icon icon-lists">•</span><span class="nav-label">Lists</span></button>
+        <button class="nav-item" data-section="tags"><span class="nav-icon">⌗</span><span class="nav-label">Tags</span></button>
         <div class="nav-divider"></div>
-        <button class="community-footer-btn" data-section="community"><span class="community-footer-icon">◎</span><span class="community-footer-label">Community</span></button>
+        <button class="community-footer-btn" data-section="community"><span class="community-footer-icon">◎</span><span class="community-footer-label">Communities</span></button>
         <div class="nav-group-label">services</div>
         <button class="nav-item" data-section="next"><span class="nav-icon">▶</span><span class="nav-label">Next</span></button>
         <button class="nav-item" data-section="schedule"><span class="nav-icon">⏱</span><span class="nav-label">Schedule</span></button>
@@ -46,8 +47,9 @@
         <button class="nav-item" data-section="models"><span class="nav-icon">◈</span><span class="nav-label">Models</span></button>
         <button class="nav-item" data-section="network"><span class="nav-icon">⊕</span><span class="nav-label">Network</span></button>
         <button class="nav-item" data-section="export"><span class="nav-icon">⤓</span><span class="nav-label">Export</span></button>
+        <button class="nav-item" data-section="warlock"><span class="nav-icon">⚔</span><span class="nav-label">Warlock</span></button>
         <button class="nav-item" data-section="questions"><span class="nav-icon">？</span><span class="nav-label">Questions</span></button>
-        <button class="nav-item" data-section="bookbuilder"><span class="nav-icon">📖</span><span class="nav-label">Saves</span></button>
+        <button class="nav-item" data-section="saves"><span class="nav-icon">📖</span><span class="nav-label">Saves</span></button>
         <button class="nav-item" data-section="projects"><span class="nav-icon">◆</span><span class="nav-label">Projects</span></button>
       </nav>
       <div class="sidebar-footer" id="sidebar-footer">
@@ -71,8 +73,10 @@
     <div id="main">
       <header id="content-header">
         <div class="header-row1">
-          <span id="section-title">Tasks</span>
-          <span id="active-task-pill" class="hidden"></span>
+          <div class="header-title-group">
+            <span id="section-title">Tasks</span>
+            <div id="header-resource-slot" class="header-resource-slot hidden"></div>
+          </div>
           <div class="header-stats">
             <span id="stat-tasks-count" class="stat-item hidden"></span>
             <span id="stat-time-today" class="stat-item hidden"></span>
@@ -81,7 +85,6 @@
             <span class="conn-dot" id="conn-dot" title="disconnected"></span>
           </div>
         </div>
-        <div class="header-row2" id="stat-context-bar">—</div>
       </header>
       <div id="content-area">
         <!-- Global search overlay -->
@@ -90,7 +93,6 @@
         </div>
         <!-- Tasks -->
         <section class="section" id="section-tasks">
-          <div class="section-resource-bar"><div id="tasklist-selector"></div></div>
           <form class="add-form-inline" id="add-task-form">
             <input type="text" name="description" placeholder="Add task…" autocomplete="off" />
             <input type="text" name="project" placeholder="project" />
@@ -104,8 +106,9 @@
           </form>
           <div class="section-toolbar">
             <input type="text" id="task-filter" class="inline-filter" placeholder="filter tasks…" />
-            <button class="btn-toolbar" id="btn-group-toggle" title="Toggle project grouping">group</button>
+            <button class="btn-toolbar" id="btn-group-toggle" title="Group tasks by project">projects</button>
             <button class="btn-toolbar" id="btn-show-done-tasks" title="Show completed tasks">done</button>
+            <button class="btn-toolbar" id="btn-ann-toggle" title="Toggle annotations">ann</button>
           </div>
           <div id="bulk-toolbar" class="hidden">
             <label class="bulk-select-all"><input type="checkbox" id="bulk-select-all" /> all</label>
@@ -127,7 +130,6 @@
         </section>
         <!-- Times -->
         <section class="section hidden" id="section-time">
-          <div class="section-resource-bar"><div id="timew-selector"></div></div>
           <form class="add-form-inline" id="add-time-form">
             <input type="text" name="tags" id="timew-tag-input" placeholder="tags (e.g. dev review meeting)" autocomplete="off" list="timew-tags-list" style="width:180px" />
             <datalist id="timew-tags-list"></datalist>
@@ -145,37 +147,47 @@
         </section>
         <!-- Journals -->
         <section class="section hidden" id="section-journal">
-          <div class="section-resource-bar"><div id="journal-selector"></div></div>
-          <form class="add-form-inline" id="add-journal-form">
-            <textarea name="entry" placeholder="New journal entry… (Enter to submit, Shift+Enter for newline)" rows="2"></textarea>
+          <form class="add-form-inline add-form-journal" id="add-journal-form">
+            <textarea name="entry" id="journal-entry-textarea" placeholder="New journal entry… (Enter to submit, Shift+Enter for newline)" rows="3"></textarea>
             <div class="journal-meta-row">
-              <input type="text" name="project" id="journal-project-input" class="journal-meta-select" placeholder="@project" autocomplete="off" list="journal-projects-dl" />
+              <input type="text" name="project" id="journal-project-input" class="journal-meta-input" placeholder="@project" autocomplete="off" list="journal-projects-dl" />
               <datalist id="journal-projects-dl"></datalist>
-              <input type="text" name="tags" id="journal-tags-input" class="journal-meta-select" placeholder="@tags (comma-sep)" autocomplete="off" list="journal-tags-list" />
+              <input type="text" name="tags" id="journal-tags-input" class="journal-meta-input" placeholder="@tags" autocomplete="off" list="journal-tags-list" />
               <datalist id="journal-tags-list"></datalist>
-              <select name="priority" id="journal-priority-select" class="resource-select journal-meta-select">
-                <option value="">@priority</option>
-                <option value="H">H</option>
-                <option value="M">M</option>
-                <option value="L">L</option>
+              <select name="priority" id="journal-priority-select" class="journal-meta-select-sm">
+                <option value="">priority</option>
+                <option value="H">high</option>
+                <option value="M">medium</option>
+                <option value="L">low</option>
               </select>
+              <label class="jrnl-enter-label" title="Enter key submits entry">
+                <input type="checkbox" id="jrnl-enter-toggle" checked style="display:none" />
+                <span class="jrnl-enter-indicator" id="jrnl-enter-indicator">↵</span>
+              </label>
+              <button type="submit" class="btn-inline-submit jrnl-add-btn">add</button>
             </div>
           </form>
           <input type="text" id="journal-search" class="inline-filter" placeholder="search entries…" style="margin-bottom:8px;width:100%" />
+          <div class="journal-filter-bar">
+            <button class="journal-filter-btn" data-filter="annotated">Annotated</button>
+            <button class="journal-filter-btn" data-filter="rejournaled">Rejournaled</button>
+            <button class="journal-filter-btn" data-filter="all-comments">All Comments</button>
+            <button class="journal-filter-btn jmd-toggle" id="journal-md-toggle" title="Toggle markdown rendering">⊞ MD</button>
+            <button class="journal-filter-btn" id="journal-archive-toggle" title="Show/hide archived entries">⊘ archived</button>
+          </div>
           <div class="journal-list" id="journal-list"><div class="skeleton-msg">Loading journal…</div></div>
         </section>
         <!-- Ledgers -->
         <section class="section hidden" id="section-ledger">
-          <div class="section-resource-bar"><div id="ledger-selector"></div></div>
           <form class="add-form-inline" id="add-ledger-form">
             <input type="date" name="date" />
             <input type="text" name="description" placeholder="Add transaction…" autocomplete="off" />
             <input type="text" name="account" placeholder="account" list="account-list" />
             <datalist id="account-list"></datalist>
             <input type="text" name="amount" placeholder="amount" />
+            <input type="text" name="comment" placeholder="note…" />
             <button type="submit" class="btn-inline-submit">save</button>
           </form>
-          <div class="ledger-balances" id="ledger-balances"></div>
           <div class="add-account-row">
             <input type="text" id="add-account-input" class="inline-filter" placeholder="add account (e.g. expenses:travel:flights)" style="width:260px" />
             <button class="btn-inline-alt" id="btn-add-account">+ account</button>
@@ -191,6 +203,12 @@
             <button class="btn-inline-alt hl-btn" data-cmd="roi">roi</button>
             <button class="btn-inline-alt hl-btn" data-cmd="accounts">accounts</button>
             <button class="btn-inline-alt hl-btn" data-cmd="print">print</button>
+          </div>
+          <div class="ledger-unit-filter" id="ledger-unit-filter">
+            <span class="unit-filter-label">unit:</span>
+            <button class="unit-btn active" data-unit="">all</button>
+            <button class="unit-btn" data-unit="$">$ currency</button>
+            <button class="unit-btn" data-unit="h">h hours</button>
           </div>
           <div class="hledger-period-row">
             <select id="hl-period" class="resource-select" style="font-size:11px">
@@ -212,11 +230,11 @@
           <div class="hledger-output hidden" id="hledger-output"></div>
           <input type="text" id="ledger-search" class="inline-filter" placeholder="search transactions…" style="margin:8px 0;width:100%" />
           <div class="ledger-recent" id="ledger-recent"></div>
+          <div class="ledger-balances" id="ledger-balances"></div>
         </section>
         <!-- Lists (simple list.py) -->
         <section class="section hidden" id="section-lists">
           <div class="list-attribution">t · <a href="https://github.com/sjl/t" target="_blank" rel="noopener">sjl/t</a> · MIT</div>
-          <div class="section-resource-bar"><div id="list-selector"></div></div>
           <form class="add-form-inline" id="add-list-form">
             <input type="text" name="text" placeholder="Add item…" autocomplete="off" style="flex:1;min-width:200px" />
             <button type="submit" class="btn-inline-submit">add item</button>
@@ -309,10 +327,27 @@
             </div>
           </div>
         </section>
+        <!-- Warlock -->
+        <section class="section hidden" id="section-warlock">
+          <div class="service-panel" id="warlock-panel">
+            <div class="service-panel-header">Warlock · task-warlock web UI</div>
+            <div class="service-panel-body" id="warlock-body"><div class="skeleton-msg">Loading…</div></div>
+            <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+              <button class="btn-inline-submit" id="btn-warlock-install">install</button>
+              <button class="btn-inline-alt" id="btn-warlock-start">start</button>
+              <button class="btn-inline-alt" id="btn-warlock-stop">stop</button>
+              <button class="btn-inline-alt" id="btn-warlock-status">status</button>
+            </div>
+            <div class="cmd-unified-output hidden" id="warlock-output"></div>
+            <div class="warlock-credit">task-warlock by <a href="https://github.com/jonestristand/task-warlock" target="_blank" rel="noopener">jonestristand</a> (MIT)</div>
+          </div>
+        </section>
         <!-- Community -->
         <section class="section hidden" id="section-community">
+          <div class="community-split-layout">
+          <div class="community-main-col">
           <div class="service-panel" id="community-panel">
-            <div class="service-panel-header">Community</div>
+            <div class="service-panel-header">Communities</div>
             <p class="community-hint">Choose a <strong>collection</strong>, then pick a <strong>journal line</strong> or <strong>task</strong> from this profile. This bar stays visible while you scroll entries.</p>
             <div class="community-controls-sticky">
               <div class="community-toolbar">
@@ -321,15 +356,28 @@
                   <select id="community-select" class="resource-select"></select>
                 </label>
                 <form class="add-form-inline community-create-form" id="community-create-form">
-                  <input type="text" name="name" placeholder="new community name" autocomplete="off" pattern="[a-zA-Z0-9_-]+" title="letters, numbers, hyphen, underscore" style="width:160px" />
+                  <input type="text" name="name" placeholder="new collection name" autocomplete="off" pattern="[a-zA-Z0-9_-]+" title="letters, numbers, hyphen, underscore" style="width:140px" />
+                  <input type="text" name="description" placeholder="description (optional)" autocomplete="off" style="width:180px" />
                   <button type="submit" class="btn-inline-submit">create</button>
                 </form>
               </div>
+              <div class="community-mgmt-bar" id="community-mgmt-bar">
+                <span class="community-mgmt-desc" id="community-mgmt-desc-text"></span>
+                <div class="community-mgmt-actions">
+                  <button type="button" class="btn-mgmt" id="btn-comm-describe" title="Set description">describe</button>
+                  <button type="button" class="btn-mgmt" id="btn-comm-rename" title="Rename collection">rename</button>
+                  <button type="button" class="btn-mgmt btn-mgmt-archive" id="btn-comm-archive" title="Archive collection">archive</button>
+                </div>
+                <div class="community-mgmt-inline hidden" id="community-mgmt-inline">
+                  <input type="text" id="community-mgmt-input" class="comm-meta-input" style="flex:1;min-width:140px" autocomplete="off" />
+                  <button type="button" class="btn-inline-submit" id="btn-comm-mgmt-ok">ok</button>
+                  <button type="button" class="btn-inline-alt" id="btn-comm-mgmt-cancel">cancel</button>
+                </div>
+              </div>
               <div class="community-add-strip">
                 <div class="community-add-row">
-                  <span class="community-toolbar-label">from journal</span>
-                  <select id="community-journal-pick" class="resource-select" style="flex:1;min-width:180px" aria-label="Journal entry to add"></select>
-                  <button type="button" class="btn-inline-submit" id="btn-community-add-journal" title="Add selected journal entry to the collection">+ add journal</button>
+                  <select id="community-journal-pick" class="resource-select" style="max-width:200px;min-width:100px" aria-label="Journal entry to add"></select>
+                  <button type="button" class="btn-comm-add" id="btn-community-add-journal" title="Add selected journal entry to the collection">+ journal</button>
                 </div>
                 <div class="community-meta-row">
                   <input type="text" id="comm-j-project" class="comm-meta-input" placeholder="project" autocomplete="off" list="comm-projects-dl" />
@@ -339,9 +387,8 @@
                   </select>
                 </div>
                 <div class="community-add-row">
-                  <span class="community-toolbar-label">from tasks</span>
-                  <select id="community-task-pick" class="resource-select" style="flex:1;min-width:180px" aria-label="Task to add"></select>
-                  <button type="button" class="btn-inline-submit" id="btn-community-add-task" title="Add selected task to the collection">+ add task</button>
+                  <select id="community-task-pick" class="resource-select" style="max-width:200px;min-width:100px" aria-label="Task to add"></select>
+                  <button type="button" class="btn-comm-add" id="btn-community-add-task" title="Add selected task to the collection">+ task</button>
                 </div>
                 <div class="community-meta-row">
                   <input type="text" id="comm-t-project" class="comm-meta-input" placeholder="project" autocomplete="off" list="comm-projects-dl" />
@@ -362,6 +409,26 @@
             </div>
             <div class="service-panel-body" id="community-body"><div class="skeleton-msg">Loading…</div></div>
           </div>
+          </div><!-- .community-main-col -->
+          <div class="comm-journal-mini" id="comm-journal-mini">
+            <div class="comm-jmini-hdr">journal</div>
+            <div class="comm-jmini-sel-row">
+              <select id="comm-jmini-sel" class="resource-select" style="flex:1;font-size:11px;max-width:140px" aria-label="Active journal"></select>
+              <button type="button" class="btn-inline-alt" id="btn-comm-jmini-new" style="font-size:10px;padding:2px 7px">new</button>
+            </div>
+            <form id="comm-jmini-form" autocomplete="off">
+              <div class="journal-meta-row" style="margin-bottom:5px">
+                <input type="text" id="comm-jmini-project" class="journal-meta-select" placeholder="@project" autocomplete="off" />
+                <input type="text" id="comm-jmini-tags" class="journal-meta-select" placeholder="@tags" autocomplete="off" />
+                <select id="comm-jmini-priority" class="resource-select journal-meta-select">
+                  <option value="">@pri</option><option>H</option><option>M</option><option>L</option>
+                </select>
+              </div>
+              <textarea id="comm-jmini-entry" name="entry" placeholder="New journal entry…" rows="6" style="width:100%;box-sizing:border-box;resize:vertical"></textarea>
+              <button type="submit" class="btn-inline-submit" style="width:100%;margin-top:5px">add entry</button>
+            </form>
+          </div><!-- .comm-journal-mini -->
+          </div><!-- .community-split-layout -->
         </section>
         <!-- Questions -->
         <section class="section hidden" id="section-questions">
@@ -384,11 +451,11 @@
             <div class="cmd-unified-output hidden" id="questions-output"></div>
           </div>
         </section>
-        <!-- BookBuilder -->
-        <section class="section hidden" id="section-bookbuilder">
-          <div class="service-panel" id="bookbuilder-panel">
-            <div class="service-panel-header">Saves <span style="font-size:10px;color:var(--muted)">bookbuilder · peers8862</span></div>
-            <div class="service-panel-body" id="bookbuilder-body">
+        <!-- Saves -->
+        <section class="section hidden" id="section-saves">
+          <div class="service-panel" id="saves-panel">
+            <div class="service-panel-header">Saves <span style="font-size:10px;color:var(--muted)">peers8862-bookbuilder</span></div>
+            <div class="service-panel-body" id="saves-body">
               <p style="color:var(--muted);font-size:12px;margin-bottom:8px">Knowledge base from saved content — bookmarks, articles, documents.</p>
               <form class="add-form-inline" id="bb-add-form">
                 <input type="text" name="url" placeholder="add URL to knowledge base…" autocomplete="off" style="flex:1;min-width:240px" />
@@ -406,15 +473,31 @@
         </section>
         <!-- Projects -->
         <section class="section hidden" id="section-projects">
-          <div class="service-panel" id="projects-panel">
-            <div class="service-panel-header">Projects</div>
-            <form class="add-form-inline" id="project-create-form">
-              <input type="text" name="name" placeholder="project name" autocomplete="off" style="width:160px" />
-              <input type="text" name="description" placeholder="description" autocomplete="off" style="flex:1;min-width:140px" />
-              <button type="submit" class="btn-inline-submit">create project</button>
-            </form>
-            <div class="service-panel-body" id="projects-body"><div class="skeleton-msg">Loading…</div></div>
+          <form class="add-form-inline" id="project-create-form">
+            <input type="text" name="name" placeholder="project name" autocomplete="off" style="width:140px" />
+            <input type="text" name="description" placeholder="description (optional)" autocomplete="off" style="flex:1;min-width:120px" />
+            <button type="submit" class="btn-inline-submit">define project</button>
+          </form>
+          <div class="section-toolbar">
+            <input type="text" id="project-filter" class="inline-filter" placeholder="filter projects…" />
           </div>
+          <div id="projects-body"><div class="skeleton-msg">Loading…</div></div>
+        </section>
+        <!-- Tags -->
+        <section class="section hidden" id="section-tags">
+          <div class="section-toolbar">
+            <input type="text" id="tags-filter" class="inline-filter" placeholder="filter tags…" />
+            <button id="tags-exclude" class="toolbar-pill-btn" title="Exclude mode: hide tags matching the filter text">exclude</button>
+            <select id="tags-sort" class="toolbar-select-sm">
+              <option value="name">A→Z</option>
+              <option value="count-desc">Most tasks</option>
+              <option value="count-asc">Fewest tasks</option>
+              <option value="modified">Recently modified</option>
+            </select>
+            <input type="number" id="tags-min-count" class="tags-count-input" min="1" placeholder="min" title="Show only tags with at least N tasks" />
+          </div>
+          <div id="tags-chips" class="tags-chips-panel"></div>
+          <div id="tags-body"><div class="skeleton-msg">Loading…</div></div>
         </section>
         <!-- Gun -->
         <section class="section hidden" id="section-gun">
@@ -469,7 +552,7 @@
               <button type="submit" class="btn-inline-submit">run</button>
             </form>
             <div class="cmd-unified-output hidden" id="cmd-unified-output"></div>
-            <div class="cmd-log-header">history</div>
+            <div class="cmd-log-header">history <button class="cmd-log-clear-btn" id="cmd-log-clear" title="Clear session log">clear</button></div>
             <div class="cmd-log" id="cmd-log"></div>
           </div>
         </section>
@@ -518,7 +601,18 @@
         <section class="section hidden" id="section-warrior">
           <div class="service-panel" id="warrior-panel">
             <div class="service-panel-header">✱ Warrior — Global Overview</div>
-            <div class="service-panel-body" id="warrior-body"><div class="skeleton-msg">Loading…</div></div>
+            <div class="service-panel-body" id="warrior-body">
+              <div class="warrior-tabs">
+                <button class="warrior-tab active" data-tab="summary">Summary</button>
+                <button class="warrior-tab" data-tab="profiles">Profiles</button>
+                <button class="warrior-tab" data-tab="community">Communities</button>
+              </div>
+              <div class="warrior-tab-panel" id="warrior-tab-summary"><div class="skeleton-msg">Loading…</div></div>
+              <div class="warrior-tab-panel hidden" id="warrior-tab-profiles"></div>
+              <div class="warrior-tab-panel hidden" id="warrior-tab-community">
+                <div id="warrior-community-list"><div class="skeleton-msg">Loading…</div></div>
+              </div>
+            </div>
           </div>
         </section>
       </div>
@@ -535,6 +629,19 @@
       <span id="term-prompt" class="prompt-exec">❯ </span>
       <input type="text" id="term-input" autocomplete="off" spellcheck="false" />
       <button id="term-pos-toggle" title="Move terminal (Ctrl+Shift+T)">↑</button>
+    </div>
+  </div>
+  <!-- ww Help Panel -->
+  <div id="ww-help-overlay" class="ww-help-overlay hidden">
+    <div class="ww-help-panel">
+      <div class="ww-help-header">
+        <span class="ww-help-title"><span class="ww-help-ww">ww</span> · workwarrior</span>
+        <button class="ww-help-close" id="btn-ww-help-close" title="Close (Esc)">×</button>
+      </div>
+      <div class="ww-help-body">
+        <nav class="ww-help-nav" id="ww-help-nav"></nav>
+        <div class="ww-help-content" id="ww-help-content"></div>
+      </div>
     </div>
   </div>
   <script src="/app.js"></script>

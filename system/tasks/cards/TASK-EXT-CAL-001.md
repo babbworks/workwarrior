@@ -52,4 +52,4 @@ Acceptance criteria:  Deferred — pending design decision answers above.
 Write scope:          TBD after design decisions.
 
 Status:               parked — requires operator design decisions before implementation
-Taskwarrior:          wwdev task 18 (29889f3b-8d52-4c10-a1e4-476bd220e93a) status:pending
+Taskwarrior:          wwdev task 18 (29889f3b-8d52-4c10-a1e4-476bd220e93a) status:pending +waiting

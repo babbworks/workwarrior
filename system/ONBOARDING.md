@@ -21,6 +21,7 @@ Workwarrior is a terminal-first, profile-based productivity system unifying Task
 | `system/CLAUDE.md` | Full project context: directory map, agent model, scripting standards, fragility markers, testing requirements, hard gates |
 | `system/TASKS.md` | Current task board: what's done, what's pending, dispatch queue, dependency waves |
 | `system/context/working-conventions.md` | Operator preferences, response style, path conventions, multi-agent norms |
+| `system/dev-instance.md` | Dev instance setup (`~/ww-dev/`), sync routine, three-directory model |
 | `system/logs/decisions.md` | Every non-obvious architectural decision made — read before touching any lib/ or sync file |
 
 For service work, also read `system/services-CLAUDE.md`.
@@ -81,6 +82,7 @@ system/
 5. **SERIALIZED files** (`bin/ww`, `lib/shell-integration.sh`) — one writer at a time, never parallel.
 6. **HIGH FRAGILITY files** (all `lib/github-*.sh`, `lib/sync-*.sh`, `services/custom/github-sync.sh`) — require Orchestrator approval before any Builder touches them.
 7. **set -euo pipefail** belongs only in executed scripts (`bin/`, `services/`). Never in sourced `lib/` files — use `${var:-}` defensive guards instead.
+8. **Sync after every session** — the repo and `~/ww-dev/` are separate. Changes don't auto-deploy. Run `bash system/scripts/dev-sync.sh --apply` before any live test. See `system/dev-instance.md`.
 
 ---
 

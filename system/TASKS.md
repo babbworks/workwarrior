@@ -4,8 +4,8 @@
 **Orchestrator is the only agent that updates status fields.**
 `pending/` is archive-only. Nothing new is written there.
 
-Last updated: 2026-04-20 (CRON complete; WARLOCK parked)
-Current phase: Phase 2 active — browser UI, AI integration, weapons, heuristic engine, project organization
+Last updated: 2026-04-27 (milestone scan: 8 new cards TASK-SITE-040–042, TASK-RES-001/002, TASK-TEST-003, TASK-AGENT-001, TASK-CI-001; TW task 15 closed — subjournals dropdown fixed)
+Current phase: Phase 2 active — browser UI polish, resource management, test hardening, stub service promotion
 
 ---
 
@@ -21,9 +21,18 @@ Current phase: Phase 2 active — browser UI, AI integration, weapons, heuristic
 
 | Priority | ID | Goal |
 |---|---|---|
-| NEXT | [TASK-SITE-006](tasks/cards/TASK-SITE-006.md) | Wave 5: export + terminal UX + services sidebar polish (SITE-007 carry-forward) |
-| MEDIUM | [TASK-EXT-GUN-001-EXPLORE](tasks/cards/TASK-EXT-GUN-001-EXPLORE.md) | Read-only audit of taskgun source (limitations doc) |
+| HIGH | [TASK-SITE-040](tasks/cards/TASK-SITE-040.md) | Journal cross-journal entry link — fix non-functional UI response |
+| HIGH | [TASK-SITE-041](tasks/cards/TASK-SITE-041.md) | Archive view button — browse/restore archived entries across services |
+| MEDIUM | [TASK-COMM-008](tasks/cards/TASK-COMM-008.md) | Task annotation copy-back — approve/deny modal (server done; UI modal missing) |
+| MEDIUM | [TASK-SITE-042](tasks/cards/TASK-SITE-042.md) | CMD log UI — collapse/clear/dismiss past command entries |
+| MEDIUM | [TASK-RES-001](tasks/cards/TASK-RES-001.md) | Ledger account/commodity inventory — aggregate from all profiles |
+| MEDIUM | [TASK-RES-002](tasks/cards/TASK-RES-002.md) | UDA inventory — aggregate from all profile .taskrc files |
+| MEDIUM | [TASK-TEST-003](tasks/cards/TASK-TEST-003.md) | Harden test-browser.bats + test-browser-warlock.bats for CI |
+| MEDIUM | [TASK-AGENT-001](tasks/cards/TASK-AGENT-001.md) | Canonical ww-agent-guidance in resources/agent-templates/ |
 | MEDIUM | [TASK-EXT-SWORD-001](tasks/cards/TASK-EXT-SWORD-001.md) | Sword weapon — browser UI |
+| LOW | [TASK-LED-001](tasks/cards/TASK-LED-001.md) | Ledger transaction row redesign — 3-line item UI |
+| LOW | [TASK-CI-001](tasks/cards/TASK-CI-001.md) | Re-enable GitHub Actions CI (depends on TASK-TEST-003) |
+| PARKED | [TASK-EXT-GUN-001-EXPLORE](tasks/cards/TASK-EXT-GUN-001-EXPLORE.md) | Read-only audit of taskgun source (defer until after browser polish) |
 
 ---
 
@@ -98,11 +107,15 @@ Spec status: architecture settled 2026-04-20. Cards pending Gate A (acceptance c
 | [TASK-SITE-003](tasks/cards/TASK-SITE-003.md) | complete | Wave 2: UI shell — dark terminal aesthetic, sidebar, terminal line, SSE wiring |
 | [TASK-SITE-004](tasks/cards/TASK-SITE-004.md) | complete | Wave 3: Live data sections — all 4 tools, /data/* endpoints, /action mutations |
 | [TASK-SITE-005](tasks/cards/TASK-SITE-005.md) | complete | Wave 4: Time, Journal, Ledger polish |
+| [TASK-SITE-006](tasks/cards/TASK-SITE-006.md) | complete | Wave 5: export, terminal context, inline forms, density, transaction search |
 | [TASK-SITE-006](tasks/cards/TASK-SITE-006.md) | pending | Wave 5: export/publish, full typeahead, keyboard shortcuts, polish |
 | [TASK-EXT-SWORD-001](tasks/cards/TASK-EXT-SWORD-001.md) | pending | Design and implement Sword weapon service for browser UI |
 | [TASK-SITE-008](tasks/cards/TASK-SITE-008.md) | complete | Fix task start/stop/done buttons in browser |
 | [TASK-SITE-009](tasks/cards/TASK-SITE-009.md) | complete | Fix Times click-to-start on interval rows |
 | [TASK-SITE-010](tasks/cards/TASK-SITE-010.md) | complete | Enable UDA editing from task inline detail |
+| TASK-SITE-036 | complete | Tags screen — function-group nav item, tag cards with count/date, status/priority/UDA chip filters, exclude toggle, sort |
+| TASK-SITE-037 | complete | Task dependency display — ⊸N/→N row badges, dep section in inline detail, dep_add/dep_remove server actions |
+| TASK-SITE-038 | complete | Header restructure — unified resource slot adjacent to title, green active-task bar removed, stat-context-bar removed, section-resource-bars removed |
 
 ---
 
@@ -110,7 +123,10 @@ Spec status: architecture settled 2026-04-20. Cards pending Gate A (acceptance c
 
 | Priority | ID | Goal | Depends On |
 |---|---|---|---|
-| 1 | [TASK-SITE-006](tasks/cards/TASK-SITE-006.md) | Wave 5: export, typeahead, polish | ~~SITE-005~~ ✓ |
+| 1 | [TASK-COMM-008](tasks/cards/TASK-COMM-008.md) | Task annotation copy-back modal | server ✓; UI modal pending |
+| 2 | [TASK-EXT-SWORD-001](tasks/cards/TASK-EXT-SWORD-001.md) | Sword weapon browser UI | — |
+| 3 | [TASK-LED-001](tasks/cards/TASK-LED-001.md) | Ledger row redesign | — |
+| 4 | [TASK-SITE-039](tasks/cards/TASK-SITE-039.md) | Journal markdown rendering with toggle | — |
 | — | [TASK-ISSUES-002](tasks/cards/TASK-ISSUES-002.md) | Configure bugwarrior for additional profiles (deferred) | — |
 
 ---
@@ -153,6 +169,7 @@ Spec status: architecture settled 2026-04-20. Cards pending Gate A (acceptance c
 | TASK-UX-001 | Standardized compact-default output policy + `--json`/`--verbose` behavior for read/list flows |
 | TASK-UX-002 | Approved command examples library per major command family + verifier checklist integration |
 | TASK-EXT-CRON-001 | `ww routines` recurring-task microservice (profile-scoped `.config/routines`) |
+| TASK-EXT-WARLOCK-001 | `ww browser warlock` — task-warlock Next.js UI adopted as sibling (port 5001); `ww web` synonym; browser sidebar panel; 25 bats tests |
 | TASK-QUAL-002 | Gate C: `system/scripts/check-parity.sh` + Verifier workflow hook |
 | TASK-ISSUES-001 | ww-native `issues uda` + idempotent install + canonical github group |
 | TASK-QUAL-003 | Dead code audit: removed 8 unreferenced scripts from functions/ |

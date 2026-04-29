@@ -14,7 +14,7 @@ set -euo pipefail
 # DEFAULTS
 # ============================================================================
 
-BROWSER_DEFAULT_PORT=7777
+BROWSER_DEFAULT_PORT="${WW_BROWSER_PORT:-7777}"
 BROWSER_SERVICE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WW_BASE="${WW_BASE:-$HOME/ww}"
 STATE_DIR="${WW_BASE}/.state"

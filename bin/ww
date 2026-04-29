@@ -74,6 +74,10 @@ Commands:
   community   Global shared collections ($WW_BASE/.community/)
   extensions  External tool extensions registry
   timew       TimeWarrior — per-profile `timew` extensions under \$TIMEWARRIORDB/extensions/
+  warrior     Cross-profile task aggregation (summary, hooks, report)
+  projects    Cross-resource project views (list, show, describe)
+  network     Connectivity checks (internet, GitHub, Ollama)
+  saves       Knowledge base builder — saves content, search, pipeline
   find        Search across profiles and data types
   custom      Custom services (journal configuration, etc.)
   q           Questions service (templated workflows for tasks, journals, etc.)
@@ -445,27 +449,41 @@ Usage: ww journal <action> [arguments]
 Alias: ww journals (bare alias defaults to list)
 
 Actions:
-  add <name>      Add journal to active profile
-  list            List journals in active profile
-  remove <name>   Remove journal from active profile
-  rename <old> <new> Rename journal in active profile
+  write <text>                 Write a new journal entry (alias: entry, new)
+  write --project <name>       Tag entry with @project marker
+  write --tags <a,b>           Tag entry with @tags marker (comma-separated)
+  write --priority <H|M|L>     Tag entry with @priority marker
+  write --journal <name>       Write to a named journal (default: profile default)
+  add <name>                   Add journal file to active profile
+  list                         List journals in active profile
+  list --tag <tag>             Filter entries by @tags marker
+  list --project <name>        Filter entries by @project marker
+  list --priority <H|M|L>      Filter entries by @priority marker
+  remove <name>                Remove journal from active profile
+  rename <old> <new>           Rename journal in active profile
 
 Global Options:
   --profile <name>  Override profile for this invocation
-  --json            Machine-readable list output
-  --compact         Terse list output
+  --json            Machine-readable output
+  --compact         Terse output
 
 Examples:
-  ww journal add work-log
+  ww journal write "Fixed the parser bug"
+  ww journal write "Shipped auth feature" --project ww-development --tags shipped,auth
+  ww journal write "Client call notes" --journal work --project clientX
+  ww journal entry "Quick note" --priority H
   ww journal list
-  ww journals
+  ww journal list --tag shipped
+  ww journal list --project ww-development
+  ww journal add work-log
   ww journal remove work-log
-  ww journal rename work-log client-work
-  ww --profile work journal list
-  ww --json journal list
+  ww --profile work journal write "Note" --project myproject
 
 Notes:
-  'ww custom journals' remains available for guided interactive management.
+  Entries are appended directly to the profile's plain text journal file.
+  Metadata markers (@project:, @tags:, @priority:) are embedded inline.
+  All named journals in the profile (jrnl.yaml journals:) accept --journal <name>.
+  Retroactive metadata edits are stored as annotation blocks; scanner uses latest.
 EOF
 }
 
@@ -970,6 +988,12 @@ cmd_profile() {
       ;;
     uda|udas)
       local uda_script="$WW_BASE/services/profile/subservices/profile-uda.sh"
+      # uda inventory — cross-profile scan
+      if [[ "${1:-}" == "inventory" ]]; then
+        shift || true
+        bash "$WW_BASE/scripts/build-uda-inventory.sh" "$@"
+        return 0
+      fi
       if [[ ! -f "$uda_script" ]]; then
         log_error "UDA service not found at $uda_script"
         exit 1
@@ -1247,6 +1271,109 @@ cmd_service() {
     *)
       log_error "Unknown service action: $action"
       echo "Run 'ww service help' for usage"
+      exit 1
+      ;;
+  esac
+}
+
+# ============================================================================
+# RESOURCE COMMAND
+# ============================================================================
+
+cmd_resource() {
+  local action="${1:-}"; shift 2>/dev/null || true
+  case "$action" in
+    create)
+      local kind="${1:-}"; shift 2>/dev/null || true
+      local name="${1:-}"; shift 2>/dev/null || true
+      if [[ -z "${WARRIOR_PROFILE:-}" || -z "${WORKWARRIOR_BASE:-}" ]]; then
+        log_error "No active profile — activate one first: p-<profile-name>"; exit 1
+      fi
+      case "$kind" in
+        ledger)
+          [[ -n "$name" ]] || { log_error "Usage: ww resource create ledger <name>"; exit 1; }
+          local ledger_dir="$WORKWARRIOR_BASE/ledgers"
+          local ledger_file="$ledger_dir/${name}.journal"
+          local main_journal="$WORKWARRIOR_BASE/ledgers/${WARRIOR_PROFILE}.journal"
+          local ledgers_yaml="$WORKWARRIOR_BASE/ledgers.yaml"
+          mkdir -p "$ledger_dir"
+          if [[ -f "$ledger_file" ]]; then
+            log_error "Ledger '$name' already exists at $ledger_file"; exit 1
+          fi
+          # Create the sub-journal file
+          printf "; %s ledger — created %s\n" "$name" "$(date +%Y-%m-%d)" > "$ledger_file"
+          # Add include to main journal if it exists
+          if [[ -f "$main_journal" ]]; then
+            if ! grep -q "include ${name}.journal" "$main_journal" 2>/dev/null; then
+              printf "\ninclude %s.journal\n" "$name" >> "$main_journal"
+            fi
+          fi
+          # Register in ledgers.yaml
+          if [[ -f "$ledgers_yaml" ]]; then
+            python3 - "$ledgers_yaml" "$name" "$ledger_file" <<'PYEOF'
+import sys, re
+yaml_path, name, path = sys.argv[1], sys.argv[2], sys.argv[3]
+content = open(yaml_path).read()
+if name + ':' in content:
+    print(f"already in ledgers.yaml")
+else:
+    entry = f"  {name}:\n    path: {path}\n"
+    # Insert after 'ledgers:' line
+    new = re.sub(r'(^ledgers:\s*\n)', r'\1' + entry, content, flags=re.MULTILINE)
+    open(yaml_path, 'w').write(new)
+    print(f"Registered in ledgers.yaml")
+PYEOF
+          fi
+          log_success "Created ledger '$name' at $ledger_file"
+          ;;
+        journal)
+          [[ -n "$name" ]] || { log_error "Usage: ww resource create journal <name>"; exit 1; }
+          local journal_dir="$WORKWARRIOR_BASE/journals"
+          local journal_file="$journal_dir/${name}.txt"
+          local jrnl_cfg="$WORKWARRIOR_BASE/.config/jrnl.yaml"
+          mkdir -p "$journal_dir"
+          if [[ -f "$journal_file" ]]; then
+            log_error "Journal '$name' already exists at $journal_file"; exit 1
+          fi
+          touch "$journal_file"
+          # Register in jrnl.yaml
+          if [[ -f "$jrnl_cfg" ]]; then
+            python3 - "$jrnl_cfg" "$name" "$journal_file" <<'PYEOF'
+import sys, re
+yaml_path, name, path = sys.argv[1], sys.argv[2], sys.argv[3]
+content = open(yaml_path).read()
+if f'  {name}:' in content:
+    print("already in jrnl.yaml")
+else:
+    entry = f"  {name}: {path}\n"
+    new = re.sub(r'(journals:\s*\n)', r'\1' + entry, content, flags=re.MULTILINE)
+    open(yaml_path, 'w').write(new)
+    print(f"Registered in jrnl.yaml")
+PYEOF
+          fi
+          log_success "Created journal '$name' at $journal_file"
+          ;;
+        *)
+          log_error "Usage: ww resource create <ledger|journal> <name>"; exit 1
+          ;;
+      esac
+      ;;
+    help|-h|--help|"")
+      cat <<'EOF'
+ww resource — manage profile resources (ledgers, journals)
+
+Usage:
+  ww resource create ledger <name>   Create a sub-ledger and register it
+  ww resource create journal <name>  Create a named journal and register it
+
+Examples:
+  ww resource create ledger 2026
+  ww resource create journal agentic-dev
+EOF
+      ;;
+    *)
+      log_error "Unknown resource action: $action"
+      echo "Run 'ww resource help' for usage"
       exit 1
       ;;
   esac
@@ -2524,6 +2651,70 @@ cmd_journal() {
         log_error "No active profile. Activate one with p-<profile-name>."
         exit 1
       fi
+      # If --tag or --project flags are present, list entries (not journal names)
+      local filter_tag="" filter_project="" filter_priority="" remaining_args=()
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          --tag)      filter_tag="$2";      shift 2 ;;
+          --tag=*)    filter_tag="${1#--tag=}"; shift ;;
+          --project)  filter_project="$2";  shift 2 ;;
+          --project=*) filter_project="${1#--project=}"; shift ;;
+          --priority) filter_priority="$2"; shift 2 ;;
+          --priority=*) filter_priority="${1#--priority=}"; shift ;;
+          *) remaining_args+=("$1"); shift ;;
+        esac
+      done
+      if [[ -n "$filter_tag" || -n "$filter_project" || -n "$filter_priority" ]]; then
+        local scanner_py
+        scanner_py="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/lib/journal_scanner.py"
+        if [[ ! -f "$scanner_py" ]]; then
+          log_error "journal_scanner.py not found: $scanner_py"
+          exit 1
+        fi
+        local jrnl_file
+        jrnl_file="$(python3 - <<'PYEOF'
+import yaml, os, sys
+base = os.environ.get("WORKWARRIOR_BASE", "")
+cfg = os.path.join(base, "jrnl.yaml")
+try:
+    with open(cfg) as f:
+        data = yaml.safe_load(f)
+    journals = data.get("journals", {})
+    default_path = journals.get("default", os.path.join(base, "journals", os.path.basename(base) + ".txt"))
+    print(default_path)
+except Exception:
+    print(os.path.join(base, "journals", "default.txt"))
+PYEOF
+)"
+        local filter_args=()
+        [[ -n "$filter_tag" ]]      && filter_args+=("--tag" "$filter_tag")
+        [[ -n "$filter_project" ]]  && filter_args+=("--project" "$filter_project")
+        [[ -n "$filter_priority" ]] && filter_args+=("--priority" "$filter_priority")
+        local result
+        result=$(python3 "$scanner_py" parse "$jrnl_file" "${filter_args[@]}")
+        if [[ "$WW_OUTPUT_MODE" == "json" ]]; then
+          printf '%s\n' "$result"
+        else
+          python3 - <<PYEOF2
+import json, sys
+d = json.loads('''$result''')
+entries = d.get("entries", [])
+if not entries:
+    print("  (no matching entries)")
+else:
+    for e in entries:
+        meta = []
+        if e.get("project"): meta.append("project:" + e["project"])
+        if e.get("tags"):    meta.append("tags:" + ",".join(e["tags"]))
+        if e.get("priority"): meta.append("priority:" + e["priority"])
+        meta_str = "  [" + "  ".join(meta) + "]" if meta else ""
+        first_line = e["body"].split("\\n")[0][:72]
+        print(f"  {e['date']}  {first_line}{meta_str}")
+PYEOF2
+        fi
+        exit 0
+      fi
+      # Default: list journal file names
       local cfg="$WORKWARRIOR_BASE/jrnl.yaml"
       if [[ ! -f "$cfg" ]]; then
         log_error "jrnl.yaml not found: $cfg"
@@ -2558,6 +2749,106 @@ cmd_journal() {
         else
           echo "  (none)"
         fi
+      fi
+      ;;
+    write|entry|new)
+      if [[ -z "${WORKWARRIOR_BASE:-}" ]]; then
+        log_error "No active profile. Activate one with p-<profile-name>."
+        exit 1
+      fi
+      local ww_project="" ww_tags="" ww_priority="" ww_journal="" entry_words=()
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          --project)    ww_project="$2";  shift 2 ;;
+          --project=*)  ww_project="${1#--project=}"; shift ;;
+          --tags|--tag) ww_tags="$2";     shift 2 ;;
+          --tags=*|--tag=*) ww_tags="${1#--*=}"; shift ;;
+          --priority)   ww_priority="$2"; shift 2 ;;
+          --priority=*) ww_priority="${1#--priority=}"; shift ;;
+          --journal)    ww_journal="$2";  shift 2 ;;
+          --journal=*)  ww_journal="${1#--journal=}"; shift ;;
+          *) entry_words+=("$1"); shift ;;
+        esac
+      done
+      local entry_text="${entry_words[*]:-}"
+      if [[ -z "$entry_text" ]]; then
+        log_error "Entry text required"
+        echo "Usage: ww journal write [--project <name>] [--tags <a,b>] [--priority <H|M|L>] [--journal <name>] <text>"
+        exit 1
+      fi
+      # Resolve target journal file from jrnl.yaml
+      local target_file
+      target_file="$(python3 - <<PYEOF
+import yaml, os
+base = os.environ.get("WORKWARRIOR_BASE", "")
+cfg = os.path.join(base, "jrnl.yaml")
+journal_name = "${ww_journal}"
+try:
+    with open(cfg) as f:
+        data = yaml.safe_load(f)
+    journals = data.get("journals", {})
+    if journal_name and journal_name in journals:
+        print(journals[journal_name])
+    else:
+        default = journals.get("default", os.path.join(base, "journals", os.path.basename(base) + ".txt"))
+        print(default)
+except Exception:
+    print(os.path.join(base, "journals", "default.txt"))
+PYEOF
+)"
+      if [[ -z "$target_file" ]]; then
+        log_error "Could not resolve journal file"
+        exit 1
+      fi
+      # Load per-journal defaults from $WORKWARRIOR_BASE/ww.yaml (CLI flags win)
+      local resolved_journal="${ww_journal:-default}"
+      local defaults_json
+      defaults_json="$(python3 - <<PYEOF2
+import yaml, os, json
+base = os.environ.get("WORKWARRIOR_BASE", "")
+cfg = os.path.join(base, "ww.yaml")
+journal_key = "${resolved_journal}"
+result = {"project": "", "tags": "", "priority": ""}
+try:
+    with open(cfg) as f:
+        data = yaml.safe_load(f) or {}
+    defs = data.get("journal_defaults", {})
+    jd = defs.get(journal_key, defs.get("default", {}))
+    if isinstance(jd, dict):
+        result["project"]  = jd.get("project", "")  or ""
+        result["tags"]     = jd.get("tags", "")      or ""
+        result["priority"] = jd.get("priority", "")  or ""
+except Exception:
+    pass
+print(json.dumps(result))
+PYEOF2
+)"
+      local def_project def_tags def_priority
+      def_project="$(printf '%s' "$defaults_json"  | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('project',''))"  2>/dev/null || true)"
+      def_tags="$(printf '%s'    "$defaults_json"  | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('tags',''))"     2>/dev/null || true)"
+      def_priority="$(printf '%s' "$defaults_json" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('priority',''))" 2>/dev/null || true)"
+      # CLI flags take precedence over defaults
+      [[ -z "$ww_project" && -n "${def_project:-}" ]]   && ww_project="$def_project"
+      [[ -z "$ww_tags"    && -n "${def_tags:-}" ]]       && ww_tags="$def_tags"
+      [[ -z "$ww_priority" && -n "${def_priority:-}" ]]  && ww_priority="$def_priority"
+      # Build @metadata suffix (our key:value format, parsed by journal_scanner.py)
+      local meta_parts=()
+      [[ -n "$ww_project" ]]  && meta_parts+=("@project:${ww_project}")
+      [[ -n "$ww_tags" ]]     && meta_parts+=("@tags:${ww_tags}")
+      [[ -n "$ww_priority" ]] && meta_parts+=("@priority:${ww_priority}")
+      local full_text="$entry_text"
+      [[ ${#meta_parts[@]} -gt 0 ]] && full_text+=" ${meta_parts[*]}"
+      local timestamp
+      timestamp="$(date '+%Y-%m-%d %H:%M')"
+      printf '\n[%s] %s\n' "$timestamp" "$full_text" >> "$target_file"
+      if [[ "$WW_OUTPUT_MODE" == "json" ]]; then
+        printf '{"ok":true,"date":"%s","file":"%s"}\n' "$timestamp" "$target_file"
+      else
+        log_success "Journal entry added (${timestamp})"
+        if [[ -n "$ww_journal" ]];  then echo "  journal:  $ww_journal";  fi
+        if [[ -n "$ww_project" ]];  then echo "  project:  $ww_project";  fi
+        if [[ -n "$ww_tags" ]];     then echo "  tags:     $ww_tags";     fi
+        if [[ -n "$ww_priority" ]]; then echo "  priority: $ww_priority"; fi
       fi
       ;;
     add|create)
@@ -2704,6 +2995,9 @@ cmd_ledger() {
       if ! rename_ledger_in_profile "$WARRIOR_PROFILE" "$1" "$2"; then
         exit 1
       fi
+      ;;
+    inventory)
+      bash "$WW_BASE/scripts/build-ledger-inventory.sh" "$@"
       ;;
     help|-h|--help)
       show_help_ledger
@@ -4034,10 +4328,27 @@ EOF
 # BROWSER COMMAND
 # ============================================================================
 
-cmd_browser() {
-  # Delegate entirely to services/browser/browser.sh.
-  # Modeled on cmd_tui() / cmd_mcp(): check prerequisites, then exec.
+cmd_browser_warlock() {
+  local warlock_sh="${WW_BASE}/services/warlock/warlock.sh"
+  if [[ ! -f "$warlock_sh" ]]; then
+    log_error "warlock service not found at ${warlock_sh}"
+    exit 2
+  fi
+  WARRIOR_PROFILE="${WARRIOR_PROFILE:-}" \
+  TASKRC="${TASKRC:-}" \
+  TASKDATA="${TASKDATA:-}" \
+    bash "$warlock_sh" "$@"
+}
 
+cmd_browser() {
+  # Intercept warlock subcommand before delegating to browser.sh
+  if [[ "${1:-}" == "warlock" ]]; then
+    shift
+    cmd_browser_warlock "$@"
+    return
+  fi
+
+  # Delegate remaining subcommands to services/browser/browser.sh.
   if ! command -v python3 &>/dev/null; then
     log_error "python3 not found — required by ww browser"
     echo "Install Python 3: https://www.python.org/downloads/" >&2
@@ -4517,6 +4828,9 @@ main() {
     browser)
       cmd_browser "$@"
       ;;
+    web)
+      cmd_browser warlock "$@"
+      ;;
     issues)
       cmd_issues "$@"
       ;;
@@ -4547,6 +4861,37 @@ main() {
         log_error "Delete service not found"
         exit 1
       fi
+      ;;
+    warrior|w)
+      if [[ -f "$WW_BASE/services/warrior/warrior.sh" ]]; then
+        bash "$WW_BASE/services/warrior/warrior.sh" "$@"
+      else
+        log_error "warrior service not found"; exit 1
+      fi
+      ;;
+    projects|project)
+      if [[ -f "$WW_BASE/services/projects/projects.sh" ]]; then
+        bash "$WW_BASE/services/projects/projects.sh" "$@"
+      else
+        log_error "projects service not found"; exit 1
+      fi
+      ;;
+    network)
+      if [[ -f "$WW_BASE/services/network/network.sh" ]]; then
+        bash "$WW_BASE/services/network/network.sh" "$@"
+      else
+        log_error "network service not found"; exit 1
+      fi
+      ;;
+    saves)
+      if [[ -f "$WW_BASE/services/saves/saves.sh" ]]; then
+        bash "$WW_BASE/services/saves/saves.sh" "$@"
+      else
+        log_error "saves service not found"; exit 1
+      fi
+      ;;
+    resource|res)
+      cmd_resource "$@"
       ;;
     deps|d)
       cmd_deps "$@"

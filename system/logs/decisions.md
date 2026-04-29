@@ -5,6 +5,147 @@ Each entry: date, decision, context, and why — so future sessions don't re-lit
 
 ---
 
+## 2026-04-25 — Browser header restructure: resource slot unified, green bar removed, stat-context-bar removed
+
+**Decision:** Three persistent UI complaints resolved in one header pass.
+
+**Changes:**
+- `active-task-pill` (green flex-1 element between title and stats) removed from `header-row1`. It expanded to fill available space, creating a green bar effect the user found visually disruptive. Active-task state is still reflected via `stat-tasks-count` highlight class.
+- `header-row2` / `#stat-context-bar` (the secondary text bar showing "pending: N · active: N") removed entirely. User had requested this removal multiple times across sessions.
+- All per-section `section-resource-bar` divs removed from Tasks, Times, Journals, Lists. The single `#header-resource-slot` in `header-row1` now serves all sections — `refreshResourceSelectors` shows/hides it on section switch.
+- `header-title-group` wrapper added so the title and resource dropdown are co-located as a flex unit with `margin-right: auto`, keeping stats pushed to the right edge.
+- `renderResourceSelector` now always renders the `+` button even when no resources exist (previously returned empty if `names.length === 0`, leaving users unable to create the first resource).
+
+**Why not keep the stat-context-bar:** It was a second line of text below the header that duplicated information already visible in the section body. It required every `loadSection` path to call `updateContextBar`, creating tight coupling between section logic and the header. Removal simplifies both.
+
+---
+
+## 2026-04-25 — Tags screen: design, chip filters, UDA detection
+
+**Decision:** Tags screen added as a first-class function alongside Tasks/Times/Journals/Ledger/Lists.
+
+**Design choices:**
+- Placed in the functions group (not services), after Lists. Tags are a core data dimension, not a service tool.
+- Server endpoint `/data/tags` returns per-tag: count, up to 20 tasks (urgency-sorted), priorities present, UDAs present, latest modified date. One network call populates all filter state client-side.
+- Three quick-filter chip rows: status tags (detected from tag name against a hardcoded STATUS_KEYWORDS set), priority (H/M/L/none filters by task priority presence within the tag), UDA (only rendered if tasks actually have UDA fields set — confirmed via `task _udas` + per-task field inspection).
+- **Exclude mode**: filter input paired with an "exclude" toggle — when active, the text filter hides matching tags rather than showing them. Requested by user as an inversion toggle.
+- Sort options: A→Z, most tasks, fewest tasks, recently modified (uses `latest_modified` field from server).
+
+**`buildTaskMetaPills` fix:** The function handled `tag:name` (singular) but the server encodes community-task meta as `tags:foo,bar` (plural comma-separated). Fixed with `flatMap` — `tags:` tokens are split by comma and each value rendered as a separate pill.
+
+---
+
+## 2026-04-25 — Task dependencies: inline display and add/remove
+
+**Decision:** Task dependency UI implemented purely in the inline detail (no separate screen). Two display levels.
+
+**Row-level badges:** `⊸N` (orange) = "blocked by N tasks" (this task's `depends` array). `→N` (blue) = "blocking N tasks" (computed client-side by scanning `cachedTasks` for entries whose `depends` includes this task's UUID). These badges are zero-cost to render since `cachedTasks` is already in memory.
+
+**Inline detail section:** `renderDepSection()` renders a "dependencies" panel at the bottom of expanded task detail. Shows blocked-by list (with `×` remove buttons) and blocking list (navigation only, no remove — removing a blocking dep would modify the other task). Add input accepts task ID (numeric) or description substring; resolves against `cachedTasks` client-side before calling server.
+
+**Server actions `dep_add` / `dep_remove`:** Use `task {id} modify depends+:{uuid}` / `depends-:{uuid}`. Added to `TASK_MUTATING` set so SSE broadcast fires on change.
+
+**Why UUID not ID for dep_remove:** Task IDs are ephemeral in Taskwarrior (renumbered on filter). UUIDs are stable. The remove button stores the dep task's UUID in `data-uuid` and sends that to the server.
+
+---
+
+## 2026-04-25 — Community task → journal: removed redundant @project suffix
+
+**Decision:** The `community_journal_entry` server action was appending ` @project:{project}` after the `[community-task:...]` marker in every stored journal line. This was a legacy artefact — the project is already encoded inside the marker's meta field and rendered as a blue pill by `buildTaskMetaPills`. The trailing `@project:` token was showing as a second redundant project display in the journal.
+
+**Fix:** Removed `proj_tag` variable and interpolation from the line builder. The marker's meta field is the single source of project/tag/priority data for these entries.
+
+---
+
+## 2026-04-24 — Ledger UI overhaul: annotation model, balance grouping, reporting toggle
+
+**Decision:** Five concrete ledger UI changes applied in this session. Three larger items deferred to TASK-LED-001–003.
+
+**Changes applied:**
+- `ledger_add` action now accepts optional `comment` field → appended as `; comment` posting-level comment
+- New `ledger_annotate` action appends a standalone top-level comment `; [date] desc: note` to the ledger file (not a transaction — valid hledger syntax, skipped by balance/register commands)
+- Balance display now groups by account type prefix (assets / liabilities / equity / income / expenses) with labelled section headers
+- `ledger-balances` div moved to after `ledger-recent` so the transaction list is seen first
+- Reporting buttons (hl-btn) now toggle: clicking the active button again collapses the output panel; active button gets highlight state
+
+**annotation model (settled):**
+The previous annotation implementation was invalid — it called `ledger_add` with `description: "; note"` and `amount: "0"`, producing a malformed transaction. The new `ledger_annotate` action writes a raw comment line. This is intentionally NOT a transaction: it produces no balance effect and won't show in `register`. It serves as a human-readable memo attached to the ledger file near a date.
+
+**amount field (settled):**
+`ledger_add` previously hardcoded `$` prefix on amounts, breaking non-dollar commodities (hours `h`, sessions `sess`, etc.). Fixed: amount is written verbatim from the form input. Users should type `$50` or `2h` or `1 sess` themselves.
+
+**account hierarchy for non-accounting use (proposed, captured in TASK-LED-002):**
+```
+time:project:<name>    ; hours invested
+sessions:agent:claude  ; agent-assisted sessions (source of time)
+costs:api:anthropic    ; external costs
+output:features        ; value produced
+backlog:tech-debt      ; deferred work (like liabilities)
+```
+hledger's commodity-agnostic model makes this work naturally. Use `h` for hours, `sess` for sessions, `$` for money.
+
+**hledger status markers:**
+- unmarked = in-progress or not reviewed
+- `!` pending = ready for review / awaiting confirmation  
+- `*` cleared = reviewed, approved, reconciled
+
+---
+
+## 2026-04-23 — Communities panel: reference model, task/journal action semantics, terminology
+
+**Decision:** Finalized how journal entries, task items, and community entries relate to each other through annotations, rejournal operations, and back-references. Five concrete changes made.
+
+**Context:** Prior implementation had `→ journal` in the journal view creating new entries (growing orphan chains), `→ journal` from community writing no `rejournal-of:` marker, and no design analysis of the captured/live-state distinction or cross-type action semantics.
+
+**Reference model (settled):**
+
+`source_ref` format: `{profile}.task.{uuid}` or `{profile}.journal.{date-slug}` — stable identifiers in community SQLite.
+
+Marker set in jrnl plain text (all inline, jrnl-transparent):
+- `@project:` `@tags:` `@priority:` — entry-level metadata, scanner-parsed
+- `[community-ref:ID|source_ref|desc]` — written into new journal entry when rejournaling from community; links back to community entry
+- `rejournal-of:SLUG` — written alongside community-ref when source is a journal entry; enables "Rejournaled" filter
+- `rejournaled → SLUG [community-ref:ID]` — written as an annotation on the SOURCE journal entry by the server at rejournal time; forward-pointer so original entry shows the chain
+
+**Action semantics per entry kind (settled):**
+
+| Context | Action | Behavior |
+|---|---|---|
+| Journal view "→ journal" | Changed to `+ note` | Annotates the source entry in-place; no new entry, no chain growth |
+| Journal view `+ annotate` | Unchanged | Annotation block on source entry |
+| Community panel, journal-sourced entry `+ comment` | Unchanged | Saves community comment only |
+| Community panel, journal-sourced entry `→ annotate source` | NEW label | Annotates the original journal entry; saves community comment |
+| Community panel, task-sourced entry `+ comment` | Unchanged | Saves community comment only |
+| Community panel, task-sourced entry `→ journal entry` | NEW label + heavier | Structured journal entry: task fields (description, status, project, priority, due, tags) + user note + community-ref; also annotates task in taskwarrior |
+
+**Captured vs. live state (settled):**
+
+Keeping the captured/live distinction — it is semantically correct and valuable. `captured_state` is the point-in-time task snapshot when the task was added to community; `live_state` is fetched fresh on load. This supports "what did we discuss vs. what is the task like now."
+
+Current UI shows full JSON blobs side-by-side — noisy. Changed to field-diff: only keys that changed between captured and live are shown.
+
+**Chain depth management:**
+
+Journal-to-journal follow-ups are now annotations (no new entry created), eliminating one axis of chain growth entirely. Community-to-journal rejournal creates a new entry pointing back to the journal source slug (not to a previous rejournal slug), keeping chains linear. A 3-hop chain (J1→C1→J2→C2→J3) is walkable via clickable `rejournal-of:` / `rejournaled →` links.
+
+**Taskwarrior back-reference:**
+
+When a task community entry is journaled out, a `task uuid annotate` is run to write a back-reference into the task's annotation history. This requires shell access to the profile's taskrc/taskdata — same pattern already used for live_state fetch.
+
+**Terminology:**
+
+Sidebar label changed from "Community" to "Communities" — the service manages multiple named collections; the singular label implied one shared space.
+
+**Why these choices:**
+- Annotation-as-note for journal view: avoids chain proliferation; keeps follow-up text attached to the source entry where it is most useful for recall
+- Structured task journal entry: tasks have rich metadata; a one-liner with a community-ref backlink wastes it
+- Field-diff for captured/live: full JSON blobs are unreadable; field-diff is actionable at a glance
+- rejournal-of points to journal source slug (not prior rejournal slug): keeps the reference graph a shallow DAG, not a linked list requiring traversal
+
+**Consequence:** COMM-008 (task annotation copy-back) is superseded in part by this work. Warrior service (COMM-009) is unaffected. Any future "update captured_state" button should write back to the SQLite `captured_state` column, not to the jrnl file.
+
+---
+
 ## 2026-04-20 — Community Service architecture settled
 
 **Decision:** Community Service is a global aggregation layer grouping task and journal items into named, shareable collections. Primary use: export/sharing for colleagues and teaching. Ten task cards created (TASK-COMM-001..010).
@@ -26,6 +167,16 @@ Each entry: date, decision, context, and why — so future sessions don't re-lit
 **Why:** Community's purpose is assembly for export/sharing, not task management. Tasks shown in simplified screened view. Warrior is the meta-profile control plane enabling global access.
 
 **Consequence:** COMM-001 (storage) is the root dependency for most other COMM tasks. Journal scanner (COMM-005) is the shared utility for annotation parsing, metadata parsing, and filter buttons.
+
+---
+
+## 2026-04-24 — TASK-EXT-WARLOCK-001 complete: task-warlock adopted as `ww browser warlock`
+
+**Decision:** Adopt jonestristand/task-warlock (Next.js 15, MIT, v0.3.0) as a sibling web UI at `ww browser warlock` (port 5001). Profile isolation via environment variable inheritance — no source patches required. `ww browser` (port 7777) remains primary.
+
+**Architecture:** `services/warlock/warlock.sh` handles install/start/stop/status/PID management. `ww web` synonym registered in `config/shortcuts.yaml`. Browser sidebar panel added to `ww browser` with status badge and Install/Start/Stop controls. `/data/warlock/status` endpoint added to `server.py`. 25 bats tests in `tests/test-browser-warlock.bats`.
+
+**Consequence:** `tools/warlock/source/` and `tools/warlock/settings/` are gitignored runtime dirs. `tools/warlock/WW-PATCHES.md` is version-controlled documentation of the isolation wiring. Future warlock upgrades: update `WARLOCK_GIT_TAG` in `warlock.sh` and run `ww browser warlock reinstall`.
 
 ---
 

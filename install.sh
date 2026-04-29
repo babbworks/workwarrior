@@ -244,6 +244,13 @@ copy_installation_files() {
     log_info "Copied tools/"
   fi
 
+  # Copy system docs/logs (if exists) — never overwrites profile data
+  if [[ -d "$SCRIPT_DIR/system" ]]; then
+    mkdir -p "$WW_INSTALL_DIR/system"
+    cp -r "$SCRIPT_DIR/system/"* "$WW_INSTALL_DIR/system/" 2>/dev/null || true
+    log_info "Copied system/"
+  fi
+
   # Create version file
   echo "$WW_VERSION" > "$WW_INSTALL_DIR/VERSION"
 

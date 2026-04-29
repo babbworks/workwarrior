@@ -77,5 +77,9 @@ Rollback:             git checkout services/browser/
 
 Fragility:            Low — services/browser/ only, no lib or bin/ww changes
 
-Status:               pending
-Taskwarrior:          wwdev task 24 (2a6ed647-c0b5-4634-b346-ce1d656b9d75) status:pending
+Status:               complete — 2026-04-24
+Taskwarrior:          wwdev task 24 (2a6ed647-c0b5-4634-b346-ce1d656b9d75) status:completed
+
+Notes:                AC 1–6 and AC 8 verified complete. AC 7 density service panel
+                      (third service: ww profile density config) not implemented — deferred.
+                      Carried to TASK-LED-001 area or a follow-up if needed.

@@ -1,13 +1,21 @@
 # Task Card Index
 
-Last updated: 2026-04-22 (added TASK-SITE-035 lists stabilization follow-up)
-Total: 100 task cards in `tasks/cards/` (browser UI cards TASK-SITE-011 … TASK-SITE-034 are complete). Card `Status:` field is authoritative; this file is a scannable index.
+Last updated: 2026-04-27 (milestone scan: +8 cards — TASK-SITE-040/041/042, TASK-RES-001/002, TASK-TEST-003, TASK-AGENT-001, TASK-CI-001)
+Total: 115 task cards in `tasks/cards/`. Card `Status:` field is authoritative; this file is a scannable index.
 
 ## Priority Queue
 
 | Priority | Card | Goal |
 |----------|------|------|
-| NEXT | TASK-SITE-006 | Wave 5: export + terminal UX + services sidebar polish |
+| HIGH | TASK-SITE-040 | Journal cross-journal entry link fix |
+| HIGH | TASK-SITE-041 | Archive view button — browse/restore archived entries |
+| MEDIUM | TASK-SITE-039 | Journal markdown rendering with toggle (browser UI) |
+| MEDIUM | TASK-SITE-042 | CMD log UI — collapse/clear/dismiss entries |
+| MEDIUM | TASK-RES-001 | Ledger account/commodity inventory (cross-profile) |
+| MEDIUM | TASK-RES-002 | UDA inventory (cross-profile .taskrc aggregate) |
+| MEDIUM | TASK-TEST-003 | Harden browser BATS suites for CI isolation |
+| MEDIUM | TASK-AGENT-001 | Canonical agent-templates in resources/ |
+| LOW | TASK-CI-001 | Re-enable GitHub Actions (depends TEST-003) |
 | HIGH | TASK-SITE-011 | ~~Remove alert()/prompt() — inline UI~~ **complete** |
 | HIGH | TASK-SITE-012 | ~~Toast notification system~~ **complete** |
 | HIGH | TASK-SITE-015 | ~~Keyboard shortcuts — g+key nav + ? overlay~~ **complete** |
@@ -33,20 +41,29 @@ Total: 100 task cards in `tasks/cards/` (browser UI cards TASK-SITE-011 … TASK
 | LOW | TASK-SITE-033 | ~~Sword panel task search~~ **complete** |
 | LOW | TASK-SITE-034 | ~~Live data refresh via SSE + polling~~ **complete** |
 | LOW | TASK-EXT-CAL-001 | Calendar integration (parked) |
-| PARKED | TASK-EXT-WARLOCK-001 | task-warlock Next.js UI adoption (paused) |
+| COMPLETE | TASK-EXT-WARLOCK-001 | ~~task-warlock Next.js UI adoption~~ **complete** |
 | PARKED | TASK-TC-001 | TaskChampion multi-device sync |
 
 ## In-Progress (0)
 
 - _(none)_
 
-## Pending (5)
+## Pending (8)
 
 - **TASK-EXT-GUN-001-EXPLORE** — Read-only audit of taskgun source to answer the five limitations
 - **TASK-EXT-SWORD-001** — Define and build the Sword weapon — a second sidebar weapon
+- **TASK-LED-001** — Ledger transaction row redesign: 3-line item UI (primary row, metadata expand, persistent comment button)
+- **TASK-LED-002** — Agent/session ledger account hierarchy + session recording process (time:, sessions:, costs:, output:)
+- **TASK-LED-003** — Modular journal files and hledger include strategy for profile resources
 - **TASK-SITE-001** — Deliver a locally-served, terminal-aesthetic web interface for Workwarrior
 - **TASK-SITE-006** — Complete the browser service with static export, a redesigned terminal
 - **TASK-SITE-035** — Lists service stabilization (save reliability, multi-list UX, inline controls)
+
+## Complete (added 2026-04-25)
+
+- **TASK-SITE-036** — Tags screen: function-group nav, tag cards with chip filters (status/priority/UDA), exclude toggle, sort modes, date display
+- **TASK-SITE-037** — Task dependency display: ⊸N/→N row badges, dep section in inline detail, dep_add/dep_remove server actions (depends+/- syntax)
+- **TASK-SITE-038** — Header restructure: unified resource slot adjacent to title, active-task-pill (green bar) removed, stat-context-bar removed, section-resource-bars removed from all sections
 
 ## Complete (87)
 

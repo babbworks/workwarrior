@@ -32,5 +32,5 @@ Risk notes:           - Existing behavior affected: Lists section UI interaction
                         list add/edit/remove button wiring in browser JS.
                       - Rollback verification: file-level checkout fully reverts this patch.
 
-Status:               pending
-Taskwarrior:          wwdev task 27 (3232ad57-182a-4296-82d3-0b74d8f70e1f) status:pending
+Status:               complete — 2026-04-22
+Taskwarrior:          wwdev task 27 (3232ad57-182a-4296-82d3-0b74d8f70e1f) status:completed

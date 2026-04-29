@@ -55,6 +55,36 @@ VERSION = "1.0.0"
 # Lazy import of services/community/community_store.py (same tree as this file).
 _community_store_mod: Any = "_pending"
 
+# Lazy import of lib/journal_scanner.py
+_journal_scanner_mod: Any = "_pending"
+
+
+def _load_journal_scanner():
+    """Return the journal_scanner module, or None if load fails."""
+    global _journal_scanner_mod
+    if _journal_scanner_mod is None:
+        return None
+    if _journal_scanner_mod != "_pending":
+        return _journal_scanner_mod
+    scanner_path = os.path.normpath(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "lib", "journal_scanner.py")
+    )
+    if not os.path.isfile(scanner_path):
+        _journal_scanner_mod = None
+        return None
+    try:
+        spec = importlib.util.spec_from_file_location("ww_journal_scanner", scanner_path)
+        if spec is None or spec.loader is None:
+            _journal_scanner_mod = None
+            return None
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        _journal_scanner_mod = mod
+        return mod
+    except Exception:
+        _journal_scanner_mod = None
+        return None
+
 
 def _load_community_store():
     """Return the community_store module, or None if load fails."""
@@ -101,6 +131,8 @@ ALLOWED_SUBCOMMANDS = frozenset([
     "community",
     # management
     "remove",
+    # warrior + cross-profile tools
+    "warrior", "projects", "network", "saves",
 ])
 
 
@@ -429,7 +461,7 @@ class ServerState:
                         in_journals = True
                         continue
                     if in_journals:
-                        m = _re.match(r'^  (\w+):\s*(.+)', line)
+                        m = _re.match(r'^  ([\w-]+):\s*(.+)', line)
                         if m:
                             journals[m.group(1)] = m.group(2).strip()
                         elif line and not line.startswith(' '):
@@ -455,7 +487,7 @@ class ServerState:
                         in_ledgers = True
                         continue
                     if in_ledgers:
-                        m = _re.match(r'^  (\w+):\s*(.+)', line)
+                        m = _re.match(r'^  ([\w-]+):\s*(.+)', line)
                         if m:
                             ledgers[m.group(1)] = m.group(2).strip()
                         elif line and not line.startswith(' '):
@@ -964,8 +996,19 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                 self._handle_data_ctrl()
             elif self.path == "/data/timew-tags":
                 self._handle_data_timew_tags()
+            elif self.path == "/data/nav-config":
+                self._handle_data_nav_config()
             elif self.path == "/data/projects":
                 self._handle_data_projects()
+            elif self.path.startswith("/data/project/"):
+                import urllib.parse as _urlparse
+                _pname = _urlparse.unquote(self.path[len("/data/project/"):])
+                if _pname:
+                    self._handle_data_project_detail(_pname)
+                else:
+                    self._send_json(400, {"ok": False, "error": "project name required"})
+            elif self.path == "/data/tags":
+                self._handle_data_tags()
             elif self.path == "/data/task-meta":
                 self._handle_data_task_meta()
             elif self.path == "/data/udas":
@@ -982,6 +1025,8 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                 self._handle_data_warrior()
             elif self.path.startswith("/data/community/"):
                 self._handle_data_community_path()
+            elif self.path == "/data/warlock/status":
+                self._handle_data_warlock_status()
             elif self.path == "/export/snapshot":
                 self._handle_export_snapshot()
             else:
@@ -1750,6 +1795,11 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
             if active_interval:
                 intervals.append(active_interval)
 
+            # Assign timew @N IDs (1 = most recent = last in list)
+            total = len(intervals)
+            for i, iv in enumerate(intervals):
+                iv["timew_id"] = total - i
+
             # Compute today / week totals from local midnight boundaries
             today_start = time.mktime(time.strptime(time.strftime("%Y-%m-%d"), "%Y-%m-%d"))
             week_start = today_start - time.localtime().tm_wday * 86400
@@ -1775,8 +1825,8 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
 
         def _handle_data_journal(self) -> None:
             """
-            Read the profile's journal text file directly and return up to 20 entries.
-            Does not invoke the jrnl CLI (too slow; requires config).
+            Read the profile's journal text file and return entries with annotations split.
+            Uses journal_scanner when available; falls back to plain parse.
             Entry headers have the format: [YYYY-MM-DD HH:MM]
             """
             paths = state.get_profile_paths()
@@ -1784,19 +1834,26 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                 self._send_json(200, {"ok": False, "error": "no active profile", "entries": []})
                 return
             journal_file = paths["journal_file"]
+            scanner = _load_journal_scanner()
+            if scanner:
+                try:
+                    entries = scanner.parse_file(journal_file)
+                    self._send_json(200, {"ok": True, "entries": entries, "total": len(entries)})
+                    return
+                except Exception:
+                    pass
+            # Fallback: plain parse without annotation splitting
             try:
                 import re as _re
                 content = open(journal_file).read()
-                # Split on [YYYY-MM-DD HH:MM] date headers
                 parts = _re.split(r'\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2})\]', content)
-                # parts layout: [pre, date1, body1, date2, body2, ...]
                 entries = []
                 for i in range(1, len(parts) - 1, 2):
                     date = parts[i]
                     body = parts[i + 1].strip()
                     if body:
-                        entries.append({"date": date, "body": body})
-                entries.reverse()  # most recent first
+                        entries.append({"date": date, "date_slug": date.replace(' ', '_').replace(':', '-'), "body": body, "annotations": []})
+                entries.reverse()
                 self._send_json(200, {"ok": True, "entries": entries, "total": len(entries)})
             except OSError:
                 self._send_json(200, {"ok": True, "entries": []})
@@ -1870,8 +1927,8 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                         line = line.rstrip()
                         if not line.strip():
                             continue
-                        # format: "          $1,234.56  account:name"
-                        m = _re.match(r'\s+([-$£€\d,. ]+\S)\s{2,}(\S+.*)', line)
+                        # format: "          $1,234.56  account:name" or "  10 h  time:work"
+                        m = _re.match(r'^\s+(.*?\S)\s{2,}(\S.*)', line)
                         if m:
                             balances.append({
                                 "amount": m.group(1).strip(),
@@ -1885,7 +1942,7 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                         l for l in lines
                         if l and not l.startswith("txnidx") and not l.startswith("date")
                     ]
-                    for line in data_lines[-15:]:
+                    for line in data_lines:
                         parts = line.split('\t')
                         if len(parts) >= 6:
                             recent.append({
@@ -1895,7 +1952,84 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                                 "amount":      parts[5],
                                 "balance":     parts[6] if len(parts) > 6 else "",
                             })
-                self._send_json(200, {"ok": True, "balances": balances, "recent": recent})
+                    # Deduplicate: hledger register outputs one row per posting;
+                    # keep only the first occurrence of each (date, description) pair
+                    seen_tx: set = set()
+                    deduped: list = []
+                    for item in recent:
+                        key = (item['date'], item['description'])
+                        if key not in seen_tx:
+                            seen_tx.add(key)
+                            deduped.append(item)
+                    recent = deduped[-15:]
+                # Parse annotations and per-transaction tags from raw file
+                annotations: list = []
+                tx_meta: dict = {}  # "date|desc" → {project, tags, priority, task_uuid}
+                try:
+                    with open(ledger_file, "r") as fh:
+                        raw_lines = fh.readlines()
+                    i = 0
+                    while i < len(raw_lines):
+                        raw = raw_lines[i].rstrip()
+                        # Top-level annotation: ; [YYYY-MM-DD] desc: note
+                        am = _re.match(r'^;\s*\[(\d{4}-\d{2}-\d{2})\]\s*(.*?):\s*(.+)$', raw)
+                        if am:
+                            annotations.append({
+                                "date":        am.group(1),
+                                "description": am.group(2).strip(),
+                                "note":        am.group(3).strip(),
+                            })
+                            i += 1
+                            continue
+                        # Transaction header: YYYY-MM-DD [* or !] description
+                        tm = _re.match(r'^(\d{4}-\d{2}-\d{2})[=\d-]*\s+[*!]?\s*(.*)', raw)
+                        if tm:
+                            tx_date = tm.group(1)
+                            tx_desc = _re.sub(r'^\([^)]+\)\s*', '', tm.group(2)).strip()
+                            proj = ''
+                            tags_list: list = []
+                            priority = ''
+                            task_uuid = ''
+                            j = i + 1
+                            while j < len(raw_lines):
+                                pline = raw_lines[j].rstrip()
+                                if not pline or (pline and not pline[0].isspace()):
+                                    break
+                                cm = _re.match(r'\s+;\s*(.*)', pline)
+                                if cm:
+                                    ct = cm.group(1)
+                                    pm = _re.search(r'\bproject:(\S+)', ct)
+                                    if pm:
+                                        proj = pm.group(1)
+                                    prm = _re.search(r'\bpriority:([HMLhml])', ct)
+                                    if prm:
+                                        priority = prm.group(1).upper()
+                                    tum = _re.search(r'\btask:([0-9a-f-]{36})', ct)
+                                    if tum:
+                                        task_uuid = tum.group(1)
+                                    for tg in _re.finditer(r'\btag:(\S+)', ct):
+                                        tags_list.append(tg.group(1))
+                                j += 1
+                            if proj or tags_list or priority or task_uuid:
+                                tx_meta[f"{tx_date}|{tx_desc}"] = {
+                                    "project": proj, "tags": tags_list,
+                                    "priority": priority, "task_uuid": task_uuid,
+                                }
+                            i = j
+                            continue
+                        i += 1
+                except OSError:
+                    pass
+                # Attach project/tags/priority/task_uuid to recent items
+                for item in recent:
+                    key = f"{item['date']}|{item['description']}"
+                    meta = tx_meta.get(key, {})
+                    item["project"]   = meta.get("project", "")
+                    item["tags"]      = meta.get("tags", [])
+                    item["priority"]  = meta.get("priority", "")
+                    item["task_uuid"] = meta.get("task_uuid", "")
+                self._send_json(200, {"ok": True, "balances": balances, "recent": recent,
+                                      "annotations": annotations})
             except FileNotFoundError:
                 self._send_json(200, {"ok": False, "error": "hledger not installed",
                                       "balances": [], "recent": []})
@@ -1923,6 +2057,17 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                     capture_output=True, text=True, timeout=10,
                 )
                 accounts = [a.strip() for a in r.stdout.splitlines() if a.strip()]
+                # Merge cross-profile inventory if available
+                inv_path = os.path.join(state.ww_base, "resources", "inventory", "ledger-accounts.yaml")
+                if os.path.isfile(inv_path):
+                    try:
+                        import re as _rein
+                        inv_text = open(inv_path).read()
+                        inv_accounts = _rein.findall(r'^\s+-\s+"?([^"\n]+)"?', inv_text, _rein.MULTILINE)
+                        merged = sorted(set(accounts) | set(a.strip() for a in inv_accounts))
+                        accounts = merged
+                    except Exception:
+                        pass
                 self._send_json(200, {"ok": True, "accounts": accounts})
             except FileNotFoundError:
                 self._send_json(200, {"ok": True, "accounts": []})
@@ -2548,7 +2693,51 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
 
         # -- GET /data/community/* ------------------------------------------
 
-        def _community_shell_json(self, args: list) -> dict:
+        def _resolve_task_live_state(self, source_ref: str) -> dict | None:
+            """Fetch current task data for a source_ref of form {profile}.task.{uuid}.
+            Returns the task dict or None if unavailable."""
+            import re as _re
+            m = _re.match(r'^([^.]+)\.task\.(.+)$', source_ref)
+            if not m:
+                return None
+            profile_name, uuid = m.group(1), m.group(2)
+            base = os.path.join(state.ww_base, "profiles", profile_name)
+            if not os.path.isdir(base):
+                return None
+            # Resolve taskrc/taskdata for this profile
+            import re as _re2
+            taskrc = os.path.join(base, ".taskrc")
+            taskdata = os.path.join(base, ".task")
+            tasklists_yaml = os.path.join(base, "tasklists.yaml")
+            if os.path.isfile(tasklists_yaml):
+                try:
+                    content = open(tasklists_yaml).read()
+                    in_section = False
+                    for line in content.splitlines():
+                        if line.strip() == "tasklists:":
+                            in_section = True
+                            continue
+                        if in_section:
+                            m2 = _re2.match(r'^    (taskrc|taskdata):\s*(.+)', line)
+                            if m2:
+                                if m2.group(1) == "taskrc":
+                                    taskrc = m2.group(2).strip()
+                                else:
+                                    taskdata = m2.group(2).strip()
+                except OSError:
+                    pass
+            try:
+                env = {**os.environ, "TASKRC": taskrc, "TASKDATA": taskdata}
+                r = subprocess.run(
+                    ["task", "rc.confirmation=no", uuid, "export"],
+                    capture_output=True, text=True, timeout=5, env=env,
+                )
+                tasks = json.loads(r.stdout) if r.stdout.strip() else []
+                return tasks[0] if tasks else None
+            except Exception:
+                return None
+
+        def _community_shell_json(self, args: list, with_live_state: bool = False) -> dict:
             """List/show communities via community_store (in-process)."""
             mod = _load_community_store()
             if mod is None:
@@ -2557,15 +2746,41 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                 if args == ["list"]:
                     return mod.list_communities(state.ww_base)
                 if len(args) == 2 and args[0] == "show":
-                    return mod.show_community(state.ww_base, args[1])
+                    result = mod.show_community(state.ww_base, args[1])
+                    if with_live_state and result.get("ok"):
+                        for entry in result.get("entries", []):
+                            if ".task." in entry.get("source_ref", ""):
+                                entry["live_state"] = self._resolve_task_live_state(entry["source_ref"])
+                            else:
+                                entry["live_state"] = None
+                    return result
+                if len(args) == 3 and args[0] == "entry":
+                    # Single entry with live state: args = ["entry", name, entry_id]
+                    result = mod.show_community(state.ww_base, args[1])
+                    if not result.get("ok"):
+                        return result
+                    try:
+                        eid = int(args[2])
+                    except (ValueError, TypeError):
+                        return {"ok": False, "error": "invalid entry id"}
+                    entries = [e for e in result.get("entries", []) if e["id"] == eid]
+                    if not entries:
+                        return {"ok": False, "error": "entry not found"}
+                    entry = entries[0]
+                    if ".task." in entry.get("source_ref", ""):
+                        entry["live_state"] = self._resolve_task_live_state(entry["source_ref"])
+                    else:
+                        entry["live_state"] = None
+                    return {"ok": True, "entry": entry}
             except Exception as exc:
                 return {"ok": False, "error": str(exc), "communities": []}
             return {"ok": False, "error": "bad community request", "communities": []}
 
         def _handle_data_community_path(self) -> None:
-            """GET /data/community/list or /data/community/<name>?view=…"""
+            """GET /data/community/list or /data/community/<name>?view=…
+               or /data/community/<name>/entry/<id>"""
             parsed = urlparse(self.path)
-            tail = unquote(parsed.path[len("/data/community/") :].strip("/"))
+            tail = unquote(parsed.path[len("/data/community/"):].strip("/"))
             qs = parse_qs(parsed.query)
             view = (qs.get("view", ["unified"])[0] or "unified").lower()
             if view not in ("unified", "journal", "tasks", "comments"):
@@ -2574,50 +2789,551 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                 body = self._community_shell_json(["list"])
                 self._send_json(200, body)
                 return
-            if "/" in tail:
+            # Handle <name>/entry/<id>
+            parts = tail.split("/")
+            if len(parts) == 3 and parts[1] == "entry":
+                body = self._community_shell_json(["entry", parts[0], parts[2]])
+                self._send_json(200, body)
+                return
+            if len(parts) != 1:
                 self._send_json(400, {"ok": False, "error": "invalid community path"})
                 return
-            body = self._community_shell_json(["show", tail])
+            body = self._community_shell_json(["show", tail], with_live_state=True)
             body["view"] = view
+            self._send_json(200, body)
+
+        # -- GET /data/warlock/status ----------------------------------------
+
+        def _handle_data_warlock_status(self) -> None:
+            """Read warlock PID file and .ww-config; return status JSON."""
+            warlock_dir = os.path.join(state.ww_base, "tools", "warlock")
+            config_path = os.path.join(warlock_dir, ".ww-config")
+            pid_path    = os.path.join(warlock_dir, "server.pid")
+
+            cfg: dict[str, str] = {}
+            if os.path.isfile(config_path):
+                for line in open(config_path).read().splitlines():
+                    if "=" in line:
+                        k, _, v = line.partition("=")
+                        cfg[k.strip()] = v.strip()
+
+            installed = bool(cfg)
+            method    = cfg.get("method", "")
+            tag       = cfg.get("tag", "")
+            port      = cfg.get("port", "5001")
+            inst_date = cfg.get("installed", "")
+
+            running = False
+            pid_str = ""
+            profile = ""
+            running_port = ""
+            if os.path.isfile(pid_path):
+                parts = open(pid_path).read().strip().split()
+                if len(parts) >= 3:
+                    pid_str, profile, running_port = parts[0], parts[1], parts[2]
+                    try:
+                        os.kill(int(pid_str), 0)
+                        running = True
+                    except (OSError, ValueError):
+                        pass
+
+            body = {
+                "installed": installed,
+                "method": method,
+                "tag": tag,
+                "port": int(running_port or port),
+                "installed_date": inst_date,
+                "running": running,
+                "pid": pid_str,
+                "profile": profile,
+                "upstream": "https://github.com/jonestristand/task-warlock",
+                "attribution": "jonestristand MIT",
+            }
             self._send_json(200, body)
 
         # -- GET /data/projects ---------------------------------------------
 
         def _handle_data_projects(self) -> None:
-            """Return projects from config/projects.yaml."""
+            """Return merged project data: auto-discovered from TW + yaml definitions."""
+            import re as _re_p
+
+            paths = state.get_profile_paths()
+
+            # 1. Auto-discover projects from active TW profile
+            tw_projects: list[str] = []
+            env: dict = {}
+            if paths:
+                env = {**os.environ,
+                       "TASKRC": paths["taskrc"],
+                       "TASKDATA": paths["taskdata"]}
+                try:
+                    r = subprocess.run(["task", "_projects"],
+                                       capture_output=True, text=True, timeout=5, env=env)
+                    tw_projects = [p.strip() for p in r.stdout.splitlines() if p.strip()]
+                except Exception:
+                    pass
+
+            # 2. Load yaml definitions (description overrides only)
+            yaml_defs: dict = {}
             projects_yaml = os.path.join(state.ww_base, "config", "projects.yaml")
-            if not os.path.isfile(projects_yaml):
-                self._send_json(200, {"ok": True, "projects": {}})
+            if os.path.isfile(projects_yaml):
+                try:
+                    current = ""
+                    for line in open(projects_yaml).read().splitlines():
+                        m = _re_p.match(r'^  ([\w-]+):\s*$', line)
+                        if m:
+                            current = m.group(1)
+                            yaml_defs.setdefault(current, {"description": ""})
+                            continue
+                        if current:
+                            km = _re_p.match(r'^\s+description:\s*(.*)', line)
+                            if km and km.group(1).strip():
+                                yaml_defs[current]["description"] = km.group(1).strip()
+                except Exception:
+                    pass
+
+            # 3. Merge: union of TW-discovered and yaml-defined, preserving order
+            all_names = list(dict.fromkeys(tw_projects + list(yaml_defs.keys())))
+
+            # 4. Per-project data helpers
+            def task_stats(name: str) -> dict:
+                if not paths:
+                    return {"pending": 0, "done": 0, "active": 0, "next": None, "master": None}
+                try:
+                    rp = subprocess.run(
+                        ["task", "rc.confirmation=no", f"project:{name}",
+                         "status:pending", "or", "status:active", "export"],
+                        capture_output=True, text=True, timeout=10, env=env)
+                    pending_tasks = json.loads(rp.stdout) if rp.stdout.strip() else []
+                except Exception:
+                    pending_tasks = []
+                try:
+                    rc = subprocess.run(
+                        ["task", "rc.confirmation=no", f"project:{name}",
+                         "status:completed", "count"],
+                        capture_output=True, text=True, timeout=5, env=env)
+                    done = int(rc.stdout.strip()) if rc.stdout.strip().isdigit() else 0
+                except Exception:
+                    done = 0
+                active = [t for t in pending_tasks if t.get("status") == "active"]
+                pending = [t for t in pending_tasks if t.get("status") == "pending"]
+                master = next(
+                    (t for t in pending_tasks if t.get("projectrole") == "master"),
+                    None)
+                nxt = None
+                non_master_pending = [t for t in pending if t.get("projectrole") != "master"]
+                if non_master_pending:
+                    nxt = max(non_master_pending, key=lambda t: t.get("urgency") or 0)
+                return {
+                    "pending": len(pending),
+                    "done": done,
+                    "active": len(active),
+                    "next": {
+                        "id": nxt.get("id"), "uuid": nxt.get("uuid"),
+                        "description": nxt.get("description", ""),
+                        "urgency": round(nxt.get("urgency") or 0, 1),
+                    } if nxt else None,
+                    "master": {
+                        "id": master.get("id"), "uuid": master.get("uuid"),
+                        "description": master.get("description", ""),
+                        "status": master.get("status", ""),
+                    } if master else None,
+                }
+
+            def journal_stats(name: str) -> dict:
+                if not paths:
+                    return {"count": 0, "last_date": ""}
+                journal_file = paths.get("journal_file", "")
+                if not journal_file or not os.path.isfile(journal_file):
+                    return {"count": 0, "last_date": ""}
+                scanner_path = os.path.normpath(
+                    os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "..", "..", "lib", "journal_scanner.py"))
+                if not os.path.isfile(scanner_path):
+                    return {"count": 0, "last_date": ""}
+                try:
+                    r = subprocess.run(
+                        ["python3", scanner_path, "project-stats", journal_file, name],
+                        capture_output=True, text=True, timeout=8)
+                    d = json.loads(r.stdout) if r.stdout.strip() else {}
+                    return {"count": d.get("count", 0), "last_date": d.get("last_date", "")}
+                except Exception:
+                    return {"count": 0, "last_date": ""}
+
+            def ledger_stats(name: str) -> dict:
+                if not paths:
+                    return {"count": 0, "amounts": []}
+                ledger_file = paths.get("ledger_file", "")
+                if not ledger_file or not os.path.isfile(ledger_file):
+                    return {"count": 0, "amounts": []}
+                try:
+                    import re as _re_ls
+                    with open(ledger_file, "r") as fh:
+                        raw_lines = fh.readlines()
+                    count = 0
+                    # collect unique amounts per account for project-tagged transactions
+                    tx_amounts: list[str] = []
+                    i = 0
+                    while i < len(raw_lines):
+                        raw = raw_lines[i].rstrip()
+                        tm = _re_ls.match(r'^(\d{4}-\d{2}-\d{2})', raw)
+                        if tm:
+                            # scan ahead in transaction block for meta comment
+                            j = i + 1
+                            proj_match = False
+                            block_amounts: list[str] = []
+                            while j < len(raw_lines):
+                                pline = raw_lines[j].rstrip()
+                                if not pline.strip() or (pline.strip() and not pline[0].isspace()):
+                                    break
+                                cm = _re_ls.match(r'\s+;\s*(.*)', pline)
+                                if cm and f"project:{name}" in cm.group(1):
+                                    proj_match = True
+                                pm = _re_ls.match(r'\s+\S.*\s{2,}(\S+.*)', pline)
+                                if pm and not pline.strip().startswith(';'):
+                                    block_amounts.append(pm.group(1).strip())
+                                j += 1
+                            if proj_match:
+                                count += 1
+                                tx_amounts.extend(block_amounts)
+                            i = j
+                        else:
+                            i += 1
+                    # Deduplicate and summarise amounts (first 3)
+                    return {"count": count, "amounts": list(dict.fromkeys(tx_amounts))[:4]}
+                except Exception:
+                    return {"count": 0, "amounts": []}
+
+            # 5. Build response
+            projects: dict = {}
+            for name in all_names:
+                projects[name] = {
+                    "description": yaml_defs.get(name, {}).get("description", ""),
+                    "from_yaml": name in yaml_defs,
+                    "tasks": task_stats(name),
+                    "journal": journal_stats(name),
+                    "ledger": ledger_stats(name),
+                    "timew": None,
+                }
+
+            self._send_json(200, {"ok": True, "projects": projects})
+
+        # -- GET /data/project/<name> ---------------------------------------
+
+        def _handle_data_project_detail(self, name: str) -> None:
+            """Return full task list, journal entries, and ledger transactions for one project."""
+            paths = state.get_profile_paths()
+            if not paths:
+                self._send_json(200, {"ok": False, "error": "no active profile"})
                 return
+
+            env = {**os.environ, "TASKRC": paths["taskrc"], "TASKDATA": paths["taskdata"]}
+
+            # Full task list — two queries avoids ambiguous 'or' filter syntax
+            tasks_out: dict = {"active": [], "pending": [], "pending_total": 0, "done": 0, "master": None, "done_list": []}
             try:
-                import re as _re
-                content = open(projects_yaml).read()
-                projects = {}
-                current = ""
-                for line in content.splitlines():
-                    m = _re.match(r'^  (\w[\w-]*):', line)
-                    if m and not line.strip().endswith(':'):
-                        # key: value on same line
-                        continue
-                    if m:
-                        current = m.group(1)
-                        projects[current] = {"description": "", "tasks": [], "journals": [], "ledgers": [], "tags": []}
-                        continue
-                    if current:
-                        km = _re.match(r'^\s+(description|tasks|journals|ledgers|tags):\s*(.*)', line)
-                        if km:
-                            key, val = km.groups()
-                            if val.strip():
-                                projects[current][key] = val.strip()
-                        lm = _re.match(r'^\s+- (.+)', line)
-                        if lm:
-                            # Add to the last key that was a list
-                            pass
-                self._send_json(200, {"ok": True, "projects": projects})
-            except Exception as exc:
-                self._send_json(200, {"ok": False, "error": str(exc), "projects": {}})
+                rp = subprocess.run(
+                    ["task", "rc.confirmation=no", f"project:{name}", "status:pending", "export"],
+                    capture_output=True, text=True, timeout=10, env=env)
+                ra = subprocess.run(
+                    ["task", "rc.confirmation=no", f"project:{name}", "status:active", "export"],
+                    capture_output=True, text=True, timeout=10, env=env)
+                pending_raw = json.loads(rp.stdout) if rp.stdout.strip() else []
+                active_raw  = json.loads(ra.stdout) if ra.stdout.strip() else []
+                all_tasks = pending_raw + active_raw
+                active = sorted(
+                    [t for t in active_raw],
+                    key=lambda t: t.get("urgency") or 0, reverse=True)
+                pending = sorted(
+                    [t for t in pending_raw if t.get("projectrole") != "master"],
+                    key=lambda t: t.get("urgency") or 0, reverse=True)
+                master = next((t for t in all_tasks if t.get("projectrole") == "master"), None)
+
+                def slim(t: dict) -> dict:
+                    return {
+                        "id": t.get("id"), "uuid": t.get("uuid"),
+                        "description": t.get("description", ""),
+                        "status": t.get("status", ""),
+                        "urgency": round(t.get("urgency") or 0, 1),
+                        "due": t.get("due", ""),
+                        "tags": t.get("tags", []),
+                        "projectrole": t.get("projectrole", ""),
+                    }
+
+                rc = subprocess.run(
+                    ["task", "rc.confirmation=no", f"project:{name}", "status:completed", "count"],
+                    capture_output=True, text=True, timeout=5, env=env)
+                done = int(rc.stdout.strip()) if rc.stdout.strip().isdigit() else 0
+
+                # Done tasks list (limited to 15 most recent)
+                rd = subprocess.run(
+                    ["task", "rc.confirmation=no", f"project:{name}", "status:completed", "export"],
+                    capture_output=True, text=True, timeout=10, env=env)
+                done_raw = json.loads(rd.stdout) if rd.stdout.strip() else []
+                done_raw.sort(key=lambda t: t.get("end", ""), reverse=True)
+
+                # Compute task-based time from start/end timestamps
+                import time as _time_now
+                _now = _time_now.time()
+                pending_time_sec = 0
+                done_time_sec = 0
+                for _t in active_raw:
+                    _s = _t.get("start", "")
+                    if _s:
+                        try: pending_time_sec += int(_now - _parse_timew_ts(_s))
+                        except Exception: pass
+                for _t in done_raw:
+                    _s, _e = _t.get("start", ""), _t.get("end", "")
+                    if _s and _e:
+                        try: done_time_sec += int(_parse_timew_ts(_e) - _parse_timew_ts(_s))
+                        except Exception: pass
+
+                tasks_out = {
+                    "active": [slim(t) for t in active[:5]],
+                    "pending": [slim(t) for t in pending[:10]],
+                    "pending_total": len(pending),
+                    "done": done,
+                    "done_list": [slim(t) for t in done_raw[:15]],
+                    "master": slim(master) if master else None,
+                    "pending_time_sec": pending_time_sec,
+                    "done_time_sec": done_time_sec,
+                }
+            except Exception:
+                pass
+
+            # Journal entries for this project
+            journal_out: dict = {"entries": [], "total": 0}
+            try:
+                journal_file = paths.get("journal_file", "")
+                if journal_file and os.path.isfile(journal_file):
+                    scanner_path = os.path.normpath(
+                        os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                     "..", "..", "lib", "journal_scanner.py"))
+                    if os.path.isfile(scanner_path):
+                        r = subprocess.run(
+                            ["python3", scanner_path, "parse", journal_file, "--project", name],
+                            capture_output=True, text=True, timeout=10)
+                        d = json.loads(r.stdout) if r.stdout.strip() else {}
+                        entries = d.get("entries", [])
+                        journal_out = {
+                            "entries": [
+                                {
+                                    "date": e["date"],
+                                    "date_slug": e["date_slug"],
+                                    "preview": e["body"][:120].replace("\n", " "),
+                                    "tags": e.get("tags", []),
+                                    "priority": e.get("priority", ""),
+                                }
+                                for e in entries[:15]
+                            ],
+                            "total": len(entries),
+                        }
+            except Exception:
+                pass
+
+            # Ledger transactions tagged with this project
+            ledger_out: dict = {"transactions": [], "total": 0}
+            try:
+                ledger_file = paths.get("ledger_file", "")
+                if ledger_file and os.path.isfile(ledger_file):
+                    import re as _re_pd
+                    with open(ledger_file) as fh:
+                        raw_lines = fh.readlines()
+                    txns: list[dict] = []
+                    i = 0
+                    while i < len(raw_lines):
+                        raw = raw_lines[i].rstrip()
+                        tm = _re_pd.match(r'^(\d{4}-\d{2}-\d{2})\s+(.*)', raw)
+                        if tm:
+                            date, desc = tm.group(1), tm.group(2).strip()
+                            j = i + 1
+                            proj_match = False
+                            postings: list[dict] = []
+                            while j < len(raw_lines):
+                                pline = raw_lines[j].rstrip()
+                                if not pline.strip() or (pline.strip() and not pline[0].isspace()):
+                                    break
+                                cm = _re_pd.match(r'\s+;\s*(.*)', pline)
+                                if cm and f"project:{name}" in cm.group(1):
+                                    proj_match = True
+                                pm = _re_pd.match(r'\s+(\S[^;]*?)\s{2,}(\S+.*)', pline)
+                                if pm and not pline.strip().startswith(';'):
+                                    postings.append({"account": pm.group(1).strip(),
+                                                     "amount": pm.group(2).strip()})
+                                j += 1
+                            if proj_match:
+                                txns.append({"date": date, "description": desc,
+                                             "postings": postings})
+                            i = j
+                        else:
+                            i += 1
+                    ledger_out = {"transactions": txns[:15], "total": len(txns)}
+            except Exception:
+                pass
+
+            # TimeWarrior intervals tagged with this project
+            timew_out: dict = {"intervals": [], "total_seconds": 0}
+            try:
+                twdb = paths.get("timewarriordb", "")
+                if twdb:
+                    timew_env = {**os.environ, "TIMEWARRIORDB": twdb}
+                    tr = subprocess.run(
+                        ["timew", "export", f"tag:{name}"],
+                        capture_output=True, text=True, timeout=8, env=timew_env)
+                    if tr.returncode == 0 and tr.stdout.strip():
+                        intervals = json.loads(tr.stdout)
+                        total_sec = 0
+                        running_sec = 0
+                        slim_ivs: list[dict] = []
+                        import time as _time
+                        now_ts = _time.time()
+                        for iv in intervals:
+                            if name not in (iv.get("tags") or []):
+                                continue
+                            start_str = iv.get("start", "")
+                            end_str = iv.get("end", "")
+                            if not start_str:
+                                continue
+                            try:
+                                s = _parse_timew_ts(start_str)
+                                if end_str:
+                                    e2 = _parse_timew_ts(end_str)
+                                    dur = int(e2 - s)
+                                    total_sec += dur
+                                    slim_ivs.append({
+                                        "date": start_str[:8],
+                                        "duration_sec": dur,
+                                        "tags": iv.get("tags", []),
+                                    })
+                                else:
+                                    running_sec = int(now_ts - s)
+                                    total_sec += running_sec
+                                    slim_ivs.append({
+                                        "date": start_str[:8],
+                                        "duration_sec": running_sec,
+                                        "tags": iv.get("tags", []),
+                                        "running": True,
+                                    })
+                            except Exception:
+                                pass
+                        slim_ivs.sort(key=lambda x: x["date"], reverse=True)
+                        timew_out = {
+                            "intervals": slim_ivs[:20],
+                            "total_seconds": total_sec,
+                            "running_seconds": running_sec,
+                        }
+            except Exception:
+                pass
+
+            self._send_json(200, {
+                "ok": True, "name": name,
+                "tasks": tasks_out,
+                "journal": journal_out,
+                "ledger": ledger_out,
+                "timew": timew_out,
+            })
+
+        # -- GET /data/nav-config -------------------------------------------
+
+        def _handle_data_nav_config(self) -> None:
+            """Return nav order: default merged with active profile or global nav.yaml override."""
+            default_order = [
+                "projects", "groups", "questions", "next", "schedule",
+                "sync", "warlock", "models", "network", "bookbuilder", "export"
+            ]
+            order = list(default_order)
+            try:
+                profile = state.get_active_profile()
+                base = state.ww_base
+                if profile and base:
+                    nav_path = os.path.join(base, "profiles", profile, "nav.yaml")
+                    if not os.path.isfile(nav_path):
+                        # Fall back to global default in .claude/ww/nav.yaml
+                        nav_path = os.path.join(base, ".claude", "ww", "nav.yaml")
+                    if os.path.isfile(nav_path):
+                        with open(nav_path) as fh:
+                            lines = fh.readlines()
+                        in_services = False
+                        parsed: list = []
+                        for line in lines:
+                            stripped = line.rstrip()
+                            if stripped.strip() == "services:":
+                                in_services = True
+                                continue
+                            if in_services:
+                                m = __import__("re").match(r"^\s+-\s+(\S+)", stripped)
+                                if m:
+                                    parsed.append(m.group(1))
+                                elif stripped and not stripped[0].isspace():
+                                    break
+                        if parsed:
+                            order = parsed
+            except Exception:
+                pass
+            self._send_json(200, {"ok": True, "services": order})
 
         # -- GET /data/task-meta --------------------------------------------
+
+        def _handle_data_tags(self) -> None:
+            """Return all tags with task counts, task lists, priorities, and UDA presence per tag."""
+            paths = state.get_profile_paths()
+            if not paths:
+                self._send_json(200, {"ok": False, "tags": []})
+                return
+            env = {**os.environ, "TASKRC": paths["taskrc"], "TASKDATA": paths["taskdata"]}
+            try:
+                # Discover UDA names from taskrc
+                uda_names = []
+                try:
+                    with open(paths["taskrc"]) as fh:
+                        for line in fh:
+                            m = _re.match(r'^uda\.([^.]+)\.type=', line.strip())
+                            if m and m.group(1) not in ("priority",):
+                                if m.group(1) not in uda_names:
+                                    uda_names.append(m.group(1))
+                except Exception:
+                    pass
+                # Get all tags
+                rt = subprocess.run(["task", "_tags"], capture_output=True, text=True, timeout=5, env=env)
+                raw_tags = [t.strip() for t in (rt.stdout or "").splitlines()
+                            if t.strip() and not t.strip().startswith("next")]
+                tags_out = []
+                for tag in sorted(raw_tags):
+                    try:
+                        # Count pending tasks with this tag
+                        rc = subprocess.run(
+                            ["task", "rc.confirmation=no", f"+{tag}", "status:pending", "count"],
+                            capture_output=True, text=True, timeout=5, env=env)
+                        count = int(rc.stdout.strip()) if rc.stdout.strip().isdigit() else 0
+                        # Export tasks with this tag
+                        re_ = subprocess.run(
+                            ["task", "rc.confirmation=no", f"+{tag}", "status:pending", "export"],
+                            capture_output=True, text=True, timeout=8, env=env)
+                        tasks = json.loads(re_.stdout) if re_.stdout.strip() else []
+                        tasks.sort(key=lambda t: t.get("urgency") or 0, reverse=True)
+                        # Collect priorities and UDAs present across tasks
+                        priorities = sorted({t.get("priority","") for t in tasks if t.get("priority","")})
+                        udas_present = sorted({u for u in uda_names
+                                               for t in tasks if t.get(u) not in (None, "", [])})
+                        slim_tasks = [{"id": t.get("id"), "uuid": t.get("uuid"),
+                                       "description": t.get("description", ""),
+                                       "project": t.get("project", ""),
+                                       "priority": t.get("priority", ""),
+                                       "urgency": round(t.get("urgency") or 0, 1),
+                                       "modified": t.get("modified", ""),
+                                       "entry": t.get("entry", ""),
+                                       "udas": {u: t.get(u) for u in uda_names if t.get(u) not in (None,"",[])}
+                                       } for t in tasks[:20]]
+                        latest_mod = max((t.get("modified") or t.get("entry") or "" for t in tasks), default="")
+                        tags_out.append({"tag": tag, "count": count, "tasks": slim_tasks,
+                                         "latest_modified": latest_mod,
+                                         "priorities": priorities,
+                                         "udas": udas_present})
+                    except Exception:
+                        tags_out.append({"tag": tag, "count": 0, "tasks": [], "priorities": [], "udas": []})
+                self._send_json(200, {"ok": True, "tags": tags_out, "uda_names": uda_names})
+            except Exception as exc:
+                self._send_json(200, {"ok": False, "error": str(exc), "tags": []})
 
         def _handle_data_task_meta(self) -> None:
             """Return task projects and tags from taskwarrior for use in dropdowns."""
@@ -2842,19 +3558,24 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
         # -- GET /data/next -------------------------------------------------
 
         def _handle_data_next(self) -> None:
-            """Return the highest-urgency pending task as the recommended next task."""
+            """Return the highest-urgency pending task as the recommended next task.
+            Accepts ?skip=id1,id2,... to exclude specific task IDs from consideration."""
             paths = state.get_profile_paths()
             if not paths:
                 self._send_json(200, {"ok": False, "error": "no active profile", "task": None})
                 return
+            from urllib.parse import urlparse, parse_qs
+            skip_raw = parse_qs(urlparse(self.path).query).get("skip", [""])[0]
+            skip_ids = {int(x) for x in skip_raw.split(",") if x.strip().isdigit()}
             env = {**os.environ, "TASKRC": paths["taskrc"], "TASKDATA": paths["taskdata"]}
             try:
-                # Use status:pending sorted by urgency descending, limit 1
                 r = subprocess.run(
                     ["task", "rc.confirmation=no", "status:pending", "export"],
                     capture_output=True, text=True, timeout=10, env=env,
                 )
                 tasks = json.loads(r.stdout) if r.stdout.strip() else []
+                if skip_ids:
+                    tasks = [t for t in tasks if t.get("id") not in skip_ids]
                 if tasks:
                     tasks.sort(key=lambda t: t.get("urgency", 0), reverse=True)
                 self._send_json(200, {"ok": True, "task": tasks[0] if tasks else None})
@@ -3150,7 +3871,8 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
               list_finish         — mark done (-f prefix)
               list_edit           — edit item (-e prefix text)
               list_remove         — remove item (-r prefix)
-              ledger_add          — append a transaction to the profile's ledger file
+              ledger_add          — append a transaction to the profile's ledger file (supports optional comment field)
+              ledger_annotate     — append a standalone comment line (; [date] desc: note)
               timew_start         — start time tracking with optional tags
               timew_stop          — stop current time tracking
               timew_track         — record a past time interval with duration and tags
@@ -3189,15 +3911,43 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                 return active + [t for t in pending if t.get("uuid") not in {a["uuid"] for a in active}]
 
             try:
-                TASK_MUTATING = {"done", "start", "stop", "add", "annotate", "task_modify", "bulk"}
-                TIME_MUTATING = {"timew_start", "timew_stop", "timew_track"}
-                JOURNAL_MUTATING = {"journal_add"}
+                TASK_MUTATING = {"done", "start", "stop", "add", "annotate", "task_modify", "bulk", "dep_add", "dep_remove", "task_delete"}
+                TIME_MUTATING = {"timew_start", "timew_stop", "timew_track", "timew_delete"}
+                JOURNAL_MUTATING = {"journal_add", "journal_delete", "journal_archive", "journal_restore"}
+                LEDGER_MUTATING = {"ledger_delete"}
                 LIST_MUTATING = {"list_add", "list_finish", "list_edit", "list_remove"}
-                COMMUNITY_MUTATING = {"community_add"}
+                COMMUNITY_MUTATING = {
+                    "community_add", "community_create", "community_archive",
+                    "community_unarchive", "community_describe", "community_rename",
+                    "community_modify_entry", "community_refresh_entry",
+                    "community_move_entry", "community_remove_entry",
+                    "community_comment_save", "community_comment_copy_back",
+                }
 
                 if action == "done":
                     tid = str(body.get("id", ""))
+                    # Fetch task details before marking done so we can log completion
+                    proj_for_log = ""
+                    desc_for_log = ""
+                    try:
+                        pre_r = subprocess.run(
+                            ["task", "rc.confirmation=no", tid, "export"],
+                            capture_output=True, text=True, timeout=5, env=env)
+                        pre_tasks = json.loads(pre_r.stdout) if pre_r.stdout.strip() else []
+                        if pre_tasks:
+                            proj_for_log = pre_tasks[0].get("project", "")
+                            desc_for_log = pre_tasks[0].get("description", "")
+                    except Exception:
+                        pass
                     r = run_task(tid, "done")
+                    # Log completion to taskwarrior for project audit trail
+                    if proj_for_log and desc_for_log:
+                        try:
+                            subprocess.run(
+                                ["task", "rc.confirmation=no", "log", f"completed: {desc_for_log}", f"project:{proj_for_log}"],
+                                capture_output=True, text=True, timeout=8, env=env)
+                        except Exception:
+                            pass
                     tasks = fetch_tasks()
                     self._send_json(200, {"ok": True, "output": (r.stdout or r.stderr).strip(), "tasks": tasks})
 
@@ -3234,7 +3984,16 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                         cmd_parts.append(f"+{tag}")
                     r = run_task(*cmd_parts)
                     tasks = fetch_tasks()
-                    self._send_json(200, {"ok": r.returncode == 0, "output": r.stdout or r.stderr, "tasks": tasks})
+                    import re as _re_ta
+                    new_uuid = None
+                    m_id = _re_ta.search(r'Created task (\d+)', r.stdout or '')
+                    if m_id:
+                        new_id_num = int(m_id.group(1))
+                        for t in tasks:
+                            if t.get('id') == new_id_num:
+                                new_uuid = t.get('uuid')
+                                break
+                    self._send_json(200, {"ok": r.returncode == 0, "output": r.stdout or r.stderr, "tasks": tasks, "new_uuid": new_uuid})
 
                 elif action == "annotate":
                     tid = str(body.get("id", ""))
@@ -3274,7 +4033,60 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                     line = f"\n[{timestamp}] {full_text}\n"
                     with open(target_file, "a") as fh:
                         fh.write(line)
-                    self._send_json(200, {"ok": True, "output": "entry added"})
+                    self._send_json(200, {"ok": True, "output": "entry added", "date": timestamp})
+
+                elif action == "journal_annotate":
+                    args_a = body.get("args", {})
+                    date_slug = (args_a.get("date_slug") or "").strip()
+                    ann_text = (args_a.get("text") or "").strip()
+                    if not date_slug or not ann_text:
+                        self._send_json(400, {"ok": False, "error": "date_slug and text required"})
+                        return
+                    journal_name = args_a.get("journal", "")
+                    target_file = paths["journal_file"]
+                    if journal_name:
+                        resources = state.get_profile_resources()
+                        journals = resources.get("journals", {}) if resources else {}
+                        if journal_name in journals:
+                            target_file = journals[journal_name]
+                    scanner = _load_journal_scanner()
+                    if scanner is None:
+                        self._send_json(500, {"ok": False, "error": "journal_scanner unavailable"})
+                        return
+                    out = scanner.annotate_entry(target_file, date_slug, ann_text)
+                    self._send_json(200, out)
+
+                elif action == "journal_rejournal":
+                    args_r = body.get("args", {})
+                    source_slug = (args_r.get("source_slug") or "").strip()
+                    entry_text = (args_r.get("text") or "").strip()
+                    if not source_slug or not entry_text:
+                        self._send_json(400, {"ok": False, "error": "source_slug and text required"})
+                        return
+                    journal_name = args_r.get("journal", "")
+                    target_file = paths["journal_file"]
+                    if journal_name:
+                        resources = state.get_profile_resources()
+                        jmap = resources.get("journals", {}) if resources else {}
+                        if journal_name in jmap:
+                            target_file = jmap[journal_name]
+                    import time as time_mod
+                    ts = time_mod.strftime("%Y-%m-%d %H:%M")
+                    new_slug = ts.replace(' ', '_').replace(':', '-')
+                    carry = (args_r.get("carry_marker") or "").strip()
+                    body_lines = [f"rejournal-of:{source_slug}"]
+                    if carry:
+                        body_lines.append(carry)
+                    body_lines.append(entry_text)
+                    full_body = "\n".join(body_lines)
+                    with open(target_file, "a") as fh:
+                        fh.write(f"\n[{ts}] {full_body}\n")
+                    # Annotate source entry with forward pointer
+                    scanner_r = _load_journal_scanner()
+                    if scanner_r:
+                        scanner_r.annotate_entry(paths["journal_file"], source_slug,
+                                                  f"rejournaled → {new_slug}")
+                    self._send_json(200, {"ok": True, "new_slug": new_slug})
 
                 elif action == "list_add":
                     args_o = body.get("args") or {}
@@ -3341,13 +4153,172 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                     desc = args_obj.get("description", "")
                     account = args_obj.get("account", "expenses:misc")
                     amount = args_obj.get("amount", "0")
+                    comment = args_obj.get("comment", "").strip()
                     if not desc:
                         self._send_json(400, {"ok": False, "error": "description required"})
                         return
-                    entry = f"\n{date} {desc}\n    {account}  ${amount}\n    assets:checking\n"
+                    comment_line = f"\n    ; {comment}" if comment else ""
+                    entry = f"\n{date} {desc}{comment_line}\n    {account}  {amount}\n    assets:checking\n"
                     with open(paths["ledger_file"], "a") as fh:
                         fh.write(entry)
                     self._send_json(200, {"ok": True, "output": "transaction added"})
+
+                elif action == "ledger_annotate":
+                    args_obj = body.get("args", {})
+                    date = args_obj.get("date", time.strftime("%Y-%m-%d"))
+                    desc = args_obj.get("description", "").strip()
+                    note = args_obj.get("note", "").strip()
+                    if not note:
+                        self._send_json(400, {"ok": False, "error": "note required"})
+                        return
+                    line = f"; [{date}] {desc}: {note}\n" if desc else f"; [{date}] {note}\n"
+                    with open(paths["ledger_file"], "a") as fh:
+                        fh.write(line)
+                    self._send_json(200, {"ok": True, "output": "annotation added"})
+
+                elif action == "ledger_tag":
+                    import re as _re_lt
+                    args_obj = body.get("args", {})
+                    date = args_obj.get("date", "").strip()
+                    desc = args_obj.get("description", "").strip()
+                    project = args_obj.get("project", "").strip()
+                    priority = args_obj.get("priority", "").strip().upper()
+                    task_uuid_arg = args_obj.get("task_uuid", "").strip()
+                    raw_tags = args_obj.get("tags", [])
+                    tags = [t.lstrip('#').strip() for t in raw_tags if isinstance(t, str) and t.strip()]
+                    if not date or not desc:
+                        self._send_json(400, {"ok": False, "error": "date and description required"})
+                        return
+                    if not project and not tags and not priority and not task_uuid_arg:
+                        self._send_json(400, {"ok": False, "error": "at least one of project/tags/priority/task_uuid required"})
+                        return
+                    ledger_file = paths["ledger_file"]
+                    try:
+                        with open(ledger_file, "r") as fh:
+                            lines = fh.readlines()
+                        tx_start = None
+                        for i, ln in enumerate(lines):
+                            stripped = ln.strip()
+                            if stripped.startswith(date) and desc.lower() in stripped.lower():
+                                tx_start = i
+                                break
+                        if tx_start is None:
+                            self._send_json(200, {"ok": False, "error": "transaction not found"})
+                            return
+                        # Find existing meta comment line inside the transaction block
+                        existing_meta_idx = None
+                        existing_proj = ''
+                        existing_pri = ''
+                        existing_task_uuid = ''
+                        existing_tags: list = []
+                        j = tx_start + 1
+                        while j < len(lines):
+                            ln = lines[j]
+                            if not ln.strip() or (ln.strip() and not ln[0].isspace()):
+                                break
+                            cm = _re_lt.match(r'\s+;\s*(.*)', ln.rstrip())
+                            if cm:
+                                ct = cm.group(1)
+                                if any(k in ct for k in ('project:', 'tag:', 'priority:', 'task:')):
+                                    existing_meta_idx = j
+                                    pm2 = _re_lt.search(r'\bproject:(\S+)', ct)
+                                    if pm2:
+                                        existing_proj = pm2.group(1)
+                                    prm2 = _re_lt.search(r'\bpriority:([HMLhml])', ct)
+                                    if prm2:
+                                        existing_pri = prm2.group(1).upper()
+                                    tum2 = _re_lt.search(r'\btask:([0-9a-f-]{36})', ct)
+                                    if tum2:
+                                        existing_task_uuid = tum2.group(1)
+                                    for tg in _re_lt.finditer(r'\btag:(\S+)', ct):
+                                        existing_tags.append(tg.group(1))
+                                    break
+                            j += 1
+                        # Merge: new values override existing; tags are additive (unique)
+                        final_proj = project if project else existing_proj
+                        final_pri = priority if priority else existing_pri
+                        final_task = task_uuid_arg if task_uuid_arg else existing_task_uuid
+                        final_tags = list(dict.fromkeys(existing_tags + tags))
+                        parts = []
+                        if final_proj:
+                            parts.append(f"project:{final_proj}")
+                        if final_pri:
+                            parts.append(f"priority:{final_pri}")
+                        if final_task:
+                            parts.append(f"task:{final_task}")
+                        for tag in final_tags:
+                            parts.append(f"tag:{tag}")
+                        comment_line = "    ; " + "  ".join(parts) + "\n"
+                        if existing_meta_idx is not None:
+                            lines[existing_meta_idx] = comment_line
+                        else:
+                            lines.insert(tx_start + 1, comment_line)
+                        with open(ledger_file, "w") as fh:
+                            fh.writelines(lines)
+                        self._send_json(200, {"ok": True, "output": "tags updated"})
+                    except Exception as exc:
+                        self._send_json(200, {"ok": False, "error": str(exc)})
+
+                elif action == "ledger_untag":
+                    import re as _re_lu
+                    args_obj = body.get("args", {})
+                    date = args_obj.get("date", "").strip()
+                    desc = args_obj.get("description", "").strip()
+                    remove_project = bool(args_obj.get("remove_project", False))
+                    remove_priority = bool(args_obj.get("remove_priority", False))
+                    remove_task = bool(args_obj.get("remove_task", False))
+                    remove_tags = [t.lstrip('#').strip() for t in args_obj.get("remove_tags", []) if t.strip()]
+                    if not date or not desc:
+                        self._send_json(400, {"ok": False, "error": "date and description required"})
+                        return
+                    ledger_file = paths["ledger_file"]
+                    try:
+                        with open(ledger_file, "r") as fh:
+                            lines = fh.readlines()
+                        tx_start = None
+                        for i, ln in enumerate(lines):
+                            stripped = ln.strip()
+                            if stripped.startswith(date) and desc.lower() in stripped.lower():
+                                tx_start = i
+                                break
+                        if tx_start is None:
+                            self._send_json(200, {"ok": False, "error": "transaction not found"})
+                            return
+                        meta_idx = None
+                        meta_ct = ''
+                        j = tx_start + 1
+                        while j < len(lines):
+                            ln = lines[j]
+                            if not ln.strip() or (ln.strip() and not ln[0].isspace()):
+                                break
+                            cm = _re_lu.match(r'\s+;\s*(.*)', ln.rstrip())
+                            if cm and any(k in cm.group(1) for k in ('project:', 'tag:', 'priority:', 'task:')):
+                                meta_idx = j
+                                meta_ct = cm.group(1)
+                                break
+                            j += 1
+                        if meta_idx is None:
+                            self._send_json(200, {"ok": True, "output": "nothing to remove"})
+                            return
+                        ct = meta_ct
+                        if remove_project:
+                            ct = _re_lu.sub(r'\bproject:\S+\s*', '', ct)
+                        if remove_priority:
+                            ct = _re_lu.sub(r'\bpriority:[HMLhml]\S*\s*', '', ct)
+                        if remove_task:
+                            ct = _re_lu.sub(r'\btask:[0-9a-f-]{36}\s*', '', ct)
+                        for tag in remove_tags:
+                            ct = _re_lu.sub(r'\btag:' + _re_lu.escape(tag) + r'\s*', '', ct)
+                        ct = _re_lu.sub(r'\s{3,}', '  ', ct).strip()
+                        if ct:
+                            lines[meta_idx] = "    ; " + ct + "\n"
+                        else:
+                            del lines[meta_idx]
+                        with open(ledger_file, "w") as fh:
+                            fh.writelines(lines)
+                        self._send_json(200, {"ok": True, "output": "tags removed"})
+                    except Exception as exc:
+                        self._send_json(200, {"ok": False, "error": str(exc)})
 
                 elif action == "timew_start":
                     args_obj = body.get("args", {})
@@ -3362,6 +4333,37 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                 elif action == "timew_stop":
                     timew_env = {**os.environ, "TIMEWARRIORDB": paths["timewarriordb"]}
                     r = subprocess.run(["timew", "stop"], capture_output=True, text=True, timeout=10, env=timew_env)
+                    # Log the tracked session to taskwarrior if a project tag is found
+                    if r.returncode == 0 and paths.get("taskrc"):
+                        try:
+                            exp_r = subprocess.run(
+                                ["timew", "export", ":lastweek"],
+                                capture_output=True, text=True, timeout=8, env=timew_env)
+                            if exp_r.returncode == 0 and exp_r.stdout.strip():
+                                intervals = json.loads(exp_r.stdout)
+                                # Find most recently completed interval (has end, was just stopped)
+                                closed = [iv for iv in intervals if iv.get("end")]
+                                if closed:
+                                    last = max(closed, key=lambda iv: iv.get("end", ""))
+                                    tags = last.get("tags") or []
+                                    proj_tags = [t for t in tags if not t.startswith("+")]
+                                    project_tag = next((t for t in proj_tags if t), None)
+                                    if project_tag:
+                                        try:
+                                            s = _parse_timew_ts(last["start"])
+                                            e2 = _parse_timew_ts(last["end"])
+                                            dur_min = int((e2 - s) / 60)
+                                        except Exception:
+                                            dur_min = 0
+                                        if dur_min > 0:
+                                            tag_str = " ".join(t for t in tags if t != project_tag)
+                                            desc = f"timew: {dur_min}m{(' ' + tag_str) if tag_str else ''}"
+                                            task_env = {**os.environ, "TASKRC": paths["taskrc"], "TASKDATA": paths["taskdata"]}
+                                            subprocess.run(
+                                                ["task", "rc.confirmation=no", "log", desc, f"project:{project_tag}"],
+                                                capture_output=True, text=True, timeout=8, env=task_env)
+                        except Exception:
+                            pass
                     self._send_json(200, {"ok": r.returncode == 0, "output": (r.stdout or r.stderr).strip()})
 
                 elif action == "timew_track":
@@ -3413,6 +4415,35 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                     )
                     task_list = json.loads(r.stdout) if r.stdout.strip() else []
                     self._send_json(200, {"ok": bool(task_list), "task": task_list[0] if task_list else None})
+
+                elif action == "task_find_by_uuid":
+                    uuid_arg = (body.get("args") or {}).get("uuid", "").strip()
+                    if not uuid_arg:
+                        self._send_json(400, {"ok": False, "error": "uuid required"})
+                        return
+                    resources = state.get_profile_resources()
+                    tasklists = (resources or {}).get("tasklists", {})
+                    timew_db = paths.get("timewarriordb", "")
+                    for list_name, tl in tasklists.items():
+                        trc = tl.get("taskrc", "")
+                        tdata = tl.get("taskdata", "")
+                        if not trc or not tdata:
+                            continue
+                        tenv = {**os.environ, "TASKRC": trc, "TASKDATA": tdata,
+                                "TIMEWARRIORDB": timew_db}
+                        r2 = subprocess.run(
+                            ["task", "rc.confirmation=no", f"uuid:{uuid_arg}", "export"],
+                            capture_output=True, text=True, timeout=10, env=tenv,
+                        )
+                        if r2.returncode == 0 and r2.stdout.strip():
+                            try:
+                                arr = json.loads(r2.stdout)
+                                if arr:
+                                    self._send_json(200, {"ok": True, "list_name": list_name, "task": arr[0]})
+                                    return
+                            except json.JSONDecodeError:
+                                pass
+                    self._send_json(200, {"ok": False, "error": "task not found in any list"})
 
                 elif action == "cmd_log":
                     args_obj = body.get("args", {})
@@ -3493,6 +4524,49 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                         fh.write(entry)
                     self._send_json(201, {"ok": True, "name": pname})
 
+                elif action == "project_create_master":
+                    args_obj = body.get("args", {})
+                    pname = args_obj.get("name", "").strip()
+                    pdesc = args_obj.get("description", "").strip() or f"project: {pname}"
+                    if not pname:
+                        self._send_json(400, {"ok": False, "error": "project name required"})
+                        return
+                    if not paths:
+                        self._send_json(400, {"ok": False, "error": "no active profile"})
+                        return
+                    env_m = {**os.environ,
+                             "TASKRC": paths["taskrc"],
+                             "TASKDATA": paths["taskdata"]}
+                    # Guard: only one master per project
+                    try:
+                        chk = subprocess.run(
+                            ["task", "rc.confirmation=no", f"project:{pname}",
+                             "projectrole:master", "status:pending", "count"],
+                            capture_output=True, text=True, timeout=5, env=env_m)
+                        if chk.stdout.strip().isdigit() and int(chk.stdout.strip()) > 0:
+                            self._send_json(409, {"ok": False,
+                                "error": f"master task for '{pname}' already exists"})
+                            return
+                    except Exception:
+                        pass
+                    try:
+                        r = subprocess.run(
+                            ["task", "rc.confirmation=no", "add",
+                             pdesc, f"project:{pname}", "projectrole:master", "priority:H"],
+                            capture_output=True, text=True, timeout=10, env=env_m)
+                        if r.returncode != 0:
+                            self._send_json(500, {"ok": False, "error": r.stderr.strip()})
+                            return
+                        # Fetch the new task's UUID
+                        uuid_r = subprocess.run(
+                            ["task", "rc.confirmation=no", f"project:{pname}",
+                             "projectrole:master", "status:pending", "_uuid"],
+                            capture_output=True, text=True, timeout=5, env=env_m)
+                        new_uuid = uuid_r.stdout.strip().splitlines()[-1] if uuid_r.stdout.strip() else ""
+                        self._send_json(201, {"ok": True, "uuid": new_uuid, "project": pname})
+                    except Exception as exc:
+                        self._send_json(500, {"ok": False, "error": str(exc)})
+
                 elif action == "community_add":
                     mod = _load_community_store()
                     if mod is None:
@@ -3570,10 +4644,50 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                             community_priority=comm_priority,
                             community_project=comm_project,
                         )
+                    elif kind == "ledger":
+                        tx_date = (args_o.get("tx_date") or "").strip()
+                        tx_desc = (args_o.get("tx_desc") or "").strip()
+                        tx_amt  = (args_o.get("tx_amt") or "").strip()
+                        tx_proj = (args_o.get("tx_project") or "").strip()
+                        tx_tags = (args_o.get("tx_tags") or [])
+                        tx_pri  = (args_o.get("tx_priority") or "").strip()
+                        if not tx_date or not tx_desc:
+                            self._send_json(400, {"ok": False, "error": "tx_date and tx_desc required"})
+                            return
+                        source_ref = f"{profile}.ledger.{tx_date}|{tx_desc}"
+                        captured = {
+                            "date": tx_date, "description": tx_desc, "amount": tx_amt,
+                            "project": tx_proj, "tags": tx_tags, "priority": tx_pri,
+                        }
+                        out = mod.add_entry(
+                            state.ww_base, comm, source_ref, captured,
+                            community_tags=comm_tags,
+                            community_priority=comm_priority,
+                            community_project=comm_project,
+                        )
+                    elif kind == "list":
+                        list_prefix = (args_o.get("list_prefix") or "").strip()
+                        list_text   = (args_o.get("list_text") or "").strip()
+                        list_note   = (args_o.get("list_note") or "").strip()
+                        if not list_text:
+                            self._send_json(400, {"ok": False, "error": "list_text required"})
+                            return
+                        source_ref = f"{profile}.list.{list_prefix}|{list_text}"
+                        captured = {
+                            "prefix": list_prefix, "text": list_text, "note": list_note,
+                        }
+                        out = mod.add_entry(
+                            state.ww_base, comm, source_ref, captured,
+                            community_tags=comm_tags,
+                            community_priority=comm_priority,
+                            community_project=comm_project,
+                        )
                     else:
-                        self._send_json(400, {"ok": False, "error": "kind must be task or journal"})
+                        self._send_json(400, {"ok": False, "error": "kind must be task, journal, ledger, or list"})
                         return
                     self._send_json(200, out)
+                    if out.get("ok"):
+                        state.broadcast("data", json.dumps({"type": "community"}))
 
                 elif action == "community_comment_save":
                     # Save a comment on a community entry without writing to the journal.
@@ -3589,11 +4703,15 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                         return
                     out = mod.add_comment(state.ww_base, int(cs_id), cs_text)
                     self._send_json(200, out)
+                    if out.get("ok"):
+                        state.broadcast("data", json.dumps({"type": "community"}))
 
                 elif action == "community_journal_entry":
-                    # Add a journal entry referencing a specific community entry.
-                    # Writes a comment on the community entry AND appends to the profile journal
-                    # with a structured backlink so both sides can be scanned/parsed.
+                    # Write a journal entry from a community entry.
+                    # Journal-sourced: handled client-side (journal_annotate). This action
+                    # is only called for task-sourced entries now — it writes a structured
+                    # journal summary extracting key task fields, adds a community-ref
+                    # backlink, and annotates the task in taskwarrior with a back-reference.
                     args_o = body.get("args") or {}
                     entry_text = args_o.get("entry", "").strip()
                     entry_id_str = str(args_o.get("entry_id", "")).strip()
@@ -3605,24 +4723,271 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                         self._send_json(500, {"ok": False, "error": "community_store unavailable"})
                         return
                     entry_id_int = int(entry_id_str)
-                    # Resolve source_ref and description snippet for backlink
                     backlink_meta = mod.get_entry_meta(state.ww_base, entry_id_int)
                     source_ref = backlink_meta.get("source_ref", "")
                     cap = backlink_meta.get("captured_state", {})
-                    desc_snippet = (cap.get("description") or cap.get("body") or "")[:80]
-                    # Post a comment on the community entry
-                    cmt_out = mod.add_comment(state.ww_base, entry_id_int, entry_text)
-                    # Append to journal with backlink so the entry can be correlated
                     import time as time_mod
                     timestamp = time_mod.strftime("%Y-%m-%d %H:%M")
+                    new_slug = timestamp.replace(" ", "_").replace(":", "-")
+                    desc_snippet = (cap.get("description") or cap.get("body") or "")[:60].replace("|", "/").replace("]", ")")
                     backlink = f" [community-ref:{entry_id_int}|{source_ref}|{desc_snippet}]" if source_ref else ""
-                    line = f"\n[{timestamp}] {entry_text}{backlink}\n"
+                    if ".task." in source_ref:
+                        # Structured task journal entry — single [community-task:...] marker
+                        # encodes all fields so the browser can render a rich card.
+                        task_uuid = source_ref.split(".task.", 1)[-1]
+                        desc = cap.get("description", "").strip()
+                        status = cap.get("status", "")
+                        project = cap.get("project", "")
+                        priority = cap.get("priority", "")
+                        due = (cap.get("due") or "")[:10]
+                        tags = cap.get("tags", [])
+                        tags_str = ",".join(tags) if isinstance(tags, list) else str(tags or "")
+                        meta_parts = []
+                        if status:   meta_parts.append(f"status:{status}")
+                        if priority: meta_parts.append(f"priority:{priority}")
+                        if due:      meta_parts.append(f"due:{due}")
+                        if project:  meta_parts.append(f"project:{project}")
+                        if tags_str: meta_parts.append(f"tags:{tags_str}")
+                        meta_str = " ".join(meta_parts)
+                        # Strip field-delimiter chars from user-controlled fields
+                        safe_desc = desc.replace("|", "/").replace("]", ")")[:80]
+                        safe_note = entry_text.replace("|", "/").replace("]", ")")
+                        marker = (f"[community-task:{entry_id_int}|{task_uuid}"
+                                  f"|{safe_desc}|{meta_str}|{safe_note}]")
+                        line = f"\n[{timestamp}] {marker}\n"
+                        try:
+                            with open(paths["journal_file"], "a") as fh:
+                                fh.write(line)
+                        except OSError:
+                            pass
+                        # Annotate the task in taskwarrior with a back-reference
+                        try:
+                            t_profile = source_ref.split(".task.", 1)[0]
+                            t_base = os.path.join(state.ww_base, "profiles", t_profile)
+                            t_taskrc = os.path.join(t_base, ".taskrc")
+                            t_taskdata = os.path.join(t_base, ".task")
+                            t_env = {**os.environ, "TASKRC": t_taskrc, "TASKDATA": t_taskdata}
+                            subprocess.run(
+                                ["task", "rc.confirmation=no", task_uuid, "annotate",
+                                 f"journaled: {new_slug} [community-ref:{entry_id_int}]"],
+                                capture_output=True, text=True, timeout=10, env=t_env,
+                            )
+                        except Exception:
+                            pass
+                        self._send_json(200, {"ok": True, "journal_written": True,
+                                              "backlink": backlink.strip(), "slug": new_slug})
+                    else:
+                        # Fallback for unknown source kinds: plain journal entry
+                        desc_snippet = (cap.get("description") or cap.get("body") or "")[:80]
+                        line = f"\n[{timestamp}] {entry_text}{backlink}\n"
+                        try:
+                            with open(paths["journal_file"], "a") as fh:
+                                fh.write(line)
+                        except OSError:
+                            pass
+                        self._send_json(200, {"ok": True, "journal_written": True,
+                                              "backlink": backlink.strip()})
+
+                elif action == "community_create":
+                    args_cc = body.get("args") or {}
+                    name = (args_cc.get("name") or "").strip()
+                    if not name or not re.match(r"^[a-zA-Z0-9_-]+$", name):
+                        self._send_json(400, {"ok": False, "error": "valid community name required"})
+                        return
+                    mod = _load_community_store()
+                    if mod is None:
+                        self._send_json(500, {"ok": False, "error": "community_store unavailable"}); return
+                    _res = mod.create_community(state.ww_base, name)
+                    self._send_json(200, _res)
+                    if _res.get("ok"):
+                        state.broadcast("data", json.dumps({"type": "community"}))
+
+                elif action == "community_archive":
+                    args_ca = body.get("args") or {}
+                    name = (args_ca.get("name") or "").strip()
+                    if not name:
+                        self._send_json(400, {"ok": False, "error": "name required"}); return
+                    mod = _load_community_store()
+                    if mod is None:
+                        self._send_json(500, {"ok": False, "error": "community_store unavailable"}); return
+                    _res = mod.archive_community(state.ww_base, name)
+                    self._send_json(200, _res)
+                    if _res.get("ok"):
+                        state.broadcast("data", json.dumps({"type": "community"}))
+
+                elif action == "community_unarchive":
+                    args_cu = body.get("args") or {}
+                    name = (args_cu.get("name") or "").strip()
+                    if not name:
+                        self._send_json(400, {"ok": False, "error": "name required"}); return
+                    mod = _load_community_store()
+                    if mod is None:
+                        self._send_json(500, {"ok": False, "error": "community_store unavailable"}); return
+                    _res = mod.unarchive_community(state.ww_base, name)
+                    self._send_json(200, _res)
+                    if _res.get("ok"):
+                        state.broadcast("data", json.dumps({"type": "community"}))
+
+                elif action == "community_describe":
+                    args_cd = body.get("args") or {}
+                    name = (args_cd.get("name") or "").strip()
+                    desc = (args_cd.get("description") or "").strip()
+                    if not name:
+                        self._send_json(400, {"ok": False, "error": "name required"}); return
+                    mod = _load_community_store()
+                    if mod is None:
+                        self._send_json(500, {"ok": False, "error": "community_store unavailable"}); return
+                    _res = mod.set_community_description(state.ww_base, name, desc)
+                    self._send_json(200, _res)
+                    if _res.get("ok"):
+                        state.broadcast("data", json.dumps({"type": "community"}))
+
+                elif action == "community_rename":
+                    args_cr = body.get("args") or {}
+                    old_name = (args_cr.get("old_name") or "").strip()
+                    new_name = (args_cr.get("new_name") or "").strip()
+                    if not old_name or not new_name:
+                        self._send_json(400, {"ok": False, "error": "old_name and new_name required"}); return
+                    if not re.match(r"^[a-zA-Z0-9_-]+$", new_name):
+                        self._send_json(400, {"ok": False, "error": "invalid new name"}); return
+                    mod = _load_community_store()
+                    if mod is None:
+                        self._send_json(500, {"ok": False, "error": "community_store unavailable"}); return
+                    _res = mod.rename_community(state.ww_base, old_name, new_name)
+                    self._send_json(200, _res)
+                    if _res.get("ok"):
+                        state.broadcast("data", json.dumps({"type": "community"}))
+
+                elif action == "community_modify_entry":
+                    args_me = body.get("args") or {}
                     try:
-                        with open(paths["journal_file"], "a") as fh:
-                            fh.write(line)
-                    except OSError:
-                        pass
-                    self._send_json(200, {**cmt_out, "journal_written": True, "backlink": backlink.strip()})
+                        eid = int(args_me.get("entry_id", 0))
+                    except (TypeError, ValueError):
+                        self._send_json(400, {"ok": False, "error": "entry_id required"}); return
+                    mod = _load_community_store()
+                    if mod is None:
+                        self._send_json(500, {"ok": False, "error": "community_store unavailable"}); return
+                    deriv = args_me.get("is_community_derivative")
+                    _res = mod.modify_entry(
+                        state.ww_base, eid,
+                        community_tags=(args_me.get("community_tags") or None),
+                        community_priority=(args_me.get("community_priority") or None),
+                        community_project=(args_me.get("community_project") or None),
+                        is_community_derivative=(bool(deriv) if deriv is not None else None),
+                    )
+                    self._send_json(200, _res)
+                    if _res.get("ok"):
+                        state.broadcast("data", json.dumps({"type": "community"}))
+
+                elif action == "community_refresh_entry":
+                    args_rf = body.get("args") or {}
+                    comm_name = (args_rf.get("community") or "").strip()
+                    try:
+                        eid = int(args_rf.get("entry_id", 0))
+                    except (TypeError, ValueError):
+                        self._send_json(400, {"ok": False, "error": "entry_id required"}); return
+                    if not comm_name:
+                        self._send_json(400, {"ok": False, "error": "community required"}); return
+                    mod = _load_community_store()
+                    if mod is None:
+                        self._send_json(500, {"ok": False, "error": "community_store unavailable"}); return
+                    # Re-export the task to get fresh captured state
+                    meta = mod.get_entry_meta(state.ww_base, eid)
+                    source_ref = meta.get("source_ref", "")
+                    if ".task." not in source_ref:
+                        self._send_json(400, {"ok": False, "error": "refresh only applies to task entries"}); return
+                    task_uuid = source_ref.split(".task.", 1)[-1]
+                    try:
+                        r = subprocess.run(
+                            ["task", "rc.confirmation=no", task_uuid, "export"],
+                            capture_output=True, text=True, timeout=15, env=env,
+                        )
+                        arr = json.loads(r.stdout) if r.stdout.strip() else []
+                        if not arr:
+                            self._send_json(400, {"ok": False, "error": "task not found"}); return
+                        _res = mod.refresh_entry(state.ww_base, comm_name, eid, arr[0])
+                        self._send_json(200, _res)
+                        if _res.get("ok"):
+                            state.broadcast("data", json.dumps({"type": "community"}))
+                    except Exception as exc:
+                        self._send_json(500, {"ok": False, "error": str(exc)})
+
+                elif action == "community_move_entry":
+                    args_mv = body.get("args") or {}
+                    try:
+                        eid = int(args_mv.get("entry_id", 0))
+                    except (TypeError, ValueError):
+                        self._send_json(400, {"ok": False, "error": "entry_id required"}); return
+                    from_comm = (args_mv.get("from_community") or "").strip()
+                    to_comm = (args_mv.get("to_community") or "").strip()
+                    if not from_comm or not to_comm:
+                        self._send_json(400, {"ok": False, "error": "from_community and to_community required"}); return
+                    mod = _load_community_store()
+                    if mod is None:
+                        self._send_json(500, {"ok": False, "error": "community_store unavailable"}); return
+                    _res = mod.move_entry(state.ww_base, eid, from_comm, to_comm)
+                    self._send_json(200, _res)
+                    if _res.get("ok"):
+                        state.broadcast("data", json.dumps({"type": "community"}))
+
+                elif action == "community_recent":
+                    args_rec = body.get("args") or {}
+                    n = int(args_rec.get("n", 10))
+                    mod = _load_community_store()
+                    if mod is None:
+                        self._send_json(500, {"ok": False, "error": "community_store unavailable"}); return
+                    self._send_json(200, mod.recent_entries(state.ww_base, n))
+
+                elif action == "community_remove_entry":
+                    args_rem = body.get("args") or {}
+                    comm_name = (args_rem.get("community") or "").strip()
+                    try:
+                        eid = int(args_rem.get("entry_id", 0))
+                    except (TypeError, ValueError):
+                        self._send_json(400, {"ok": False, "error": "entry_id required"}); return
+                    if not comm_name:
+                        self._send_json(400, {"ok": False, "error": "community required"}); return
+                    mod = _load_community_store()
+                    if mod is None:
+                        self._send_json(500, {"ok": False, "error": "community_store unavailable"}); return
+                    _res = mod.remove_entry(state.ww_base, comm_name, eid)
+                    self._send_json(200, _res)
+                    if _res.get("ok"):
+                        state.broadcast("data", json.dumps({"type": "community"}))
+
+                elif action == "community_comment_copy_back":
+                    args_cb = body.get("args") or {}
+                    try:
+                        comment_id = int(args_cb.get("comment_id", 0))
+                        eid = int(args_cb.get("entry_id", 0))
+                    except (TypeError, ValueError):
+                        self._send_json(400, {"ok": False, "error": "comment_id and entry_id required"}); return
+                    comment_body = (args_cb.get("body") or "").strip()
+                    mod = _load_community_store()
+                    if mod is None:
+                        self._send_json(500, {"ok": False, "error": "community_store unavailable"}); return
+                    meta = mod.get_entry_meta(state.ww_base, eid)
+                    source_ref = meta.get("source_ref", "")
+                    if ".task." not in source_ref:
+                        self._send_json(400, {"ok": False, "error": "copy-back only applies to task entries"}); return
+                    task_uuid = source_ref.split(".task.", 1)[-1]
+                    src_profile = source_ref.split(".task.", 1)[0]
+                    t_base = os.path.join(state.ww_base, "profiles", src_profile)
+                    t_taskrc = os.path.join(t_base, ".taskrc")
+                    t_taskdata = os.path.join(t_base, ".task")
+                    if not os.path.isfile(t_taskrc):
+                        self._send_json(400, {"ok": False, "error": f"profile '{src_profile}' taskrc not found — cannot copy back"}); return
+                    try:
+                        t_env = {**os.environ, "TASKRC": t_taskrc, "TASKDATA": t_taskdata}
+                        subprocess.run(
+                            ["task", "rc.confirmation=no", task_uuid, "annotate", f"community: {comment_body}"],
+                            capture_output=True, text=True, timeout=10, env=t_env,
+                        )
+                        mod.mark_comment_copied(state.ww_base, comment_id)
+                        self._send_json(200, {"ok": True, "comment_id": comment_id, "copied": True})
+                        state.broadcast("data", json.dumps({"type": "community"}))
+                    except Exception as exc:
+                        self._send_json(500, {"ok": False, "error": str(exc)})
 
                 elif action == "bulk":
                     ids = body.get("ids", [])
@@ -3659,6 +5024,163 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                     tasks = fetch_tasks()
                     self._send_json(200, {"ok": True, "results": results, "tasks": tasks})
 
+                elif action in ("dep_add", "dep_remove"):
+                    tid = str(body.get("id", "")).strip()
+                    dep_uuid = str(body.get("dep_uuid", "")).strip()
+                    if not tid or not dep_uuid:
+                        self._send_json(400, {"ok": False, "error": "id and dep_uuid required"})
+                        return
+                    op = "depends+" if action == "dep_add" else "depends-"
+                    r = subprocess.run(
+                        ["task", "rc.confirmation=no", tid, "modify", f"{op}:{dep_uuid}"],
+                        capture_output=True, text=True, timeout=10, env=env,
+                    )
+                    self._send_json(200, {"ok": r.returncode == 0, "error": r.stderr.strip() or None})
+
+                elif action == "task_delete":
+                    tid = str(body.get("id", "")).strip()
+                    if not tid:
+                        self._send_json(400, {"ok": False, "error": "id required"})
+                        return
+                    r = subprocess.run(
+                        ["task", "rc.confirmation=no", tid, "delete"],
+                        capture_output=True, text=True, timeout=10, env=env,
+                    )
+                    tasks = fetch_tasks() if r.returncode == 0 else []
+                    self._send_json(200, {"ok": r.returncode == 0, "error": (r.stderr or "").strip() or None, "tasks": tasks})
+
+                elif action == "journal_delete":
+                    args_o = body.get("args") or {}
+                    date_slug = (args_o.get("date_slug") or "").strip()
+                    if not date_slug:
+                        self._send_json(400, {"ok": False, "error": "date_slug required"})
+                        return
+                    paths = state.get_profile_paths()
+                    journal_file = paths.get("journal_file", "") if paths else ""
+                    if not journal_file or not os.path.isfile(journal_file):
+                        self._send_json(400, {"ok": False, "error": "journal file not found"})
+                        return
+                    import re as _jre
+                    # Reconstruct the date header from slug: "YYYY-MM-DD_HH-MM" → "YYYY-MM-DD HH:MM"
+                    slug_parts = date_slug.split('_', 1)
+                    date_part = slug_parts[0]
+                    time_part = slug_parts[1].replace('-', ':', 1) if len(slug_parts) > 1 else '00:00'
+                    date_hdr = f"{date_part} {time_part}"
+                    content = open(journal_file, encoding='utf-8').read()
+                    # Remove the entry block: from [date_hdr] to the next [date header] or end of file
+                    pattern = r'\[' + _jre.escape(date_hdr) + r'\].*?(?=\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}\]|\Z)'
+                    new_content = _jre.sub(pattern, '', content, flags=_jre.DOTALL)
+                    with open(journal_file, 'w', encoding='utf-8') as f:
+                        f.write(new_content)
+                    self._send_json(200, {"ok": True})
+
+                elif action == "journal_archive":
+                    args_o = body.get("args") or {}
+                    date_slug = (args_o.get("date_slug") or "").strip()
+                    if not date_slug:
+                        self._send_json(400, {"ok": False, "error": "date_slug required"})
+                        return
+                    paths = state.get_profile_paths()
+                    journal_file = paths.get("journal_file", "") if paths else ""
+                    if not journal_file or not os.path.isfile(journal_file):
+                        self._send_json(400, {"ok": False, "error": "journal file not found"})
+                        return
+                    import re as _jre2
+                    slug_parts = date_slug.split('_', 1)
+                    date_part = slug_parts[0]
+                    time_part = slug_parts[1].replace('-', ':', 1) if len(slug_parts) > 1 else '00:00'
+                    date_hdr = f"{date_part} {time_part}"
+                    content = open(journal_file, encoding='utf-8').read()
+                    def _add_archived_marker(m):
+                        block = m.group(0)
+                        if '@status:archived' in block:
+                            return block
+                        return block.rstrip() + ' @status:archived\n\n'
+                    pattern2 = r'\[' + _jre2.escape(date_hdr) + r'\].*?(?=\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}\]|\Z)'
+                    new_content = _jre2.sub(pattern2, _add_archived_marker, content, flags=_jre2.DOTALL)
+                    with open(journal_file, 'w', encoding='utf-8') as f:
+                        f.write(new_content)
+                    self._send_json(200, {"ok": True})
+
+                elif action == "journal_restore":
+                    args_o = body.get("args") or {}
+                    date_slug = (args_o.get("date_slug") or "").strip()
+                    if not date_slug:
+                        self._send_json(400, {"ok": False, "error": "date_slug required"})
+                        return
+                    paths = state.get_profile_paths()
+                    journal_file = paths.get("journal_file", "") if paths else ""
+                    if not journal_file or not os.path.isfile(journal_file):
+                        self._send_json(400, {"ok": False, "error": "journal file not found"})
+                        return
+                    import re as _jre2
+                    slug_parts = date_slug.split('_', 1)
+                    date_part = slug_parts[0]
+                    time_part = slug_parts[1].replace('-', ':', 1) if len(slug_parts) > 1 else '00:00'
+                    date_hdr = f"{date_part} {time_part}"
+                    content = open(journal_file, encoding='utf-8').read()
+                    def _remove_archived_marker(m):
+                        block = m.group(0)
+                        cleaned = _jre2.sub(r'\s*@status:archived', '', block)
+                        return cleaned
+                    pattern2 = r'\[' + _jre2.escape(date_hdr) + r'\].*?(?=\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}\]|\Z)'
+                    new_content = _jre2.sub(pattern2, _remove_archived_marker, content, flags=_jre2.DOTALL)
+                    with open(journal_file, 'w', encoding='utf-8') as f:
+                        f.write(new_content)
+                    self._send_json(200, {"ok": True})
+
+                elif action == "ledger_delete":
+                    args_o = body.get("args") or {}
+                    tx_date = (args_o.get("date") or "").strip()
+                    tx_desc = (args_o.get("description") or "").strip()
+                    if not tx_date or not tx_desc:
+                        self._send_json(400, {"ok": False, "error": "date and description required"})
+                        return
+                    paths = state.get_profile_paths()
+                    if not paths:
+                        self._send_json(400, {"ok": False, "error": "no active profile"})
+                        return
+                    resources = state.get_profile_resources() or {}
+                    active_ledger = (resources.get("active") or {}).get("ledger", "default")
+                    ledger_files = resources.get("ledgers", {})
+                    ledger_file = ledger_files.get(active_ledger, paths.get("ledger_file", ""))
+                    if not ledger_file or not os.path.isfile(ledger_file):
+                        self._send_json(400, {"ok": False, "error": "ledger file not found"})
+                        return
+                    lines = open(ledger_file, encoding='utf-8').readlines()
+                    # Find the transaction block starting with tx_date + space + tx_desc
+                    target_prefix = f"{tx_date} {tx_desc}"
+                    new_lines = []
+                    i = 0
+                    while i < len(lines):
+                        line = lines[i]
+                        if line.strip() and line.startswith(target_prefix):
+                            # Comment out this block until blank line or EOF
+                            new_lines.append('; ' + line)
+                            i += 1
+                            while i < len(lines) and lines[i].strip():
+                                new_lines.append('; ' + lines[i])
+                                i += 1
+                        else:
+                            new_lines.append(line)
+                            i += 1
+                    with open(ledger_file, 'w', encoding='utf-8') as f:
+                        f.writelines(new_lines)
+                    self._send_json(200, {"ok": True})
+
+                elif action == "timew_delete":
+                    args_o = body.get("args") or {}
+                    timew_id = str(args_o.get("timew_id", "")).strip()
+                    if not timew_id:
+                        self._send_json(400, {"ok": False, "error": "timew_id required"})
+                        return
+                    r = subprocess.run(
+                        ["timew", "delete", f"@{timew_id}", ":yes"],
+                        capture_output=True, text=True, timeout=10, env=env,
+                        input="",
+                    )
+                    self._send_json(200, {"ok": r.returncode == 0, "error": (r.stderr or "").strip() or None})
+
                 else:
                     self._send_json(400, {"ok": False, "error": f"unknown action: {action}"})
                     return
@@ -3671,6 +5193,8 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                     state.broadcast("data", json.dumps({"type": "journal"}))
                 elif action in LIST_MUTATING:
                     state.broadcast("data", json.dumps({"type": "lists"}))
+                elif action in LEDGER_MUTATING:
+                    state.broadcast("data", json.dumps({"type": "ledger"}))
                 elif action in COMMUNITY_MUTATING:
                     state.broadcast("data", json.dumps({"type": "community"}))
 
@@ -3701,6 +5225,7 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
             self.send_response(status)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
             self.end_headers()
             self.wfile.write(body)
 

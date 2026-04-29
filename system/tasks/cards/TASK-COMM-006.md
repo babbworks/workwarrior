@@ -37,5 +37,5 @@ Fragility:            Medium — depends on COMM-005 scanner; marker format must
 
 Depends on:           TASK-COMM-005
 
-Status:               pending
-Taskwarrior:          wwdev task 14 (12036f9e-8ecd-4df5-92d2-82ba123a5f95) status:pending
+Status:               complete — 2026-04-22
+Taskwarrior:          wwdev task 14 (12036f9e-8ecd-4df5-92d2-82ba123a5f95) status:completed

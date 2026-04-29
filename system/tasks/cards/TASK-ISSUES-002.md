@@ -28,7 +28,7 @@ Risk notes:           Determine correct GitHub login/org/token for each profile 
                       Use @oracle:eval:gh auth token if the same gh auth covers all profiles.
 
 Status:               deferred
-Taskwarrior:          wwdev task 22 (fb187eb0-1c86-4e55-abad-86617bfb3244) status:pending
+Taskwarrior:          wwdev task 22 (fb187eb0-1c86-4e55-abad-86617bfb3244) status:pending +waiting +deferred
 
 Deferral reason:      alpha and bravo do not currently have GitHub issue sync needs.
                       Strategic direction changed: acme is now the exemplar profile.

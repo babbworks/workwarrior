@@ -35,5 +35,5 @@ Fragility:            Low — new files only, no existing lib or bin/ww changes
 Risk notes:           (Orchestrator) Global storage path must not collide with any
                       profile path. $WW_BASE/.community/ is clear of all existing paths.
 
-Status:               pending
-Taskwarrior:          wwdev task 8 (c5a14e24-4705-46ae-aab4-c1fdafe8c9f6) status:pending
+Status:               complete — 2026-04-27 (services/community/community_store.py + lib/community-db.sh; full schema with communities/community_entries/community_comments/rejournal_index + migration runner; confirmed by COMM-002..007 all marked complete)
+Taskwarrior:          wwdev task 8 (c5a14e24-4705-46ae-aab4-c1fdafe8c9f6) status:completed

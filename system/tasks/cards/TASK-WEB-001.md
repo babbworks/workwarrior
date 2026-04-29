@@ -72,4 +72,4 @@ Design decisions required before implementation:
 Write scope:          TBD after design decisions.
 
 Status:               parked — requires design decisions before implementation
-Taskwarrior:          wwdev task 26 (249e3fff-11c3-4b13-ae94-1aca47d3a65f) status:pending
+Taskwarrior:          wwdev task 26 (249e3fff-11c3-4b13-ae94-1aca47d3a65f) status:pending +waiting

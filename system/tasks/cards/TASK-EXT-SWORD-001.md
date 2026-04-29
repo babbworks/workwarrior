@@ -34,5 +34,5 @@ Fragility:            SERIALIZED: bin/ww
 
 Depends on:           Design decision on what Sword does
 
-Status:               pending
-Taskwarrior:          wwdev task 20 (5568435d-ee09-4d17-8d21-745ddcbb772c) status:pending
+Status:               complete — 2026-04-27 (cmd_sword in bin/ww; ALLOWED_SUBCOMMANDS includes sword; browser section-sword with task search, form, submit handler via /cmd; weapon button wired; "coming soon" label removed)
+Taskwarrior:          wwdev task 20 (5568435d-ee09-4d17-8d21-745ddcbb772c) status:completed

@@ -95,6 +95,13 @@ shortcuts:
     command: "x"
     requires_profile: false
 
+  web:
+    name: "Warlock Web UI"
+    category: service
+    description: "Synonym for 'ww browser warlock' — task-warlock sibling UI (remove alias when retiring)"
+    command: "ww browser warlock"
+    requires_profile: true
+
   # Global commands
   ww:
     name: "Workwarrior"

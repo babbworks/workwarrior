@@ -12,7 +12,7 @@
 Read from `.claude/ww/config`:
 
 ```
-WW_PROFILE=wwdev
+WW_PROFILE=ww-development
 WW_BASE=~/ww-dev
 ```
 
@@ -70,44 +70,62 @@ Orchestrator-owned **system** task cards stay for real board-level work; let WW 
 
 ## Task Lifecycle (every task, no exceptions)
 
+**UUID rule**: TaskWarrior short numeric IDs shift whenever other tasks complete. They are
+display-only. **Always resolve the UUID before starting any lifecycle operation**, then use
+the UUID for every subsequent step. Never carry a numeric ID across two separate commands.
+
 ```bash
+# 0. RESOLVE UUID — do this once, before anything else
+#    Use the numeric ID only here; use $UUID for every step below.
+UUID=$(TASKRC=... task <numeric-id> _uuid)
+# Verify you have the right task:
+TASKRC=... task $UUID
+
 # 1. CREATE
-TASKRC=... task add "description" project:newent +tag priority:H \
+TASKRC=... task add "description" project:ww-development +tag priority:H \
   schemachange:none testcoverage:partial breakingchange:none
+# Then immediately resolve UUID as above.
 
 # 2. START  (timew auto-fires via on-modify hook)
-TASKRC=... TIMEWDB=... task start <id>
+TASKRC=... TIMEWDB=... task start $UUID
 
 # 3. ANNOTATE during work
-TASKRC=... task <id> annotate "finding: ..."
+TASKRC=... task $UUID annotate "finding: ..."
 
 # 4. UPDATE UDAs on completion
-TASKRC=... task <id> modify deviations:"..." changelognote:"[YYYY-MM-DD] ..." docimpact:...
+TASKRC=... task $UUID modify deviations:"..." changelognote:"[YYYY-MM-DD] ..." docimpact:...
 
 # 5. JOURNAL
-jrnl --config-file $WW_BASE/profiles/$WW_PROFILE/jrnl.yaml "TASK-<id>: summary. @newent @done"
+jrnl --config-file $WW_BASE/profiles/$WW_PROFILE/jrnl.yaml "TASK-<card-id>: summary. @ww-development @done"
 
 # 6. STOP  (timew auto-stops)
-TASKRC=... TIMEWDB=... task stop <id>
+TASKRC=... TIMEWDB=... task stop $UUID
 
 # 7. LEDGER entry (see ledger-accounts.md for format)
 # append to $WW_BASE/profiles/$WW_PROFILE/ledgers/$WW_PROFILE.journal
 
 # 8. DONE
-TASKRC=... task done <id>
+TASKRC=... task done $UUID
 ```
+
+**Why**: completing any task renumbers all remaining short IDs. Starting task "9" before
+closing tasks 11 and 12 is safe; doing it after risks operating on a different task entirely.
+UUID is the only stable reference across the full lifecycle.
 
 ---
 
 ## Parallel Sub-Agent Time Tracking
 
-1. Record wall-clock start before spawning: `START=$(date -u +%s)`
-2. `task stop <parent>` — stop parent in timew before spawning
-3. Each sub-agent task gets `task start` → timew tracks independently
-4. On all complete: `END=$(date -u +%s)`; compute `ELAPSED=$(( (END-START)/60 ))m`
-5. `task stop <sub-a>; task stop <sub-b>`
-6. `task modify <parent> timetracked:${ELAPSED}`
-7. Tag all sub-agent tasks `+parallel` — excluded from aggregate totals via filter
+Resolve all UUIDs before spawning — IDs can shift while sub-agents run.
+
+1. Resolve UUIDs: `PARENT_UUID=$(TASKRC=... task <id> _uuid)`
+2. Record wall-clock start: `START=$(date -u +%s)`
+3. `task stop $PARENT_UUID` — stop parent in timew before spawning
+4. Each sub-agent task: resolve UUID, then `task start $UUID` → timew tracks independently
+5. On all complete: `END=$(date -u +%s)`; compute `ELAPSED=$(( (END-START)/60 ))m`
+6. `task stop $SUB_A_UUID; task stop $SUB_B_UUID`
+7. `task modify $PARENT_UUID timetracked:${ELAPSED}`
+8. Tag all sub-agent tasks `+parallel` — excluded from aggregate totals via filter
 
 **Rule**: `timetracked` UDA on parent = authoritative wall-clock. Sub-agent values = attribution only.
 
@@ -118,7 +136,7 @@ TASKRC=... task done <id>
 Before creating a new UDA:
 1. Check `$WW_BASE/resources/udas/uda-inventory.md` (cross-project inventory, pending task wwdev-5) — reuse if a match exists
 2. Check this project's `uda-registry.md` — avoid duplication within project
-3. Check default wwdev UDAs in `$WW_BASE/profiles/wwdev/.taskrc`
+3. Check default ww-development UDAs in `$WW_BASE/profiles/ww-development/.taskrc`
 4. Only then create a new one; add it to both `.taskrc` and `uda-registry.md` in the same pass
 5. Append to `$WW_BASE/resources/udas/uda-inventory.md` once that file exists
 
@@ -131,6 +149,19 @@ Before defining a new account or commodity:
 2. Check this project's `ledger-accounts.md`
 3. Only then define; add to `ledger-accounts.md` and journal in the same pass
 4. Append to `$WW_BASE/resources/ledgers/ledger-inventory.md` once that file exists
+
+---
+
+## Pushing Code Changes to ww-dev Install
+
+After editing code in `babb/repos/ww`, push to the dev runtime without reinstalling:
+
+```bash
+cd /Users/mp/Documents/Vaults/babb/repos/ww
+WW_INSTALL_DIR=~/ww-dev ./install.sh --force
+```
+
+This copies `bin/`, `lib/`, `scripts/`, `services/`, `resources/`, `config/`, `functions/`, `tools/`, `system/` — **never touches `profiles/`**. The browser picks up changes on next page reload.
 
 ---
 

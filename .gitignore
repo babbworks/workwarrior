@@ -70,3 +70,8 @@ services/bookbuilder
 
 # Legacy devsystem (superseded by system/)
 devsystem/
+
+# Warlock: task-warlock install dirs (runtime, ~200MB+)
+tools/warlock/source/
+tools/warlock/settings/
+resources/inventory/
