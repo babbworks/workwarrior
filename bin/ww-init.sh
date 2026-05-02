@@ -44,12 +44,13 @@ fi
 alias p='profile'
 alias p-none='deactivate_task_profile'
 
+
 # ============================================================================
 # STARTUP STATUS
 # ============================================================================
 
 _ww_startup_status() {
-  local profiles_dir="$WW_BASE/profiles"
+  local profiles_dir="${WW_BASE:?WW_BASE not set}/profiles"
   local profiles=()
 
   if [[ -d "$profiles_dir" ]]; then
@@ -61,14 +62,15 @@ _ww_startup_status() {
   if [[ ${#profiles[@]} -eq 0 ]]; then
     echo "  ww  ·  no profiles yet  ·  get started: profile create <name>"
   else
-    local sorted_profiles=()
-    while IFS= read -r name; do
-      sorted_profiles+=("$name")
-    done < <(printf '%s\n' "${profiles[@]}" | sort)
-    local list
-    list=$(printf '%s  ' "${sorted_profiles[@]}")
-    echo "  ww  ·  profiles: ${list%  }  ·  activate: p-<name>"
-  fi
+  local list
+  list=$(
+    printf '%s\n' "${profiles[@]}" |
+    sort |
+    paste -sd '  ' -
+  )
+
+  echo "  ww  ·  profiles: ${list}  ·  activate: p-<name> (e.g. p-work)"
+fi
 }
 
 # Startup status intentionally disabled to keep new terminals quiet.

@@ -28,6 +28,7 @@ source "$SCRIPT_DIR/lib/dependency-installer.sh"
 NON_INTERACTIVE=0
 FORCE_INSTALL=0
 SKIP_DEPS=0
+INSTALL_ALIAS=""
 
 show_install_usage() {
   cat << EOF
@@ -141,19 +142,24 @@ ask_install_dir() {
   echo ""
 }
 
-confirm_installation() {
+prompt_install_alias() {
   if (( NON_INTERACTIVE == 1 )); then
+    INSTALL_ALIAS=""
     return 0
   fi
 
-  echo "This will install workwarrior to: $WW_INSTALL_DIR"
   echo ""
-  read -p "Continue with installation? (yes/no): " confirm
+  read -rp "Command name for this installation (optional, Enter to skip): " alias_input
 
-  if [[ "$confirm" != "yes" ]]; then
-    log_info "Installation cancelled"
-    exit 0
+  # normalize whitespace
+  alias_input="$(echo "$alias_input" | xargs)"
+
+  if [[ -z "$alias_input" ]]; then
+    INSTALL_ALIAS=""
+    return 0
   fi
+
+  INSTALL_ALIAS="$alias_input"
 }
 
 handle_existing_installation() {
@@ -264,10 +270,31 @@ configure_shells() {
   mapfile -t rc_files < <(get_shell_rc_files)
 
   local configured=0
+
   for rc_file in "${rc_files[@]}"; do
     if add_ww_to_shell_rc "$rc_file"; then
       ((configured++))
     fi
+
+    # --- Create wrapper function per install ---
+    local install_dir="$WW_INSTALL_DIR"
+
+    # derive function name from folder
+    local fn_name
+    fn_name="$(basename "$install_dir")"
+
+    # sanitize: hyphens → underscores
+    ffn_name="${fn_name//-/}"
+
+    {
+      echo ""
+      echo "# Workwarrior instance: $install_dir"
+      echo "$fn_name() {"
+      echo "  env WW_BASE=\"$install_dir\" \"$install_dir/bin/ww\" \"\$@\""
+      echo "}"
+    } >> "$rc_file"
+
+    log_info "Added wrapper function '$fn_name' to $(basename "$rc_file")"
   done
 
   if (( configured > 0 )); then
@@ -496,6 +523,8 @@ main() {
 
   # Ask for install directory before showing the overview (overview uses the path)
   ask_install_dir
+
+  prompt_install_alias
 
   show_installation_overview
 
