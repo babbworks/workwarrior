@@ -1,0 +1,14 @@
+retrieve or load Toolwarrior taskrc profile | id:28dfe832dd490ee40a3b35c90c2c0a4ebc7615f8
+check need to install vit | id:494505607ce6154ddedcff6cae201b40d7b9cd8a
+create default task folder within tasks ie move files into default folder | id:5f72b55186aab81083bf87911e0425232b9b9117
+examine inclusion of Q alternative as list of Questions utilizing the T TODO CLT | id:6356ce405bc64d4ad9d36cacd05643dda1b441e4
+confirm unique t todo lists and develop scripts for listing them and creating them within workwarrior | id:7dee16677d4091fddbd81b2e2224befadd5c31e4
+figure out how to make T TODO list command order list with created and modified, may need to incorproate a timestamp and recode original file | id:85050929f8cfa3d991812580ab40815782b06760
+convert tprofile aliases all with prefixes just p | id:92f7f778ec5642f567a7f3d9e6f1214cb217cf90
+use of tt could bring up list of all existing TODO lists | id:93deb081348f6428feb643de8a4eb8733460dc31
+need to modify TODO script so multiple tasks can be finished at once | id:96a9afa97bf34017ae23b01e4979019a8dda699d
+check need to install taskwarrior-tui | id:ae6e76b354885623e1ddad95ea42bed41e75039e
+investigate why tasksh not working also maybe due to WW profile | id:bdbb288274a95dd6e20897cd5c198d21650b011c
+adjust direct tinmewarriordb call commands | id:d6ea04c1252c3ae4f6cd7d6946bbfc66c6e3fe07
+ensure autocreation of to do list happens when new WW profile created | id:e45ea01313f4626b160ced634a84aa38b06855df
+How to exit workwarrior profiles | id:f9c686b3bce32138f8e816683f8a8edebcb50568

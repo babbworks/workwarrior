@@ -1,0 +1,16 @@
+# AI Access Control Configuration
+#
+# Controls how and where LLMs have access points in the system.
+# Managed via CTRL panel in browser UI.
+
+mode: off
+
+# Which features can use AI
+access_points:
+  cmd_ai: true
+  sword_ai: false    # Sword --ai flag for semantic task splitting
+  questions_ai: false # Questions template AI suggestions
+  saves_ai: true    # BookBuilder/Saves AI analysis
+
+# Provider preference (reads from config/models.yaml)
+preferred_provider: ollama

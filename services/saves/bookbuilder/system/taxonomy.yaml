@@ -1,0 +1,216 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# bookbuilder / system / taxonomy.yaml
+#
+# The primary classification schema for all ingested items.
+#
+# HOW IT WORKS
+#   Every item gets:
+#     categories[]    — one or more paths from this file  (e.g. "ai_ml/ai_tools")
+#     tech_refs{}     — cross-cutting tech extraction (see TECH STACK section)
+#
+#   An item can belong to multiple categories (e.g. a tweet about using Rust
+#   for a local LLM tool would get  ai_ml/ai_infra  +  tech_refs.languages: Rust).
+#
+# EDITING
+#   - Add new subcategories freely; the pipeline will pick them up on next run.
+#   - The `keywords` list seeds the AI classifier — add domain terms you know.
+#   - The `tech_stack` section is special: do not delete it or its subcategories.
+#     The pipeline extracts tech_refs separately from primary classification.
+#   - Auto-discovered clusters live in system/clusters.json — don't edit that by hand.
+#
+# VERSION
+#   Bump `version` whenever you make a structural change (not just adding keywords).
+# ─────────────────────────────────────────────────────────────────────────────
+
+version: "1.0"
+updated: "2026-04-06"
+
+categories:
+
+  # ── TECH STACK (SPECIAL) ────────────────────────────────────────────────────
+  # Cross-cutting: any item mentioning a tool/package/repo/language gets a
+  # tech_refs block in its analysis regardless of primary category.
+  # Items can ALSO be primarily classified here when tech is the main subject.
+  tech_stack:
+    label: "Tech Stack"
+    description: >
+      Tools, packages, repos, programming languages, frameworks, hardware,
+      and developer platforms. High-priority classification — the pipeline
+      runs a dedicated tech-extraction pass on every item.
+    priority: high
+    subcategories:
+      languages:
+        label: "Programming Languages"
+        keywords: [python, rust, typescript, javascript, go, swift, zig, c++, julia, ruby, elixir, kotlin, scala]
+        examples: [Python, Rust, TypeScript, Go, Swift, Zig, "C++"]
+      frameworks:
+        label: "Frameworks & Libraries"
+        keywords: [react, nextjs, fastapi, pytorch, tensorflow, jax, langchain, llamaindex, tailwind, svelte, django, flask, axum, tokio]
+        examples: [React, FastAPI, PyTorch, LangChain, Tailwind]
+      devtools:
+        label: "Dev Tools & Environments"
+        keywords: [cursor, neovim, vim, vscode, docker, kubernetes, git, github actions, ci/cd, terminal, cli, shell, zsh, tmux, warp]
+        examples: [Cursor, Neovim, Docker, "GitHub Actions", Warp]
+      repos:
+        label: "Repos & Packages"
+        description: "Specific GitHub repos, npm/pip/cargo/brew packages"
+        keywords: [github.com, open source, open-source, package, library, crate, npm, pip, brew, cargo, pypi]
+        examples: ["owner/repo", "pip install X", "npm i X"]
+      hardware:
+        label: "Hardware & Silicon"
+        keywords: [apple silicon, m1, m2, m3, m4, h100, a100, gpu, tpu, npu, nvidia, amd, arm, risc-v, raspberry pi]
+        examples: ["Apple Silicon", "M4 Max", "H100", TPU]
+      platforms:
+        label: "Platforms & Cloud Services"
+        keywords: [github, vercel, cloudflare, aws, gcp, azure, hugging face, replicate, fly.io, railway, supabase, neon, modal]
+        examples: [GitHub, Vercel, Cloudflare, "Hugging Face"]
+      apps:
+        label: "Apps & Products"
+        keywords: [obsidian, raycast, arc, linear, notion, figma, replit, cursor, perplexity, claude, chatgpt]
+        examples: [Obsidian, Raycast, Arc, Linear, Replit]
+
+  # ── AI & MACHINE LEARNING ───────────────────────────────────────────────────
+  ai_ml:
+    label: "AI & Machine Learning"
+    description: "Models, tools, research papers, agents, inference, training"
+    keywords: [llm, gpt, claude, gemini, llama, mistral, embedding, transformer, rag, fine-tune, inference, agent, mcp, prompt, multimodal, diffusion]
+    subcategories:
+      ai_tools:
+        label: "AI Tools & Products"
+        keywords: [ai app, ai tool, ai wrapper, copilot, assistant, ai coding, ai agent]
+      ai_research:
+        label: "AI Research & Papers"
+        keywords: [paper, arxiv, research, benchmark, eval, alignment, scaling law]
+      ai_infra:
+        label: "AI Infrastructure"
+        keywords: [serving, inference server, mlops, training run, gpu cluster, vllm, ollama, mlx, quantization, gguf]
+      ai_concepts:
+        label: "AI Concepts & Theory"
+        keywords: [attention, context window, token, architecture, emergent, capability, memory, retrieval]
+
+  # ── SOFTWARE DEVELOPMENT ────────────────────────────────────────────────────
+  software_dev:
+    label: "Software Development"
+    description: "Engineering practices, architecture, systems, web dev"
+    keywords: [software, engineering, api, backend, frontend, database, performance, refactor, architecture, distributed, concurrency]
+    subcategories:
+      frontend:
+        label: "Frontend & UI"
+        keywords: [react, component, css, ui, ux, design system, web, browser, dom, hydration]
+      backend:
+        label: "Backend & Systems"
+        keywords: [server, api, database, sql, postgres, redis, queue, microservice, grpc, rest, latency, throughput]
+      systems:
+        label: "Systems Programming"
+        keywords: [memory, allocator, kernel, os, filesystem, network, async, concurrency, unsafe, low-level]
+      security:
+        label: "Security"
+        keywords: [vulnerability, exploit, cve, auth, zero trust, encryption, tls, oauth, pentest]
+
+  # ── KNOWLEDGE & THINKING ────────────────────────────────────────────────────
+  knowledge_thinking:
+    label: "Knowledge & Thinking"
+    description: "PKM, note-taking, writing, reasoning, research methods"
+    keywords: [pkm, obsidian, note-taking, zettelkasten, writing, thinking, mental model, second brain, research, reading, learning]
+    subcategories:
+      pkm:
+        label: "Personal Knowledge Management"
+        keywords: [obsidian, roam, logseq, notion, zettelkasten, evergreen, note, vault, linking]
+      writing:
+        label: "Writing & Communication"
+        keywords: [essay, writing, prose, clarity, newsletter, blog, publish, voice]
+      reasoning:
+        label: "Reasoning & Mental Models"
+        keywords: [framework, model, decision, heuristic, bias, logic, first principles, inversion]
+
+  # ── BUSINESS & STARTUPS ─────────────────────────────────────────────────────
+  business:
+    label: "Business & Startups"
+    description: "Entrepreneurship, product, growth, funding, strategy"
+    keywords: [startup, founder, product, growth, saas, revenue, mrr, funding, vc, strategy, market, user, customer]
+    subcategories:
+      product:
+        label: "Product & UX"
+        keywords: [product, user research, roadmap, feature, pm, ux, design, iteration]
+      growth:
+        label: "Growth & Marketing"
+        keywords: [growth, acquisition, retention, conversion, seo, content, distribution]
+      finance:
+        label: "Finance & Funding"
+        keywords: [vc, funding, seed, series a, valuation, revenue, profit, cap table]
+
+  # ── CULTURE & MEDIA ─────────────────────────────────────────────────────────
+  culture_media:
+    label: "Culture & Media"
+    description: "Art, music, film, literature, history, ideas"
+    keywords: [music, art, film, book, painting, classical, literature, history, culture, aesthetics, craft]
+    subcategories:
+      music:
+        label: "Music"
+        keywords: [music, classical, jazz, composer, orchestra, piano, album, song, listen, rachmaninov, beethoven]
+      visual_art:
+        label: "Visual Art & Design"
+        keywords: [painting, sculpture, illustration, design, photography, gallery, artist, visual]
+      film_media:
+        label: "Film & Media"
+        keywords: [film, movie, documentary, podcast, video, youtube, series, director]
+      books:
+        label: "Books & Writing"
+        keywords: [book, novel, author, read, fiction, nonfiction, essay, biography]
+
+  # ── FAITH & PHILOSOPHY ──────────────────────────────────────────────────────
+  faith_philosophy:
+    label: "Faith & Philosophy"
+    description: "Theology, spirituality, ethics, existential questions"
+    keywords: [god, christ, scripture, prayer, faith, theology, church, meaning, ethics, stoic, virtue, soul, transcendence]
+    subcategories:
+      theology:
+        label: "Theology & Religion"
+        keywords: [god, christ, scripture, bible, prayer, church, worship, protestant, catholic, orthodox, theology]
+      philosophy:
+        label: "Philosophy & Ethics"
+        keywords: [ethics, virtue, meaning, stoic, existential, consciousness, free will, justice, truth, beauty]
+
+  # ── HEALTH & BODY ───────────────────────────────────────────────────────────
+  health_body:
+    label: "Health & Body"
+    description: "Fitness, nutrition, sleep, longevity, mental health"
+    keywords: [fitness, sleep, nutrition, running, lifting, longevity, health, medicine, diet, exercise, mental health, stress]
+    subcategories:
+      fitness:
+        label: "Fitness & Training"
+      nutrition:
+        label: "Nutrition & Diet"
+      longevity:
+        label: "Longevity & Medicine"
+
+  # ── PEOPLE & RELATIONSHIPS ──────────────────────────────────────────────────
+  people_relationships:
+    label: "People & Relationships"
+    description: "Family, parenting, marriage, community, social dynamics"
+    keywords: [family, parenting, marriage, children, community, friendship, social, relationship, love, father, mother]
+
+  # ── SCIENCE & NATURE ────────────────────────────────────────────────────────
+  science_nature:
+    label: "Science & Nature"
+    description: "Physics, biology, space, environment, mathematics"
+    keywords: [space, physics, biology, chemistry, mathematics, climate, nature, science, nasa, astronomy, evolution]
+    subcategories:
+      space:
+        label: "Space & Astronomy"
+        keywords: [nasa, spacex, astronaut, orbit, rocket, moon, mars, iss, launch]
+      biology:
+        label: "Biology & Life Sciences"
+      math:
+        label: "Mathematics"
+
+  # ── SOCIETY & POLITICS ──────────────────────────────────────────────────────
+  society_politics:
+    label: "Society & Politics"
+    description: "Economics, policy, geopolitics, social commentary"
+    keywords: [policy, politics, economy, government, democracy, society, inequality, law, rights, movement, protest]
+
+  # ── UNCATEGORIZED ───────────────────────────────────────────────────────────
+  _uncategorized:
+    label: "Uncategorized"
+    description: "Catch-all for items that don't match any category above"

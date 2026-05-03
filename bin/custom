@@ -1,0 +1,109 @@
+#!/usr/bin/env bash
+# Custom Services Dispatcher
+# Provides shortcut access to custom services
+# Usage: custom <service> [arguments]
+
+set -e
+
+WW_BASE="${WW_BASE:-$HOME/ww}"
+
+# Source core utilities
+if [[ -f "$WW_BASE/lib/core-utils.sh" ]]; then
+  source "$WW_BASE/lib/core-utils.sh"
+fi
+
+# Main dispatcher
+main() {
+  local service="${1:-}"
+  shift 2>/dev/null || true
+
+  case "$service" in
+    journals)
+      "$WW_BASE/services/custom/configure-journals.sh" "$@"
+      ;;
+    tasks)
+      "$WW_BASE/services/custom/configure-tasks.sh" "$@"
+      ;;
+    times)
+      "$WW_BASE/services/custom/configure-times.sh" "$@"
+      ;;
+    ledgers)
+      "$WW_BASE/services/custom/configure-ledgers.sh" "$@"
+      ;;
+    issues)
+      "$WW_BASE/services/custom/configure-issues.sh" "$@"
+      ;;
+    list|"")
+      echo "Available custom services:"
+      echo ""
+      for svc in "$WW_BASE/services/custom/"*.sh; do
+        if [[ -f "$svc" && -x "$svc" ]]; then
+          local name
+          name="$(basename "$svc" .sh)"
+          # Extract description from service file
+          local desc
+          desc=$(grep "^# Description:" "$svc" | sed 's/# Description: //')
+          if [[ -n "$desc" ]]; then
+            echo "  $name - $desc"
+          else
+            echo "  $name"
+          fi
+        fi
+      done
+      echo ""
+      echo "Usage: custom <service-name>"
+      echo "   or: ww custom <service-name>"
+      echo "   or: j custom (for journal configuration)"
+      echo ""
+      ;;
+    help|-h|--help)
+      cat << EOF
+Custom Services Dispatcher
+
+Usage: custom <service> [arguments]
+
+Available Services:
+  journals   Configure journal settings (requires active profile)
+  tasks      Configure TaskWarrior settings (requires active profile)
+  times      Configure TimeWarrior settings (requires active profile)
+  ledgers    Configure ledger settings (requires active profile)
+  issues     Configure bugwarrior issue synchronization (requires active profile)
+
+Shortcuts:
+  custom journals       Configure journal settings
+  custom tasks          Configure TaskWarrior settings
+  custom times          Configure TimeWarrior settings
+  custom ledgers        Configure ledger settings
+  custom issues         Configure issue synchronization
+  j custom              Same as 'custom journals'
+  t custom              Same as 'custom tasks'
+  a custom              Same as 'custom times'
+  l custom              Same as 'custom ledgers'
+  i custom              Same as 'custom issues'
+  ww custom journals    Same as 'custom journals'
+  ww custom tasks       Same as 'custom tasks'
+  ww custom times       Same as 'custom times'
+  ww custom ledgers     Same as 'custom ledgers'
+  ww custom issues      Same as 'custom issues'
+
+Examples:
+  custom journals       Open journal configuration
+  custom times          Open TimeWarrior configuration
+  custom ledgers        Open ledger configuration
+  custom issues         Open issues configuration
+  custom list           List available custom services
+
+Note: Most custom services require an active profile.
+Activate a profile with: p-<profile-name>
+
+EOF
+      ;;
+    *)
+      log_error "Unknown custom service: $service"
+      echo "Run 'custom list' to see available services"
+      exit 1
+      ;;
+  esac
+}
+
+main "$@"

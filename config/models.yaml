@@ -1,0 +1,35 @@
+models:
+  default: llama3-2-latest
+  llama3:
+    provider: ollama
+    id: llama3.2:latest
+    notes: Local llama3.2 3B
+  gemma3:
+    provider: ollama
+    id: gemma3:1b
+    notes: Local gemma3 1B
+  gemma3-1b:
+    provider: ollama
+    id: gemma3:1b
+    notes: "auto-detected"
+  llama3-2-latest:
+    provider: ollama
+    id: llama3.2:latest
+    notes: "auto-detected"
+  gemma4-31b-cloud:
+    provider: ollama
+    id: gemma4:31b-cloud
+    notes: "auto-detected"
+  gpt-oss-120b-cloud:
+    provider: ollama
+    id: gpt-oss:120b-cloud
+    notes: "auto-detected"
+providers:
+  openai:
+    type: openai
+    base_url: https://api.openai.com/v1
+    api_key_env: OPENAI_API_KEY
+  ollama:
+    type: ollama
+    base_url: http://localhost:11434
+    api_key_env: ""

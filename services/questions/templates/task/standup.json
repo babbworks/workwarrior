@@ -1,0 +1,16 @@
+{
+  "name": "Standup Task",
+  "description": "Create a task from standup notes",
+  "service": "task",
+  "questions": [
+    {"id": "q1", "text": "Task description", "type": "text", "required": true},
+    {"id": "q2", "text": "Project", "type": "text", "required": false},
+    {"id": "q3", "text": "Priority (H/M/L)", "type": "text", "required": false},
+    {"id": "q4", "text": "Blockers or dependencies", "type": "text", "required": false}
+  ],
+  "udas": [],
+  "output_format": {
+    "title": "Standup Task - {date}",
+    "tags": ["task", "standup"]
+  }
+}

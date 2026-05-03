@@ -1,0 +1,15 @@
+{
+  "name": "Daily Reflection",
+  "description": "End-of-day reflection journal entry",
+  "service": "journal",
+  "questions": [
+    {"id": "q1", "text": "What did you accomplish today?", "type": "text", "required": true},
+    {"id": "q2", "text": "What challenges did you face?", "type": "text", "required": false},
+    {"id": "q3", "text": "What will you focus on tomorrow?", "type": "text", "required": false},
+    {"id": "q4", "text": "Any notes or observations?", "type": "text", "required": false}
+  ],
+  "output_format": {
+    "title": "Daily Reflection - {date}",
+    "tags": ["journal", "daily"]
+  }
+}

@@ -1,0 +1,30 @@
+# Profile Metadata
+# All fields optional - fill in what's relevant to you
+#
+# Edit with: profile meta edit
+# Or set individual fields: profile meta set identity.description "My profile"
+
+identity:
+  display_name: ""        # Human-readable name for this profile
+  description: ""         # What this profile is for
+
+contact:
+  name: ""                # Contact person name
+  email: ""               # Contact email
+  phone: ""               # Contact phone
+
+organization:
+  company: ""             # Organization/company name
+  role: ""                # Role/position/title
+  website: ""             # Related website URL
+
+notes: ""                 # Free-form notes about this profile
+
+custom: {}                # Add your own key-value pairs here
+                          # Example: custom: { client_id: "ABC123", region: "US-East" }
+
+# ============================================================================
+# Auto-populated fields (do not edit manually)
+# ============================================================================
+created: ""               # ISO date when profile was created
+modified: ""              # ISO date when metadata was last updated

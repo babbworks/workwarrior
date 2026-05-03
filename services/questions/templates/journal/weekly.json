@@ -1,0 +1,16 @@
+{
+  "name": "Weekly Review",
+  "description": "Weekly review and planning journal entry",
+  "service": "journal",
+  "questions": [
+    {"id": "q1", "text": "Key wins this week?", "type": "text", "required": true},
+    {"id": "q2", "text": "What didn't go well?", "type": "text", "required": false},
+    {"id": "q3", "text": "Top priorities for next week?", "type": "text", "required": true},
+    {"id": "q4", "text": "Blockers or risks?", "type": "text", "required": false},
+    {"id": "q5", "text": "People to follow up with?", "type": "text", "required": false}
+  ],
+  "output_format": {
+    "title": "Weekly Review - {date}",
+    "tags": ["journal", "weekly"]
+  }
+}

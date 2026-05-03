@@ -1,0 +1,45 @@
+# TaskWarrior Configuration Template
+# This is a minimal default template for new profiles
+# Paths will be updated automatically during profile creation
+
+# Data and hooks locations (will be updated to absolute paths)
+data.location=~/.task
+hooks.location=~/.task/hooks
+hooks=on
+
+# Basic settings
+verbose=blank,footnote,label,new-id,affected,edit,special,project,sync,unwait
+
+# TimeWarrior integration UDA
+uda.timetracked.type=duration
+uda.timetracked.label=Time-Tracked
+
+# Color theme (uncomment one to use)
+#include dark-256.theme
+#include light-256.theme
+#include solarized-dark-256.theme
+#include solarized-light-256.theme
+
+# Default report settings
+report.next.columns=id,start.age,entry.age,depends,priority,project,tags,recur,scheduled.countdown,due.relative,until.remaining,description,urgency
+report.next.labels=ID,Active,Age,Deps,P,Project,Tag,Recur,S,Due,Until,Description,Urg
+
+# Urgency coefficients
+urgency.user.project.coefficient=5.0
+urgency.user.tag.next.coefficient=15.0
+urgency.uda.priority.H.coefficient=6.0
+urgency.uda.priority.M.coefficient=3.9
+urgency.uda.priority.L.coefficient=1.8
+urgency.age.coefficient=2.0
+urgency.annotations.coefficient=1.0
+urgency.tags.coefficient=1.0
+urgency.project.coefficient=1.0
+urgency.active.coefficient=4.0
+urgency.scheduled.coefficient=5.0
+urgency.waiting.coefficient=-3.0
+urgency.blocked.coefficient=-5.0
+urgency.due.coefficient=12.0
+
+# Context definitions (optional)
+context.work=+work or +office
+context.home=+home or +personal
