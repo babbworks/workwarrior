@@ -982,8 +982,8 @@ run_dependency_installer() {
 
       # pipx: only needed if jrnl or bugwarrior will be installed
       if [[ "$tool" == "pipx" ]]; then
-        local jrnl_s="${DEP_STATUS[${tool_dep_index[jrnl]}]}"
-        local bw_s="${DEP_STATUS[${tool_dep_index[bugwarrior]}]}"
+        local jrnl_s="${DEP_STATUS[$(_tool_dep_idx jrnl)]}"
+        local bw_s="${DEP_STATUS[$(_tool_dep_idx bugwarrior)]}"
         if [[ "$jrnl_s" != "missing" && "$bw_s" != "missing" ]]; then
           printf "  –  %-12s not needed (jrnl and bugwarrior already installed)\n" "$tool"
           ((skipped_count++))

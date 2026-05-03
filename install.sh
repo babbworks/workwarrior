@@ -195,6 +195,9 @@ prompt_install_alias() {
 
   INSTALL_ALIAS="$alias_input"
   COMMAND_NAME="$alias_input"
+  # Update config home to match the new command name
+  export WW_CONFIG_HOME="$HOME/.config/$COMMAND_NAME"
+  export WW_REGISTRY_DIR="$WW_CONFIG_HOME/registry"
 }
 
 prompt_install_options() {
@@ -464,6 +467,7 @@ for f in glob.glob(os.path.join(reg, '*.json')):
 PY
 }
 
+unalias ${COMMAND_NAME} 2>/dev/null || true
 ${COMMAND_NAME}() {
   # @instance [profile] [command...] routing
   if [[ "\${1:-}" == @* ]]; then
@@ -800,7 +804,7 @@ offer_dependency_installation() {
   read -p "Would you like to check/install external dependencies? [y/n]: " install_deps
 
   if [[ "$install_deps" == "y" || "$install_deps" == "Y" ]]; then
-    run_dependency_installer
+    run_dependency_installer || log_warning "Dependency check encountered issues — run 'ww deps install' after setup to retry"
   else
     log_info "Skipping dependency installation"
     echo ""
