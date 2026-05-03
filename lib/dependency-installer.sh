@@ -896,19 +896,23 @@ run_dependency_installer() {
 
   # Map tool name → index in DEP arrays (set by check_all_dependencies)
   # DEP order: TaskWarrior TimeWarrior Hledger JRNL Bugwarrior Python3 pipx
-  declare -A tool_dep_index
-  tool_dep_index[task]=0
-  tool_dep_index[timew]=1
-  tool_dep_index[hledger]=2
-  tool_dep_index[jrnl]=3
-  tool_dep_index[bugwarrior]=4
-  tool_dep_index[python3]=5
-  tool_dep_index[pipx]=6
+  _tool_dep_idx() {
+    case "$1" in
+      task)      echo 0 ;;
+      timew)     echo 1 ;;
+      hledger)   echo 2 ;;
+      jrnl)      echo 3 ;;
+      bugwarrior) echo 4 ;;
+      python3)   echo 5 ;;
+      pipx)      echo 6 ;;
+    esac
+  }
 
   local installed_count=0 skipped_count=0 failed_count=0
 
   for tool in "${tool_order[@]}"; do
-    local idx="${tool_dep_index[$tool]}"
+    local idx
+    idx=$(_tool_dep_idx "$tool")
     local installed_version="${DEP_INSTALLED_VERSIONS[$idx]}"
     local min_version="${DEP_MIN_VERSIONS[$idx]}"
     local status="${DEP_STATUS[$idx]}"

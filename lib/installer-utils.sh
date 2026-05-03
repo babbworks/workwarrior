@@ -140,10 +140,14 @@ get_shell_rc_files() {
   [[ -f "$SHELL_RC_BASH" ]] && rc_files+=("$SHELL_RC_BASH")
   [[ -f "$SHELL_RC_ZSH" ]] && rc_files+=("$SHELL_RC_ZSH")
 
-  # If neither exists, create .bashrc as default
+  # If neither exists, create the right default for the current shell
   if (( ${#rc_files[@]} == 0 )); then
-    touch "$SHELL_RC_BASH"
-    rc_files+=("$SHELL_RC_BASH")
+    local default_shell
+    default_shell="${SHELL:-/bin/bash}"
+    case "$default_shell" in
+      */zsh) touch "$SHELL_RC_ZSH"; rc_files+=("$SHELL_RC_ZSH") ;;
+      *)     touch "$SHELL_RC_BASH"; rc_files+=("$SHELL_RC_BASH") ;;
+    esac
   fi
 
   printf '%s\n' "${rc_files[@]}"
