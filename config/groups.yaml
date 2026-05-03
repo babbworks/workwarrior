@@ -1,0 +1,25 @@
+# Profile groups — ww group list/show/create/add/remove/delete
+# Groups are collections of profiles for batch operations.
+#
+# Example:
+#   groups:
+#     work:
+#       profiles:
+#         - acme
+#         - consulting
+#     personal:
+#       profiles:
+#         - home
+#         - hobbies
+
+groups: {}
+  wwdev-group-1:
+    profiles:
+      - wwdev
+      - clark
+  test:
+    profiles:
+      - wwdev
+  ww-beta:
+    profiles:
+      - ww-development

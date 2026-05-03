@@ -1,0 +1,57 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# bookbuilder / system / pipeline.yaml
+# Controls which stages run and their behaviour.
+# Each stage is independently re-runnable — completed items are skipped unless
+# --force is passed to the CLI.
+# ─────────────────────────────────────────────────────────────────────────────
+
+stages:
+
+  ingest:
+    enabled: true
+    # Deduplication: items with the same (url) are merged across sources.
+    # If the same tweet appears in both bookmarks and likes, source is set to "both".
+    dedup_by: url
+
+  fetch:
+    enabled: true
+    # Domains that will never be fetched (media, social, paywalls etc.)
+    # Full list lives in system/skip_domains.txt — this is an override for quick adds.
+    extra_skip_domains: []
+    # Fetch the article linked from cardUrl if present
+    fetch_card_url: true
+    # Fetch URLs found in tweet text (links[])
+    fetch_text_links: true
+    # Download tweet images (stored in cache/images/)
+    fetch_images: true
+
+  analyze:
+    enabled: true
+    # Which fields are sent to the AI for analysis
+    input_fields: [text, fetched_title, fetched_text_excerpt, card_title, card_desc]
+    # Stages within analyze (all run in a single batched AI call per item)
+    tasks:
+      - summary          # 1–2 sentence summary
+      - tags             # 3–6 keyword tags
+      - entities         # people, tools, concepts, orgs
+      - tech_refs        # dedicated tech extraction pass (tools/packages/repos/languages)
+      - categories       # assign taxonomy paths from taxonomy.yaml
+      - quality_score    # 0.0–1.0 relevance/signal score
+
+  cluster:
+    enabled: true
+    # Clustering is run after analyze — groups items by embedding similarity
+    # and writes discovered clusters to system/clusters.json
+    # Existing clusters are updated; new ones are appended; stale ones flagged.
+    recluster_on_rerun: false   # if true, re-clusters all items even if cluster_id exists
+
+  build:
+    enabled: true
+    # Outputs to generate
+    outputs:
+      knowledge_items: true     # knowledge/items/{id}.json
+      topic_digests: true       # knowledge/topics/{cat}/{subcat}.md
+      author_digests: true      # knowledge/authors/{handle}.md
+      tech_registry: true       # knowledge/tech/{tool_slug}.md  ← one file per tool
+      search_index: true        # knowledge/index.json  (Fuse.js ready)
+      site: true                # site/ static HTML

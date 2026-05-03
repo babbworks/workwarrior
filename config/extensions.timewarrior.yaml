@@ -1,0 +1,255 @@
+# TimeWarrior Extensions Registry
+# Scanned from github.com/topics/timewarrior and timewarrior.net/tools/
+# Last updated: 2026-04-10
+
+extensions:
+  # ── Reporting & Analysis ─────────────────────────────────────────────────
+
+  timew-report:
+    name: timew-report
+    description: Python interface for TimeWarrior report data. Base library for building custom reports.
+    author: lauft
+    url: https://github.com/lauft/timew-report
+    language: Python
+    install: pip install timew-report
+    category: reporting
+    stars: 30+
+    status: active
+    rating: high
+    notes: Foundation library — many other extensions depend on this
+
+  billwarrior:
+    name: billwarrior
+    description: Generate invoices in LaTeX from TimeWarrior data. Calculates billable hours per tag.
+    author: sw00
+    url: https://github.com/sw00/billwarrior
+    language: Python
+    install: pip install billwarrior
+    category: reporting
+    stars: 15+
+    status: active
+    rating: medium
+    notes: Useful for freelancers and consultants
+
+  timew-billable:
+    name: timew-billable
+    description: Calculate billable hours from TimeWarrior data with configurable rates.
+    author: trev-dev
+    url: https://github.com/trev-dev/timew-billable
+    language: Nim
+    install: nimble install timew-billable
+    category: reporting
+    stars: 5+
+    status: active
+    rating: medium
+
+  timewarrior-recap:
+    name: timewarrior-recap
+    description: Summarize work hours/minutes spent on specific tags.
+    author: cbe
+    url: https://github.com/cbe/timewarrior-recap
+    language: Python
+    install: pip install timewarrior-recap
+    category: reporting
+    stars: 1
+    status: active
+    rating: low
+
+  timewarrior-balance:
+    name: timewarrior-balance
+    description: Get a balance between allotted and spent hours. Track over/under time.
+    author: guludo
+    url: https://github.com/guludo/timewarrior-balance
+    language: Python
+    install: pip install timewarrior-balance
+    category: reporting
+    stars: 10+
+    status: active
+    rating: high
+    notes: Useful for tracking work hours against contracts
+
+  timewarrior-aggregate:
+    name: timewarrior-aggregate
+    description: Plan a day/week in advance and monitor progress against the plan.
+    author: rameshg87
+    url: https://github.com/rameshg87/timewarrior-aggregate
+    language: Python
+    install: pip install timewarrior-aggregate
+    category: planning
+    stars: 5+
+    status: active
+    rating: medium
+
+  # ── Integration ──────────────────────────────────────────────────────────
+
+  trackwarrior:
+    name: trackwarrior
+    description: Link between TaskWarrior and TimeWarrior — shows time spent in a TW column.
+    author: gkssjovi
+    url: https://github.com/gkssjovi/trackwarrior
+    language: JavaScript
+    install: npm install -g trackwarrior
+    category: integration
+    stars: 20+
+    status: active
+    rating: high
+    notes: Adds time-spent column to task reports
+
+  pomodoro-warriors:
+    name: pomodoro-warriors
+    description: Pomodoro technique with TaskWarrior and TimeWarrior integration.
+    author: cf020031308
+    url: https://github.com/cf020031308/pomodoro-warriors
+    language: Python
+    install: pip install pomodoro-warriors
+    category: integration
+    stars: 53
+    status: maintained
+    rating: high
+    notes: Combines todo management with pomodoro time boxing
+
+  timew-sync-server:
+    name: timew-sync-server
+    description: TimeWarrior synchronization server for multi-device sync.
+    author: GothenburgBitFactory
+    url: https://github.com/niccokunzmann/timew-sync-server
+    language: Go
+    install: go install
+    category: sync
+    stars: 10+
+    status: active
+    rating: high
+    notes: Official-adjacent sync solution
+
+  timew-sync-client:
+    name: timew-sync-client
+    description: TimeWarrior synchronization client.
+    author: niccokunzmann
+    url: https://github.com/niccokunzmann/timew-sync-client
+    language: Python
+    install: pip install timew-sync-client
+    category: sync
+    stars: 5+
+    status: active
+    rating: medium
+
+  # ── UI & Desktop ─────────────────────────────────────────────────────────
+
+  gnome-timewarrior:
+    name: gnome-timewarrior
+    description: GNOME Shell indicator showing current TimeWarrior activity.
+    author: niccokunzmann
+    url: https://github.com/niccokunzmann/gnome-timewarrior
+    language: JavaScript
+    install: manual (GNOME extension)
+    category: desktop
+    stars: 10+
+    status: active
+    rating: medium
+    notes: Linux only
+
+  xfce4-timew-genmon:
+    name: xfce4-timew-genmon
+    description: XFCE4 GenMon plugin for TimeWarrior time tracking widget.
+    author: various
+    url: https://github.com/topics/timewarrior
+    language: Shell
+    install: manual
+    category: desktop
+    stars: 5+
+    status: active
+    rating: low
+    notes: Linux/XFCE only
+
+  # ── Shell & CLI ──────────────────────────────────────────────────────────
+
+  timew-bash-completion:
+    name: timew-bash-completion
+    description: Bash completion for TimeWarrior commands.
+    author: GothenburgBitFactory
+    url: https://github.com/GothenburgBitFactory/timewarrior
+    language: Shell
+    install: included with timewarrior
+    category: shell
+    stars: 1000+
+    status: active
+    rating: high
+    notes: Ships with TimeWarrior itself
+
+  timew-zsh-plugin:
+    name: timew-zsh-plugin
+    description: Zsh plugin for TimeWarrior with aliases and bash completion integration.
+    author: svenXY
+    url: https://github.com/svenXY/timewarrior
+    language: Shell
+    install: oh-my-zsh plugin
+    category: shell
+    stars: 5+
+    status: active
+    rating: medium
+
+  twtools:
+    name: twtools
+    description: CLI tool to enhance TimeWarrior with additional commands and reports.
+    author: fradeve
+    url: https://github.com/fradeve/twtools
+    language: Python
+    install: pip install twtools
+    category: cli
+    stars: 10+
+    status: maintained
+    rating: medium
+
+  # ── Export & Format ──────────────────────────────────────────────────────
+
+  timew-csv:
+    name: timew-csv
+    description: Export TimeWarrior data as CSV with duration and totals.
+    author: various
+    url: https://github.com/topics/timewarrior
+    language: Shell
+    install: manual (bash script)
+    category: export
+    stars: 5+
+    status: active
+    rating: medium
+
+  timew-histogram:
+    name: timew-histogram
+    description: Plot time spent on tags as a histogram.
+    author: various
+    url: https://github.com/topics/timewarrior
+    language: Python
+    install: pip install
+    category: visualization
+    stars: 5+
+    status: active
+    rating: medium
+
+  # ── Flextime & Work Hours ───────────────────────────────────────────────
+
+  timew-flextime:
+    name: timew-flextime
+    description: Flextime tracking extension for TimeWarrior.
+    author: joemat
+    url: https://github.com/joemat/timewarrior-extensions
+    language: Python
+    install: manual
+    category: reporting
+    stars: 5+
+    status: active
+    rating: medium
+    notes: Track flexible working hours against targets
+
+  tock:
+    name: tock
+    description: Powerful time tracking tool for the command line. Alternative/complement to timew.
+    author: various
+    url: https://github.com/topics/timewarrior
+    language: Go
+    install: go install
+    category: alternative
+    stars: 50+
+    status: active
+    rating: high
+    notes: Not a timew extension but a compatible alternative

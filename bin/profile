@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Profile tool entry point
+# Usage: profile [command] [arguments]
+
+WW_BASE="${WW_BASE:-$HOME/ww}"
+
+exec "$WW_BASE/services/profile/profile-tool.sh" "$@"

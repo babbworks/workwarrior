@@ -1,0 +1,49 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# bookbuilder / system / skip_domains.txt
+# One domain per line. URLs matching these will not be fetched.
+# Subdomains are matched automatically (youtube.com matches youtu.be etc.)
+# Lines starting with # are comments.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# X / Twitter (the source — no need to re-fetch)
+x.com
+twitter.com
+
+# Video platforms (no readable text to extract)
+youtube.com
+youtu.be
+vimeo.com
+twitch.tv
+tiktok.com
+rumble.com
+dailymotion.com
+
+# Image / media platforms
+instagram.com
+imgur.com
+pinterest.com
+flickr.com
+
+# App stores / non-article destinations
+apps.apple.com
+play.google.com
+open.spotify.com
+music.apple.com
+
+# Social platforms (no public article content)
+facebook.com
+linkedin.com
+reddit.com
+threads.net
+bsky.app
+mastodon.social
+
+# Podcast / audio only
+podcasts.apple.com
+anchor.fm
+soundcloud.com
+
+# File hosting / binary
+drive.google.com
+dropbox.com
+docs.google.com

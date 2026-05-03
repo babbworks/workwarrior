@@ -1,0 +1,2113 @@
+extensions:
+  - name: "taskwarrior"
+    full_name: "GothenburgBitFactory/taskwarrior"
+    url: "https://github.com/GothenburgBitFactory/taskwarrior"
+    description: "Taskwarrior - Command line Task Management"
+    topics: ["gtd", "task-manager", "taskwarrior", "to-do-list", "todo"]
+    language: "C++"
+    license: "MIT"
+    archived: false
+    updated_at: "2026-02-10T13:32:45Z"
+    status: "active"
+    stars: 5535
+    categories: ["misc"]
+  - name: "taskwarrior-tui"
+    full_name: "kdheepak/taskwarrior-tui"
+    url: "https://github.com/kdheepak/taskwarrior-tui"
+    description: "`taskwarrior-tui`: A terminal user interface for taskwarrior"
+    topics: ["cli", "rust", "taskwarrior", "tui", "tui-rs"]
+    language: "Rust"
+    license: "MIT"
+    archived: false
+    updated_at: "2026-02-09T20:37:32Z"
+    status: "active"
+    stars: 1928
+    categories: ["ui"]
+  - name: "dstask"
+    full_name: "naggie/dstask"
+    url: "https://github.com/naggie/dstask"
+    description: "Git powered terminal-based todo/note manager --  markdown note page per task. Single binary!"
+    topics: ["bash", "cli", "command-line", "git", "gtd", "notes", "notes-app", "notes-management-system", "notes-tool", "sync", "task", "taskwarrior", "terminal", "terminal-based", "todo", "zsh"]
+    language: "Go"
+    license: "MIT"
+    archived: false
+    updated_at: "2026-01-10T12:21:29Z"
+    status: "active"
+    stars: 1127
+    categories: ["server", "sync"]
+  - name: "taskwiki"
+    full_name: "tbabej/taskwiki"
+    url: "https://github.com/tbabej/taskwiki"
+    description: "Proper project management with Taskwarrior in vim."
+    topics: ["plugin", "python", "taskwarrior", "todolist", "vim"]
+    language: "Python"
+    license: "NOASSERTION"
+    archived: false
+    updated_at: "2025-06-14T16:57:59Z"
+    status: "active"
+    stars: 905
+    categories: ["editor"]
+  - name: "syncall"
+    full_name: "bergercookie/syncall"
+    url: "https://github.com/bergercookie/syncall"
+    description: "Bi-directional synchronization between services such as Taskwarrior, Google Calendar, Notion, Asana, and more"
+    topics: ["asana", "caldav", "calendar", "google", "google-calendar", "google-calender", "google-keep", "google-tasks", "notion", "python3", "sync", "synchronization-service", "task-management", "taskwarrior"]
+    language: "Python"
+    license: "MIT"
+    archived: false
+    updated_at: "2025-11-21T13:43:40Z"
+    status: "active"
+    stars: 595
+    categories: ["calendar", "server", "sync"]
+  - name: "taskopen"
+    full_name: "jschlatow/taskopen"
+    url: "https://github.com/jschlatow/taskopen"
+    description: "Tool for taking notes and open urls with taskwarrior (mirror of https://codeberg.org/jschlatow/taskopen)"
+    topics: ["nim", "taskwarrior"]
+    language: "Nim"
+    license: "GPL-2.0"
+    archived: false
+    updated_at: "2026-01-13T06:06:35Z"
+    status: "active"
+    stars: 427
+    categories: ["misc"]
+  - name: "taskwarrior-webui"
+    full_name: "DCsunset/taskwarrior-webui"
+    url: "https://github.com/DCsunset/taskwarrior-webui"
+    description: "Self-hosted Responsive Web UI for Taskwarrior based on Vue.js and Koa.js"
+    topics: ["docker", "self-hosted", "taskwarrior", "web-ui"]
+    language: "Vue"
+    license: "GPL-3.0"
+    archived: false
+    updated_at: "2024-12-31T03:14:59Z"
+    status: "stale"
+    stars: 250
+    categories: ["ui"]
+  - name: "titan"
+    full_name: "skbolton/titan"
+    url: "https://github.com/skbolton/titan"
+    description: "Orlando's one call install"
+    topics: ["archlinux", "awesomewm", "dotfiles", "git", "gpg", "kitty", "neovim", "saltstack", "taskwarrior", "tmux"]
+    language: "SaltStack"
+    license: ""
+    archived: false
+    updated_at: "2023-05-03T16:12:11Z"
+    status: "stale"
+    stars: 210
+    categories: ["editor"]
+  - name: "kronos.vim"
+    full_name: "soywod/kronos.vim"
+    url: "https://github.com/soywod/kronos.vim"
+    description: "A simple task and time manager. Project moved here:"
+    topics: ["datetime", "python3", "task-manager", "taskwarrior", "time-manager", "vim", "vim-plugin", "worktime"]
+    language: "Vim script"
+    license: "MIT"
+    archived: true
+    updated_at: "2019-11-11T17:32:32Z"
+    status: "dormant"
+    stars: 199
+    categories: ["editor"]
+  - name: "taskwarrior-web"
+    full_name: "tmahmood/taskwarrior-web"
+    url: "https://github.com/tmahmood/taskwarrior-web"
+    description: "Minimalistic web UI for Task warrior"
+    topics: ["task-manager", "taskwarrior"]
+    language: "Rust"
+    license: ""
+    archived: false
+    updated_at: "2025-11-22T21:53:40Z"
+    status: "active"
+    stars: 184
+    categories: ["ui"]
+  - name: "taskchampion-sync-server"
+    full_name: "GothenburgBitFactory/taskchampion-sync-server"
+    url: "https://github.com/GothenburgBitFactory/taskchampion-sync-server"
+    description: "The sync server for Taskchampion"
+    topics: ["taskchampion", "taskwarrior"]
+    language: "Rust"
+    license: "MIT"
+    archived: false
+    updated_at: "2026-02-07T14:32:47Z"
+    status: "active"
+    stars: 160
+    categories: ["server", "sync"]
+  - name: "taskwhisperer"
+    full_name: "cinatic/taskwhisperer"
+    url: "https://github.com/cinatic/taskwhisperer"
+    description: "Taskwhisperer is a extension for TaskWarrior Application https://taskwarrior.org. It is to display upcoming tasks and task details as well as to create and modify them."
+    topics: ["gnome", "gnome-shell-extension", "taskwarrior"]
+    language: "JavaScript"
+    license: "GPL-3.0"
+    archived: false
+    updated_at: "2024-09-24T07:40:37Z"
+    status: "stale"
+    stars: 151
+    categories: ["misc"]
+  - name: "taskchampion"
+    full_name: "GothenburgBitFactory/taskchampion"
+    url: "https://github.com/GothenburgBitFactory/taskchampion"
+    description: "Personal task-tracking library"
+    topics: ["rust", "task-tracking", "taskwarrior"]
+    language: "Rust"
+    license: "MIT"
+    archived: false
+    updated_at: "2026-02-11T23:53:14Z"
+    status: "active"
+    stars: 142
+    categories: ["misc"]
+  - name: "trellowarrior"
+    full_name: "ogarcia/trellowarrior"
+    url: "https://github.com/ogarcia/trellowarrior"
+    description: "Tool to sync Taskwarrior projects with Trello boards"
+    topics: ["sync", "task", "taskwarrior", "todo", "trello"]
+    language: "Python"
+    license: "GPL-3.0"
+    archived: false
+    updated_at: "2024-06-12T06:35:27Z"
+    status: "stale"
+    stars: 106
+    categories: ["server", "sync"]
+  - name: "m_taskwarrior_d.nvim"
+    full_name: "huantrinh1802/m_taskwarrior_d.nvim"
+    url: "https://github.com/huantrinh1802/m_taskwarrior_d.nvim"
+    description: "Simple utility plugin for taskwarrior in Neovim"
+    topics: ["markdown", "neovim", "neovim-plugin", "note-taking", "taskwarrior"]
+    language: "Lua"
+    license: "MIT"
+    archived: false
+    updated_at: "2026-01-09T12:15:36Z"
+    status: "active"
+    stars: 90
+    categories: ["editor"]
+  - name: "taskshell"
+    full_name: "GothenburgBitFactory/taskshell"
+    url: "https://github.com/GothenburgBitFactory/taskshell"
+    description: "Tasksh is a shell for Taskwarrior"
+    topics: ["taskwarrior"]
+    language: "Python"
+    license: "NOASSERTION"
+    archived: false
+    updated_at: "2024-05-26T21:04:45Z"
+    status: "stale"
+    stars: 89
+    categories: ["misc"]
+  - name: "taskw-dart"
+    full_name: "bradyt/taskw-dart"
+    url: "https://github.com/bradyt/taskw-dart"
+    description: "Taskwarrior-inspired mobile todo app"
+    topics: ["android", "dart", "fdroid", "flutter", "ios", "task", "taskwarrior", "todo"]
+    language: "Dart"
+    license: ""
+    archived: false
+    updated_at: "2023-02-18T07:11:35Z"
+    status: "stale"
+    stars: 86
+    categories: ["misc"]
+  - name: "powerline-taskwarrior"
+    full_name: "Zebradil/powerline-taskwarrior"
+    url: "https://github.com/Zebradil/powerline-taskwarrior"
+    description: "䷡→䷆ A Powerline segment for displaying information from Taskwarrior task manager"
+    topics: ["powerline", "powerline-segment", "powerline-taskwarrior", "taskwarrior", "taskwarrior-segment"]
+    language: "Python"
+    license: "MIT"
+    archived: false
+    updated_at: "2026-02-05T20:03:09Z"
+    status: "active"
+    stars: 74
+    categories: ["misc"]
+  - name: "unfog.vim"
+    full_name: "soywod/unfog.vim"
+    url: "https://github.com/soywod/unfog.vim"
+    description: "⏱ Vim plugin for Unfog CLI task & time manager."
+    topics: ["haskell", "task-manager", "taskwarrior", "time-tracker", "vim", "vim-plugin", "viml", "vimscript", "worktime"]
+    language: "Vim Script"
+    license: "BSD-3-Clause"
+    archived: false
+    updated_at: "2022-10-10T22:25:17Z"
+    status: "dormant"
+    stars: 72
+    categories: ["editor", "hook"]
+  - name: "taskchamp"
+    full_name: "marriagav/taskchamp"
+    url: "https://github.com/marriagav/taskchamp"
+    description: "Taskwarrior iOS interface app"
+    topics: ["cli", "ios", "ios-app", "obsidian", "open-source", "productivity", "tasks-manager", "taskwarrior", "taskwarrior3"]
+    language: "Swift"
+    license: "MIT"
+    archived: false
+    updated_at: "2026-02-08T00:09:06Z"
+    status: "active"
+    stars: 54
+    categories: ["misc"]
+  - name: "swiss-army"
+    full_name: "justwheel/swiss-army"
+    url: "https://github.com/justwheel/swiss-army"
+    description: "Ansible-driven configuration management for maintaining a preferred environment (base system and app dotfiles / configurations)"
+    topics: ["ansible", "ansible-playbook", "ansible-playbooks", "ansible-project", "ansible-roles", "bash-profile", "bashrc", "bashrc-configs", "configuration", "configuration-files", "dotfiles", "dunstrc", "gitconfig", "i3wm-confs", "protonvpn", "ssh-config", "taskwarrior", "tmuxrc", "vim-configs", "vimrc"]
+    language: ""
+    license: ""
+    archived: true
+    updated_at: "2020-08-29T01:47:18Z"
+    status: "dormant"
+    stars: 50
+    categories: ["editor"]
+  - name: "neowarrior.nvim"
+    full_name: "duckdm/neowarrior.nvim"
+    url: "https://github.com/duckdm/neowarrior.nvim"
+    description: "A neovim wrapper/plugin to use taskwarrior inside neovim"
+    topics: ["neovim", "neovim-plugin", "nvim", "nvim-plugin", "task", "task-manager", "tasks", "taskwarrior"]
+    language: "Lua"
+    license: "GPL-3.0"
+    archived: false
+    updated_at: "2025-04-03T07:32:45Z"
+    status: "active"
+    stars: 43
+    categories: ["editor"]
+  - name: "taskdb"
+    full_name: "andrey-utkin/taskdb"
+    url: "https://github.com/andrey-utkin/taskdb"
+    description: "Personal task management solution"
+    topics: ["taskwarrior"]
+    language: "Python"
+    license: "GPL-3.0"
+    archived: false
+    updated_at: "2025-03-18T09:41:18Z"
+    status: "active"
+    stars: 41
+    categories: ["misc"]
+  - name: "tasksched"
+    full_name: "AnotherKamila/tasksched"
+    url: "https://github.com/AnotherKamila/tasksched"
+    description: "An opinionated Taskwarrior web UI. Great for scheduling when to do your tasks."
+    topics: ["drag-and-drop", "elmlang", "scheduled-tasks", "scheduling", "taskwarrior", "time-management", "timewarrior"]
+    language: "Elm"
+    license: "MIT"
+    archived: false
+    updated_at: "2019-03-05T16:33:42Z"
+    status: "dormant"
+    stars: 40
+    categories: ["ui"]
+  - name: "obsidian-tw-task-wiki"
+    full_name: "SntTGR/obsidian-tw-task-wiki"
+    url: "https://github.com/SntTGR/obsidian-tw-task-wiki"
+    description: "Small and simple task manager widget for obsidian and powered by taskwarrior."
+    topics: ["obsidian", "obsidian-md", "task-manager", "taskwarrior", "wiki"]
+    language: "Svelte"
+    license: "MIT"
+    archived: false
+    updated_at: "2025-08-24T04:25:34Z"
+    status: "active"
+    stars: 40
+    categories: ["misc"]
+  - name: "trackwarrior"
+    full_name: "gkssjovi/trackwarrior"
+    url: "https://github.com/gkssjovi/trackwarrior"
+    description: "This extension create a link between taskwarrior and timewarrior that allows you to keep track of time spend on tasks. The time will be displayed in a new column in taskwarrior."
+    topics: ["taskwarrior", "timewarrior"]
+    language: "JavaScript"
+    license: "MIT"
+    archived: false
+    updated_at: "2022-11-08T09:54:30Z"
+    status: "dormant"
+    stars: 39
+    categories: ["misc"]
+  - name: "twdeps"
+    full_name: "nerab/twdeps"
+    url: "https://github.com/nerab/twdeps"
+    description: "Visualizes dependencies between TaskWarrior tasks"
+    topics: ["dependencies", "graphviz", "ruby", "taskwarrior", "visualization"]
+    language: "Ruby"
+    license: "MIT"
+    archived: false
+    updated_at: "2025-02-11T16:58:14Z"
+    status: "stale"
+    stars: 37
+    categories: ["report"]
+  - name: "taskchamp-docs"
+    full_name: "marriagav/taskchamp-docs"
+    url: "https://github.com/marriagav/taskchamp-docs"
+    description: "Taskwarrior iOS app"
+    topics: ["cli", "ios", "ios-app", "obsidian", "productivity", "tasks-manager", "taskwarrior", "taskwarrior3"]
+    language: ""
+    license: ""
+    archived: false
+    updated_at: "2025-10-15T12:50:03Z"
+    status: "active"
+    stars: 36
+    categories: ["misc"]
+  - name: "go-taskwarrior"
+    full_name: "jubnzv/go-taskwarrior"
+    url: "https://github.com/jubnzv/go-taskwarrior"
+    description: "Golang library to interact with taskwarrior database"
+    topics: ["golang", "golang-library", "taskwarrior"]
+    language: "Go"
+    license: "MIT"
+    archived: false
+    updated_at: "2023-07-16T09:41:40Z"
+    status: "stale"
+    stars: 35
+    categories: ["misc"]
+  - name: "pomodoroTasks2"
+    full_name: "liloman/pomodoroTasks2"
+    url: "https://github.com/liloman/pomodoroTasks2"
+    description: " Systray app for pomodoro with taskwarrior "
+    topics: ["dbus", "gtk", "gui", "habit-tracking", "pomodoro-technique", "reminder", "taskwarrior", "timewarrior", "workflow"]
+    language: "Python"
+    license: "GPL-3.0"
+    archived: false
+    updated_at: "2017-11-11T20:11:36Z"
+    status: "dormant"
+    stars: 35
+    categories: ["ui"]
+  - name: "taskvanguard"
+    full_name: "taskvanguard/taskvanguard"
+    url: "https://github.com/taskvanguard/taskvanguard"
+    description: "TaskVanguard - LLM / AI Wrapper for TaskWarrior via API (OpenAI, Deepseek etc.)"
+    topics: ["ai", "cli", "golang", "llm", "taskwarrior"]
+    language: "Go"
+    license: "AGPL-3.0"
+    archived: false
+    updated_at: "2026-02-07T22:25:53Z"
+    status: "active"
+    stars: 35
+    categories: ["misc"]
+  - name: "taskcheck"
+    full_name: "00sapo/taskcheck"
+    url: "https://github.com/00sapo/taskcheck"
+    description: "A non-AI automatic scheduler for taskwarrior (i.e. alternative to skedpal/timehero/flowsavvy/reclaim/trevor/motion)"
+    topics: ["taskwarrior"]
+    language: "Python"
+    license: "AGPL-3.0"
+    archived: false
+    updated_at: "2026-01-18T22:03:23Z"
+    status: "active"
+    stars: 30
+    categories: ["misc"]
+  - name: "sidenotes"
+    full_name: "maxjoehnk/sidenotes"
+    url: "https://github.com/maxjoehnk/sidenotes"
+    description: "Show todos from different sources in a sidebar like app"
+    topics: ["azure-devops", "confluence", "github", "gitlab", "jira", "joplin", "taskwarrior", "upsource"]
+    language: "Rust"
+    license: "GPL-3.0"
+    archived: false
+    updated_at: "2026-02-05T21:26:23Z"
+    status: "active"
+    stars: 26
+    categories: ["misc"]
+  - name: "Taskwarrior-Kusarigama"
+    full_name: "yanick/Taskwarrior-Kusarigama"
+    url: "https://github.com/yanick/Taskwarrior-Kusarigama"
+    description: "plugin system for the Taskwarrior task manager"
+    topics: ["taskwarrior"]
+    language: "Perl"
+    license: ""
+    archived: false
+    updated_at: "2019-05-01T00:23:11Z"
+    status: "dormant"
+    stars: 25
+    categories: ["misc"]
+  - name: "taskwarrior-hooks"
+    full_name: "mrVanDalo/taskwarrior-hooks"
+    url: "https://github.com/mrVanDalo/taskwarrior-hooks"
+    description: "A collection of taskwarrior hooks written in rust (because of speed)"
+    topics: ["hooks", "rust", "taskwarrior"]
+    language: "Rust"
+    license: "GPL-3.0"
+    archived: false
+    updated_at: "2025-04-04T19:24:18Z"
+    status: "active"
+    stars: 24
+    categories: ["hook"]
+  - name: "selfhosted"
+    full_name: "TheBeachLab/selfhosted"
+    url: "https://github.com/TheBeachLab/selfhosted"
+    description: "This is the story of how I am slowly becoming free"
+    topics: ["backups", "firewall-rules", "git-server", "gitweb", "jupyter-server", "letsencrypt", "machine-learning", "minecraft-server", "mqtt-broker", "mumble-server", "nginx", "node-red", "postgresql", "rsnapshot", "ssh", "taskserver", "ubuntu-server"]
+    language: ""
+    license: ""
+    archived: false
+    updated_at: "2026-02-08T22:55:12Z"
+    status: "active"
+    stars: 22
+    categories: ["server", "ui"]
+  - name: "qtask"
+    full_name: "jubnzv/qtask"
+    url: "https://github.com/jubnzv/qtask"
+    description: "GUI organizer based on Taskwarrior"
+    topics: ["organizer", "qt", "qt5", "taskwarrior", "todolist"]
+    language: "C++"
+    license: "MIT"
+    archived: false
+    updated_at: "2026-01-24T12:02:22Z"
+    status: "active"
+    stars: 22
+    categories: ["ui"]
+  - name: "dotfiles"
+    full_name: "KevCui/dotfiles"
+    url: "https://github.com/KevCui/dotfiles"
+    description: "⚫ Configuration files"
+    topics: ["alacritty", "chunkwm", "darktable", "dotfiles", "fzf", "i3wm", "mitmproxy", "ranger", "skhd", "st", "taskwarrior", "termite", "tmux", "tridactyl", "vifm", "vim", "xinitrc", "xmodmap", "xterm", "zsh"]
+    language: "Shell"
+    license: ""
+    archived: false
+    updated_at: "2026-01-26T19:55:31Z"
+    status: "active"
+    stars: 21
+    categories: ["editor"]
+  - name: "mutt2task"
+    full_name: "artur-shaik/mutt2task"
+    url: "https://github.com/artur-shaik/mutt2task"
+    description: "Creates task in taskwarrior from email within mutt"
+    topics: ["email", "mutt", "python", "shell", "taskopen", "taskwarrior"]
+    language: "Python"
+    license: ""
+    archived: false
+    updated_at: "2024-04-18T05:13:29Z"
+    status: "stale"
+    stars: 18
+    categories: ["notify"]
+  - name: "taskd-client-py"
+    full_name: "jrabbit/taskd-client-py"
+    url: "https://github.com/jrabbit/taskd-client-py"
+    description: ":hammer: :snake: A python client for taskd"
+    topics: ["python", "taskd", "taskwarrior"]
+    language: "Python"
+    license: "LGPL-3.0"
+    archived: false
+    updated_at: "2022-12-08T08:54:57Z"
+    status: "dormant"
+    stars: 18
+    categories: ["misc"]
+  - name: "warriors"
+    full_name: "liloman/warriors"
+    url: "https://github.com/liloman/warriors"
+    description: "My timewarrior taskwarrior integration scripts"
+    topics: ["hooks", "taskwarrior", "timewarrior"]
+    language: "Python"
+    license: "GPL-3.0"
+    archived: false
+    updated_at: "2017-03-29T10:01:15Z"
+    status: "dormant"
+    stars: 17
+    categories: ["hook"]
+  - name: "twmail"
+    full_name: "nerab/twmail"
+    url: "https://github.com/nerab/twmail"
+    description: "Mail new tasks to your TaskWarrior inbox"
+    topics: ["email", "mda", "taskwarrior"]
+    language: "Ruby"
+    license: "MIT"
+    archived: false
+    updated_at: "2021-04-30T07:36:30Z"
+    status: "dormant"
+    stars: 17
+    categories: ["notify"]
+  - name: "Taskwarrior"
+    full_name: "DavidBadura/Taskwarrior"
+    url: "https://github.com/DavidBadura/Taskwarrior"
+    description: "a php lib for taskwarrior"
+    topics: ["php", "taskwarrior", "todo"]
+    language: "PHP"
+    license: "MIT"
+    archived: true
+    updated_at: "2022-06-26T10:11:40Z"
+    status: "dormant"
+    stars: 16
+    categories: ["misc"]
+  - name: "taskwarrior-java-client"
+    full_name: "aaschmid/taskwarrior-java-client"
+    url: "https://github.com/aaschmid/taskwarrior-java-client"
+    description: "A Java client to communicate with a taskwarrior server (= taskd)."
+    topics: ["client", "java", "java-client", "pem", "pkcs", "taskd", "taskserver", "taskwarrior", "taskwarrior-java-client"]
+    language: "Java"
+    license: "Apache-2.0"
+    archived: false
+    updated_at: "2020-02-09T23:00:41Z"
+    status: "dormant"
+    stars: 16
+    categories: ["server"]
+  - name: "projectwarrior"
+    full_name: "jonathanabennett/projectwarrior"
+    url: "https://github.com/jonathanabennett/projectwarrior"
+    description: "A suite of tools to guide a user through a thorough weekly review in the GTD format."
+    topics: ["common-lisp", "gtd", "taskwarrior"]
+    language: "Common Lisp"
+    license: "MIT"
+    archived: false
+    updated_at: "2023-05-03T11:46:14Z"
+    status: "stale"
+    stars: 16
+    categories: ["ui"]
+  - name: "haskell-taskwarrior"
+    full_name: "maralorn/haskell-taskwarrior"
+    url: "https://github.com/maralorn/haskell-taskwarrior"
+    description: "Types and aeson instances for the taskwarrior json import/export specification"
+    topics: ["aeson", "hacktoberfest", "haskell", "taskwarrior"]
+    language: "Haskell"
+    license: "AGPL-3.0"
+    archived: false
+    updated_at: "2026-01-07T11:32:28Z"
+    status: "active"
+    stars: 15
+    categories: ["sync"]
+  - name: "tw-hooks"
+    full_name: "bergercookie/tw-hooks"
+    url: "https://github.com/bergercookie/tw-hooks"
+    description: "Collection of Taskwarrior hooks + detection and registration mechanism"
+    topics: ["automation", "python", "python3", "task", "taskmanager", "taskwarrior", "taskwarrior-hooks"]
+    language: "Python"
+    license: "MIT"
+    archived: false
+    updated_at: "2023-01-22T18:34:28Z"
+    status: "dormant"
+    stars: 14
+    categories: ["hook"]
+  - name: "timew-billable"
+    full_name: "trev-dev/timew-billable"
+    url: "https://github.com/trev-dev/timew-billable"
+    description: "A Timewarrior report script for calculating billable hours."
+    topics: ["nim", "taskwarrior", "timewarrior"]
+    language: "Nim"
+    license: "GPL-3.0"
+    archived: false
+    updated_at: "2024-06-08T03:16:05Z"
+    status: "stale"
+    stars: 14
+    categories: ["hook", "report"]
+  - name: "utility-scripts"
+    full_name: "somecho/utility-scripts"
+    url: "https://github.com/somecho/utility-scripts"
+    description: "A collection of helper scripts for Clojure, Java, Ledger and Taskwarrior. Written in Clojure."
+    topics: ["babashka", "clojure", "deps-edn", "java", "ledger-cli", "ripgrep", "taskwarrior"]
+    language: "Clojure"
+    license: "MIT"
+    archived: false
+    updated_at: "2023-06-02T13:13:15Z"
+    status: "stale"
+    stars: 13
+    categories: ["hook"]
+  - name: "item_synchronizer"
+    full_name: "bergercookie/item_synchronizer"
+    url: "https://github.com/bergercookie/item_synchronizer"
+    description: "🔄 Synchronize items from two different sources"
+    topics: ["calendar", "python", "synchronization", "taskwarrior", "todo", "todoapp"]
+    language: "Python"
+    license: "MIT"
+    archived: false
+    updated_at: "2023-12-31T10:10:23Z"
+    status: "stale"
+    stars: 12
+    categories: ["calendar", "server", "sync"]
+  - name: "taskw-ng"
+    full_name: "bergercookie/taskw-ng"
+    url: "https://github.com/bergercookie/taskw-ng"
+    description: "Next Generation Taskwarrior Python API"
+    topics: ["python", "python3", "taskmanagement", "taskwarrior"]
+    language: "Python"
+    license: "GPL-3.0"
+    archived: false
+    updated_at: "2024-08-10T10:22:52Z"
+    status: "stale"
+    stars: 11
+    categories: ["misc"]
+  - name: "gotas"
+    full_name: "szaffarano/gotas"
+    url: "https://github.com/szaffarano/gotas"
+    description: "Taskwarrior server implemented in Go"
+    topics: ["go", "golang", "taskd", "taskserver", "taskwarrior", "tls"]
+    language: "Go"
+    license: "MIT"
+    archived: false
+    updated_at: "2025-12-04T06:02:34Z"
+    status: "active"
+    stars: 11
+    categories: ["server"]
+  - name: "taskwarrior-local"
+    full_name: "brutus/taskwarrior-local"
+    url: "https://github.com/brutus/taskwarrior-local"
+    description: "Shell functions to use Taskwarrior with directory local task databases."
+    topics: ["bash", "shell", "task-manager", "taskwarrior"]
+    language: "Shell"
+    license: ""
+    archived: false
+    updated_at: "2021-03-25T11:20:20Z"
+    status: "dormant"
+    stars: 10
+    categories: ["misc"]
+  - name: "taskwarrior-deluxe"
+    full_name: "nojhan/taskwarrior-deluxe"
+    url: "https://github.com/nojhan/taskwarrior-deluxe"
+    description: "A wrapper for Taskwarrior, featuring a fancier output and local repositories workflow."
+    topics: ["cli", "kanban", "taskwarrior", "taskwarrior-config", "todo-app", "todo-list", "todoapp", "todolist"]
+    language: "Python"
+    license: "AGPL-3.0"
+    archived: false
+    updated_at: "2024-10-14T12:04:13Z"
+    status: "stale"
+    stars: 10
+    categories: ["misc"]
+  - name: "PSTodoWarrior"
+    full_name: "pauby/PSTodoWarrior"
+    url: "https://github.com/pauby/PSTodoWarrior"
+    description: "This is a powershell CLI to the Todo.txt todo file format with some PowerShell like features and also taking inspiration from Taskwarrior."
+    topics: ["hacktoberfest", "powershell", "taskwarrior", "todotxt"]
+    language: "PowerShell"
+    license: "MIT"
+    archived: false
+    updated_at: "2020-11-04T11:43:17Z"
+    status: "dormant"
+    stars: 10
+    categories: ["misc"]
+  - name: "taskwarrior-lib"
+    full_name: "DCsunset/taskwarrior-lib"
+    url: "https://github.com/DCsunset/taskwarrior-lib"
+    description: "A Node.js library for interacting with taskwarrior"
+    topics: ["library", "nodejs", "taskwarrior", "typescript"]
+    language: "TypeScript"
+    license: "MIT"
+    archived: false
+    updated_at: "2022-11-09T03:00:42Z"
+    status: "dormant"
+    stars: 9
+    categories: ["hook"]
+  - name: "vscode-taskwarrior"
+    full_name: "claui/vscode-taskwarrior"
+    url: "https://github.com/claui/vscode-taskwarrior"
+    description: "VS Code extension to manage Taskwarrior tasks"
+    topics: ["syntax-highlighting", "task-management", "taskwarrior", "visual-studio-code", "visual-studio-code-extension", "vscode", "vscode-extension"]
+    language: "TypeScript"
+    license: "Apache-2.0"
+    archived: false
+    updated_at: "2023-07-19T14:22:10Z"
+    status: "stale"
+    stars: 9
+    categories: ["misc"]
+  - name: "dotfiles"
+    full_name: "jubnzv/dotfiles"
+    url: "https://github.com/jubnzv/dotfiles"
+    description: "Personal configuration files, scripts, etc."
+    topics: ["dotfiles", "fzf", "gruvbox", "i3", "kitty", "neovim", "polybar", "taskwarrior", "tmux", "zsh"]
+    language: "Shell"
+    license: ""
+    archived: false
+    updated_at: "2026-01-29T12:51:50Z"
+    status: "active"
+    stars: 9
+    categories: ["editor", "hook"]
+  - name: "task-attach"
+    full_name: "alkim0/task-attach"
+    url: "https://github.com/alkim0/task-attach"
+    description: "A set of scripts to manage attachments in TaskWarrior"
+    topics: ["mutt", "taskwarrior"]
+    language: "Python"
+    license: "MIT"
+    archived: false
+    updated_at: "2020-08-30T18:50:32Z"
+    status: "dormant"
+    stars: 8
+    categories: ["hook"]
+  - name: "notmuch-task"
+    full_name: "neuhalje/notmuch-task"
+    url: "https://github.com/neuhalje/notmuch-task"
+    description: "notmuchmail, taskwarrior and mutt are about to be your next dreamteam"
+    topics: ["mutt", "neomutt", "notmuch", "taskwarrior"]
+    language: "Python"
+    license: "NOASSERTION"
+    archived: false
+    updated_at: "2019-05-29T11:22:34Z"
+    status: "dormant"
+    stars: 8
+    categories: ["misc"]
+  - name: "taskwarrior.el"
+    full_name: "winpat/taskwarrior.el"
+    url: "https://github.com/winpat/taskwarrior.el"
+    description: "An interactive emacs frontend to taskwarrior"
+    topics: ["emacs", "taskwarrior"]
+    language: "Emacs Lisp"
+    license: ""
+    archived: false
+    updated_at: "2022-02-13T21:25:31Z"
+    status: "dormant"
+    stars: 8
+    categories: ["editor", "ui"]
+  - name: "icaltask"
+    full_name: "Aerex/icaltask"
+    url: "https://github.com/Aerex/icaltask"
+    description: "Synchronize between Taskwarrior and iCalendar TODO events"
+    topics: ["ical", "task-management", "taskwarrior"]
+    language: "Python"
+    license: ""
+    archived: false
+    updated_at: "2022-07-05T21:45:32Z"
+    status: "dormant"
+    stars: 7
+    categories: ["calendar", "server", "sync"]
+  - name: "just-start"
+    full_name: "AliGhahraei/just-start"
+    url: "https://github.com/AliGhahraei/just-start"
+    description: "An app to defeat procrastination"
+    topics: ["pomodoro-timer", "productivity", "python", "taskwarrior"]
+    language: "Python"
+    license: "GPL-3.0"
+    archived: true
+    updated_at: "2024-05-25T23:57:01Z"
+    status: "stale"
+    stars: 7
+    categories: ["misc"]
+  - name: "django-taskd"
+    full_name: "Colorless-Green-Ideas/django-taskd"
+    url: "https://github.com/Colorless-Green-Ideas/django-taskd"
+    description: ":hammer: :earth_americas: A taskd implementation for the Django web framework."
+    topics: ["django", "taskd", "taskwarrior"]
+    language: "Python"
+    license: "AGPL-3.0"
+    archived: false
+    updated_at: "2022-12-07T23:41:13Z"
+    status: "dormant"
+    stars: 7
+    categories: ["ui"]
+  - name: "taskwarrior-sky-fedora"
+    full_name: "dylandoamaral/taskwarrior-sky-fedora"
+    url: "https://github.com/dylandoamaral/taskwarrior-sky-fedora"
+    description: "A taskwarrior theme for dark fedora."
+    topics: ["console", "fedora", "taskwarrior", "theme"]
+    language: ""
+    license: ""
+    archived: false
+    updated_at: "2021-03-14T10:32:05Z"
+    status: "dormant"
+    stars: 7
+    categories: ["misc"]
+  - name: "taskwarrior"
+    full_name: "nerab/taskwarrior"
+    url: "https://github.com/nerab/taskwarrior"
+    description: "Ruby bindings for TaskWarrior"
+    topics: ["taskwarrior"]
+    language: "Ruby"
+    license: "MIT"
+    archived: false
+    updated_at: "2021-04-30T07:34:41Z"
+    status: "dormant"
+    stars: 7
+    categories: ["misc"]
+  - name: "taskwarrior-gpui"
+    full_name: "0xErwin1/taskwarrior-gpui"
+    url: "https://github.com/0xErwin1/taskwarrior-gpui"
+    description: "A desktop GUI for TaskWarrior built with GPUI."
+    topics: ["desktop", "gpui", "rust", "task-manager", "taskwarrior"]
+    language: "Rust"
+    license: "Apache-2.0"
+    archived: false
+    updated_at: "2026-01-05T22:24:45Z"
+    status: "active"
+    stars: 6
+    categories: ["ui"]
+  - name: "Taskwarrior-Chained"
+    full_name: "Matt-Deacalion/Taskwarrior-Chained"
+    url: "https://github.com/Matt-Deacalion/Taskwarrior-Chained"
+    description: "Painless chained recurrence for Taskwarrior."
+    topics: ["taskwarrior", "taskwarrior-hooks"]
+    language: ""
+    license: ""
+    archived: false
+    updated_at: "2023-07-04T15:32:00Z"
+    status: "stale"
+    stars: 6
+    categories: ["hook"]
+  - name: "dotfiles"
+    full_name: "benelan/dotfiles"
+    url: "https://github.com/benelan/dotfiles"
+    description: "\"Decorate your home. It gives the illusion that your life is more interesting than it really is.\"     —  Charles M. Schulz"
+    topics: ["bash", "config", "dotfiles", "dunst", "git", "i3wm", "linux", "mpv", "mutt", "neovim", "rofi", "swaywm", "taskwarrior", "tmux", "ubuntu", "vifm", "vim", "w3m", "waybar", "wezterm"]
+    language: "Lua"
+    license: ""
+    archived: false
+    updated_at: "2026-01-31T06:31:29Z"
+    status: "active"
+    stars: 6
+    categories: ["editor"]
+  - name: "taskwarrior_flow"
+    full_name: "huantrinh1802/taskwarrior_flow"
+    url: "https://github.com/huantrinh1802/taskwarrior_flow"
+    description: "CLI to improve Taskwarrior workflow"
+    topics: ["cli-tools", "python", "taskwarrior"]
+    language: "Python"
+    license: "Apache-2.0"
+    archived: false
+    updated_at: "2024-09-26T06:58:59Z"
+    status: "stale"
+    stars: 6
+    categories: ["misc"]
+  - name: "taskd-redshirt"
+    full_name: "jrabbit/taskd-redshirt"
+    url: "https://github.com/jrabbit/taskd-redshirt"
+    description: ":hammer: :rocket:a web api for taskwarrior's taskd user and certificate management"
+    topics: ["api", "taskd", "taskwarrior", "web-api"]
+    language: "Python"
+    license: "GPL-3.0"
+    archived: false
+    updated_at: "2022-06-03T22:45:14Z"
+    status: "dormant"
+    stars: 6
+    categories: ["ui"]
+  - name: "taskwarrior_tasklist"
+    full_name: "kelvinauta/taskwarrior_tasklist"
+    url: "https://github.com/kelvinauta/taskwarrior_tasklist"
+    description: "This tool will allow you to create a task list more easily based on a project. (task warrior)"
+    topics: ["taskwarrior"]
+    language: "JavaScript"
+    license: ""
+    archived: false
+    updated_at: "2024-09-02T16:38:57Z"
+    status: "stale"
+    stars: 6
+    categories: ["misc"]
+  - name: "tree-sitter-task"
+    full_name: "AlexanderBrevig/tree-sitter-task"
+    url: "https://github.com/AlexanderBrevig/tree-sitter-task"
+    description: "tree-sitter grammar for taskwarrior"
+    topics: ["grammar", "taskwarrior", "tree-sitter"]
+    language: "C"
+    license: "MIT"
+    archived: false
+    updated_at: "2022-08-17T22:48:26Z"
+    status: "dormant"
+    stars: 5
+    categories: ["misc"]
+  - name: "lazytask"
+    full_name: "OsamaMahmood/lazytask"
+    url: "https://github.com/OsamaMahmood/lazytask"
+    description: "Simple terminal UI for taskwarrior : lazytask inspired by lazygit"
+    topics: ["lazytask", "taskwarrior", "taskwarrior3"]
+    language: "Rust"
+    license: "MIT"
+    archived: false
+    updated_at: "2026-02-09T15:32:05Z"
+    status: "active"
+    stars: 5
+    categories: ["ui"]
+  - name: "taskwarrior-hooks"
+    full_name: "Zebradil/taskwarrior-hooks"
+    url: "https://github.com/Zebradil/taskwarrior-hooks"
+    description: "My personal hook collection for the Taskwarrior task manager hero."
+    topics: ["taskwarrior"]
+    language: "Python"
+    license: "MIT"
+    archived: false
+    updated_at: "2020-05-10T01:17:17Z"
+    status: "dormant"
+    stars: 5
+    categories: ["hook"]
+  - name: "taskmonad"
+    full_name: "arzano/taskmonad"
+    url: "https://github.com/arzano/taskmonad"
+    description: "TaskMonad: xmonad + taskwarrior"
+    topics: ["gtd", "taskwarrior", "todo", "xmonad"]
+    language: "Haskell"
+    license: "BSD-3-Clause"
+    archived: false
+    updated_at: "2019-03-30T22:32:09Z"
+    status: "dormant"
+    stars: 5
+    categories: ["misc"]
+  - name: "scheduler"
+    full_name: "ftapajos/scheduler"
+    url: "https://github.com/ftapajos/scheduler"
+    description: " Uses data from taskwarrior and timewarrior to indicate which task should be done next "
+    topics: ["taskwarrior", "timewarrior"]
+    language: "Python"
+    license: "GPL-3.0"
+    archived: false
+    updated_at: "2025-10-08T15:51:17Z"
+    status: "active"
+    stars: 5
+    categories: ["misc"]
+  - name: "taskmd"
+    full_name: "gkssjovi/taskmd"
+    url: "https://github.com/gkssjovi/taskmd"
+    description: "This program will export the taskwarrior results into a markdown table."
+    topics: ["markdown", "md", "taskwarrior"]
+    language: "JavaScript"
+    license: ""
+    archived: false
+    updated_at: "2021-12-09T16:50:38Z"
+    status: "dormant"
+    stars: 5
+    categories: ["sync"]
+  - name: "taskd-client-go"
+    full_name: "jrabbit/taskd-client-go"
+    url: "https://github.com/jrabbit/taskd-client-go"
+    description: "A go client for taskd"
+    topics: ["golang", "taskd", "taskwarrior"]
+    language: "Go"
+    license: "GPL-3.0"
+    archived: false
+    updated_at: "2021-05-02T20:19:37Z"
+    status: "dormant"
+    stars: 5
+    categories: ["misc"]
+  - name: "dotfiles"
+    full_name: "k4y4k/dotfiles"
+    url: "https://github.com/k4y4k/dotfiles"
+    description: "my dotfiles :)"
+    topics: ["alacritty", "alacritty-config", "chezmoi", "dotfiles", "i3", "i3-config", "scoop", "task", "taskwarrior", "taskwarrior-config", "tmux", "tmux-conf", "vim", "vim-configuration", "vimrc"]
+    language: "Lua"
+    license: ""
+    archived: false
+    updated_at: "2025-03-14T00:06:38Z"
+    status: "active"
+    stars: 5
+    categories: ["editor"]
+  - name: "ansible-role-taskserver"
+    full_name: "nkakouros-original/ansible-role-taskserver"
+    url: "https://github.com/nkakouros-original/ansible-role-taskserver"
+    description: "Installs taskserver to sync tasks with taskwarrior"
+    topics: ["taskd", "taskserver", "taskwarrior"]
+    language: "Jinja"
+    license: "GPL-3.0"
+    archived: false
+    updated_at: "2021-10-28T18:02:04Z"
+    status: "dormant"
+    stars: 5
+    categories: ["server", "sync"]
+  - name: "TWDensity"
+    full_name: "00sapo/TWDensity"
+    url: "https://github.com/00sapo/TWDensity"
+    description: "Update TaskWarrior task urgency based on the density of task dues in time"
+    topics: ["taskwarrior"]
+    language: "Python"
+    license: "GPL-3.0"
+    archived: false
+    updated_at: "2024-06-21T09:09:32Z"
+    status: "stale"
+    stars: 4
+    categories: ["misc"]
+  - name: "TTM"
+    full_name: "LanHikari22/TTM"
+    url: "https://github.com/LanHikari22/TTM"
+    description: "Docker-based time/task/notes environment to be used over the CLI anywhere"
+    topics: ["docker", "notes", "schedule", "task", "taskwarrior", "time", "todo"]
+    language: "Python"
+    license: "MIT"
+    archived: false
+    updated_at: "2025-06-14T15:34:27Z"
+    status: "active"
+    stars: 4
+    categories: ["misc"]
+  - name: "taskd"
+    full_name: "rucas/taskd"
+    url: "https://github.com/rucas/taskd"
+    description: "taskwarrior docker container"
+    topics: ["cli", "container", "docker", "task", "taskwarrior"]
+    language: "Shell"
+    license: "MIT"
+    archived: false
+    updated_at: "2018-07-11T23:46:46Z"
+    status: "dormant"
+    stars: 4
+    categories: ["misc"]
+  - name: "taskwarrior-api"
+    full_name: "Mossop/taskwarrior-api"
+    url: "https://github.com/Mossop/taskwarrior-api"
+    description: "A typesafe asynchronous API for accessing taskwarrior."
+    topics: ["api", "taskwarrior", "typescript"]
+    language: "TypeScript"
+    license: ""
+    archived: false
+    updated_at: "2023-01-09T23:13:56Z"
+    status: "dormant"
+    stars: 3
+    categories: ["hook", "server", "sync"]
+  - name: "little-taskwarrior.nvim"
+    full_name: "Praczet/little-taskwarrior.nvim"
+    url: "https://github.com/Praczet/little-taskwarrior.nvim"
+    description: "A little helper for displaying tasks from TaskWarrior in NeoVim Dashboard"
+    topics: ["dashboard", "dashboard-nvim", "taskwarrior"]
+    language: "Lua"
+    license: "MIT"
+    archived: false
+    updated_at: "2024-12-09T11:41:30Z"
+    status: "stale"
+    stars: 3
+    categories: ["editor", "ui"]
+  - name: "dotfiles"
+    full_name: "Stefan-Radu/dotfiles"
+    url: "https://github.com/Stefan-Radu/dotfiles"
+    description: "hooray, here you'll find my dotfiles. they're cool I know"
+    topics: ["allacritty", "dotfiles", "neovim", "taskwarrior", "tmux", "vim", "zsh"]
+    language: "Python"
+    license: ""
+    archived: false
+    updated_at: "2025-10-18T15:28:50Z"
+    status: "active"
+    stars: 3
+    categories: ["editor"]
+  - name: "task-dashboard"
+    full_name: "ataraskov/task-dashboard"
+    url: "https://github.com/ataraskov/task-dashboard"
+    description: "Taskwarrior dashboard within tmux session"
+    topics: ["taskwarrior"]
+    language: "Shell"
+    license: "GPL-3.0"
+    archived: false
+    updated_at: "2024-10-03T12:17:12Z"
+    status: "stale"
+    stars: 3
+    categories: ["ui"]
+  - name: "wunderlist-to-taskwarrior"
+    full_name: "bernardosulzbach/wunderlist-to-taskwarrior"
+    url: "https://github.com/bernardosulzbach/wunderlist-to-taskwarrior"
+    description: "Fetch your tasks from Wunderlist and add them to TaskWarrior"
+    topics: ["taskwarrior", "wunderlist"]
+    language: "Haskell"
+    license: "NOASSERTION"
+    archived: false
+    updated_at: "2017-05-27T16:05:00Z"
+    status: "dormant"
+    stars: 3
+    categories: ["misc"]
+  - name: "ThingsToTaskwarrior"
+    full_name: "evantravers/ThingsToTaskwarrior"
+    url: "https://github.com/evantravers/ThingsToTaskwarrior"
+    description: ""
+    topics: ["taskwarrior"]
+    language: "JavaScript"
+    license: ""
+    archived: false
+    updated_at: "2022-03-25T18:18:14Z"
+    status: "dormant"
+    stars: 3
+    categories: ["misc"]
+  - name: "taskwarrior-autotagger"
+    full_name: "guludo/taskwarrior-autotagger"
+    url: "https://github.com/guludo/taskwarrior-autotagger"
+    description: "Taskwarrior hook for automatic tagging"
+    topics: ["taskwarrior"]
+    language: "Python"
+    license: "GPL-3.0"
+    archived: false
+    updated_at: "2021-07-07T18:06:20Z"
+    status: "dormant"
+    stars: 3
+    categories: ["hook"]
+  - name: "1q10rq_tasks_taskwarrior_zsh"
+    full_name: "indieterminacy/1q10rq_tasks_taskwarrior_zsh"
+    url: "https://github.com/indieterminacy/1q10rq_tasks_taskwarrior_zsh"
+    description: "ZSH functions to boost Taskwarrior productivity"
+    topics: ["config", "functions", "taskwarrior", "zsh"]
+    language: "Shell"
+    license: ""
+    archived: true
+    updated_at: "2018-11-26T14:02:58Z"
+    status: "dormant"
+    stars: 3
+    categories: ["misc"]
+  - name: "task-warlock"
+    full_name: "jonestristand/task-warlock"
+    url: "https://github.com/jonestristand/task-warlock"
+    description: "A modern, beautiful web interface for TaskWarrior with multiple themes and real-time task management"
+    topics: ["taskwarrior", "taskwarrior-web", "taskwarrior3"]
+    language: "TypeScript"
+    license: ""
+    archived: false
+    updated_at: "2025-11-06T23:09:43Z"
+    status: "active"
+    stars: 3
+    categories: ["ui"]
+  - name: "taskwarrior-themes"
+    full_name: "jrcharney/taskwarrior-themes"
+    url: "https://github.com/jrcharney/taskwarrior-themes"
+    description: "Righting a wrong that the ArchLinux did not fix"
+    topics: ["archlinux", "taskwarrior", "themes"]
+    language: ""
+    license: "MIT"
+    archived: false
+    updated_at: "2024-05-14T10:24:54Z"
+    status: "stale"
+    stars: 3
+    categories: ["misc"]
+  - name: "dotfiles"
+    full_name: "kaiec/dotfiles"
+    url: "https://github.com/kaiec/dotfiles"
+    description: "My Linux configuration, feel free to steal or get in touch."
+    topics: ["gpg", "i3", "khal", "mutt", "notmuch", "taskwarrior", "vim"]
+    language: "JavaScript"
+    license: ""
+    archived: false
+    updated_at: "2024-11-27T12:51:28Z"
+    status: "stale"
+    stars: 3
+    categories: ["editor"]
+  - name: "topen"
+    full_name: "marty-oehme/topen"
+    url: "https://github.com/marty-oehme/topen"
+    description: "Quickly edit notes for your taskwarrior tasks"
+    topics: ["notes", "taskwarrior", "taskwarrior3"]
+    language: "Python"
+    license: "MIT"
+    archived: false
+    updated_at: "2025-12-08T16:57:58Z"
+    status: "active"
+    stars: 3
+    categories: ["ui"]
+  - name: "togglwarrior"
+    full_name: "polyntsov/togglwarrior"
+    url: "https://github.com/polyntsov/togglwarrior"
+    description: "Taskwarrior hook to sync with Toggl Track"
+    topics: ["taskwarrior", "time-tracking", "toggl"]
+    language: "Python"
+    license: "MIT"
+    archived: true
+    updated_at: "2025-11-12T13:06:26Z"
+    status: "active"
+    stars: 3
+    categories: ["hook", "server", "sync"]
+  - name: "taskwarrior_hooks"
+    full_name: "pztrn/taskwarrior_hooks"
+    url: "https://github.com/pztrn/taskwarrior_hooks"
+    description: "Hooks for taskwarrior."
+    topics: ["taskwarrior", "taskwarrior-hooks"]
+    language: "Python"
+    license: ""
+    archived: false
+    updated_at: "2022-07-28T13:00:13Z"
+    status: "dormant"
+    stars: 3
+    categories: ["hook"]
+  - name: "Taskwarrior-Connector"
+    full_name: "shenlebantongying/Taskwarrior-Connector"
+    url: "https://github.com/shenlebantongying/Taskwarrior-Connector"
+    description: "The missing piece between browser and taskwarrior"
+    topics: ["firefox", "firefox-extension", "task-manager", "taskwarrior", "webextension"]
+    language: "HTML"
+    license: "GPL-3.0"
+    archived: false
+    updated_at: "2022-08-08T05:41:20Z"
+    status: "dormant"
+    stars: 3
+    categories: ["ui"]
+  - name: "taskwarriorExtension"
+    full_name: "LikiPiki/taskwarriorExtension"
+    url: "https://github.com/LikiPiki/taskwarriorExtension"
+    description: "Taskwarrior commands extension. Split tasks, create tasks faster, show tasks like a tree. Easy to use, incredibly fast!"
+    topics: ["extension", "golang", "taskwarrior"]
+    language: "Go"
+    license: "MIT"
+    archived: false
+    updated_at: "2021-05-11T16:29:51Z"
+    status: "dormant"
+    stars: 2
+    categories: ["misc"]
+  - name: "Taskwarrior-JP"
+    full_name: "OzwaldFR/Taskwarrior-JP"
+    url: "https://github.com/OzwaldFR/Taskwarrior-JP"
+    description: "A taskwarrior inspired script that provides a CLI for manipulating todo-notes stored in Joplin."
+    topics: ["joplin", "taskwarrior", "todolist"]
+    language: "Python"
+    license: ""
+    archived: false
+    updated_at: "2025-09-10T21:15:07Z"
+    status: "active"
+    stars: 2
+    categories: ["hook"]
+  - name: "dockerfiles"
+    full_name: "Zebradil/dockerfiles"
+    url: "https://github.com/Zebradil/dockerfiles"
+    description: "My Dockerfiles"
+    topics: ["docker", "docker-image", "taskwarrior", "taskwarrior-web", "yay"]
+    language: "Dockerfile"
+    license: ""
+    archived: false
+    updated_at: "2022-10-23T17:59:44Z"
+    status: "dormant"
+    stars: 2
+    categories: ["ui"]
+  - name: "tw-wifi-contexter"
+    full_name: "Zebradil/tw-wifi-contexter"
+    url: "https://github.com/Zebradil/tw-wifi-contexter"
+    description: "Simple hook for taskwarrior which switches context according to WIFI SSID."
+    topics: ["productivity", "task-manager", "tasklist", "taskwarrior"]
+    language: "Python"
+    license: "MIT"
+    archived: false
+    updated_at: "2023-12-15T11:55:14Z"
+    status: "stale"
+    stars: 2
+    categories: ["hook"]
+  - name: "tw-ical-feed"
+    full_name: "allgreed/tw-ical-feed"
+    url: "https://github.com/allgreed/tw-ical-feed"
+    description: "See your [due] dates for tasks on a calendar, generates an ics feed"
+    topics: ["icalendar", "taskwarrior"]
+    language: "Python"
+    license: ""
+    archived: false
+    updated_at: "2024-12-25T16:13:59Z"
+    status: "stale"
+    stars: 2
+    categories: ["calendar"]
+  - name: "task-matrix-bot"
+    full_name: "clemux/task-matrix-bot"
+    url: "https://github.com/clemux/task-matrix-bot"
+    description: "Matrix bot for taskwarrior"
+    topics: ["bot", "matrix", "matrix-nio", "python", "taskw", "taskwarrior"]
+    language: "Python"
+    license: "MIT"
+    archived: false
+    updated_at: "2022-04-26T17:23:11Z"
+    status: "dormant"
+    stars: 2
+    categories: ["misc"]
+  - name: "taskwarrior-um"
+    full_name: "d630/taskwarrior-um"
+    url: "https://github.com/d630/taskwarrior-um"
+    description: "[Discontinued] Use Taskwarrior as simple bookmark manager"
+    topics: ["bookmark-manager", "taskwarrior"]
+    language: "Shell"
+    license: ""
+    archived: true
+    updated_at: "2017-05-23T21:39:38Z"
+    status: "dormant"
+    stars: 2
+    categories: ["misc"]
+  - name: "context-switch-warrior"
+    full_name: "initBasti/context-switch-warrior"
+    url: "https://github.com/initBasti/context-switch-warrior"
+    description: "An extension for taskwarrior to switch between task contexts with a specified schedule"
+    topics: ["context", "schedule", "tasks", "taskwarrior", "zones"]
+    language: "C"
+    license: "GPL-3.0"
+    archived: false
+    updated_at: "2021-02-14T04:41:48Z"
+    status: "dormant"
+    stars: 2
+    categories: ["misc"]
+  - name: "taskwarrior_utils"
+    full_name: "jacostag/taskwarrior_utils"
+    url: "https://github.com/jacostag/taskwarrior_utils"
+    description: "Taskwarrior scripts to improve your tasks workflow"
+    topics: ["sync", "task", "taskwarrior", "todo"]
+    language: "Shell"
+    license: "GPL-3.0"
+    archived: false
+    updated_at: "2025-07-17T17:51:55Z"
+    status: "active"
+    stars: 2
+    categories: ["hook", "server", "sync"]
+  - name: "itask"
+    full_name: "mhoff/itask"
+    url: "https://github.com/mhoff/itask"
+    description: "interactive shell for taskwarror"
+    topics: ["interactive", "shell", "task", "task-manager", "taskwarrior"]
+    language: "Python"
+    license: "GPL-3.0"
+    archived: false
+    updated_at: "2018-07-06T21:25:25Z"
+    status: "dormant"
+    stars: 2
+    categories: ["misc"]
+  - name: "taskwarrior-hook-addannotation"
+    full_name: "nbossard/taskwarrior-hook-addannotation"
+    url: "https://github.com/nbossard/taskwarrior-hook-addannotation"
+    description: "Taskwarrior hook to automatically add annotations"
+    topics: ["hook", "taskwarrior"]
+    language: "Go"
+    license: "MIT"
+    archived: false
+    updated_at: "2023-06-27T12:42:40Z"
+    status: "stale"
+    stars: 2
+    categories: ["calendar", "hook"]
+  - name: "vim-denite-task"
+    full_name: "rafi/vim-denite-task"
+    url: "https://github.com/rafi/vim-denite-task"
+    description: "TaskWarrior source for Denite.  List, view, and preview tasks from Neo/Vim"
+    topics: ["denite", "issue", "neovim", "task", "taskwarrior", "vim"]
+    language: "Python"
+    license: ""
+    archived: true
+    updated_at: "2017-05-15T07:07:14Z"
+    status: "dormant"
+    stars: 2
+    categories: ["editor"]
+  - name: "taskw-i3blocks"
+    full_name: "scmbradley/taskw-i3blocks"
+    url: "https://github.com/scmbradley/taskw-i3blocks"
+    description: "A block for i3blocks that displays information about taskwarrior active tasks"
+    topics: ["blocklets", "i3blocks", "taskwarrior"]
+    language: "Python"
+    license: "GPL-3.0"
+    archived: false
+    updated_at: "2021-05-20T13:27:47Z"
+    status: "dormant"
+    stars: 2
+    categories: ["misc"]
+  - name: "tw-hook-elapsed"
+    full_name: "AceofSpades5757/tw-hook-elapsed"
+    url: "https://github.com/AceofSpades5757/tw-hook-elapsed"
+    description: "Taskwarrior hook to add an `elapsed` UDA field, and to persist `start` field."
+    topics: ["elapsed", "hook", "hooks", "rust", "task-management", "taskwarrior", "time-management"]
+    language: "Rust"
+    license: ""
+    archived: false
+    updated_at: "2024-06-26T21:48:20Z"
+    status: "stale"
+    stars: 1
+    categories: ["hook"]
+  - name: "TengeridHome"
+    full_name: "Chinggis6/TengeridHome"
+    url: "https://github.com/Chinggis6/TengeridHome"
+    description: "My configuration of, for, and on Linux :house_with_garden:"
+    topics: ["abook", "arch-linux", "cheat", "fish", "i3", "most", "mpv", "newsbeuter", "qutebrowser", "solarized", "sqlite", "taskwarrior", "tig", "tmux", "tmuxinator", "urxvt", "vimrc", "w3m", "weechat", "zathura"]
+    language: "Shell"
+    license: ""
+    archived: false
+    updated_at: "2017-04-26T16:36:42Z"
+    status: "dormant"
+    stars: 1
+    categories: ["editor"]
+  - name: "taskwarrior-android"
+    full_name: "DISTREAT/taskwarrior-android"
+    url: "https://github.com/DISTREAT/taskwarrior-android"
+    description: "Build files for compiling statically-linked taskwarrior binaries on Android"
+    topics: ["taskwarrior", "taskwarrior3"]
+    language: "Shell"
+    license: "MIT"
+    archived: true
+    updated_at: "2025-04-25T00:12:30Z"
+    status: "active"
+    stars: 1
+    categories: ["calendar", "ui"]
+  - name: "SideBar"
+    full_name: "HomosekRub/SideBar"
+    url: "https://github.com/HomosekRub/SideBar"
+    description: ""
+    topics: ["egui", "open-source", "openweathermap", "rust", "taskwarrior"]
+    language: "Rust"
+    license: ""
+    archived: false
+    updated_at: "2024-11-11T16:47:56Z"
+    status: "stale"
+    stars: 1
+    categories: ["ui"]
+  - name: "lazyvim-config"
+    full_name: "Praczet/lazyvim-config"
+    url: "https://github.com/Praczet/lazyvim-config"
+    description: "My personal cusomization of the LazyVim config"
+    topics: ["dashboard", "folding", "latex", "latex-template", "lazyvim", "mariadb", "markdown", "neovim", "nvim-configs", "nvim-ufo", "pandoc", "pandoc-filter", "pdf", "pdf-export", "sql", "taskwarrior"]
+    language: "Lua"
+    license: "Apache-2.0"
+    archived: false
+    updated_at: "2024-10-04T06:11:25Z"
+    status: "stale"
+    stars: 1
+    categories: ["editor", "sync", "ui"]
+  - name: "dotfiles"
+    full_name: "Psyhackological/dotfiles"
+    url: "https://github.com/Psyhackological/dotfiles"
+    description: ":penguin: My Linux dotfiles for an optimized and personalized environment."
+    topics: ["alacritty", "bash", "mpv", "taskwarrior", "vim", "zathura", "zsh"]
+    language: "Lua"
+    license: ""
+    archived: false
+    updated_at: "2025-10-09T16:45:38Z"
+    status: "active"
+    stars: 1
+    categories: ["editor", "ui"]
+  - name: "taskmail"
+    full_name: "RaghavSood/taskmail"
+    url: "https://github.com/RaghavSood/taskmail"
+    description: "A golang program to email taskwarrior tasks"
+    topics: ["taskwarrior"]
+    language: "Go"
+    license: ""
+    archived: false
+    updated_at: "2018-05-26T02:26:20Z"
+    status: "dormant"
+    stars: 1
+    categories: ["notify"]
+  - name: "cron"
+    full_name: "allgreed/cron"
+    url: "https://github.com/allgreed/cron"
+    description: "Stateful, small-yet-robust cron - mostly meant for managing my routines by generating Taskwarrior tasks"
+    topics: ["taskwarrior", "taskwarrior2"]
+    language: "Python"
+    license: ""
+    archived: false
+    updated_at: "2025-05-29T16:39:08Z"
+    status: "active"
+    stars: 1
+    categories: ["misc"]
+  - name: "tw_projector"
+    full_name: "cherusk/tw_projector"
+    url: "https://github.com/cherusk/tw_projector"
+    description: "Taskwarrior based doability projector and reviser"
+    topics: ["convenience", "feasibility", "prediction", "projection", "taskwarrior", "taskwarrior2"]
+    language: "Python"
+    license: "MIT"
+    archived: false
+    updated_at: "2019-04-21T07:49:46Z"
+    status: "dormant"
+    stars: 1
+    categories: ["misc"]
+  - name: "taskwarrior-waybar"
+    full_name: "coccor/taskwarrior-waybar"
+    url: "https://github.com/coccor/taskwarrior-waybar"
+    description: "A beautiful, modern integration between Taskwarrior and Waybar for managing tasks directly from your status bar."
+    topics: ["arch", "omarchy", "taskwarrior", "waybar"]
+    language: "Shell"
+    license: "MIT"
+    archived: false
+    updated_at: "2025-10-26T11:02:55Z"
+    status: "active"
+    stars: 1
+    categories: ["misc"]
+  - name: "spartaaa"
+    full_name: "codekie/spartaaa"
+    url: "https://github.com/codekie/spartaaa"
+    description: "Web-app for taskwarrior"
+    topics: ["bulma", "es6", "eslint", "expressjs", "immutablejs", "javascript", "jest", "react", "redux", "rxjs", "rxjs6", "sass", "solarized", "solarized-dark-theme", "taskwarrior", "webpack", "websockets"]
+    language: "JavaScript"
+    license: ""
+    archived: false
+    updated_at: "2026-01-01T10:59:37Z"
+    status: "active"
+    stars: 1
+    categories: ["hook", "ui"]
+  - name: "i3blocks-taskwarrior-clojure"
+    full_name: "davidsierradz/i3blocks-taskwarrior-clojure"
+    url: "https://github.com/davidsierradz/i3blocks-taskwarrior-clojure"
+    description: "taskwarrior i3block with clojure's babashka"
+    topics: ["babashka", "clojure", "i3blocks", "taskwarrior"]
+    language: "Clojure"
+    license: "NOASSERTION"
+    archived: false
+    updated_at: "2020-10-25T00:30:08Z"
+    status: "dormant"
+    stars: 1
+    categories: ["misc"]
+  - name: "Email2taskwarrior"
+    full_name: "frasom/Email2taskwarrior"
+    url: "https://github.com/frasom/Email2taskwarrior"
+    description: "Simple solution to create tasks via email in taskwarrior"
+    topics: ["automation", "email", "email-parsing", "taskwarrior"]
+    language: "Shell"
+    license: "MIT"
+    archived: false
+    updated_at: "2025-06-08T11:32:37Z"
+    status: "active"
+    stars: 1
+    categories: ["hook", "notify"]
+  - name: "dockerized-taskd"
+    full_name: "fyusuf-a/dockerized-taskd"
+    url: "https://github.com/fyusuf-a/dockerized-taskd"
+    description: "A basic taskd server"
+    topics: ["devops", "taskwarrior"]
+    language: "Shell"
+    license: ""
+    archived: false
+    updated_at: "2021-10-01T12:28:39Z"
+    status: "dormant"
+    stars: 1
+    categories: ["server"]
+  - name: "perl-taskwarrior"
+    full_name: "harleypig/perl-taskwarrior"
+    url: "https://github.com/harleypig/perl-taskwarrior"
+    description: "A perl package for interacting with the Taskwarrior ( http://taskwarrior.com ) to-do application."
+    topics: ["library", "perl", "perl-module", "perl5-module", "task", "task-management-system", "taskwarrior"]
+    language: "Perl"
+    license: "MIT"
+    archived: true
+    updated_at: "2015-11-15T03:54:12Z"
+    status: "dormant"
+    stars: 1
+    categories: ["misc"]
+  - name: "waygate-mcp"
+    full_name: "jeremylongshore/waygate-mcp"
+    url: "https://github.com/jeremylongshore/waygate-mcp"
+    description: "Enterprise MCP server framework with secure file ops, command execution, and TaskWarrior integration. Zero-config security, Claude Desktop ready, comprehensive audit logging."
+    topics: ["ai", "api", "automation", "claude-code", "claude-desktop", "enterprise", "file-management", "grafana", "mcp", "model-context-protocol", "monitoring", "prometheus", "python", "security", "taskwarrior"]
+    language: "Python"
+    license: "NOASSERTION"
+    archived: false
+    updated_at: "2026-01-08T00:40:10Z"
+    status: "active"
+    stars: 1
+    categories: ["hook", "server"]
+  - name: "Mensura"
+    full_name: "jonix/Mensura"
+    url: "https://github.com/jonix/Mensura"
+    description: "A self-tracking and task logging tool built in Bash for neurodivergent minds. Mensura helps you structure your day, track emotional rhythms, and gain insight into focus, mood, and energy – all in plain text and full local control."
+    topics: ["human-energy", "neurodivergent-support", "organizer", "taskwarrior", "time-management", "timewarrior", "todo-system"]
+    language: "Shell"
+    license: ""
+    archived: false
+    updated_at: "2025-11-28T15:35:24Z"
+    status: "active"
+    stars: 1
+    categories: ["ui"]
+  - name: "taskd-docker"
+    full_name: "jrabbit/taskd-docker"
+    url: "https://github.com/jrabbit/taskd-docker"
+    description: ":hammer: :whale: docker images for taskd+debian debs+ next gnutls"
+    topics: ["docker-image", "taskd", "taskwarrior"]
+    language: "Shell"
+    license: "MIT"
+    archived: false
+    updated_at: "2021-05-07T17:41:25Z"
+    status: "dormant"
+    stars: 1
+    categories: ["misc"]
+  - name: "tw-spaceduck"
+    full_name: "kellya/tw-spaceduck"
+    url: "https://github.com/kellya/tw-spaceduck"
+    description: "A taskwarrior color scheme that pulls colors from pineapplegiant/spaceduck color palette and applies them to taskwarrior output (reports, lists, etc.)"
+    topics: ["taskwarrior", "theme"]
+    language: ""
+    license: ""
+    archived: false
+    updated_at: "2022-07-05T20:12:41Z"
+    status: "dormant"
+    stars: 1
+    categories: ["report"]
+  - name: "ansible-role-taskwarrior"
+    full_name: "kulla/ansible-role-taskwarrior"
+    url: "https://github.com/kulla/ansible-role-taskwarrior"
+    description: "Ansible role for installing and configuring the task management tool \"taskwarrior\" (see https://taskwarrior.org/ )"
+    topics: ["ansible", "ansible-galaxy", "ansible-role", "task-management", "taskwarrior"]
+    language: ""
+    license: "CC0-1.0"
+    archived: false
+    updated_at: "2019-12-01T15:28:29Z"
+    status: "dormant"
+    stars: 1
+    categories: ["misc"]
+  - name: "4rch"
+    full_name: "lievin-christopher/4rch"
+    url: "https://github.com/lievin-christopher/4rch"
+    description: "Archlinux PKGBUILD for installing my settings after a new installation"
+    topics: ["archlinux", "dotfiles", "dunst", "dunstrc", "i3-config", "i3-gaps", "i3wm", "micro", "mpc", "mpd", "ncmpcpp", "ncmpcpp-config", "picom", "polybar", "polybar-config", "ranger", "rxvt-unicode", "taskwarrior", "urxvt", "zsh"]
+    language: "Shell"
+    license: "MIT"
+    archived: false
+    updated_at: "2024-04-22T13:19:54Z"
+    status: "stale"
+    stars: 1
+    categories: ["ui"]
+  - name: "task2habitica-rs"
+    full_name: "mainframev/task2habitica-rs"
+    url: "https://github.com/mainframev/task2habitica-rs"
+    description: "Bidirectional sync tool between Taskwarrior and Habitica."
+    topics: ["habitica", "rust", "taskwarrior"]
+    language: "Rust"
+    license: "MIT"
+    archived: false
+    updated_at: "2026-02-01T13:40:25Z"
+    status: "active"
+    stars: 1
+    categories: ["server", "sync"]
+  - name: "todo"
+    full_name: "mkiene/todo"
+    url: "https://github.com/mkiene/todo"
+    description: "A simple CLI for Taskwarrior, built with Huh and Go."
+    topics: ["cli", "huh", "taskwarrior", "todo"]
+    language: "Go"
+    license: ""
+    archived: false
+    updated_at: "2025-01-27T09:17:46Z"
+    status: "stale"
+    stars: 1
+    categories: ["ui"]
+  - name: "Task"
+    full_name: "suwdus/Task"
+    url: "https://github.com/suwdus/Task"
+    description: "Command line task manager with alexa + google mail integration."
+    topics: ["alexa", "cli", "email", "nodejs", "productivity", "task-manager", "taskwarrior"]
+    language: "JavaScript"
+    license: "MIT"
+    archived: false
+    updated_at: "2019-10-31T05:16:55Z"
+    status: "dormant"
+    stars: 1
+    categories: ["notify"]
+  - name: "taskwarrior-auto-tag-hook"
+    full_name: "tom-doerr/taskwarrior-auto-tag-hook"
+    url: "https://github.com/tom-doerr/taskwarrior-auto-tag-hook"
+    description: "This hook script allows to automatically add tags to a task."
+    topics: ["taskwarrior"]
+    language: "Python"
+    license: "MIT"
+    archived: false
+    updated_at: "2022-08-28T21:53:40Z"
+    status: "dormant"
+    stars: 1
+    categories: ["calendar", "hook"]
+  - name: "Todo-Tasker"
+    full_name: "zVanxz/Todo-Tasker"
+    url: "https://github.com/zVanxz/Todo-Tasker"
+    description: "🗂️ Manage your tasks efficiently with Todo-Tasker, a cost-effective, scalable todo app that prioritizes privacy and works offline, all in your browser."
+    topics: ["dart", "desktop", "flutter", "flutterapp", "geeks", "git", "hacktoberfest", "hacktoberfest2025", "pim", "productivity", "python", "sqflite", "taskwarrior", "terminal-ui", "todolist", "todotxt", "tui", "zsh"]
+    language: "Go"
+    license: "MIT"
+    archived: false
+    updated_at: "2026-02-12T05:09:57Z"
+    status: "active"
+    stars: 1
+    categories: ["ui"]
+  - name: "asana2taskwarrior"
+    full_name: "ArtUshak/asana2taskwarrior"
+    url: "https://github.com/ArtUshak/asana2taskwarrior"
+    description: "Script to convert JSON with tasks exported from Asana to Taskwarrior JSON"
+    topics: ["asana", "asana-api", "converter", "taskwarrior"]
+    language: "Rust"
+    license: "Apache-2.0"
+    archived: false
+    updated_at: "2024-08-03T10:08:33Z"
+    status: "stale"
+    stars: 0
+    categories: ["hook", "sync"]
+  - name: "Taskly"
+    full_name: "AyanishSardar2003/Taskly"
+    url: "https://github.com/AyanishSardar2003/Taskly"
+    description: "📝 Manage your tasks easily with Taskly, a Flutter app featuring intuitive design, task prioritization, and multi-language support for better organization."
+    topics: ["android", "browser-automation", "flutter-app", "getx", "hacktoberfest", "hivedb", "llm", "notification", "pandas", "python", "python-library", "queue", "sqs", "taskly", "taskwarrior", "themes"]
+    language: "Dart"
+    license: "MIT"
+    archived: false
+    updated_at: "2026-02-12T05:43:10Z"
+    status: "active"
+    stars: 0
+    categories: ["hook", "notify", "ui"]
+  - name: "taskwarrior-android-app"
+    full_name: "DISTREAT/taskwarrior-android-app"
+    url: "https://github.com/DISTREAT/taskwarrior-android-app"
+    description: "WIP. Android wrapper around Taskwarrior 3"
+    topics: ["taskwarrior", "taskwarrior3"]
+    language: "Kotlin"
+    license: "GPL-3.0"
+    archived: true
+    updated_at: "2025-05-05T20:38:48Z"
+    status: "active"
+    stars: 0
+    categories: ["misc"]
+  - name: "docker-taskd"
+    full_name: "JurajMarcin/docker-taskd"
+    url: "https://github.com/JurajMarcin/docker-taskd"
+    description: "Taskserver docker image with help scripts"
+    topics: ["docker", "docker-compose", "task", "taskd", "taskserver"]
+    language: "Shell"
+    license: ""
+    archived: false
+    updated_at: "2022-03-16T19:23:14Z"
+    status: "dormant"
+    stars: 0
+    categories: ["hook", "server"]
+  - name: "taskd-dc"
+    full_name: "QantumEntangled/taskd-dc"
+    url: "https://github.com/QantumEntangled/taskd-dc"
+    description: ""
+    topics: ["docker", "docker-compose", "orchestration", "task-management", "task-manager", "taskd", "taskwarrior"]
+    language: ""
+    license: "BSD-3-Clause"
+    archived: false
+    updated_at: "2018-11-19T19:17:51Z"
+    status: "dormant"
+    stars: 0
+    categories: ["misc"]
+  - name: "taskwarrior-web-dc"
+    full_name: "QantumEntangled/taskwarrior-web-dc"
+    url: "https://github.com/QantumEntangled/taskwarrior-web-dc"
+    description: ""
+    topics: ["docker", "docker-compose", "orchestration", "task-manager", "taskwarrior", "taskwarrior-web"]
+    language: ""
+    license: "BSD-3-Clause"
+    archived: false
+    updated_at: "2018-11-19T19:18:11Z"
+    status: "dormant"
+    stars: 0
+    categories: ["ui"]
+  - name: "docker-services"
+    full_name: "Zebradil/docker-services"
+    url: "https://github.com/Zebradil/docker-services"
+    description: "Personal collection of docker service files"
+    topics: ["docker", "taskd", "taskwarrior"]
+    language: ""
+    license: ""
+    archived: true
+    updated_at: "2024-05-01T14:05:10Z"
+    status: "stale"
+    stars: 0
+    categories: ["misc"]
+  - name: "docker-taskd"
+    full_name: "Zebradil/docker-taskd"
+    url: "https://github.com/Zebradil/docker-taskd"
+    description: "Dockerized taskwarrior sync server (aka taskd)"
+    topics: ["docker", "docker-compose", "taskd", "taskwarrior"]
+    language: "Shell"
+    license: ""
+    archived: false
+    updated_at: "2023-12-15T08:37:44Z"
+    status: "stale"
+    stars: 0
+    categories: ["server", "sync"]
+  - name: "ImapTW"
+    full_name: "abrochier/ImapTW"
+    url: "https://github.com/abrochier/ImapTW"
+    description: "A quick and dirty script to synchronize Taskwarrior and an IMAP mailbox"
+    topics: ["email", "taskwarrior", "todolist"]
+    language: "Python"
+    license: ""
+    archived: false
+    updated_at: "2022-02-22T16:53:06Z"
+    status: "dormant"
+    stars: 0
+    categories: ["hook", "notify", "server", "sync", "ui"]
+  - name: "personal-library"
+    full_name: "ano1315/personal-library"
+    url: "https://github.com/ano1315/personal-library"
+    description: "Personal Library Web-App"
+    topics: ["books", "cross-platform", "docker-compose", "jenkins", "library", "mongodb", "quantum-technology", "react", "recaptcha", "redis", "search-engine", "spring-security", "task-tracking", "taskwarrior"]
+    language: "CSS"
+    license: ""
+    archived: false
+    updated_at: "2026-02-12T04:31:52Z"
+    status: "active"
+    stars: 0
+    categories: ["ui"]
+  - name: "taskdsetup"
+    full_name: "bradyt/taskdsetup"
+    url: "https://github.com/bradyt/taskdsetup"
+    description: "An exercise in scripting the steps described at https://taskwarrior.org/docs/taskserver/setup.html TaskWarrior"
+    topics: ["python3", "taskd", "taskwarrior"]
+    language: "Python"
+    license: "GPL-3.0"
+    archived: false
+    updated_at: "2018-03-19T02:28:03Z"
+    status: "dormant"
+    stars: 0
+    categories: ["hook", "server"]
+  - name: "financewarrior"
+    full_name: "caomem/financewarrior"
+    url: "https://github.com/caomem/financewarrior"
+    description: "A CLI tool for personal finance management, inspired by taskwarrior style and by the plain-text accounting ecosystem."
+    topics: ["finance", "finance-management", "taskwarrior"]
+    language: "Julia"
+    license: "GPL-3.0"
+    archived: false
+    updated_at: "2026-01-04T07:38:46Z"
+    status: "active"
+    stars: 0
+    categories: ["misc"]
+  - name: "tc2tw"
+    full_name: "cherusk/tc2tw"
+    url: "https://github.com/cherusk/tc2tw"
+    description: "Converter for TaskCoach to Taskwarrior state"
+    topics: ["converter", "migration", "taskcoach", "taskwarrior", "taskwarrior-state", "taskwarrior2"]
+    language: "Python"
+    license: "MIT"
+    archived: false
+    updated_at: "2019-01-04T16:58:55Z"
+    status: "dormant"
+    stars: 0
+    categories: ["sync"]
+  - name: "dotfiles"
+    full_name: "cousine/dotfiles"
+    url: "https://github.com/cousine/dotfiles"
+    description: "Dotfiles for NeoVim, Tmux, Zsh, and TaskWarrior"
+    topics: ["neovim", "oh-my-zsh", "taskwarrior", "tmux", "tmux-powerline", "zsh"]
+    language: "Shell"
+    license: ""
+    archived: false
+    updated_at: "2025-12-29T09:59:45Z"
+    status: "active"
+    stars: 0
+    categories: ["editor"]
+  - name: "rose-pine-taskwarrior"
+    full_name: "d2718nis/rose-pine-taskwarrior"
+    url: "https://github.com/d2718nis/rose-pine-taskwarrior"
+    description: "Soho vibes for Taskwarrior"
+    topics: ["rose-pine", "soho-vibes", "taskwarrior", "theme"]
+    language: ""
+    license: ""
+    archived: false
+    updated_at: "2024-11-19T18:10:05Z"
+    status: "stale"
+    stars: 0
+    categories: ["misc"]
+  - name: "dotbintask-api"
+    full_name: "dotbinio/dotbintask-api"
+    url: "https://github.com/dotbinio/dotbintask-api"
+    description: "HTTP Apiserver for taskwarrior. Use this to build your own UI for taskwarrior"
+    topics: ["taskwarrior", "taskwarrior3"]
+    language: "Go"
+    license: "MIT"
+    archived: false
+    updated_at: "2026-01-09T23:01:29Z"
+    status: "active"
+    stars: 0
+    categories: ["server", "ui"]
+  - name: "dotbintask-reports-gui"
+    full_name: "dotbinio/dotbintask-reports-gui"
+    url: "https://github.com/dotbinio/dotbintask-reports-gui"
+    description: "GUI for taskwarrior"
+    topics: ["taskwarrior", "taskwarrior3"]
+    language: "TypeScript"
+    license: "MIT"
+    archived: false
+    updated_at: "2026-01-10T20:51:39Z"
+    status: "active"
+    stars: 0
+    categories: ["ui"]
+  - name: "taskwarrior.utils"
+    full_name: "enricoschumann/taskwarrior.utils"
+    url: "https://github.com/enricoschumann/taskwarrior.utils"
+    description: "Utilities for Handling Taskwarrior Data"
+    topics: ["r", "taskwarrior"]
+    language: "R"
+    license: ""
+    archived: false
+    updated_at: "2024-11-05T15:49:54Z"
+    status: "stale"
+    stars: 0
+    categories: ["misc"]
+  - name: "sampha"
+    full_name: "ganthiyalabs/sampha"
+    url: "https://github.com/ganthiyalabs/sampha"
+    description: "a to-do app on steroids powered by taskwarrior. collaborative tasks, google calendar sync, and delightful keyboard shortcuts."
+    topics: ["management", "sampha", "task", "taskwarrior"]
+    language: "TypeScript"
+    license: ""
+    archived: false
+    updated_at: "2026-02-11T21:57:00Z"
+    status: "active"
+    stars: 0
+    categories: ["calendar", "server", "sync"]
+  - name: "taskServe"
+    full_name: "htjb/taskServe"
+    url: "https://github.com/htjb/taskServe"
+    description: "Minimalist web based interface for taskwarrior."
+    topics: ["task-management", "tasks", "taskwarrior"]
+    language: "Python"
+    license: "NOASSERTION"
+    archived: false
+    updated_at: "2026-01-26T19:46:12Z"
+    status: "active"
+    stars: 0
+    categories: ["ui"]
+  - name: "taskwarrior-daily-report"
+    full_name: "icaoberg/taskwarrior-daily-report"
+    url: "https://github.com/icaoberg/taskwarrior-daily-report"
+    description: "Just a simple script that will help me get a daily report by email."
+    topics: ["taskwarrior"]
+    language: "Shell"
+    license: "GPL-3.0"
+    archived: false
+    updated_at: "2019-08-22T17:56:46Z"
+    status: "dormant"
+    stars: 0
+    categories: ["hook", "notify", "report"]
+  - name: "hamster2lp"
+    full_name: "johanv/hamster2lp"
+    url: "https://github.com/johanv/hamster2lp"
+    description: "Push data from hamster time tracker and taskwarrior to LiquidPlanner"
+    topics: ["hack", "hamster", "liquidplanner", "taskwarrior"]
+    language: "Shell"
+    license: ""
+    archived: false
+    updated_at: "2016-12-20T12:34:23Z"
+    status: "dormant"
+    stars: 0
+    categories: ["ui"]
+  - name: "taskwarrior-telegram-bot"
+    full_name: "jonathanvanschenck/taskwarrior-telegram-bot"
+    url: "https://github.com/jonathanvanschenck/taskwarrior-telegram-bot"
+    description: "A telegram bot for all your taskwarrior needs"
+    topics: ["taskwarrior", "taskwarrior2", "taskwarrior3", "telegraf", "telegram"]
+    language: "JavaScript"
+    license: "ISC"
+    archived: false
+    updated_at: "2026-02-12T06:05:58Z"
+    status: "active"
+    stars: 0
+    categories: ["notify"]
+  - name: "taskwarrior-hooks"
+    full_name: "kevincojean/taskwarrior-hooks"
+    url: "https://github.com/kevincojean/taskwarrior-hooks"
+    description: "Kevin's Taskwarrior hooks"
+    topics: ["taskwarrior", "taskwarrior-hooks", "taskwarrior2", "taskwarrior3"]
+    language: "Python"
+    license: ""
+    archived: false
+    updated_at: "2025-05-23T16:09:51Z"
+    status: "active"
+    stars: 0
+    categories: ["hook"]
+  - name: "lipstick"
+    full_name: "killeik/lipstick"
+    url: "https://github.com/killeik/lipstick"
+    description: "Make terminal apps adhere to your light/dark mode setting."
+    topics: ["bash", "bat", "cli", "color-scheme", "command-line", "dark-theme", "delta", "gnome", "helix", "light-theme", "shell", "taskwarrior", "terminal"]
+    language: "Shell"
+    license: ""
+    archived: false
+    updated_at: "2025-03-30T09:00:37Z"
+    status: "active"
+    stars: 0
+    categories: ["misc"]
+  - name: "taskweb"
+    full_name: "mawigh/taskweb"
+    url: "https://github.com/mawigh/taskweb"
+    description: "Simple webinterface for TaskWarrior"
+    topics: ["taskwarrior", "taskwarrior-web"]
+    language: "Jinja"
+    license: "MIT"
+    archived: false
+    updated_at: "2024-08-01T08:59:05Z"
+    status: "stale"
+    stars: 0
+    categories: ["ui"]
+  - name: "task_gcal_sync"
+    full_name: "mehdidc/task_gcal_sync"
+    url: "https://github.com/mehdidc/task_gcal_sync"
+    description: ""
+    topics: ["task-manager", "task-scheduler", "task-warrior", "taskwarrior"]
+    language: "Python"
+    license: ""
+    archived: false
+    updated_at: "2018-05-13T16:35:19Z"
+    status: "dormant"
+    stars: 0
+    categories: ["misc"]
+  - name: "twtest"
+    full_name: "nerab/twtest"
+    url: "https://github.com/nerab/twtest"
+    description: "Helpers for writing TaskWarrior tests in Ruby"
+    topics: ["taskwarrior", "testing"]
+    language: "Ruby"
+    license: "MIT"
+    archived: false
+    updated_at: "2021-04-30T07:35:44Z"
+    status: "dormant"
+    stars: 0
+    categories: ["misc"]
+  - name: "scatola"
+    full_name: "nya1/scatola"
+    url: "https://github.com/nya1/scatola"
+    description: "Web-based task manager inspired by taskwarrior"
+    topics: ["remix-run", "task-manager", "taskwarrior", "todo", "todoist"]
+    language: "TypeScript"
+    license: "MIT"
+    archived: false
+    updated_at: "2022-10-26T18:10:24Z"
+    status: "dormant"
+    stars: 0
+    categories: ["ui"]
+  - name: "talos-gtd"
+    full_name: "pentaxis93/talos-gtd"
+    url: "https://github.com/pentaxis93/talos-gtd"
+    description: "AI-augmented GTD system using TaskWarrior and MCP"
+    topics: ["ai", "gtd", "mcp", "productivity", "taskwarrior"]
+    language: "TypeScript"
+    license: "MIT"
+    archived: true
+    updated_at: "2026-01-06T11:13:03Z"
+    status: "active"
+    stars: 0
+    categories: ["misc"]
+  - name: "ITwarrior"
+    full_name: "raspbeguy/ITwarrior"
+    url: "https://github.com/raspbeguy/ITwarrior"
+    description: "ITwarrior is a web frontend for taskwarrior enabling users to create tickets and add them to the IT people pipe."
+    topics: ["it", "taskwarrior"]
+    language: "Python"
+    license: ""
+    archived: false
+    updated_at: "2024-02-07T19:31:03Z"
+    status: "stale"
+    stars: 0
+    categories: ["ui"]
+  - name: "xfce4-taskwarrior"
+    full_name: "svamberg/xfce4-taskwarrior"
+    url: "https://github.com/svamberg/xfce4-taskwarrior"
+    description: "Taskwarrior plugin for xfce4 panel"
+    topics: ["taskwarrior"]
+    language: "Shell"
+    license: "GPL-3.0"
+    archived: false
+    updated_at: "2021-11-15T08:46:45Z"
+    status: "dormant"
+    stars: 0
+    categories: ["misc"]
+  - name: "puppet-taskd"
+    full_name: "towo/puppet-taskd"
+    url: "https://github.com/towo/puppet-taskd"
+    description: "Taskwarrior taskd Puppet module"
+    topics: ["puppet-module", "taskd", "taskwarrior"]
+    language: "Ruby"
+    license: ""
+    archived: false
+    updated_at: "2018-05-03T18:14:40Z"
+    status: "dormant"
+    stars: 0
+    categories: ["misc"]
+  - name: "task"
+    full_name: "ttschnz/task"
+    url: "https://github.com/ttschnz/task"
+    description: "a bridge for taskwarrior inside ubuntu subsystem"
+    topics: ["subsystem", "taskwarrior", "windows"]
+    language: ""
+    license: ""
+    archived: false
+    updated_at: "2021-12-14T12:29:06Z"
+    status: "dormant"
+    stars: 0
+    categories: ["misc"]
+  - name: "dotfiles-task"
+    full_name: "vonpupp/dotfiles-task"
+    url: "https://github.com/vonpupp/dotfiles-task"
+    description: "@vonpupp's dotfiles for taskwarrior (https://taskwarrior.org/) and gcalcli. Managed by homeshick."
+    topics: ["dotfiles", "taskwarrior"]
+    language: "Shell"
+    license: ""
+    archived: false
+    updated_at: "2017-11-23T01:53:52Z"
+    status: "dormant"
+    stars: 0
+    categories: ["misc"]
+  - name: "taskserver-docker"
+    full_name: "yhaenggi/taskserver-docker"
+    url: "https://github.com/yhaenggi/taskserver-docker"
+    description: "multiarch docker container with taskserver/taskd"
+    topics: ["docker", "docker-multiarch", "k8s", "kubernetes", "multiarch", "taskd", "taskserver", "taskwarrior"]
+    language: "Dockerfile"
+    license: ""
+    archived: false
+    updated_at: "2020-01-18T17:09:18Z"
+    status: "dormant"
+    stars: 0
+    categories: ["server"]
+  - name: "taskserver-kubernetes"
+    full_name: "yhaenggi/taskserver-kubernetes"
+    url: "https://github.com/yhaenggi/taskserver-kubernetes"
+    description: ""
+    topics: ["docker", "docker-multiarch", "k8s", "kubernetes", "multiarch", "taskd", "taskserver", "taskwarrior"]
+    language: "Shell"
+    license: ""
+    archived: false
+    updated_at: "2021-01-14T12:54:20Z"
+    status: "dormant"
+    stars: 0
+    categories: ["server"]
+  - name: "taskwarrior-alfredworkflow"
+    full_name: "zudochkin/taskwarrior-alfredworkflow"
+    url: "https://github.com/zudochkin/taskwarrior-alfredworkflow"
+    description: " A lightweight Alfred 5 workflow for managing your Taskwarrior tasks directly from the command palette"
+    topics: ["alfred-workflow", "productivity", "task-manager", "taskwarrior"]
+    language: "Python"
+    license: ""
+    archived: false
+    updated_at: "2025-06-26T11:53:34Z"
+    status: "active"
+    stars: 0
+    categories: ["misc"]

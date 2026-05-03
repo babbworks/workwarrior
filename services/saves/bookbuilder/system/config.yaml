@@ -1,0 +1,77 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# bookbuilder / system / config.yaml
+# Runtime settings. Override with env vars: BOOKBUILDER_ANTHROPIC_KEY etc.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# AI
+ai:
+  provider: anthropic                  # anthropic | openai
+  model: claude-sonnet-4-6             # used for analysis + summarization
+  embedding_model: text-embedding-3-small   # openai embedding model
+  embedding_provider: openai           # openai (separate key below)
+  analyze_batch_size: 20               # items per AI call
+  max_tokens: 1024                     # max output tokens per analysis call
+
+# API keys — set via env vars, not here
+api_keys:
+  anthropic_env: ANTHROPIC_API_KEY
+  openai_env: OPENAI_API_KEY           # only needed for embeddings
+
+# Fetch
+fetch:
+  workers: 8                           # concurrent HTTP workers
+  timeout_s: 15                        # per-request timeout
+  max_content_chars: 20000             # truncate long pages before AI
+  retry_attempts: 2
+  fetch_images: true                   # grab tweet images (non-blocking)
+  image_max_kb: 500                    # skip images larger than this
+
+# Cluster
+cluster:
+  min_cluster_size: 8                  # HDBSCAN min_cluster_size
+  min_samples: 3
+
+# Output
+output:
+  site_dir: site/
+  knowledge_dir: knowledge/
+
+  # Topic digest files (one .md per subcategory, always a single file regardless of size)
+  # Structure: Highlights section (full summary) → All Items section (compact list)
+  topic_highlights_count: 20          # how many top-scoring items get a full summary block
+  topic_highlights_min_score: 0.6     # minimum quality_score to appear in highlights
+
+  # Author digest files (one .md per author who appears 3+ times)
+  author_min_items: 3                 # don't create a file for one-off authors
+
+# Agents
+agents:
+  item_critic:
+    enabled: true
+    score_threshold: 0.55      # re-analyze items below this quality score
+  cluster_analyst:
+    enabled: true
+    top_n_items: 15            # item summaries sent per cluster
+    min_items: 3               # skip clusters smaller than this
+  digest_writer:
+    enabled: true
+    top_n_items: 12
+    min_items: 4
+  highlight_curator:
+    enabled: true
+    pool_size: 20       # items sent to Claude per topic
+    pick_count: 5       # items Claude selects
+    min_items: 6        # skip topics smaller than this
+  connection_finder:
+    enabled: true
+  gap_detector:
+    enabled: true
+  taxonomy_evolver:
+    enabled: true
+
+# Paths (relative to project root)
+paths:
+  input_dir: input/
+  state_dir: state/
+  cache_dir: cache/
+  system_dir: system/

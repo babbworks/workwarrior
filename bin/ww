@@ -1,0 +1,5649 @@
+#!/usr/bin/env bash
+# Workwarrior CLI Entry Point
+# Usage: ww <command> [arguments]
+
+set -euo pipefail
+
+# ============================================================================
+# CONFIGURATION
+# ============================================================================
+
+WW_BASE="${WW_BASE:-$HOME/ww}"
+WW_VERSION="1.0.0"
+WW_OUTPUT_MODE="${WW_DEFAULT_OUTPUT_MODE:-compact}"
+WW_VERBOSE=0
+WW_FLAG_PROFILE=""
+WW_FLAG_GLOBAL=0
+WW_FLAG_JSON=0
+WW_FLAG_COMPACT=0
+WW_FLAG_HELP=0
+WW_MAIN_ARGS=()
+
+# ============================================================================
+# SOURCE LIBRARIES
+# ============================================================================
+
+if [[ -f "$WW_BASE/lib/core-utils.sh" ]]; then
+  source "$WW_BASE/lib/core-utils.sh"
+else
+  # Fallback logging if core-utils not available
+  log_info() { echo "info $*"; }
+  log_success() { echo "ok $*"; }
+  log_warning() { echo "warn $*"; }
+  log_error() { echo "err $*" >&2; }
+  log_step() { echo ">> $*"; }
+fi
+
+if [[ -f "$WW_BASE/lib/profile-manager.sh" ]]; then
+  source "$WW_BASE/lib/profile-manager.sh"
+fi
+if [[ -f "$WW_BASE/lib/instance-registry.sh" ]]; then
+  source "$WW_BASE/lib/instance-registry.sh"
+fi
+if [[ -f "$WW_BASE/lib/security-backends.sh" ]]; then
+  source "$WW_BASE/lib/security-backends.sh"
+fi
+
+# ============================================================================
+# HELP AND VERSION
+# ============================================================================
+
+show_usage() {
+  cat << EOF
+Workwarrior - Profile-based productivity system
+
+Usage: ww <command> [arguments]
+       ww [--profile <name> | --global] [--json|--compact] [--verbose] <command> [arguments]
+       ww help <command>
+
+Commands:
+  profile     Profile management (create, list, info, delete, backup)
+  profiles    List profiles (shortcut for 'ww profile list')
+  service     Service management (list, info, help)
+  services    List services (shortcut for 'ww service list')
+  group       Preferred group namespace (create, list, add, remove, show, delete)
+  groups      Alias for group namespace (bare form lists groups)
+  model       Preferred model namespace (providers and model registry)
+  models      Alias for model namespace (bare form lists models)
+  ctrl        Control settings (AI access, command-line indicators, UI toggles)
+  config      Runtime config settings (resume-last, allow-hidden-last)
+  journal     Preferred journal namespace (add, list, remove, rename)
+  journals    Alias for journal namespace (bare form lists journals)
+  ledger      Preferred ledger namespace (add, list, remove, rename)
+  ledgers     Alias for ledger namespace (bare form lists ledgers)
+  tui         Interactive terminal UI (taskwarrior-tui by @kdheepak)
+  gun         Bulk task series generator (taskgun by @hamzamohdzubair)
+  next        CFS-inspired next task recommendation (scheduler by @ftapajos)
+  schedule    Auto-scheduler with toggle system (taskcheck by @00sapo)
+  routines    Recurring task routines (allgreed/cron integration)
+  mcp         MCP server for AI agent task access (taskwarrior-mcp by @hnsstrk)
+  browser     Local web UI server (start, stop, status)
+  community   Global shared collections ($WW_BASE/.community/)
+  extensions  External tool extensions registry
+  timew       TimeWarrior — per-profile `timew` extensions under \$TIMEWARRIORDB/extensions/
+  warrior     Cross-profile task aggregation (summary, hooks, report)
+  projects    Cross-resource project views (list, show, describe)
+  network     Connectivity checks (internet, GitHub, Ollama)
+  saves       Knowledge base builder — saves content, search, pipeline
+  find        Search across profiles and data types
+  custom      Custom services (journal configuration, etc.)
+  q           Questions service (templated workflows for tasks, journals, etc.)
+  task        TaskWarrior passthrough in current ww context
+  tasks       Alias for task passthrough
+  time        TimeWarrior passthrough in current ww context
+  times       Alias for time passthrough
+  jrnl        JRNL passthrough in current ww context
+  hledger     Hledger passthrough in current ww context
+  list        List tool passthrough in current ww context
+  lists       Alias for list passthrough
+  shortcut    Shortcut reference (list, info, compact)
+  export      Export profile data (json, csv, markdown)
+  x           Delete profiles and data (with backup)
+  instance    Instance registry management (list, register, hide, unhide, detach, where)
+  use         Use/switch to an instance (prints env exports or runs command)
+  unlock      Unlock protected instance
+  security    Security backend status/config
+  enable-multi Enable bootstrap dispatcher mode
+  disable-multi Disable bootstrap dispatcher mode
+  deps        Dependency management (check, install)
+  version     Show version information
+  help        Show this help message
+
+Global Options:
+  --profile <name>  Override active/last profile for this invocation
+  --global          Force global context (no profile scope)
+  --json            Machine-readable output for supported list/read commands
+  --compact         Terse human-readable output
+  --verbose         Expanded human-readable output
+  --help            Show command usage (same as 'ww help')
+
+Output Mode Policy:
+  Default output is compact human. Use --verbose for expanded human detail,
+  or --json for machine-readable output on supported read/list/status/check commands.
+
+Compatibility:
+  Plural command aliases remain supported ('groups', 'models', 'journals', 'ledgers',
+  plus 'profiles' and 'services') without deprecation warnings.
+
+Profile Commands:
+  ww profile create <name>    Create a new profile
+  ww profile list             List all profiles
+  ww profile info <name>      Show profile details
+  ww profile delete <name>    Delete a profile
+  ww profile backup <name>    Backup a profile
+
+Service Commands:
+  ww service list             List available service categories
+  ww service info <name>      Show category details and usage hints
+  ww service help <name>      Route to detailed help for a category/topic
+
+Groups Commands:
+  ww group list                List all groups
+  ww groups                    List all groups (shortcut)
+  ww group show <name>         Show profiles in a group
+  ww group create <name> [profiles...]
+  ww group add <name> <profiles...>
+  ww group remove <name> <profiles...>
+  ww group delete <name>
+
+Models Commands:
+  ww model <name> <type> <base_url> [api_key_env]
+                              Shortcut for add-provider (singular create form)
+  ww model list                List models and default
+  ww models                    List models and default (shortcut)
+  ww model providers           List model providers
+  ww model env                 Show provider environment variables
+  ww model check               Check required env vars
+  ww model show <model>        Show model details
+  ww model add-provider <name> <type> <base_url> [api_key_env]
+  ww model remove-provider <name>
+  ww model add-model <name> <provider> <model_id> [notes]
+  ww model set-default <name>
+  ww model remove-model <name>
+
+CTRL Commands:
+  ww ctrl status
+  ww ctrl ai-mode <off|local-only|local+remote>
+  ww ctrl ai-cmd <on|off>
+  ww ctrl prompt-ww <on|off>
+  ww ctrl prompt-ai <on|off>
+  ww ctrl ui-model-indicator <on|off>
+
+Journal Commands:
+  ww journal add <name>        Add journal to active profile
+  ww journal list              List journals in active profile
+  ww journal remove <name>     Remove journal from active profile
+  ww journal rename <old> <new> Rename journal in active profile
+  ww journals                  Same as 'ww journal list'
+
+Ledger Commands:
+  ww ledger add <name>         Add ledger to active profile
+  ww ledger list               List ledgers in active profile
+  ww ledger remove <name>      Remove ledger from active profile
+  ww ledger rename <old> <new> Rename ledger in active profile
+  ww ledgers                   Same as 'ww ledger list'
+
+Extensions Commands:
+  ww extensions taskwarrior refresh
+  ww extensions taskwarrior list --status active
+  ww extensions taskwarrior search vim
+  ww extensions taskwarrior info taskwiki
+  ww extensions taskwarrior cards
+
+Timew Extension Commands (per-profile; requires active profile):
+  ww timew extensions list
+  ww timew extensions install billable
+  ww timew extensions install https://github.com/org/repo.git
+  ww timew extensions remove <name>
+  ww timew extensions help
+
+Find Commands:
+  ww find <term>               Search across profiles
+  ww find --type journal <t>   Search a specific data type
+  ww find --profile <name> <t> Search a specific profile
+  ww find --query <expr>       Advanced query syntax
+  ww find --case-sensitive <t> Case-sensitive matching
+  ww find --regex <t>          Treat bare terms as regex
+  ww find --exclude <glob> <t> Exclude matching paths (repeatable)
+  ww find --native <t>         Use native tool search where available
+
+TUI Commands:
+  ww tui                      Launch interactive terminal UI (requires active profile)
+  ww tui install              Install taskwarrior-tui (brew / cargo)
+  ww tui help                 Show TUI help and attribution
+
+Schedule Commands:
+  ww schedule enable          Enable auto-scheduling for active profile
+  ww schedule disable         Disable without removing config
+  ww schedule status          Show enabled/disabled + last run
+  ww schedule run             Run scheduler against active profile
+  ww schedule run --dry-run   Preview scheduling without writing
+  ww schedule config          Open profile's taskcheck config
+  ww schedule install         Install taskcheck via pipx
+  ww schedule help            Show schedule help and attribution
+
+Routines Commands:
+  ww routines list            List routine definition files for active profile
+  ww routines add "<desc>" --frequency weekly [--name <name>] [--run-now]
+  ww routines new <name>      Create a routine definition template
+  ww routines edit <name>     Edit a routine definition
+  ww routines run [name]      Run all routines or a specific routine
+  ww routines status          Show runtime status and last run metadata
+  ww routines install         Install/update allgreed/cron source
+  ww routines help            Show routines help and attribution
+
+Next Commands:
+  ww next                     Show recommended next task (requires active profile)
+  ww next [filters...]        Filter tasks before recommendation
+  ww next install             Install taskwarrior-scheduler via pipx
+  ww next help                Show next help and attribution
+
+Gun Commands:
+  ww gun create <project> -p <parts> -u <unit> --offset <start> --interval <step>
+  ww gun create "ML_Course" -p 10 -u Lecture --offset 2d --interval 1d
+  ww gun create CLRS -p 12 -u Chapter --offset 7d --interval 7d --skip weekend
+  ww gun install              Install taskgun binary (cargo)
+  ww gun help                 Show gun help and attribution
+
+  Note: project names with spaces must use underscores (Design_Patterns not "Design Patterns")
+
+MCP Commands:
+  ww mcp install              Install taskwarrior-mcp MCP server
+  ww mcp register [--scope]   Register server with MCP client (default scope: user)
+  ww mcp status               Show install and registration status
+  ww mcp help                 Show MCP help and attribution
+
+Browser Commands:
+  ww browser                  Start web UI server on port 7777, open browser tab
+  ww browser --port N         Start on port N
+  ww browser --no-open        Start without opening a browser tab
+  ww browser stop             Stop the running browser server
+  ww browser status           Show whether the browser server is running
+
+Custom Services:
+  ww custom journals          Configure journal settings (requires active profile)
+  ww custom tasks             Configure TaskWarrior settings (requires active profile)
+  ww custom times             Configure TimeWarrior settings (requires active profile)
+  ww custom ledgers           Configure ledger settings (requires active profile)
+  ww custom list              List available custom services
+
+Shortcut Commands:
+  ww shortcut list            List available shortcuts
+  ww shortcut list <category> List shortcuts in a category
+  ww shortcut info <key>      Show shortcut details
+  ww shortcut compact         Compact shortcut list
+  ww shortcut add <key> <name> <category> <description> <command> [requires_profile]
+  ww shortcut remove <key>    Remove user shortcut override
+
+Dependency Commands:
+  ww deps check               Check installed dependencies
+  ww deps install             Install missing dependencies
+
+Examples:
+  ww profile create work      Create a profile named 'work'
+  ww profile list             Show all profiles
+  ww --profile work journal list
+  ww --json service list
+  ww --compact profile list
+  ww group create focus work personal
+  ww groups                   List groups (shortcut)
+  ww model list
+  ww models                   List models (shortcut)
+  ww extensions taskwarrior list --status active
+  ww find invoice
+  ww routines list
+  ww deps check               Check dependency status
+  ww version                  Show version
+  ww help groups              Show groups help
+  ww help models              Show models help
+  ww help find                Show find help
+  ww shortcut list            Show available shortcuts
+  ww shortcut info <key>      Show details for a shortcut
+  ww shortcut add x "Example" global "Example command" "echo hi" false
+  ww shortcut remove x
+
+Standalone Commands:
+  extensions     Alias for 'ww extensions'
+  models         Alias for 'ww model list'
+  groups         Alias for 'ww group list'
+  journals       List journals for active profile
+  ledgers        List ledgers for active profile
+  find           Alias for 'ww find'
+  services       Alias for 'ww service'
+  task/tasks     TaskWarrior passthrough in ww context
+  time/times     TimeWarrior passthrough in ww context
+  jrnl           JRNL passthrough in ww context
+  hledger        Hledger passthrough in ww context
+  list/lists     List tool passthrough in ww context
+
+After creating a profile, activate it with:
+  p-<profile-name>            e.g., p-work
+
+For more information, see: $WW_BASE/docs/
+
+EOF
+}
+
+show_help_profile() {
+  cat << EOF
+Profile Management
+
+Usage: ww profile <action> [arguments]
+
+Actions:
+  create <name>              Create a new profile
+  list                       List all profiles
+  info <name>                Show profile details
+  delete <name>              Delete a profile
+  backup <name> [dest]       Backup a profile to tar.gz
+  import <archive> [name]    Create a new profile from a backup archive
+  restore <name> <archive>   Replace an existing profile from a backup archive
+  urgency [subcommand]       Manage urgency coefficients for the active profile
+  density [subcommand]       Due-date density scoring (requires twdensity)
+  uda [subcommand]           Manage UDAs for the active profile
+  udas                       Alias for 'uda list'
+
+Urgency Subcommands:
+  urgency show               Show all coefficients and top task scores
+  urgency set <factor> <v>   Set a coefficient (e.g. urgency set due 10.0)
+  urgency tune               Interactive wizard — step through all factors
+  urgency reset              Remove all ww-managed coefficients
+  urgency explain <id>       Break down urgency score for a specific task
+
+UDA Subcommands:
+  uda list [--all]           List all UDAs (--all includes uncategorized)
+  uda add [<name>]           Add a UDA (interactive wizard)
+  uda remove <name>          Remove a UDA
+  uda group <name> [group]   Assign UDA to a group
+  uda perm <name> [tokens]   Show or set sync permissions
+
+Global Options:
+  --json           Supported for: list, info
+  --compact        Supported for: list, info (default)
+  --verbose        Add detail where supported
+
+Examples:
+  ww profile create work
+  ww profile list
+  ww --json profile list
+  ww --json profile info work
+  ww profile info work
+  ww profile backup work
+  ww profile import work-backup-20260101.tar.gz
+  ww profile import work-backup-20260101.tar.gz work-copy
+  ww profile restore work work-backup-20260101.tar.gz
+  ww profile urgency show
+  ww profile urgency set uda.phase.review 5.0
+  ww profile urgency explain 42
+  ww profile uda list
+  ww profile uda add goals
+  ww profile uda perm goals nosync,noai
+  ww profile udas
+EOF
+}
+
+show_help_service() {
+  cat << EOF
+Service Management
+
+Usage: ww service <action> [name]
+
+Actions:
+  list             List available service categories with descriptions
+  info <name>      Show category details, scope, and command syntax
+  help <name>      Route to detailed help for a category/topic
+
+Global Options:
+  --json           Supported for: list, info
+  --compact        Supported for: list, info (default)
+  --verbose        Expanded human detail for info/list
+
+Examples:
+  ww service list
+  ww service info custom
+  ww service help groups
+  ww --json service list
+  ww --compact service list
+  ww --compact service info custom
+EOF
+}
+
+show_help_group() {
+  cat << EOF
+Group Management
+
+Usage: ww group <action> [arguments]
+Alias: ww groups (bare alias defaults to list)
+
+Actions:
+  list                          List all groups
+  show <group>                  Show profiles in a group
+  create <group> [profiles...]  Create a group with optional profiles
+  add <group> <profiles...>     Add profiles to a group
+  remove <group> <profiles...>  Remove profiles from a group
+  delete <group>                Delete a group
+
+Examples:
+  ww group create focus work personal
+  ww group add focus client-x
+  ww group show focus
+  ww group list
+  ww groups
+EOF
+}
+
+show_help_model() {
+  cat << EOF
+Model Registry
+
+Usage: ww model <action> [arguments]
+Alias: ww models (bare alias defaults to list)
+
+Actions:
+  <name> <type> <base_url> [api_key_env]
+                              Shortcut for add-provider (singular create form)
+  list                         List models and default
+  providers                    List providers
+  env                          Show provider environment variables
+  check                        Check if required env vars are set
+  show <model>                 Show model details
+  add-provider <name> <type> <base_url> [api_key_env]
+  remove-provider <name>       Remove provider (must not be in use by models)
+  add-model <name> <provider> <model_id> [notes]
+  set-default <name>           Set default model
+  remove-model <name>          Remove model
+
+Examples:
+  ww model list
+  ww models
+  ww model openai openai https://api.openai.com/v1 OPENAI_API_KEY
+  ww model providers
+  ww model env
+  ww model check
+  ww model remove-provider openai
+  ww model set-default gpt-4o-mini
+EOF
+}
+
+show_help_journal() {
+  cat << EOF
+Journal Commands
+
+Usage: ww journal <action> [arguments]
+Alias: ww journals (bare alias defaults to list)
+
+Actions:
+  write <text>                 Write a new journal entry (alias: entry, new)
+  write --project <name>       Tag entry with @project marker
+  write --tags <a,b>           Tag entry with @tags marker (comma-separated)
+  write --priority <H|M|L>     Tag entry with @priority marker
+  write --journal <name>       Write to a named journal (default: profile default)
+  add <name>                   Add journal file to active profile
+  list                         List journals in active profile
+  list --tag <tag>             Filter entries by @tags marker
+  list --project <name>        Filter entries by @project marker
+  list --priority <H|M|L>      Filter entries by @priority marker
+  remove <name>                Remove journal from active profile
+  rename <old> <new>           Rename journal in active profile
+
+Global Options:
+  --profile <name>  Override profile for this invocation
+  --json            Machine-readable output
+  --compact         Terse output
+
+Examples:
+  ww journal write "Fixed the parser bug"
+  ww journal write "Shipped auth feature" --project ww-development --tags shipped,auth
+  ww journal write "Client call notes" --journal work --project clientX
+  ww journal entry "Quick note" --priority H
+  ww journal list
+  ww journal list --tag shipped
+  ww journal list --project ww-development
+  ww journal add work-log
+  ww journal remove work-log
+  ww --profile work journal write "Note" --project myproject
+
+Notes:
+  Entries are appended directly to the profile's plain text journal file.
+  Metadata markers (@project:, @tags:, @priority:) are embedded inline.
+  All named journals in the profile (jrnl.yaml journals:) accept --journal <name>.
+  Retroactive metadata edits are stored as annotation blocks; scanner uses latest.
+EOF
+}
+
+show_help_ledger() {
+  cat << EOF
+Ledger Commands
+
+Usage: ww ledger <action> [arguments]
+Alias: ww ledgers (bare alias defaults to list)
+
+Actions:
+  add <name>      Add ledger to active profile
+  list            List ledgers in active profile
+  remove <name>   Remove ledger from active profile
+  rename <old> <new> Rename ledger in active profile
+
+Global Options:
+  --profile <name>  Override profile for this invocation
+  --json            Machine-readable list output
+  --compact         Terse list output
+
+Examples:
+  ww ledger add business
+  ww ledger list
+  ww ledgers
+  ww ledger remove business
+  ww ledger rename business biz-main
+  ww --profile work ledger list
+  ww --json ledger list
+
+Notes:
+  'ww custom ledgers' remains available for guided interactive management.
+EOF
+}
+
+show_service_help() {
+  local topic="${1:-}"
+  case "$topic" in
+    profile)
+      show_help_profile
+      ;;
+    service|services)
+      show_help_service
+      ;;
+    group|groups)
+      show_help_group
+      ;;
+    model|models)
+      show_help_model
+      ;;
+    journal|journals)
+      show_help_journal
+      ;;
+    ledger|ledgers)
+      show_help_ledger
+      ;;
+    ctrl)
+      if [[ -f "$WW_BASE/services/ctrl/ctrl.sh" ]]; then
+        "$WW_BASE/services/ctrl/ctrl.sh" help
+      else
+        log_error "CTRL service not found"
+        exit 1
+      fi
+      ;;
+    extensions)
+      cmd_extensions help
+      ;;
+    timew)
+      cmd_timew help
+      ;;
+    routines)
+      cmd_routines help
+      ;;
+    find)
+      cmd_find --help
+      ;;
+    custom)
+      cmd_custom help
+      ;;
+    q|questions)
+      cmd_questions help
+      ;;
+    community)
+      cmd_community help
+      ;;
+    shortcut)
+      cmd_shortcut help
+      ;;
+    deps)
+      cmd_deps help
+      ;;
+    ""|help|-h|--help)
+      show_usage
+      ;;
+    standalone)
+      cat << EOF
+Standalone Commands
+
+These commands can be run without the ww prefix:
+  extensions     Alias for 'ww extensions'
+  models         Alias for 'ww model list'
+  groups         Alias for 'ww group list'
+  journals       List journals for active profile
+  ledgers        List ledgers for active profile
+  find           Alias for 'ww find'
+  services       Alias for 'ww service'
+  tasks          Alias for 'task'
+  times          Alias for 'timew'
+EOF
+      ;;
+    *)
+      log_error "Unknown help topic: $topic"
+      echo "Run 'ww help' for usage"
+      exit 1
+      ;;
+  esac
+}
+
+show_version() {
+  echo "Workwarrior version $WW_VERSION"
+  echo "Installation: $WW_BASE"
+  local indicator=""
+  indicator="$(build_cli_indicator)"
+  if [[ -n "$indicator" ]]; then
+    echo "CLI context: $indicator"
+  fi
+
+  if [[ -f "$WW_BASE/VERSION" ]]; then
+    local installed_version
+    installed_version=$(cat "$WW_BASE/VERSION")
+    if [[ "$installed_version" != "$WW_VERSION" ]]; then
+      echo "Installed version: $installed_version"
+    fi
+  fi
+}
+
+print_json_array() {
+  local items=("$@")
+  local first=1
+  printf '['
+  for item in "${items[@]}"; do
+    if [[ $first -eq 0 ]]; then
+      printf ','
+    fi
+    first=0
+    printf '"%s"' "$item"
+  done
+  printf ']'
+}
+
+ctrl_read_bool() {
+  local section="$1"
+  local key="$2"
+  local cfg="$WW_BASE/config/ctrl.yaml"
+  [[ -f "$cfg" ]] || { echo "true"; return 0; }
+  awk -v section="$section" -v key="$key" '
+    $0 ~ "^" section ":[[:space:]]*$" { in_s=1; next }
+    in_s && /^[^[:space:]]/ { in_s=0 }
+    in_s && $0 ~ "^  " key ":[[:space:]]*" { print $2; exit }
+    END { if (NR == 0) print "true" }
+  ' "$cfg"
+}
+
+ai_is_active_for_cli() {
+  local cfg="$WW_BASE/config/ai.yaml"
+  [[ -f "$cfg" ]] || { echo "true"; return 0; }
+  local mode cmd_ai
+  mode="$(awk '/^mode:[[:space:]]*/ {print $2; exit}' "$cfg")"
+  cmd_ai="$(awk '
+    /^access_points:[[:space:]]*$/ { in_ap=1; next }
+    in_ap && /^[^[:space:]]/ { in_ap=0 }
+    in_ap && /^  cmd_ai:[[:space:]]*/ { print $2; exit }
+  ' "$cfg")"
+  [[ "$mode" == "off" || "$cmd_ai" == "false" ]] && echo "false" || echo "true"
+}
+
+build_cli_indicator() {
+  local show_ww show_ai ai_active cwd_base
+  show_ww="$(ctrl_read_bool command_line show_ww)"
+  show_ai="$(ctrl_read_bool command_line show_ai)"
+  ai_active="$(ai_is_active_for_cli)"
+  cwd_base="$(basename "$PWD" 2>/dev/null || true)"
+  local parts=()
+  if [[ "$show_ww" == "true" && "$cwd_base" != "ww" ]]; then
+    parts+=("ww")
+  fi
+  if [[ "$show_ai" == "true" && "$ai_active" == "true" ]]; then
+    parts+=("(AI)")
+  fi
+  echo "${parts[*]}"
+}
+
+nudge_preferred_syntax() {
+  :
+}
+
+parse_global_flags() {
+  local args=("$@")
+
+  while [[ ${#args[@]} -gt 0 ]]; do
+    case "${args[0]}" in
+      --profile)
+        if [[ ${#args[@]} -lt 2 || -z "${args[1]}" ]]; then
+          log_error "--profile requires a profile name"
+          exit 1
+        fi
+        WW_FLAG_PROFILE="${args[1]}"
+        args=("${args[@]:2}")
+        ;;
+      --global)
+        WW_FLAG_GLOBAL=1
+        args=("${args[@]:1}")
+        ;;
+      --json)
+        WW_FLAG_JSON=1
+        args=("${args[@]:1}")
+        ;;
+      --compact)
+        WW_FLAG_COMPACT=1
+        args=("${args[@]:1}")
+        ;;
+      --verbose)
+        WW_VERBOSE=1
+        args=("${args[@]:1}")
+        ;;
+      --help|-h)
+        WW_FLAG_HELP=1
+        args=("${args[@]:1}")
+        ;;
+      --)
+        args=("${args[@]:1}")
+        break
+        ;;
+      -*)
+        break
+        ;;
+      *)
+        break
+        ;;
+    esac
+  done
+
+  if [[ $WW_FLAG_GLOBAL -eq 1 && -n "$WW_FLAG_PROFILE" ]]; then
+    log_error "Invalid flags: --profile and --global cannot be used together"
+    exit 1
+  fi
+  if [[ $WW_FLAG_JSON -eq 1 && $WW_FLAG_COMPACT -eq 1 ]]; then
+    log_error "Invalid flags: --json and --compact cannot be used together"
+    exit 1
+  fi
+
+  if [[ $WW_FLAG_JSON -eq 1 ]]; then
+    WW_OUTPUT_MODE="json"
+  elif [[ $WW_FLAG_COMPACT -eq 1 ]]; then
+    WW_OUTPUT_MODE="compact"
+  elif [[ $WW_VERBOSE -eq 1 ]]; then
+    WW_OUTPUT_MODE="human"
+  else
+    WW_OUTPUT_MODE="${WW_DEFAULT_OUTPUT_MODE:-compact}"
+  fi
+
+  WW_MAIN_ARGS=("${args[@]}")
+}
+
+resolve_scope_context() {
+  if [[ $WW_FLAG_GLOBAL -eq 1 ]]; then
+    unset WARRIOR_PROFILE WORKWARRIOR_BASE TASKRC TASKDATA TIMEWARRIORDB
+    return 0
+  fi
+
+  local selected_profile=""
+  if [[ -n "$WW_FLAG_PROFILE" ]]; then
+    selected_profile="$WW_FLAG_PROFILE"
+  elif [[ -n "${WARRIOR_PROFILE:-}" && -d "${WORKWARRIOR_BASE:-}" ]]; then
+    # Only trust inherited shell profile context if it belongs to this WW_BASE.
+    # This prevents cross-install leakage (e.g., old `p-<name>` aliases).
+    local expected_base="$WW_BASE/profiles/$WARRIOR_PROFILE"
+    if [[ "${WORKWARRIOR_BASE:-}" == "$expected_base" ]]; then
+      selected_profile="$WARRIOR_PROFILE"
+    fi
+  else
+    selected_profile="$(get_last_profile 2>/dev/null || true)"
+  fi
+
+  if [[ -z "$selected_profile" ]]; then
+    return 0
+  fi
+
+  if ! validate_profile_name "$selected_profile" >/dev/null 2>&1; then
+    log_error "Invalid profile name: $selected_profile"
+    exit 1
+  fi
+
+  local selected_base="$WW_BASE/profiles/$selected_profile"
+  if [[ ! -d "$selected_base" ]]; then
+    log_error "Profile '$selected_profile' does not exist at $selected_base"
+    exit 1
+  fi
+
+  export WARRIOR_PROFILE="$selected_profile"
+  export WORKWARRIOR_BASE="$selected_base"
+  export TASKRC="$selected_base/.taskrc"
+  export TASKDATA="$selected_base/.task"
+  export TIMEWARRIORDB="$selected_base/.timewarrior"
+  set_last_profile "$selected_profile" >/dev/null 2>&1 || true
+}
+
+count_named_yaml_entries() {
+  local file_path="$1"
+  local section_name="$2"
+
+  if [[ ! -f "$file_path" ]]; then
+    echo "0"
+    return 0
+  fi
+
+  awk -v section="$section_name" '
+    BEGIN { in_section=0; count=0 }
+    $0 ~ "^" section ":" { in_section=1; next }
+    in_section && /^[^ ]/ { in_section=0 }
+    in_section && /^  [a-zA-Z0-9_-]+:/ {
+      name=$1
+      sub(":", "", name)
+      if (name != "default") count++
+    }
+    END { print count+0 }
+  ' "$file_path"
+}
+
+show_profile_info_compact() {
+  local profile_name="$1"
+  local profile_base="$WW_BASE/profiles/$profile_name"
+  local taskrc_path="$profile_base/.taskrc"
+  local taskdata_path="$profile_base/.task"
+  local timewdb_path="$profile_base/.timewarrior"
+  local journals_path="$profile_base/jrnl.yaml"
+  local ledgers_path="$profile_base/ledgers.yaml"
+  local journals_count
+  journals_count="$(count_named_yaml_entries "$journals_path" "journals")"
+  local ledgers_count
+  ledgers_count="$(count_named_yaml_entries "$ledgers_path" "ledgers")"
+
+  printf '%s taskrc=%s taskdata=%s timewdb=%s journals=%s ledgers=%s\n' \
+    "$profile_name" \
+    "$([[ -f "$taskrc_path" ]] && echo yes || echo no)" \
+    "$([[ -d "$taskdata_path" ]] && echo yes || echo no)" \
+    "$([[ -d "$timewdb_path" ]] && echo yes || echo no)" \
+    "$journals_count" \
+    "$ledgers_count"
+}
+
+show_profile_info_json() {
+  local profile_name="$1"
+  local profile_base="$WW_BASE/profiles/$profile_name"
+  local taskrc_path="$profile_base/.taskrc"
+  local taskdata_path="$profile_base/.task"
+  local timewdb_path="$profile_base/.timewarrior"
+  local journals_path="$profile_base/jrnl.yaml"
+  local ledgers_path="$profile_base/ledgers.yaml"
+  local journals_count
+  journals_count="$(count_named_yaml_entries "$journals_path" "journals")"
+  local ledgers_count
+  ledgers_count="$(count_named_yaml_entries "$ledgers_path" "ledgers")"
+
+  python3 - "$profile_name" "$profile_base" "$taskrc_path" "$taskdata_path" "$timewdb_path" "$journals_path" "$ledgers_path" "$journals_count" "$ledgers_count" << 'PY'
+import json
+import os
+import sys
+
+name, base, taskrc, taskdata, timewdb, journals, ledgers, jcount, lcount = sys.argv[1:]
+obj = {
+    "profile": name,
+    "base": base,
+    "paths": {
+        "taskrc": taskrc,
+        "taskdata": taskdata,
+        "timewarriordb": timewdb,
+        "journals": journals,
+        "ledgers": ledgers,
+    },
+    "exists": {
+        "taskrc": os.path.isfile(taskrc),
+        "taskdata": os.path.isdir(taskdata),
+        "timewarriordb": os.path.isdir(timewdb),
+        "journals": os.path.isfile(journals),
+        "ledgers": os.path.isfile(ledgers),
+    },
+    "counts": {
+        "journals": int(jcount),
+        "ledgers": int(lcount),
+    },
+}
+print(json.dumps(obj, indent=2))
+PY
+}
+
+# ============================================================================
+# PROFILE COMMAND
+# ============================================================================
+
+cmd_profile() {
+  local action="${1:-}"
+  shift 2>/dev/null || true
+
+  case "$action" in
+    create)
+      if [[ -z "$1" ]]; then
+        log_error "Profile name required"
+        echo "Usage: ww profile create <name>"
+        exit 1
+      fi
+      "$WW_BASE/scripts/create-ww-profile.sh" "$@"
+      ;;
+    list)
+      if [[ "$WW_OUTPUT_MODE" == "json" || "$WW_OUTPUT_MODE" == "compact" ]]; then
+        local profiles=()
+        while IFS= read -r -d '' dir; do
+          profiles+=( "$(basename "$dir")" )
+        done < <(command find "$WW_BASE/profiles" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null)
+        if (( ${#profiles[@]} > 0 )); then
+          mapfile -t profiles < <(printf '%s\n' "${profiles[@]}" | sort)
+        fi
+        if [[ "$WW_OUTPUT_MODE" == "json" ]]; then
+          print_json_array "${profiles[@]}"
+          echo ""
+        else
+          if (( ${#profiles[@]} > 0 )); then
+            printf '%s\n' "${profiles[@]}"
+          fi
+        fi
+      else
+        "$WW_BASE/scripts/manage-profiles.sh" list "$@"
+      fi
+      ;;
+    info)
+      if [[ -z "$1" ]]; then
+        log_error "Profile name required"
+        echo "Usage: ww profile info <name>"
+        exit 1
+      fi
+      if ! validate_profile_name "$1" >/dev/null 2>&1; then
+        log_error "Invalid profile name: $1"
+        exit 1
+      fi
+      if [[ ! -d "$WW_BASE/profiles/$1" ]]; then
+        log_error "Profile '$1' does not exist"
+        exit 1
+      fi
+      if [[ "$WW_OUTPUT_MODE" == "json" ]]; then
+        show_profile_info_json "$1"
+      elif [[ "$WW_OUTPUT_MODE" == "compact" ]]; then
+        show_profile_info_compact "$1"
+      else
+        "$WW_BASE/scripts/manage-profiles.sh" info "$@"
+      fi
+      ;;
+    delete)
+      if [[ -z "$1" ]]; then
+        log_error "Profile name required"
+        echo "Usage: ww profile delete <name>"
+        exit 1
+      fi
+      "$WW_BASE/scripts/manage-profiles.sh" delete "$@"
+      ;;
+    backup)
+      if [[ -z "$1" ]]; then
+        log_error "Profile name required"
+        echo "Usage: ww profile backup <name> [dest]"
+        exit 1
+      fi
+      "$WW_BASE/scripts/manage-profiles.sh" backup "$@"
+      ;;
+    import)
+      if [[ -z "$1" ]]; then
+        log_error "Archive path required"
+        echo "Usage: ww profile import <archive> [new-name]"
+        exit 1
+      fi
+      "$WW_BASE/scripts/manage-profiles.sh" import "$@"
+      ;;
+    restore)
+      if [[ -z "$1" || -z "$2" ]]; then
+        log_error "Profile name and archive path required"
+        echo "Usage: ww profile restore <name> <archive>"
+        exit 1
+      fi
+      "$WW_BASE/scripts/manage-profiles.sh" restore "$@"
+      ;;
+    urgency)
+      local urg_script="$WW_BASE/services/profile/urgency.sh"
+      if [[ ! -f "$urg_script" ]]; then
+        log_error "Urgency service not found at $urg_script"
+        exit 1
+      fi
+      WORKWARRIOR_BASE="${WORKWARRIOR_BASE:-}" WARRIOR_PROFILE="${WARRIOR_PROFILE:-}" \
+        bash "$urg_script" "$@"
+      ;;
+    density)
+      local density_script="$WW_BASE/services/profile/subservices/profile-density.sh"
+      if [[ ! -f "$density_script" ]]; then
+        log_error "Density service not found at $density_script"
+        exit 1
+      fi
+      WORKWARRIOR_BASE="${WORKWARRIOR_BASE:-}" WARRIOR_PROFILE="${WARRIOR_PROFILE:-}" \
+        TASKRC="${TASKRC:-}" TASKDATA="${TASKDATA:-}" \
+        bash "$density_script" "$@"
+      ;;
+    uda|udas)
+      local uda_script="$WW_BASE/services/profile/subservices/profile-uda.sh"
+      # uda inventory — cross-profile scan
+      if [[ "${1:-}" == "inventory" ]]; then
+        shift || true
+        bash "$WW_BASE/scripts/build-uda-inventory.sh" "$@"
+        return 0
+      fi
+      if [[ ! -f "$uda_script" ]]; then
+        log_error "UDA service not found at $uda_script"
+        exit 1
+      fi
+      # 'udas' with no further args → shortcut for 'uda list'
+      if [[ "$action" == "udas" && -z "${1:-}" ]]; then
+        set -- "list"
+      fi
+      WORKWARRIOR_BASE="${WORKWARRIOR_BASE:-}" WARRIOR_PROFILE="${WARRIOR_PROFILE:-}" \
+        bash "$uda_script" "$@"
+      ;;
+    ""|help|-h|--help)
+      show_help_profile
+      ;;
+    *)
+      log_error "Unknown profile action: $action"
+      echo "Run 'ww profile help' for usage"
+      exit 1
+      ;;
+  esac
+}
+
+# ============================================================================
+# SERVICE COMMAND
+# ============================================================================
+
+service_category_description() {
+  local category="$1"
+  case "$category" in
+    profile) echo "Profile lifecycle and activation tooling" ;;
+    questions) echo "Prompt templates and structured intake workflows" ;;
+    scripts) echo "General utility scripts and one-off automations" ;;
+    export) echo "Export data from tools into standard formats" ;;
+    diagnostic) echo "System checks and troubleshooting helpers" ;;
+    find) echo "Cross-profile search and discovery utilities" ;;
+    verify) echo "Validation scripts for integrity and config checks" ;;
+    custom) echo "Interactive profile configuration helpers" ;;
+    groups) echo "Profile grouping and membership management" ;;
+    community) echo "Global shared collections and cross-profile entries" ;;
+    models) echo "LLM provider/model registry configuration" ;;
+    ctrl) echo "AI and command-line settings control plane" ;;
+    extensions) echo "External tool extension registries" ;;
+    x-delete) echo "Profile/data deletion workflows" ;;
+    *) echo "Service category" ;;
+  esac
+}
+
+service_category_scope() {
+  local category="$1"
+  case "$category" in
+    groups|models|ctrl|extensions|x-delete|community)
+      echo "Global scope (active profile not required)"
+      ;;
+    *)
+      echo "Profile-aware (active profile may override global service scripts)"
+      ;;
+  esac
+}
+
+service_category_syntax() {
+  local category="$1"
+  case "$category" in
+    profile) echo "ww profile <create|list|info|delete|backup>" ;;
+    groups) echo "ww group <list|show|create|add|remove|delete>" ;;
+    community) echo "ww community <list|show|create|add>" ;;
+    models) echo "ww model <name type base_url [api_key_env]|list|providers|env|check|show|add-provider|remove-provider|add-model|set-default|remove-model>" ;;
+    ctrl) echo "ww ctrl <status|ai-mode|ai-cmd|prompt-ww|prompt-ai|ui-model-indicator>" ;;
+    extensions) echo "ww extensions <tool> <action>" ;;
+    custom) echo "ww custom <journals|tasks|times|ledgers|issues|list>" ;;
+    find) echo "ww find <term> [--type <type>] [--profile <name>]" ;;
+    x-delete) echo "ww x <action> (destructive; review help first)" ;;
+    *)
+      echo "No dedicated ww namespace; run scripts from services/$category/ directly"
+      ;;
+  esac
+}
+
+collect_service_categories() {
+  local categories=()
+
+  if [[ -d "$WW_BASE/services" ]]; then
+    while IFS= read -r -d '' dir; do
+      categories+=( "$(basename "$dir")" )
+    done < <(command find "$WW_BASE/services" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null)
+  fi
+
+  if [[ -n "${WORKWARRIOR_BASE:-}" ]] && [[ -d "$WORKWARRIOR_BASE/services" ]]; then
+    while IFS= read -r -d '' dir; do
+      categories+=( "$(basename "$dir")" )
+    done < <(command find "$WORKWARRIOR_BASE/services" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null)
+  fi
+
+  if (( ${#categories[@]} > 0 )); then
+    printf '%s\n' "${categories[@]}" | sort -u
+  fi
+}
+
+count_service_files_in_dir() {
+  local dir="$1"
+  if [[ -z "$dir" || ! -d "$dir" ]]; then
+    echo "0"
+    return 0
+  fi
+
+  local count=0
+  while IFS= read -r -d '' file; do
+    if [[ -x "$file" || "$file" == *.sh ]]; then
+      count=$((count + 1))
+    fi
+  done < <(command find "$dir" -maxdepth 1 -type f -print0 2>/dev/null)
+  echo "$count"
+}
+
+service_help_topic_alias() {
+  local name="${1:-}"
+  case "$name" in
+    groups) echo "group" ;;
+    models) echo "model" ;;
+    journals) echo "journal" ;;
+    ledgers) echo "ledger" ;;
+    service|services|profile|group|model|journal|ledger|extensions|find|custom|shortcut|deps|ctrl)
+      echo "$name"
+      ;;
+    *) echo "" ;;
+  esac
+}
+
+cmd_service() {
+  local action="${1:-}"
+  shift 2>/dev/null || true
+
+  case "$action" in
+    list)
+      local categories=()
+      mapfile -t categories < <(collect_service_categories)
+      local service_rows=()
+      local category
+      for category in "${categories[@]}"; do
+        local services
+        services="$(discover_services "$category" 2>/dev/null || true)"
+        local count=0
+        if [[ -n "$services" ]]; then
+          count="$(printf '%s\n' "$services" | sed '/^$/d' | wc -l | tr -d ' ')"
+        fi
+        if [[ "$count" -eq 0 ]]; then
+          continue
+        fi
+        local desc
+        desc="$(service_category_description "$category")"
+        service_rows+=( "$category:$count:$desc" )
+      done
+      if [[ "$WW_OUTPUT_MODE" == "json" ]]; then
+        local first=1
+        printf '['
+        for row in "${service_rows[@]}"; do
+          local category="${row%%:*}"
+          local tail="${row#*:}"
+          local count="${tail%%:*}"
+          local desc="${tail#*:}"
+          if [[ $first -eq 0 ]]; then
+            printf ','
+          fi
+          first=0
+          printf '{"category":"%s","count":%s,"description":"%s"}' "$category" "$count" "$desc"
+        done
+        printf ']\n'
+      elif [[ "$WW_OUTPUT_MODE" == "compact" ]]; then
+        for row in "${service_rows[@]}"; do
+          local category="${row%%:*}"
+          local tail="${row#*:}"
+          local count="${tail%%:*}"
+          echo "$category $count"
+        done
+      else
+        echo "Available service categories:"
+        echo ""
+        for row in "${service_rows[@]}"; do
+          local category="${row%%:*}"
+          local tail="${row#*:}"
+          local count="${tail%%:*}"
+          local desc="${tail#*:}"
+          echo "  $category ($count services) - $desc"
+        done
+        echo ""
+      fi
+      ;;
+    info)
+      local category="${1:-}"
+      if [[ -z "$category" ]]; then
+        log_error "Service category required"
+        echo "Usage: ww service info <name>"
+        exit 1
+      fi
+
+      local global_dir="$WW_BASE/services/$category"
+      local profile_dir=""
+      if [[ -n "${WORKWARRIOR_BASE:-}" ]]; then
+        profile_dir="$WORKWARRIOR_BASE/services/$category"
+      fi
+
+      if [[ ! -d "$global_dir" && ( -z "$profile_dir" || ! -d "$profile_dir" ) ]]; then
+        log_error "Unknown service category: $category"
+        echo "Run 'ww service list' to see available categories."
+        exit 1
+      fi
+
+      local merged_count=0
+      local merged_services
+      merged_services="$(discover_services "$category" 2>/dev/null || true)"
+      if [[ -n "$merged_services" ]]; then
+        merged_count="$(printf '%s\n' "$merged_services" | sed '/^$/d' | wc -l | tr -d ' ')"
+      fi
+
+      local global_count=0
+      if [[ -d "$global_dir" ]]; then
+        global_count="$(count_service_files_in_dir "$global_dir")"
+      fi
+
+      local profile_count=0
+      if [[ -n "$profile_dir" && -d "$profile_dir" ]]; then
+        profile_count="$(count_service_files_in_dir "$profile_dir")"
+      fi
+
+      local desc
+      desc="$(service_category_description "$category")"
+      local scope
+      scope="$(service_category_scope "$category")"
+      local syntax
+      syntax="$(service_category_syntax "$category")"
+
+      if [[ "$WW_OUTPUT_MODE" == "json" ]]; then
+        printf '{"category":"%s","description":"%s","scope":"%s","syntax":"%s","services":{"resolved":%s,"global":%s,"profile":%s}' \
+          "$category" "$desc" "$scope" "$syntax" "$merged_count" "$global_count" "$profile_count"
+        if [[ -n "${WARRIOR_PROFILE:-}" ]]; then
+          printf ',"active_profile":"%s"' "$WARRIOR_PROFILE"
+        fi
+        printf '}\n'
+      elif [[ "$WW_OUTPUT_MODE" == "compact" ]]; then
+        if [[ -n "${WARRIOR_PROFILE:-}" ]]; then
+          printf '%s resolved=%s global=%s profile=%s active_profile=%s\n' \
+            "$category" "$merged_count" "$global_count" "$profile_count" "$WARRIOR_PROFILE"
+        else
+          printf '%s resolved=%s global=%s profile=%s\n' \
+            "$category" "$merged_count" "$global_count" "$profile_count"
+        fi
+      else
+        echo "Service category: $category"
+        echo "Description: $desc"
+        echo "Scope: $scope"
+        echo "Primary syntax: $syntax"
+        echo "Service files: $merged_count resolved ($global_count global, $profile_count profile)"
+        if [[ -n "${WARRIOR_PROFILE:-}" ]]; then
+          echo "Active profile context: $WARRIOR_PROFILE"
+        fi
+      fi
+      ;;
+    help)
+      local topic="${1:-}"
+      if [[ -z "$topic" ]]; then
+        show_help_service
+        return 0
+      fi
+
+      local mapped
+      mapped="$(service_help_topic_alias "$topic")"
+      if [[ -n "$mapped" ]]; then
+        show_service_help "$mapped"
+        return 0
+      fi
+      cmd_service info "$topic"
+      ;;
+    ""|help|-h|--help)
+      show_help_service
+      ;;
+    *)
+      log_error "Unknown service action: $action"
+      echo "Run 'ww service help' for usage"
+      exit 1
+      ;;
+  esac
+}
+
+# ============================================================================
+# RESOURCE COMMAND
+# ============================================================================
+
+cmd_resource() {
+  local action="${1:-}"; shift 2>/dev/null || true
+  case "$action" in
+    create)
+      local kind="${1:-}"; shift 2>/dev/null || true
+      local name="${1:-}"; shift 2>/dev/null || true
+      if [[ -z "${WARRIOR_PROFILE:-}" || -z "${WORKWARRIOR_BASE:-}" ]]; then
+        log_error "No active profile — activate one first: p-<profile-name>"; exit 1
+      fi
+      case "$kind" in
+        ledger)
+          [[ -n "$name" ]] || { log_error "Usage: ww resource create ledger <name>"; exit 1; }
+          local ledger_dir="$WORKWARRIOR_BASE/ledgers"
+          local ledger_file="$ledger_dir/${name}.journal"
+          local main_journal="$WORKWARRIOR_BASE/ledgers/${WARRIOR_PROFILE}.journal"
+          local ledgers_yaml="$WORKWARRIOR_BASE/ledgers.yaml"
+          mkdir -p "$ledger_dir"
+          if [[ -f "$ledger_file" ]]; then
+            log_error "Ledger '$name' already exists at $ledger_file"; exit 1
+          fi
+          # Create the sub-journal file
+          printf "; %s ledger — created %s\n" "$name" "$(date +%Y-%m-%d)" > "$ledger_file"
+          # Add include to main journal if it exists
+          if [[ -f "$main_journal" ]]; then
+            if ! grep -q "include ${name}.journal" "$main_journal" 2>/dev/null; then
+              printf "\ninclude %s.journal\n" "$name" >> "$main_journal"
+            fi
+          fi
+          # Register in ledgers.yaml
+          if [[ -f "$ledgers_yaml" ]]; then
+            python3 - "$ledgers_yaml" "$name" "$ledger_file" <<'PYEOF'
+import sys, re
+yaml_path, name, path = sys.argv[1], sys.argv[2], sys.argv[3]
+content = open(yaml_path).read()
+if name + ':' in content:
+    print(f"already in ledgers.yaml")
+else:
+    entry = f"  {name}:\n    path: {path}\n"
+    # Insert after 'ledgers:' line
+    new = re.sub(r'(^ledgers:\s*\n)', r'\1' + entry, content, flags=re.MULTILINE)
+    open(yaml_path, 'w').write(new)
+    print(f"Registered in ledgers.yaml")
+PYEOF
+          fi
+          log_success "Created ledger '$name' at $ledger_file"
+          ;;
+        journal)
+          [[ -n "$name" ]] || { log_error "Usage: ww resource create journal <name>"; exit 1; }
+          local journal_dir="$WORKWARRIOR_BASE/journals"
+          local journal_file="$journal_dir/${name}.txt"
+          local jrnl_cfg="$WORKWARRIOR_BASE/.config/jrnl.yaml"
+          mkdir -p "$journal_dir"
+          if [[ -f "$journal_file" ]]; then
+            log_error "Journal '$name' already exists at $journal_file"; exit 1
+          fi
+          touch "$journal_file"
+          # Register in jrnl.yaml
+          if [[ -f "$jrnl_cfg" ]]; then
+            python3 - "$jrnl_cfg" "$name" "$journal_file" <<'PYEOF'
+import sys, re
+yaml_path, name, path = sys.argv[1], sys.argv[2], sys.argv[3]
+content = open(yaml_path).read()
+if f'  {name}:' in content:
+    print("already in jrnl.yaml")
+else:
+    entry = f"  {name}: {path}\n"
+    new = re.sub(r'(journals:\s*\n)', r'\1' + entry, content, flags=re.MULTILINE)
+    open(yaml_path, 'w').write(new)
+    print(f"Registered in jrnl.yaml")
+PYEOF
+          fi
+          log_success "Created journal '$name' at $journal_file"
+          ;;
+        *)
+          log_error "Usage: ww resource create <ledger|journal> <name>"; exit 1
+          ;;
+      esac
+      ;;
+    help|-h|--help|"")
+      cat <<'EOF'
+ww resource — manage profile resources (ledgers, journals)
+
+Usage:
+  ww resource create ledger <name>   Create a sub-ledger and register it
+  ww resource create journal <name>  Create a named journal and register it
+
+Examples:
+  ww resource create ledger 2026
+  ww resource create journal agentic-dev
+EOF
+      ;;
+    *)
+      log_error "Unknown resource action: $action"
+      echo "Run 'ww resource help' for usage"
+      exit 1
+      ;;
+  esac
+}
+
+# ============================================================================
+# DEPS COMMAND
+# ============================================================================
+
+cmd_deps() {
+  local action="${1:-}"
+  shift 2>/dev/null || true
+
+  # Source dependency installer
+  if [[ -f "$WW_BASE/lib/dependency-installer.sh" ]]; then
+    source "$WW_BASE/lib/dependency-installer.sh"
+  else
+    log_error "Dependency installer not found"
+    exit 1
+  fi
+
+  case "$action" in
+    check)
+      check_all_dependencies
+      display_dependency_status
+      ;;
+    install)
+      run_dependency_installer
+      ;;
+    ""|help|-h|--help)
+      cat << 'DEPS_HELP_EOF'
+Dependency Management
+
+Usage: ww deps <action>
+
+Actions:
+  check       Check installed dependencies and their versions
+  install     Interactive dependency installation
+
+Install policy:
+  'ww deps install' is the canonical install path for the core toolchain.
+  It detects your package manager (brew, apt, dnf, pacman) and emits the
+  correct install command per tool. On macOS (brew), installs run automatically.
+  On Linux, the correct package manager command is shown -- no auto-install.
+
+  Extension installs (ww tui install, ww mcp install) follow the same policy:
+  auto-install on macOS via brew; platform-appropriate hint on Linux.
+
+  See docs/INSTALL.md for the full install policy.
+
+External Dependencies:
+  * TaskWarrior  - Task management (task)
+  * TimeWarrior  - Time tracking (timew)
+  * Hledger      - Ledger accounting (hledger)
+  * JRNL         - Journaling (jrnl)
+  * pipx          - Python tool isolation (required for jrnl, bugwarrior)
+  * gh            - GitHub CLI (required for github-sync)
+
+Examples:
+  ww deps check     Show dependency status
+  ww deps install   Install missing dependencies
+
+DEPS_HELP_EOF
+      ;;
+    *)
+      log_error "Unknown deps action: $action"
+      echo "Run 'ww deps help' for usage"
+      exit 1
+      ;;
+  esac
+}
+
+cmd_instance() {
+  local action="${1:-list}"
+  shift 2>/dev/null || true
+  case "$action" in
+    list)
+      local include_hidden=0
+      [[ "${1:-}" == "--all" ]] && include_hidden=1
+      echo "id	alias	version	visibility	status"
+      ww_instance_list "$include_hidden"
+      ;;
+    register)
+      local iid="${1:-}"
+      local install_path="${2:-$WW_BASE}"
+      local vis="${3:-visible}"
+      local preset="${4:-multi}"
+      [[ -n "$iid" ]] || { log_error "Usage: ww instance register <id> [install_path] [visible|hidden]"; exit 1; }
+      ww_instance_register "$iid" "$install_path" "$vis" "$iid" "$preset" "ww" "auto"
+      log_success "Registered instance '$iid'"
+      ;;
+    hide)
+      local iid="${1:-}"
+      [[ -n "$iid" ]] || { log_error "Usage: ww instance hide <id>"; exit 1; }
+      ww_instance_set_visibility "$iid" hidden
+      log_success "Instance '$iid' hidden"
+      ;;
+    unhide)
+      local iid="${1:-}"
+      [[ -n "$iid" ]] || { log_error "Usage: ww instance unhide <id>"; exit 1; }
+      ww_instance_set_visibility "$iid" visible
+      log_success "Instance '$iid' visible"
+      ;;
+    detach)
+      local iid="${1:-}"
+      [[ -n "$iid" ]] || { log_error "Usage: ww instance detach <id>"; exit 1; }
+      ww_instance_detach "$iid"
+      log_success "Detached instance '$iid'"
+      ;;
+    where)
+      local iid="${1:-}"
+      [[ -n "$iid" ]] || { log_error "Usage: ww instance where <id>"; exit 1; }
+      ww_instance_where "$iid"
+      ;;
+    aliases)
+      local sub="${1:-sync}"
+      shift 2>/dev/null || true
+      case "$sub" in
+        sync)
+          ww_sync_instance_aliases
+          ;;
+        clear)
+          ww_clear_instance_aliases
+          ;;
+        *)
+          log_error "Usage: ww instance aliases <sync|clear>"
+          exit 1
+          ;;
+      esac
+      ;;
+    *)
+      log_error "Unknown instance action: $action"
+      exit 1
+      ;;
+  esac
+}
+
+ww_get_rc_files() {
+  local rc_files=()
+  [[ -f "$HOME/.bashrc" ]] && rc_files+=("$HOME/.bashrc")
+  [[ -f "$HOME/.zshrc" ]] && rc_files+=("$HOME/.zshrc")
+  if [[ ${#rc_files[@]} -eq 0 ]]; then
+    touch "$HOME/.bashrc"
+    rc_files+=("$HOME/.bashrc")
+  fi
+  printf '%s\n' "${rc_files[@]}"
+}
+
+ww_clear_instance_aliases() {
+  local start="# -- Workwarrior Instance Aliases ---"
+  local end="# -- End Workwarrior Instance Aliases ---"
+  local rc
+  while IFS= read -r rc; do
+    [[ -f "$rc" ]] || continue
+    awk -v s="$start" -v e="$end" '
+      $0==s {skip=1; next}
+      $0==e {skip=0; next}
+      !skip {print}
+    ' "$rc" > "$rc.tmp" && mv "$rc.tmp" "$rc"
+  done < <(ww_get_rc_files)
+  log_success "Cleared instance aliases from shell rc files"
+}
+
+ww_sync_instance_aliases() {
+  local start="# -- Workwarrior Instance Aliases ---"
+  local end="# -- End Workwarrior Instance Aliases ---"
+  ww_clear_instance_aliases >/dev/null 2>&1 || true
+
+  local aliases=()
+  local dir="${WW_REGISTRY_DIR:-${WW_CONFIG_HOME:-$HOME/.config/ww}/registry}"
+  local f
+  for f in "$dir"/*.json; do
+    [[ -f "$f" ]] || continue
+    local rec
+    rec="$(python3 - "$f" << 'PY'
+import json,sys,re
+d=json.load(open(sys.argv[1]))
+if d.get("visibility") == "hidden":
+    raise SystemExit(0)
+alias_name=d.get("alias") or d.get("id")
+iid=d.get("id","")
+if not alias_name or not iid:
+    raise SystemExit(0)
+safe=re.sub(r'[^A-Za-z0-9_]', '', alias_name)
+if safe and safe not in {"ww","task","timew","jrnl","hledger"}:
+    print(f"{safe}:{iid}")
+PY
+)"
+    [[ -n "$rec" ]] && aliases+=("$rec")
+  done
+
+  local rc
+  while IFS= read -r rc; do
+    [[ -f "$rc" ]] || continue
+    {
+      echo ""
+      echo "$start"
+      local pair aname iid
+      for pair in "${aliases[@]}"; do
+        aname="${pair%%:*}"
+        iid="${pair#*:}"
+        echo "alias ${aname}='ww ${iid}'"
+        echo "alias ${aname}_unlock='ww unlock ${iid}'"
+      done
+      echo "$end"
+    } >> "$rc"
+  done < <(ww_get_rc_files)
+  log_success "Synced instance aliases to shell rc files"
+}
+
+cmd_unlock() {
+  local iid="${1:-}"
+  [[ -n "$iid" ]] || { log_error "Usage: ww unlock <instance>"; exit 1; }
+  local lock_required="false"
+  lock_required="$(ww_instance_lock_required "$iid" 2>/dev/null || echo "false")"
+  if [[ "$lock_required" != "true" ]]; then
+    ww_set_last_instance "$iid" >/dev/null 2>&1 || true
+    log_success "Instance '$iid' does not require unlock"
+    return 0
+  fi
+  if ww_session_token_valid "$iid"; then
+    ww_set_last_instance "$iid" >/dev/null 2>&1 || true
+    log_success "Instance '$iid' already unlocked in this session"
+    return 0
+  fi
+  local backend pref_file pref
+  pref_file="${WW_CONFIG_HOME:-$HOME/.config/ww}/security-backend"
+  pref="auto"
+  [[ -f "$pref_file" ]] && pref="$(cat "$pref_file" 2>/dev/null)"
+  backend="$(ww_detect_security_backend "$pref")"
+  if ww_unlock_instance "$iid" "$backend"; then
+    ww_session_token_set "$iid" 900 >/dev/null 2>&1 || true
+    ww_set_last_instance "$iid" >/dev/null 2>&1 || true
+    log_success "Unlocked instance '$iid' via $backend"
+    return 0
+  fi
+  log_error "Unlock failed for '$iid' via backend '$backend'"
+  return 1
+}
+
+cmd_security() {
+  local action="${1:-status}"
+  shift 2>/dev/null || true
+  case "$action" in
+    status)
+      local pref_file pref backend
+      pref_file="${WW_CONFIG_HOME:-$HOME/.config/ww}/security-backend"
+      pref="auto"
+      [[ -f "$pref_file" ]] && pref="$(cat "$pref_file" 2>/dev/null)"
+      backend="$(ww_detect_security_backend "$pref")"
+      echo "configured_backend=$pref"
+      echo "effective_backend=$backend"
+      if command -v keyctl >/dev/null 2>&1; then
+        echo "keyctl=available"
+      else
+        echo "keyctl=unavailable"
+      fi
+      ;;
+    set-backend)
+      local backend="${1:-}"
+      [[ -n "$backend" ]] || { log_error "Usage: ww security set-backend <auto|keychain|libsecret|pass>"; exit 1; }
+      mkdir -p "${WW_CONFIG_HOME:-$HOME/.config/ww}"
+      echo "$backend" > "${WW_CONFIG_HOME:-$HOME/.config/ww}/security-backend"
+      log_success "Security backend preference set to '$backend'"
+      ;;
+    set-secret)
+      local iid="${1:-}"
+      [[ -n "$iid" ]] || { log_error "Usage: ww security set-secret <instance>"; exit 1; }
+      local pref_file pref backend secret
+      pref_file="${WW_CONFIG_HOME:-$HOME/.config/ww}/security-backend"
+      pref="auto"
+      [[ -f "$pref_file" ]] && pref="$(cat "$pref_file" 2>/dev/null)"
+      backend="$(ww_detect_security_backend "$pref")"
+      read -rsp "Enter secret for '$iid': " secret
+      echo ""
+      if ww_store_instance_secret "$iid" "$backend" "$secret"; then
+        log_success "Stored secret for '$iid' via backend '$backend'"
+      else
+        log_error "Failed to store secret via backend '$backend'"
+        exit 1
+      fi
+      ;;
+    lock)
+      local iid="${1:-}"
+      [[ -n "$iid" ]] || { log_error "Usage: ww security lock <instance>"; exit 1; }
+      ww_session_token_clear "$iid" >/dev/null 2>&1 || true
+      log_success "Cleared session unlock token for '$iid'"
+      ;;
+    *)
+      log_error "Unknown security action: $action"
+      exit 1
+      ;;
+  esac
+}
+
+cmd_use() {
+  local iid="${1:-}"
+  shift 2>/dev/null || true
+  [[ -n "$iid" ]] || { log_error "Usage: ww use <instance> [command...]"; exit 1; }
+  local resolved_iid
+  resolved_iid="$(ww_instance_lookup "$iid" 1 2>/dev/null || true)"
+  [[ -n "$resolved_iid" ]] || { log_error "Instance not found: $iid"; exit 1; }
+
+  if ! cmd_unlock "$resolved_iid" >/dev/null 2>&1; then
+    log_error "Instance '$resolved_iid' is locked or unavailable"
+    exit 1
+  fi
+
+  local base
+  base="$(ww_instance_where "$resolved_iid" 2>/dev/null || true)"
+  [[ -n "$base" ]] || { log_error "No install path found for instance '$resolved_iid'"; exit 1; }
+  ww_set_last_instance "$resolved_iid" >/dev/null 2>&1 || true
+
+  if [[ $# -eq 0 ]]; then
+    echo "export WW_ACTIVE_INSTANCE=\"$resolved_iid\""
+    echo "export WW_BASE=\"$base\""
+    echo "# Apply with: eval \"\$(ww use $resolved_iid)\""
+    return 0
+  fi
+
+  env WW_ACTIVE_INSTANCE="$resolved_iid" WW_BASE="$base" "$base/bin/ww" "$@"
+}
+
+cmd_enable_multi() {
+  local cfg_home="${WW_CONFIG_HOME:-$HOME/.config/ww}"
+  local bs="$cfg_home/bootstrap.sh"
+  mkdir -p "$cfg_home"
+  cat > "$bs" << 'EOF'
+#!/usr/bin/env bash
+[[ -n "${WW_BOOTSTRAP_LOADED:-}" ]] && return 0
+export WW_BOOTSTRAP_LOADED=1
+ww() { "${WW_BASE:-$HOME/ww}/bin/ww" "$@"; }
+task() { "${WW_BASE:-$HOME/ww}/bin/ww" task "$@"; }
+timew() { "${WW_BASE:-$HOME/ww}/bin/ww" timew "$@"; }
+EOF
+  chmod +x "$bs"
+  log_success "Bootstrap written to $bs"
+  echo "Add to shell rc:"
+  echo "  source \"$bs\""
+}
+
+cmd_disable_multi() {
+  local bs="${WW_CONFIG_HOME:-$HOME/.config/ww}/bootstrap.sh"
+  if [[ -f "$bs" ]]; then
+    mv "$bs" "$bs.disabled"
+    log_success "Disabled bootstrap (moved to $bs.disabled)"
+  else
+    log_warning "No bootstrap found at $bs"
+  fi
+}
+
+# ============================================================================
+# COMMUNITY COMMAND
+# ============================================================================
+
+cmd_community() {
+  local comm_sh="${WW_BASE}/services/community/community.sh"
+  if [[ ! -f "$comm_sh" ]]; then
+    log_error "Community service not found at ${comm_sh}"
+    exit 1
+  fi
+  bash "$comm_sh" "$@"
+}
+
+# ============================================================================
+# GROUP COMMAND
+# ============================================================================
+
+cmd_group() {
+  local action="${1:-}"
+  shift 2>/dev/null || true
+
+  case "$action" in
+    ""|help|-h|--help)
+      show_help_group
+      return 0
+      ;;
+  esac
+
+  if [[ -f "$WW_BASE/services/groups/groups.sh" ]]; then
+    "$WW_BASE/services/groups/groups.sh" "${action}" "$@"
+  else
+    log_error "Groups service not found"
+    exit 1
+  fi
+}
+
+# ============================================================================
+# MODELS COMMAND
+# ============================================================================
+
+cmd_models() {
+  local action="${1:-}"
+  shift 2>/dev/null || true
+
+  case "$action" in
+    ""|help|-h|--help)
+      show_help_model
+      return 0
+      ;;
+  esac
+
+  if [[ -f "$WW_BASE/services/models/models.sh" ]]; then
+    "$WW_BASE/services/models/models.sh" "${action}" "$@"
+  else
+    log_error "Models service not found"
+    exit 1
+  fi
+}
+
+# ============================================================================
+# CTRL COMMAND
+# ============================================================================
+
+cmd_ctrl() {
+  if [[ -f "$WW_BASE/services/ctrl/ctrl.sh" ]]; then
+    "$WW_BASE/services/ctrl/ctrl.sh" "$@"
+  else
+    log_error "CTRL service not found"
+    exit 1
+  fi
+}
+
+cmd_config() {
+  local action="${1:-}"
+  shift 2>/dev/null || true
+  local cfg_home="${WW_CONFIG_HOME:-$HOME/.config/ww}"
+  local cfg_file="$cfg_home/runtime.conf"
+  mkdir -p "$cfg_home"
+  [[ -f "$cfg_file" ]] || {
+    cat > "$cfg_file" << 'EOF'
+resume_last=on
+allow_hidden_last=off
+EOF
+  }
+
+  case "$action" in
+    set)
+      local key="${1:-}"
+      local val="${2:-}"
+      if [[ "$key" != "resume-last" && "$key" != "allow-hidden-last" ]]; then
+        log_error "Usage: ww config set <resume-last|allow-hidden-last> <on|off>"
+        exit 1
+      fi
+      if [[ "$val" != "on" && "$val" != "off" ]]; then
+        log_error "Value must be on|off"
+        exit 1
+      fi
+      local mapped="$key"
+      mapped="${mapped//-/_}"
+      awk -F= -v k="$mapped" -v v="$val" '
+        BEGIN{done=0}
+        $1==k {print k"="v; done=1; next}
+        {print}
+        END{if(!done) print k"="v}
+      ' "$cfg_file" > "$cfg_file.tmp" && mv "$cfg_file.tmp" "$cfg_file"
+      log_success "Set $key=$val"
+      ;;
+    show|status|"")
+      cat "$cfg_file"
+      ;;
+    *)
+      log_error "Usage: ww config <show|set>"
+      exit 1
+      ;;
+  esac
+}
+
+# ============================================================================
+# EXTENSIONS COMMAND
+# ============================================================================
+
+cmd_extensions() {
+  if [[ -f "$WW_BASE/services/extensions/extensions.sh" ]]; then
+    "$WW_BASE/services/extensions/extensions.sh" "$@"
+  else
+    log_error "Extensions service not found"
+    exit 1
+  fi
+}
+
+cmd_task_passthrough() {
+  if command -v task >/dev/null 2>&1; then
+    if [[ -n "${TASKRC:-}" || -n "${TASKDATA:-}" ]]; then
+      TASKRC="${TASKRC:-}" TASKDATA="${TASKDATA:-}" command task "$@"
+    else
+      command task "$@"
+    fi
+  else
+    log_error "TaskWarrior binary not found: task"
+    exit 1
+  fi
+}
+
+cmd_time_passthrough() {
+  if command -v timew >/dev/null 2>&1; then
+    if [[ -n "${TIMEWARRIORDB:-}" ]]; then
+      TIMEWARRIORDB="${TIMEWARRIORDB:-}" command timew "$@"
+    else
+      command timew "$@"
+    fi
+  else
+    log_error "TimeWarrior binary not found: timew"
+    exit 1
+  fi
+}
+
+cmd_jrnl_passthrough() {
+  if ! command -v jrnl >/dev/null 2>&1; then
+    log_error "JRNL binary not found: jrnl"
+    exit 1
+  fi
+  local has_cfg=0
+  local arg
+  for arg in "$@"; do
+    [[ "$arg" == "--config-file" ]] && has_cfg=1
+  done
+  local cfg="${WORKWARRIOR_BASE:-}/jrnl.yaml"
+  if [[ $has_cfg -eq 0 && -n "${WORKWARRIOR_BASE:-}" && -f "$cfg" ]]; then
+    command jrnl --config-file "$cfg" "$@"
+  else
+    command jrnl "$@"
+  fi
+}
+
+cmd_hledger_passthrough() {
+  if ! command -v hledger >/dev/null 2>&1; then
+    log_error "Hledger binary not found: hledger"
+    exit 1
+  fi
+  local has_file=0
+  local arg
+  for arg in "$@"; do
+    [[ "$arg" == "-f" || "$arg" == "--file" ]] && has_file=1
+  done
+  local default_ledger="${WORKWARRIOR_BASE:-}/ledgers/default.journal"
+  if [[ $has_file -eq 0 && -n "${WORKWARRIOR_BASE:-}" && -f "$default_ledger" ]]; then
+    command hledger -f "$default_ledger" "$@"
+  else
+    command hledger "$@"
+  fi
+}
+
+cmd_list_passthrough() {
+  if ! command -v python3 >/dev/null 2>&1; then
+    log_error "python3 not found; list tool requires python3"
+    exit 1
+  fi
+  local base="${WORKWARRIOR_BASE:-$WW_BASE/global}"
+  local list_dir="$base/list"
+  mkdir -p "$list_dir"
+  local list_basename="tasks"
+  local lists_yaml="$base/lists.yaml"
+  if [[ -f "$lists_yaml" ]]; then
+    local line
+    line=$(grep -E '^[[:space:]]*default:[[:space:]]*' "$lists_yaml" | head -1 || true)
+    if [[ -n "$line" ]]; then
+      list_basename="${line##*:}"
+      list_basename="$(echo "$list_basename" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+    fi
+  fi
+  [[ -z "$list_basename" ]] && list_basename="tasks"
+  python3 "$WW_BASE/tools/list/list.py" -t "$list_dir" -l "$list_basename" "$@"
+}
+
+# ============================================================================
+# TIMEW COMMAND — per-profile extensions under $TIMEWARRIORDB/extensions/
+# ============================================================================
+
+_timew_require_profile_db() {
+  if [[ -z "${TIMEWARRIORDB:-}" ]]; then
+    log_error "No active profile — TIMEWARRIORDB is not set."
+    echo "Activate a profile (e.g. p-work) or run: ww --profile <name> timew ..." >&2
+    exit 1
+  fi
+}
+
+_timew_extensions_dir() {
+  echo "${TIMEWARRIORDB}/extensions"
+}
+
+_timew_write_meta() {
+  # args: <install_name> <source_url> <version_string>
+  local inst_name="$1"
+  local src="$2"
+  local ver="$3"
+  local meta
+  meta="$(_timew_extensions_dir)/${inst_name}.ww-ext.json"
+  if ! command -v python3 &>/dev/null; then
+    log_warning "python3 not found — skipping metadata sidecar for ${inst_name}"
+    return 0
+  fi
+  python3 - "$inst_name" "$src" "$ver" "$meta" << 'PY'
+import json, sys
+name, src, ver, path = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+obj = {"name": name, "source": src, "version": ver}
+with open(path, "w", encoding="utf-8") as f:
+    json.dump(obj, f, indent=2)
+    f.write("\n")
+PY
+}
+
+_timew_read_meta_field() {
+  local inst_name="$1"
+  local field="$2"
+  local meta
+  meta="$(_timew_extensions_dir)/${inst_name}.ww-ext.json"
+  [[ -f "$meta" ]] || return 1
+  python3 - "$meta" "$field" << 'PY' 2>/dev/null || true
+import json, sys
+path, field = sys.argv[1], sys.argv[2]
+with open(path, encoding="utf-8") as f:
+    d = json.load(f)
+print(d.get(field, "") or "")
+PY
+}
+
+_timew_list_extensions_json() {
+  local extdir
+  extdir="$(_timew_extensions_dir)"
+  mkdir -p "$extdir"
+  python3 - "$extdir" << 'PY'
+import json, os, sys
+extdir = sys.argv[1]
+rows = []
+if not os.path.isdir(extdir):
+    print("[]")
+    sys.exit(0)
+for name in sorted(os.listdir(extdir)):
+    path = os.path.join(extdir, name)
+    if name.endswith(".ww-ext.json"):
+        continue
+    if not os.path.isfile(path):
+        continue
+    if not os.access(path, os.X_OK):
+        continue
+    meta_path = os.path.join(extdir, f"{name}.ww-ext.json")
+    src = ver = ""
+    if os.path.isfile(meta_path):
+        try:
+            with open(meta_path, encoding="utf-8") as f:
+                m = json.load(f)
+            src = m.get("source") or ""
+            ver = m.get("version") or ""
+        except Exception:
+            pass
+    rows.append({"name": name, "source": src, "version": ver})
+print(json.dumps(rows, indent=2))
+PY
+}
+
+_timew_list_extensions_human() {
+  local extdir
+  extdir="$(_timew_extensions_dir)"
+  mkdir -p "$extdir"
+  printf "%-16s %-48s %s\n" "NAME" "SOURCE" "VERSION"
+  local any=0
+  while IFS= read -r -d '' f; do
+    any=1
+    local base src ver
+    base="$(basename "$f")"
+    src="$(_timew_read_meta_field "$base" source 2>/dev/null || true)"
+    ver="$(_timew_read_meta_field "$base" version 2>/dev/null || true)"
+    printf "%-16s %-48s %s\n" "$base" "${src:-—}" "${ver:-—}"
+  done < <(command find "$extdir" -maxdepth 1 -type f ! -name '*.ww-ext.json' -perm -111 -print0 2>/dev/null || true)
+  if [[ "$any" -eq 0 ]]; then
+    echo "(no executable extensions in ${extdir})"
+  fi
+}
+
+_timew_install_billable() {
+  local upstream="https://github.com/trev-dev/timew-billable"
+  _timew_require_profile_db
+  local extdir tmp clone ver bin_out
+  extdir="$(_timew_extensions_dir)"
+  mkdir -p "$extdir"
+  if ! command -v nim &>/dev/null; then
+    log_error "nim not found — timew-billable builds from Nim source."
+    echo "Install Nim (https://nim-lang.org/install.html) e.g.:" >&2
+    echo "  brew install nim    # macOS" >&2
+    echo "  curl https://nim-lang.org/choosenim/init.sh -sSf | sh" >&2
+    exit 1
+  fi
+  tmp="$(mktemp -d "${TMPDIR:-/tmp}/ww-timew-billable.XXXXXX")"
+  clone="${tmp}/timew-billable"
+  git clone --depth 1 "$upstream" "$clone"
+  ( cd "$clone" && nim c -d:release src/billable.nim )
+  ver="$(cd "$clone" && git describe --tags --always 2>/dev/null || echo unknown)"
+  bin_out=""
+  for c in "${clone}/billable" "${clone}/src/billable"; do
+    if [[ -f "$c" && -x "$c" ]]; then
+      bin_out="$c"
+      break
+    fi
+  done
+  if [[ -z "$bin_out" ]]; then
+    rm -rf "$tmp"
+    log_error "Build finished but billable binary not found (expected ${clone}/billable or ${clone}/src/billable)"
+    exit 1
+  fi
+  install -m 0755 "$bin_out" "${extdir}/billable"
+  _timew_write_meta "billable" "$upstream" "$ver"
+  rm -rf "$tmp"
+  echo ""
+  echo "Installed: ${extdir}/billable"
+  echo "Upstream:  trev-dev/timew-billable · MIT License"
+  echo "            ${upstream}"
+  log_success "timew-billable installed as 'billable' (run: timew report billable)"
+}
+
+_timew_install_from_url() {
+  local url="$1"
+  _timew_require_profile_db
+  if [[ ! "$url" =~ ^https?:// ]]; then
+    log_error "URL must start with http:// or https://"
+    exit 1
+  fi
+  local extdir tmp clone name ver bin_out
+  extdir="$(_timew_extensions_dir)"
+  mkdir -p "$extdir"
+  name="$(basename "$url" .git)"
+  name="${name%.git}"
+  if [[ ! "$name" =~ ^[A-Za-z0-9._-]+$ ]]; then
+    log_error "Derived extension name '$name' is not safe — use a simpler repo URL basename"
+    exit 1
+  fi
+  tmp="$(mktemp -d "${TMPDIR:-/tmp}/ww-timew-ext.XXXXXX")"
+  clone="${tmp}/repo"
+  git clone --depth 1 "$url" "$clone"
+  ver="$(cd "$clone" && git describe --tags --always 2>/dev/null || echo unknown)"
+  bin_out=""
+  if [[ -f "${clone}/src/billable.nim" ]]; then
+    if ! command -v nim &>/dev/null; then
+      rm -rf "$tmp"
+      log_error "Repository looks like timew-billable (src/billable.nim) but nim is not installed."
+      exit 1
+    fi
+    ( cd "$clone" && nim c -d:release src/billable.nim )
+    for c in "${clone}/billable" "${clone}/src/billable"; do
+      if [[ -f "$c" && -x "$c" ]]; then
+        bin_out="$c"
+        break
+      fi
+    done
+    install_name="billable"
+  elif find "$clone" -maxdepth 1 -name '*.nimble' -print -quit | grep -q .; then
+    if ! command -v nimble &>/dev/null; then
+      rm -rf "$tmp"
+      log_error "Found a .nimble package but nimble is not installed."
+      exit 1
+    fi
+    ( cd "$clone" && (nimble build --accept 2>/dev/null || nimble -y build 2>/dev/null || nimble build) )
+    # pick first executable in clone root or bin/
+    if [[ -d "${clone}/bin" ]]; then
+      bin_out="$(find "${clone}/bin" -maxdepth 1 -type f -perm -111 2>/dev/null | head -1 || true)"
+    fi
+    if [[ -z "$bin_out" ]]; then
+      bin_out="$(find "$clone" -maxdepth 1 -type f -perm -111 ! -name '*.nim' 2>/dev/null | head -1 || true)"
+    fi
+    install_name="$name"
+  elif [[ -f "${clone}/setup.py" || -f "${clone}/pyproject.toml" ]]; then
+    rm -rf "$tmp"
+    log_error "Python-based timew extensions are not auto-installed yet."
+    echo "Clone manually, install into a venv, and symlink the entry script into:" >&2
+    echo "  ${extdir}/" >&2
+    exit 1
+  else
+    local shf
+    shf="$(find "$clone" -maxdepth 2 -type f -name '*.sh' 2>/dev/null | head -1 || true)"
+    if [[ -n "$shf" ]]; then
+      install_name="$name"
+      bin_out="$shf"
+      chmod +x "$bin_out" 2>/dev/null || true
+    else
+      rm -rf "$tmp"
+      log_error "Could not detect a supported build (Nim billable, nimble package, or executable .sh)."
+      exit 1
+    fi
+  fi
+  if [[ -z "$bin_out" || ! -x "$bin_out" ]]; then
+    rm -rf "$tmp"
+    log_error "Build or detection failed — no executable produced."
+    exit 1
+  fi
+  install -m 0755 "$bin_out" "${extdir}/${install_name}"
+  _timew_write_meta "$install_name" "$url" "$ver"
+  rm -rf "$tmp"
+  echo "Installed: ${extdir}/${install_name}  (source: ${url})"
+  log_success "timew extension '${install_name}' installed"
+}
+
+cmd_timew_extensions() {
+  local action="${1:-}"
+  shift 2>/dev/null || true
+
+  case "$action" in
+    list)
+      _timew_require_profile_db
+      if [[ "$WW_OUTPUT_MODE" == "json" ]]; then
+        _timew_list_extensions_json
+      elif [[ "$WW_OUTPUT_MODE" == "compact" ]]; then
+        local extdir
+        extdir="$(_timew_extensions_dir)"
+        mkdir -p "$extdir"
+        while IFS= read -r -d '' f; do
+          basename "$f"
+        done < <(command find "$extdir" -maxdepth 1 -type f ! -name '*.ww-ext.json' -perm -111 -print0 2>/dev/null || true)
+      else
+        echo "TimeWarrior extensions (profile: ${WARRIOR_PROFILE:-?}):"
+        echo "  TIMEWARRIORDB=${TIMEWARRIORDB}"
+        echo ""
+        _timew_list_extensions_human
+      fi
+      ;;
+    install)
+      local what="${1:-}"
+      if [[ -z "$what" ]]; then
+        log_error "Missing install target — use: billable  or  https://github.com/..."
+        exit 1
+      fi
+      shift 2>/dev/null || true
+      if [[ "$what" == "billable" ]]; then
+        _timew_install_billable
+      elif [[ "$what" =~ ^https?:// ]]; then
+        _timew_install_from_url "$what"
+      else
+        log_error "Unknown preset '$what' — use: billable  or a full git URL"
+        exit 1
+      fi
+      ;;
+    remove)
+      local name="${1:-}"
+      if [[ -z "$name" ]]; then
+        log_error "Usage: ww timew extensions remove <name>"
+        exit 1
+      fi
+      if [[ ! "$name" =~ ^[A-Za-z0-9._-]+$ ]]; then
+        log_error "Invalid extension name"
+        exit 1
+      fi
+      _timew_require_profile_db
+      local extdir f meta
+      extdir="$(_timew_extensions_dir)"
+      f="${extdir}/${name}"
+      meta="${extdir}/${name}.ww-ext.json"
+      if [[ ! -f "$f" ]]; then
+        log_error "Extension not found: $f"
+        exit 1
+      fi
+      rm -f "$f" "$meta"
+      log_success "Removed extension '${name}' from active profile"
+      ;;
+    help|-h|--help)
+      cat << 'EOF'
+Timew extensions — per-profile installs under $TIMEWARRIORDB/extensions/
+
+Usage:
+  ww timew extensions list
+  ww timew extensions install billable
+  ww timew extensions install https://github.com/org/repo.git
+  ww timew extensions remove <name>
+  ww timew extensions help
+
+Requires an active ww profile (TIMEWARRIORDB). Use:
+  ww --profile <name> timew extensions list
+
+Powered by timew-billable · trev-dev
+  https://github.com/trev-dev/timew-billable · MIT License
+
+See also: docs/taskwarrior-extensions/timew-billable-integration.md
+EOF
+      ;;
+    "")
+      cmd_timew_extensions help
+      ;;
+    *)
+      log_error "Unknown timew extensions action: $action"
+      cmd_timew_extensions help
+      exit 1
+      ;;
+  esac
+}
+
+cmd_timew() {
+  local sub="${1:-}"
+  shift 2>/dev/null || true
+
+  case "$sub" in
+    extensions)
+      cmd_timew_extensions "$@"
+      ;;
+    help|-h|--help)
+      cat << 'EOF'
+Timew — TimeWarrior helpers
+
+Usage:
+  ww timew extensions <list|install|remove|help>
+
+Examples:
+  ww timew extensions list
+  ww timew extensions install billable
+  ww timew extensions remove billable
+
+Per-profile extensions live in:
+  $TIMEWARRIORDB/extensions/
+
+Documentation:
+  docs/taskwarrior-extensions/timew-billable-integration.md
+EOF
+      ;;
+    "")
+      cmd_timew help
+      ;;
+    *)
+      log_error "Unknown timew subcommand: $sub"
+      cmd_timew help
+      exit 1
+      ;;
+  esac
+}
+
+# ============================================================================
+# FIND COMMAND
+# ============================================================================
+
+cmd_find() {
+  if [[ -f "$WW_BASE/services/find/find.sh" ]]; then
+    "$WW_BASE/services/find/find.sh" "$@"
+  else
+    log_error "Find service not found"
+    exit 1
+  fi
+}
+
+# ============================================================================
+# CUSTOM COMMAND
+# ============================================================================
+
+cmd_custom() {
+  local action="${1:-}"
+  shift 2>/dev/null || true
+
+  case "$action" in
+    journals)
+      "$WW_BASE/services/custom/configure-journals.sh" "$@"
+      ;;
+    tasks)
+      "$WW_BASE/services/custom/configure-tasks.sh" "$@"
+      ;;
+    times)
+      "$WW_BASE/services/custom/configure-times.sh" "$@"
+      ;;
+    ledgers)
+      "$WW_BASE/services/custom/configure-ledgers.sh" "$@"
+      ;;
+    issues)
+      "$WW_BASE/services/custom/configure-issues.sh" "$@"
+      ;;
+    list)
+      echo "Available custom services:"
+      echo ""
+      for service in "$WW_BASE/services/custom/"*.sh; do
+        if [[ -f "$service" && -x "$service" ]]; then
+          local name
+          name="$(basename "$service" .sh)"
+          # Extract description from service file
+          local desc
+          desc=$(grep "^# Description:" "$service" | sed 's/# Description: //')
+          if [[ -n "$desc" ]]; then
+            echo "  $name - $desc"
+          else
+            echo "  $name"
+          fi
+        fi
+      done
+      echo ""
+      echo "Usage: ww custom <service-name>"
+      echo "   or: j custom (for journals configuration)"
+      echo "   or: custom journals (alternative)"
+      echo ""
+      ;;
+    ""|help|-h|--help)
+      cat << EOF
+Custom Services
+
+Usage: ww custom <service> [arguments]
+
+Available Services:
+  journals   Configure journal settings (requires active profile)
+  tasks      Configure TaskWarrior settings (requires active profile)
+  times      Configure TimeWarrior settings (requires active profile)
+  ledgers    Configure ledger settings (requires active profile)
+  issues     Configure bugwarrior issue synchronization (requires active profile)
+
+Shortcuts:
+  j custom              Same as 'ww custom journals'
+  t custom              Same as 'ww custom tasks'
+  a custom              Same as 'ww custom times'
+  l custom              Same as 'ww custom ledgers' (profile-scoped only)
+  i custom              Same as 'ww custom issues'
+  custom journals       Same as 'ww custom journals'
+  custom tasks          Same as 'ww custom tasks'
+  custom times          Same as 'ww custom times'
+  custom ledgers        Same as 'ww custom ledgers'
+  custom issues         Same as 'ww custom issues'
+
+Examples:
+  ww custom journals    Configure journal settings
+  ww custom tasks       Configure TaskWarrior settings
+  ww custom times       Configure TimeWarrior settings
+  ww custom ledgers     Configure ledger settings
+  ww custom issues      Configure issue synchronization
+  ww custom list        List available custom services
+  j custom              Quick access to journal configuration
+  l custom              Quick access to ledger configuration
+  i custom              Quick access to issues configuration
+
+Note: Most custom services require an active profile.
+Activate a profile with: p-<profile-name>
+
+EOF
+      ;;
+    *)
+      log_error "Unknown custom service: $action"
+      echo "Run 'ww custom list' to see available services"
+      exit 1
+      ;;
+  esac
+}
+
+# ============================================================================
+# QUESTIONS COMMAND
+# ============================================================================
+
+cmd_questions() {
+  local action="${1:-}"
+  shift 2>/dev/null || true
+
+  # Resolve profile — use scope context (handles --profile flag and last-used profile)
+  local q_base=""
+  if [[ -n "${WORKWARRIOR_BASE:-}" ]]; then
+    q_base="$WORKWARRIOR_BASE/services/questions"
+  elif [[ -n "${WARRIOR_PROFILE:-}" ]]; then
+    q_base="$WW_BASE/profiles/$WARRIOR_PROFILE/services/questions"
+  else
+    # Try active profile from state file, then last profile
+    local try_prof=""
+    if [[ -f "$WW_BASE/.state/active_profile" ]]; then
+      try_prof="$(cat "$WW_BASE/.state/active_profile" 2>/dev/null | tr -d '[:space:]')"
+    fi
+    if [[ -z "$try_prof" ]] || [[ ! -d "$WW_BASE/profiles/$try_prof" ]]; then
+      try_prof="$(get_last_profile 2>/dev/null || true)"
+    fi
+    if [[ -n "$try_prof" && -d "$WW_BASE/profiles/$try_prof" ]]; then
+      q_base="$WW_BASE/profiles/$try_prof/services/questions"
+      export WORKWARRIOR_BASE="$WW_BASE/profiles/$try_prof"
+      export WARRIOR_PROFILE="$try_prof"
+      export TASKRC="$WW_BASE/profiles/$try_prof/.taskrc"
+    else
+      log_error "No active profile — activate one first: p-<profile-name>"
+      exit 1
+    fi
+  fi
+
+  local templates_dir="$q_base/templates"
+  mkdir -p "$templates_dir"/{task,journal,time,list,ledger,custom}
+
+  case "$action" in
+    list|"")
+      _q_list_all "$templates_dir"
+      ;;
+    new)
+      local service="${1:-custom}"
+      if [[ ! "$service" =~ ^(task|journal|time|list|ledger|custom)$ ]]; then
+        log_error "Invalid service: $service. Use: task, journal, time, list, ledger, custom"
+        exit 1
+      fi
+      if [[ "$service" == "task" ]]; then
+        _q_create_task_template "$templates_dir"
+      else
+        _q_create_template "$templates_dir" "$service"
+      fi
+      ;;
+    edit)
+      local name="${1:-}"
+      if [[ -z "$name" ]]; then
+        log_error "Template name required: ww q edit <name>"
+        exit 1
+      fi
+      local found=$(_q_find_template "$templates_dir" "$name")
+      if [[ -z "$found" ]]; then
+        log_error "Template '$name' not found"
+        exit 1
+      fi
+      ${EDITOR:-nano} "$found"
+      log_success "Template saved"
+      ;;
+    delete)
+      local name="${1:-}"
+      local flag="${2:-}"
+      if [[ -z "$name" ]]; then
+        log_error "Template name required: ww q delete <name>"
+        exit 1
+      fi
+      local found=$(_q_find_template "$templates_dir" "$name")
+      if [[ -z "$found" ]]; then
+        log_error "Template '$name' not found"
+        exit 1
+      fi
+      if [[ "$flag" != "--yes" ]]; then
+        read -p "Delete template '$name'? (y/N): " confirm
+        [[ "$confirm" =~ ^[Yy]$ ]] || { echo "Cancelled"; exit 0; }
+      fi
+      rm -f "$found"
+      log_success "Deleted template '$name'"
+      ;;
+    task|journal|time|list|ledger|custom)
+      local template_name="${1:-}"
+      if [[ -z "$template_name" ]]; then
+        _q_list_service "$templates_dir" "$action"
+      else
+        _q_run_template "$templates_dir" "$action" "$template_name"
+      fi
+      ;;
+    help|-h|--help)
+      cat << 'QEOF'
+Questions Service — Templated Workflows
+
+Usage:
+  ww q                         List all templates
+  ww q list                    List all templates
+  ww q new <service>           Create new template (task, journal, time, list, ledger, custom)
+  ww q <service>               List templates for a service
+  ww q <service> <template>    Run a template
+  ww q edit <template>         Edit template in $EDITOR
+  ww q delete <template>       Delete a template
+
+Services: task, journal, time, list, ledger, custom
+
+Examples:
+  ww q new journal             Create a journal question template
+  ww q new task                Create a task template (with UDA picker)
+  ww q journal daily           Run the 'daily' journal template
+  ww q task standup            Run the 'standup' task template
+QEOF
+      ;;
+    *)
+      log_error "Unknown questions command: $action"
+      echo "Run: ww q help"
+      exit 1
+      ;;
+  esac
+}
+
+_q_list_all() {
+  local templates_dir="$1"
+  local global_dir="$WW_BASE/services/questions/templates"
+  echo "All Templates:"
+  echo "=============="
+  local found=0
+  for service in task journal time list ledger custom; do
+    local files=()
+    # Profile templates
+    local dir="$templates_dir/$service"
+    if [[ -d "$dir" ]]; then
+      while IFS= read -r f; do
+        files+=("$(basename "$f" .json)")
+      done < <(find "$dir" -maxdepth 1 -name "*.json" -type f 2>/dev/null | sort)
+    fi
+    # Global templates (add if not already found)
+    local gdir="$global_dir/$service"
+    if [[ -d "$gdir" ]]; then
+      while IFS= read -r f; do
+        local bn="$(basename "$f" .json)"
+        local already=0
+        for existing in "${files[@]}"; do [[ "$existing" == "$bn" ]] && already=1 && break; done
+        [[ $already -eq 0 ]] && files+=("$bn")
+      done < <(find "$gdir" -maxdepth 1 -name "*.json" -type f 2>/dev/null | sort)
+    fi
+    if [[ ${#files[@]} -gt 0 ]]; then
+      found=1
+      echo "$service:"
+      for f in "${files[@]}"; do
+        echo "  $f"
+      done
+    fi
+  done
+  if [[ $found -eq 0 ]]; then
+    echo "(no templates)"
+    echo "Create one: ww q new journal"
+  fi
+}
+
+_q_list_service() {
+  local templates_dir="$1"
+  local service="$2"
+  local global_dir="$WW_BASE/services/questions/templates"
+  echo "Templates for $service:"
+  local files=()
+  for dir in "$templates_dir/$service" "$global_dir/$service"; do
+    [[ -d "$dir" ]] || continue
+    while IFS= read -r f; do
+      local bn="$(basename "$f" .json)"
+      local already=0
+      for existing in "${files[@]}"; do [[ "$existing" == "$bn" ]] && already=1 && break; done
+      [[ $already -eq 0 ]] && files+=("$bn")
+    done < <(find "$dir" -maxdepth 1 -name "*.json" -type f 2>/dev/null | sort)
+  done
+  if [[ ${#files[@]} -eq 0 ]]; then
+    echo "  (none)"
+    echo "Create one: ww q new $service"
+  else
+    for f in "${files[@]}"; do
+      echo "  $f"
+    done
+  fi
+}
+
+_q_find_template() {
+  local templates_dir="$1"
+  local name="$2"
+  local global_dir="$WW_BASE/services/questions/templates"
+  # Profile first, then global
+  for service in task journal time list ledger custom; do
+    local f="$templates_dir/$service/${name}.json"
+    if [[ -f "$f" ]]; then echo "$f"; return 0; fi
+    local gf="$global_dir/$service/${name}.json"
+    if [[ -f "$gf" ]]; then echo "$gf"; return 0; fi
+  done
+  return 1
+}
+
+_q_create_template() {
+  local templates_dir="$1"
+  local service="$2"
+
+  read -p "Template name (filename, no spaces): " tname
+  if [[ -z "$tname" || ! "$tname" =~ ^[a-zA-Z0-9._-]+$ ]]; then
+    log_error "Invalid name. Use letters, numbers, dots, hyphens, underscores."
+    return 1
+  fi
+  local tfile="$templates_dir/$service/${tname}.json"
+  if [[ -f "$tfile" ]]; then
+    log_error "Template '$tname' already exists in $service"
+    return 1
+  fi
+
+  read -p "Display name [$tname]: " display_name
+  [[ -z "$display_name" ]] && display_name="$tname"
+  read -p "Description: " desc
+
+  echo ""
+  echo "Enter questions (empty line to finish):"
+  local questions=()
+  local n=1
+  while true; do
+    read -p "  Q$n: " qtxt
+    [[ -z "$qtxt" ]] && break
+    questions+=("$qtxt")
+    ((n++))
+  done
+
+  if [[ ${#questions[@]} -eq 0 ]]; then
+    log_error "At least one question required"
+    return 1
+  fi
+
+  # Write JSON
+  python3 -c "
+import json, sys
+qs = []
+for i, q in enumerate(sys.argv[3:]):
+    qs.append({'id': f'q{i+1}', 'text': q, 'type': 'text', 'required': True})
+t = {'name': sys.argv[1], 'description': sys.argv[2], 'service': '$service', 'questions': qs,
+     'output_format': {'title': sys.argv[1] + ' - {date}', 'tags': ['$service', 'template']}}
+with open('$tfile', 'w') as f:
+    json.dump(t, f, indent=2)
+" "$display_name" "$desc" "${questions[@]}"
+
+  log_success "Created: $tfile"
+  echo "Run with: ww q $service $tname"
+}
+
+_q_create_task_template() {
+  local templates_dir="$1"
+
+  read -p "Template name (filename, no spaces): " tname
+  if [[ -z "$tname" || ! "$tname" =~ ^[a-zA-Z0-9._-]+$ ]]; then
+    log_error "Invalid name"
+    return 1
+  fi
+  local tfile="$templates_dir/task/${tname}.json"
+  if [[ -f "$tfile" ]]; then
+    log_error "Template '$tname' already exists"
+    return 1
+  fi
+
+  read -p "Display name [$tname]: " display_name
+  [[ -z "$display_name" ]] && display_name="$tname"
+  read -p "Description: " desc
+
+  echo ""
+  echo "Enter questions (empty line to finish):"
+  local questions=()
+  local n=1
+  while true; do
+    read -p "  Q$n: " qtxt
+    [[ -z "$qtxt" ]] && break
+    questions+=("$qtxt")
+    ((n++))
+  done
+  if [[ ${#questions[@]} -eq 0 ]]; then
+    log_error "At least one question required"
+    return 1
+  fi
+
+  # UDA picker — interactive search
+  echo ""
+  echo "Select UDAs to include (type name to search, number to select, 'list' to browse, Enter to finish):"
+  echo "─────────────────────────────────────────────────────────────"
+
+  local taskrc="${TASKRC:-$WORKWARRIOR_BASE/.taskrc}"
+  local uda_names=()
+  local uda_types=()
+  local uda_labels=()
+
+  while IFS= read -r line; do
+    local uname="${line%%=*}"
+    uname="${uname#uda.}"
+    uname="${uname%.type}"
+    local utype="${line#*=}"
+    [[ "$uname" =~ ^(github|gitlab|jira|trello|bw_|sync_) ]] && continue
+    local ulabel=""
+    ulabel=$(grep "^uda\.${uname}\.label=" "$taskrc" 2>/dev/null | head -1 | cut -d= -f2)
+    [[ -z "$ulabel" ]] && ulabel="$uname"
+    uda_names+=("$uname")
+    uda_types+=("$utype")
+    uda_labels+=("$ulabel")
+  done < <(grep "^uda\..*\.type=" "$taskrc" 2>/dev/null | sort)
+
+  local selected_udas=()
+  if [[ ${#uda_names[@]} -gt 0 ]]; then
+    while true; do
+      local sel_display=""
+      if [[ ${#selected_udas[@]} -gt 0 ]]; then
+        sel_display=" [selected: ${selected_udas[*]}]"
+      fi
+      read -p "UDA${sel_display}: " uda_input
+      [[ -z "$uda_input" ]] && break
+
+      if [[ "$uda_input" == "list" ]]; then
+        for i in "${!uda_names[@]}"; do
+          printf "  %3d. %-25s %-10s %s\n" "$((i+1))" "${uda_names[$i]}" "(${uda_types[$i]})" "${uda_labels[$i]}"
+        done
+        continue
+      fi
+
+      # Number input
+      if [[ "$uda_input" =~ ^[0-9]+$ ]]; then
+        local num=$uda_input
+        if (( num >= 1 && num <= ${#uda_names[@]} )); then
+          selected_udas+=("${uda_names[$((num-1))]}")
+          echo "  + ${uda_names[$((num-1))]}"
+        else
+          echo "  (invalid number, 1-${#uda_names[@]})"
+        fi
+        continue
+      fi
+
+      # Text search — show matches
+      local matches=()
+      local match_indices=()
+      for i in "${!uda_names[@]}"; do
+        if [[ "${uda_names[$i]}" == *"$uda_input"* || "${uda_labels[$i]}" == *"$uda_input"* ]]; then
+          matches+=("${uda_names[$i]}")
+          match_indices+=("$i")
+        fi
+      done
+
+      if [[ ${#matches[@]} -eq 0 ]]; then
+        echo "  (no match for '$uda_input')"
+      elif [[ ${#matches[@]} -eq 1 ]]; then
+        selected_udas+=("${matches[0]}")
+        echo "  + ${matches[0]}"
+      else
+        echo "  matches:"
+        for j in "${!matches[@]}"; do
+          local idx="${match_indices[$j]}"
+          printf "    %3d. %-25s %s\n" "$((idx+1))" "${matches[$j]}" "${uda_labels[$idx]}"
+        done
+      fi
+    done
+  fi
+
+  echo ""
+  echo "Selected UDAs: ${selected_udas[*]:-none}"
+
+  # Write JSON with UDA fields
+  python3 -c "
+import json, sys
+
+questions_text = sys.argv[3:3+int(sys.argv[1])]
+uda_list = sys.argv[3+int(sys.argv[1]):]
+display = sys.argv[2]
+
+qs = []
+for i, q in enumerate(questions_text):
+    qs.append({'id': f'q{i+1}', 'text': q, 'type': 'text', 'required': i == 0})
+
+# Add UDA fields as questions
+for u in uda_list:
+    qs.append({'id': f'uda_{u}', 'text': f'{u}', 'type': 'uda', 'required': False, 'uda_name': u})
+
+t = {
+    'name': display,
+    'description': sys.argv[2+int(sys.argv[1])+1] if len(sys.argv) > 2+int(sys.argv[1])+1 else '',
+    'service': 'task',
+    'questions': qs,
+    'udas': uda_list,
+    'output_format': {'title': display + ' - {date}', 'tags': ['task', 'template']}
+}
+with open('$tfile', 'w') as f:
+    json.dump(t, f, indent=2)
+" "${#questions[@]}" "$display_name" "${questions[@]}" "$desc" "${selected_udas[@]}"
+
+  log_success "Created task template: $tfile"
+  echo "Run with: ww q task $tname"
+}
+
+_q_run_template() {
+  local templates_dir="$1"
+  local service="$2"
+  local template_name="$3"
+  local tfile="$templates_dir/$service/${template_name}.json"
+  local global_dir="$WW_BASE/services/questions/templates"
+
+  # Check profile first, then global
+  if [[ ! -f "$tfile" ]]; then
+    tfile="$global_dir/$service/${template_name}.json"
+  fi
+  if [[ ! -f "$tfile" ]]; then
+    log_error "Template '$template_name' not found in $service"
+    return 1
+  fi
+
+  if ! command -v python3 &>/dev/null; then
+    log_error "python3 required for template processing"
+    return 1
+  fi
+
+  # Parse and prompt via temp Python script
+  local _q_py=$(mktemp /tmp/ww_q_XXXXXX.py)
+  cat > "$_q_py" << 'PYEOF'
+import json, sys, os, subprocess
+from datetime import datetime
+
+tfile = os.environ.get('_Q_TFILE', '')
+service = os.environ.get('_Q_SERVICE', '')
+taskrc = os.environ.get('_Q_TASKRC', '')
+ww_base = os.environ.get('_Q_WWBASE', '')
+
+with open(tfile) as f:
+    template = json.load(f)
+
+print(f"\n{template['name']}")
+print(f"{template.get('description', '')}")
+print("=" * 50)
+
+answers = {}
+for q in template['questions']:
+    qtype = q.get('type', 'text')
+    label = q['text']
+    required = q.get('required', False)
+
+    while True:
+        val = input(f"  {label}: ").strip()
+        if not val and required:
+            print("    (required)")
+            continue
+        break
+    answers[q['id']] = val
+
+print("\n" + "=" * 50)
+
+if service == 'journal':
+    # Write to journal
+    journal_file = ""
+    if ww_base:
+        import re
+        jrnl_yaml = os.path.join(ww_base, "jrnl.yaml")
+        if os.path.isfile(jrnl_yaml):
+            with open(jrnl_yaml) as jf:
+                in_journals = False
+                for line in jf:
+                    if line.strip() == "journals:":
+                        in_journals = True
+                        continue
+                    if in_journals:
+                        m = re.match(r'^  default:\s*(.+)', line)
+                        if m:
+                            journal_file = m.group(1).strip()
+                            break
+    if not journal_file:
+        journal_file = os.path.join(ww_base, "journals", os.path.basename(ww_base) + ".txt")
+
+    ts = datetime.now().strftime("%Y-%m-%d %H:%M")
+    entry_parts = [f"[{ts}] {template['name']}"]
+    for qid, val in answers.items():
+        if val:
+            entry_parts.append(f"  {qid}: {val}")
+    entry = "\n".join(entry_parts) + "\n"
+
+    with open(journal_file, "a") as jf:
+        jf.write("\n" + entry)
+    print(f"✓ Written to journal: {journal_file}")
+
+elif service == 'task':
+    # Create task via task CLI
+    desc = answers.get('q1', '')
+    if not desc:
+        print("✗ No description (q1) provided")
+        sys.exit(1)
+
+    cmd = ["task", "rc.confirmation=no", "add", desc]
+    tags = template.get('output_format', {}).get('tags', [])
+    for tag in tags:
+        cmd.append(f"+{tag}")
+
+    env = dict(os.environ)
+    if taskrc:
+        env["TASKRC"] = taskrc
+        taskdata = os.path.join(os.path.dirname(taskrc), ".task")
+        env["TASKDATA"] = taskdata
+
+    r = subprocess.run(cmd, capture_output=True, text=True, env=env)
+    if r.returncode != 0:
+        print(f"✗ Failed to create task: {r.stderr}")
+        sys.exit(1)
+    print(f"✓ Task created: {desc}")
+
+    # Get new task ID
+    r2 = subprocess.run(["task", "rc.confirmation=no", "+LATEST", "ids"],
+                        capture_output=True, text=True, env=env)
+    task_id = r2.stdout.strip().split()[-1] if r2.stdout.strip() else ""
+
+    # Add annotations for non-description answers
+    for qid, val in answers.items():
+        if qid == 'q1' or not val:
+            continue
+        q_obj = next((q for q in template['questions'] if q['id'] == qid), None)
+        if q_obj and q_obj.get('type') == 'uda' and task_id:
+            uda_name = q_obj.get('uda_name', qid.replace('uda_', ''))
+            subprocess.run(["task", "rc.confirmation=no", task_id, "modify", f"{uda_name}:{val}"],
+                          capture_output=True, text=True, env=env)
+            print(f"  set {uda_name}={val}")
+        elif task_id:
+            label = q_obj['text'] if q_obj else qid
+            subprocess.run(["task", "rc.confirmation=no", task_id, "annotate", f"{label}: {val}"],
+                          capture_output=True, text=True, env=env)
+            print(f"  annotated: {label}: {val}")
+
+    if task_id:
+        print(f"  Task ID: {task_id}")
+
+elif service == 'time':
+    tags = answers.get('q1', '')
+    desc = answers.get('q2', '')
+    if tags:
+        env = dict(os.environ)
+        if ww_base:
+            env["TIMEWARRIORDB"] = os.path.join(ww_base, ".timewarrior")
+        subprocess.run(["timew", "start"] + tags.split(), env=env)
+        print(f"✓ Started tracking: {tags}")
+    if desc:
+        journal_file = os.path.join(ww_base, "journals", os.path.basename(ww_base) + ".txt") if ww_base else ""
+        if journal_file and os.path.isfile(os.path.dirname(journal_file)):
+            ts = datetime.now().strftime("%Y-%m-%d %H:%M")
+            with open(journal_file, "a") as jf:
+                jf.write(f"\n[{ts}] [time:{tags}] {desc}\n")
+
+else:
+    # Generic: just print answers
+    for qid, val in answers.items():
+        if val:
+            print(f'  {qid}: {val}')
+
+PYEOF
+  _Q_TFILE="$tfile" _Q_SERVICE="$service" _Q_TASKRC="${TASKRC:-}" _Q_WWBASE="${WORKWARRIOR_BASE:-}" python3 "$_q_py"
+  local _q_rc=$?
+  rm -f "$_q_py"
+  return $_q_rc
+}
+
+# ============================================================================
+# SHORTCUT COMMAND
+# ============================================================================
+
+cmd_shortcut() {
+  local action="${1:-}"
+  shift 2>/dev/null || true
+
+  # Source shortcut registry library
+  if [[ -f "$WW_BASE/lib/shortcode-registry.sh" ]]; then
+    source "$WW_BASE/lib/shortcode-registry.sh"
+  else
+    log_error "Shortcut registry not found"
+    exit 1
+  fi
+
+  case "$action" in
+    list|"")
+      display_shortcuts "${1:-all}"
+      ;;
+    compact)
+      display_shortcuts_compact
+      ;;
+    info)
+      if [[ -z "${1:-}" ]]; then
+        log_error "Shortcut key required"
+        echo "Usage: ww shortcut info <key>"
+        exit 1
+      fi
+      display_shortcut_info "$1"
+      ;;
+    add)
+      if [[ -z "${1:-}" || -z "${2:-}" || -z "${3:-}" || -z "${4:-}" || -z "${5:-}" ]]; then
+        log_error "Missing arguments for shortcut add"
+        echo "Usage: ww shortcut add <key> <name> <category> <description> <command> [requires_profile]"
+        exit 1
+      fi
+      add_user_shortcut "$1" "$2" "$3" "$4" "$5" "${6:-false}"
+      ;;
+    remove|rm|delete)
+      if [[ -z "${1:-}" ]]; then
+        log_error "Shortcut key required"
+        echo "Usage: ww shortcut remove <key>"
+        exit 1
+      fi
+      remove_user_shortcut "$1"
+      ;;
+    help|-h|--help)
+      cat << EOF
+Shortcut Reference
+
+Usage: ww shortcut <action> [arguments]
+
+Actions:
+  list [category]   List shortcuts (categories: all, profile, function, service, global)
+  info <key>        Show details for a shortcut
+  compact           Compact list (for quick reference)
+  add <args>        Add or update a user shortcut override
+  remove <key>      Remove a user shortcut override
+
+Examples:
+  ww shortcut list
+  ww shortcut list profile
+  ww shortcut info j
+  ww shortcut compact
+  ww shortcut add x "Example" global "Example command" "echo hi" false
+  ww shortcut remove x
+
+EOF
+      ;;
+    *)
+      log_error "Unknown shortcut action: $action"
+      echo "Run 'ww shortcut help' for usage"
+      exit 1
+      ;;
+  esac
+}
+
+# ============================================================================
+# JOURNAL COMMAND (list-first UX)
+# ============================================================================
+
+cmd_journal() {
+  local action="${1:-}"
+  shift 2>/dev/null || true
+
+  case "$action" in
+    list|"")
+      if [[ -z "${WORKWARRIOR_BASE:-}" ]]; then
+        log_error "No active profile. Activate one with p-<profile-name>."
+        exit 1
+      fi
+      # If --tag or --project flags are present, list entries (not journal names)
+      local filter_tag="" filter_project="" filter_priority="" remaining_args=()
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          --tag)      filter_tag="$2";      shift 2 ;;
+          --tag=*)    filter_tag="${1#--tag=}"; shift ;;
+          --project)  filter_project="$2";  shift 2 ;;
+          --project=*) filter_project="${1#--project=}"; shift ;;
+          --priority) filter_priority="$2"; shift 2 ;;
+          --priority=*) filter_priority="${1#--priority=}"; shift ;;
+          *) remaining_args+=("$1"); shift ;;
+        esac
+      done
+      if [[ -n "$filter_tag" || -n "$filter_project" || -n "$filter_priority" ]]; then
+        local scanner_py
+        scanner_py="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/lib/journal_scanner.py"
+        if [[ ! -f "$scanner_py" ]]; then
+          log_error "journal_scanner.py not found: $scanner_py"
+          exit 1
+        fi
+        local jrnl_file
+        jrnl_file="$(python3 - <<'PYEOF'
+import yaml, os, sys
+base = os.environ.get("WORKWARRIOR_BASE", "")
+cfg = os.path.join(base, "jrnl.yaml")
+try:
+    with open(cfg) as f:
+        data = yaml.safe_load(f)
+    journals = data.get("journals", {})
+    default_path = journals.get("default", os.path.join(base, "journals", os.path.basename(base) + ".txt"))
+    print(default_path)
+except Exception:
+    print(os.path.join(base, "journals", "default.txt"))
+PYEOF
+)"
+        local filter_args=()
+        [[ -n "$filter_tag" ]]      && filter_args+=("--tag" "$filter_tag")
+        [[ -n "$filter_project" ]]  && filter_args+=("--project" "$filter_project")
+        [[ -n "$filter_priority" ]] && filter_args+=("--priority" "$filter_priority")
+        local result
+        result=$(python3 "$scanner_py" parse "$jrnl_file" "${filter_args[@]}")
+        if [[ "$WW_OUTPUT_MODE" == "json" ]]; then
+          printf '%s\n' "$result"
+        else
+          python3 - <<PYEOF2
+import json, sys
+d = json.loads('''$result''')
+entries = d.get("entries", [])
+if not entries:
+    print("  (no matching entries)")
+else:
+    for e in entries:
+        meta = []
+        if e.get("project"): meta.append("project:" + e["project"])
+        if e.get("tags"):    meta.append("tags:" + ",".join(e["tags"]))
+        if e.get("priority"): meta.append("priority:" + e["priority"])
+        meta_str = "  [" + "  ".join(meta) + "]" if meta else ""
+        first_line = e["body"].split("\\n")[0][:72]
+        print(f"  {e['date']}  {first_line}{meta_str}")
+PYEOF2
+        fi
+        exit 0
+      fi
+      # Default: list journal file names
+      local cfg="$WORKWARRIOR_BASE/jrnl.yaml"
+      if [[ ! -f "$cfg" ]]; then
+        log_error "jrnl.yaml not found: $cfg"
+        exit 1
+      fi
+      local names=()
+      mapfile -t names < <(awk '
+        /^journals:/ { in_j=1; next }
+        in_j && /^[^ ]/ { in_j=0 }
+        in_j && /^  [a-zA-Z0-9_-]+:/ {
+          name=$1; sub(":", "", name);
+          if (name != "default") print "  • " name
+        }
+      ' "$cfg"
+      )
+      local clean=()
+      for entry in "${names[@]}"; do
+        clean+=( "${entry#  • }" )
+      done
+      if [[ "$WW_OUTPUT_MODE" == "json" ]]; then
+        printf '{"profile":"%s","journals":' "${WARRIOR_PROFILE:-active}"
+        print_json_array "${clean[@]}"
+        printf '}\n'
+      elif [[ "$WW_OUTPUT_MODE" == "compact" ]]; then
+        if (( ${#clean[@]} > 0 )); then
+          printf '%s\n' "${clean[@]}"
+        fi
+      else
+        echo "Journals (${WARRIOR_PROFILE:-active}):"
+        if (( ${#clean[@]} > 0 )); then
+          printf '  • %s\n' "${clean[@]}"
+        else
+          echo "  (none)"
+        fi
+      fi
+      ;;
+    write|entry|new)
+      if [[ -z "${WORKWARRIOR_BASE:-}" ]]; then
+        log_error "No active profile. Activate one with p-<profile-name>."
+        exit 1
+      fi
+      local ww_project="" ww_tags="" ww_priority="" ww_journal="" entry_words=()
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          --project)    ww_project="$2";  shift 2 ;;
+          --project=*)  ww_project="${1#--project=}"; shift ;;
+          --tags|--tag) ww_tags="$2";     shift 2 ;;
+          --tags=*|--tag=*) ww_tags="${1#--*=}"; shift ;;
+          --priority)   ww_priority="$2"; shift 2 ;;
+          --priority=*) ww_priority="${1#--priority=}"; shift ;;
+          --journal)    ww_journal="$2";  shift 2 ;;
+          --journal=*)  ww_journal="${1#--journal=}"; shift ;;
+          *) entry_words+=("$1"); shift ;;
+        esac
+      done
+      local entry_text="${entry_words[*]:-}"
+      if [[ -z "$entry_text" ]]; then
+        log_error "Entry text required"
+        echo "Usage: ww journal write [--project <name>] [--tags <a,b>] [--priority <H|M|L>] [--journal <name>] <text>"
+        exit 1
+      fi
+      # Resolve target journal file from jrnl.yaml
+      local target_file
+      target_file="$(python3 - <<PYEOF
+import yaml, os
+base = os.environ.get("WORKWARRIOR_BASE", "")
+cfg = os.path.join(base, "jrnl.yaml")
+journal_name = "${ww_journal}"
+try:
+    with open(cfg) as f:
+        data = yaml.safe_load(f)
+    journals = data.get("journals", {})
+    if journal_name and journal_name in journals:
+        print(journals[journal_name])
+    else:
+        default = journals.get("default", os.path.join(base, "journals", os.path.basename(base) + ".txt"))
+        print(default)
+except Exception:
+    print(os.path.join(base, "journals", "default.txt"))
+PYEOF
+)"
+      if [[ -z "$target_file" ]]; then
+        log_error "Could not resolve journal file"
+        exit 1
+      fi
+      # Load per-journal defaults from $WORKWARRIOR_BASE/ww.yaml (CLI flags win)
+      local resolved_journal="${ww_journal:-default}"
+      local defaults_json
+      defaults_json="$(python3 - <<PYEOF2
+import yaml, os, json
+base = os.environ.get("WORKWARRIOR_BASE", "")
+cfg = os.path.join(base, "ww.yaml")
+journal_key = "${resolved_journal}"
+result = {"project": "", "tags": "", "priority": ""}
+try:
+    with open(cfg) as f:
+        data = yaml.safe_load(f) or {}
+    defs = data.get("journal_defaults", {})
+    jd = defs.get(journal_key, defs.get("default", {}))
+    if isinstance(jd, dict):
+        result["project"]  = jd.get("project", "")  or ""
+        result["tags"]     = jd.get("tags", "")      or ""
+        result["priority"] = jd.get("priority", "")  or ""
+except Exception:
+    pass
+print(json.dumps(result))
+PYEOF2
+)"
+      local def_project def_tags def_priority
+      def_project="$(printf '%s' "$defaults_json"  | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('project',''))"  2>/dev/null || true)"
+      def_tags="$(printf '%s'    "$defaults_json"  | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('tags',''))"     2>/dev/null || true)"
+      def_priority="$(printf '%s' "$defaults_json" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('priority',''))" 2>/dev/null || true)"
+      # CLI flags take precedence over defaults
+      [[ -z "$ww_project" && -n "${def_project:-}" ]]   && ww_project="$def_project"
+      [[ -z "$ww_tags"    && -n "${def_tags:-}" ]]       && ww_tags="$def_tags"
+      [[ -z "$ww_priority" && -n "${def_priority:-}" ]]  && ww_priority="$def_priority"
+      # Build @metadata suffix (our key:value format, parsed by journal_scanner.py)
+      local meta_parts=()
+      [[ -n "$ww_project" ]]  && meta_parts+=("@project:${ww_project}")
+      [[ -n "$ww_tags" ]]     && meta_parts+=("@tags:${ww_tags}")
+      [[ -n "$ww_priority" ]] && meta_parts+=("@priority:${ww_priority}")
+      local full_text="$entry_text"
+      [[ ${#meta_parts[@]} -gt 0 ]] && full_text+=" ${meta_parts[*]}"
+      local timestamp
+      timestamp="$(date '+%Y-%m-%d %H:%M')"
+      printf '\n[%s] %s\n' "$timestamp" "$full_text" >> "$target_file"
+      if [[ "$WW_OUTPUT_MODE" == "json" ]]; then
+        printf '{"ok":true,"date":"%s","file":"%s"}\n' "$timestamp" "$target_file"
+      else
+        log_success "Journal entry added (${timestamp})"
+        if [[ -n "$ww_journal" ]];  then echo "  journal:  $ww_journal";  fi
+        if [[ -n "$ww_project" ]];  then echo "  project:  $ww_project";  fi
+        if [[ -n "$ww_tags" ]];     then echo "  tags:     $ww_tags";     fi
+        if [[ -n "$ww_priority" ]]; then echo "  priority: $ww_priority"; fi
+      fi
+      ;;
+    add|create)
+      if [[ -z "${WARRIOR_PROFILE:-}" ]]; then
+        log_error "No active profile. Activate one with p-<profile-name> or use --profile."
+        exit 1
+      fi
+      if [[ -z "${1:-}" ]]; then
+        log_error "Journal name required"
+        echo "Usage: ww journal add <name>"
+        exit 1
+      fi
+      if ! add_journal_to_profile "$WARRIOR_PROFILE" "$1"; then
+        exit 1
+      fi
+      ;;
+    remove|delete|rm)
+      if [[ -z "${WARRIOR_PROFILE:-}" ]]; then
+        log_error "No active profile. Activate one with p-<profile-name> or use --profile."
+        exit 1
+      fi
+      if [[ -z "${1:-}" ]]; then
+        log_error "Journal name required"
+        echo "Usage: ww journal remove <name>"
+        exit 1
+      fi
+      if ! remove_journal_from_profile "$WARRIOR_PROFILE" "$1"; then
+        exit 1
+      fi
+      ;;
+    rename)
+      if [[ -z "${WARRIOR_PROFILE:-}" ]]; then
+        log_error "No active profile. Activate one with p-<profile-name> or use --profile."
+        exit 1
+      fi
+      if [[ -z "${1:-}" || -z "${2:-}" ]]; then
+        log_error "Old and new journal names required"
+        echo "Usage: ww journal rename <old> <new>"
+        exit 1
+      fi
+      if ! rename_journal_in_profile "$WARRIOR_PROFILE" "$1" "$2"; then
+        exit 1
+      fi
+      ;;
+    help|-h|--help)
+      show_help_journal
+      ;;
+    *)
+      log_error "Unknown journal action: $action"
+      echo "Run 'ww journal help' for usage"
+      exit 1
+      ;;
+  esac
+}
+
+# ============================================================================
+# LEDGER COMMAND (list-first UX)
+# ============================================================================
+
+cmd_ledger() {
+  local action="${1:-}"
+  shift 2>/dev/null || true
+
+  case "$action" in
+    list|"")
+      if [[ -z "${WORKWARRIOR_BASE:-}" ]]; then
+        log_error "No active profile. Activate one with p-<profile-name>."
+        exit 1
+      fi
+      local cfg="$WORKWARRIOR_BASE/ledgers.yaml"
+      if [[ ! -f "$cfg" ]]; then
+        log_error "ledgers.yaml not found: $cfg"
+        exit 1
+      fi
+      local names=()
+      mapfile -t names < <(awk '
+        /^ledgers:/ { in_l=1; next }
+        in_l && /^[^ ]/ { in_l=0 }
+        in_l && /^  [a-zA-Z0-9_-]+:/ {
+          name=$1; sub(":", "", name);
+          if (name != "default") print "  • " name
+        }
+      ' "$cfg"
+      )
+      local clean=()
+      for entry in "${names[@]}"; do
+        clean+=( "${entry#  • }" )
+      done
+      if [[ "$WW_OUTPUT_MODE" == "json" ]]; then
+        printf '{"profile":"%s","ledgers":' "${WARRIOR_PROFILE:-active}"
+        print_json_array "${clean[@]}"
+        printf '}\n'
+      elif [[ "$WW_OUTPUT_MODE" == "compact" ]]; then
+        if (( ${#clean[@]} > 0 )); then
+          printf '%s\n' "${clean[@]}"
+        fi
+      else
+        echo "Ledgers (${WARRIOR_PROFILE:-active}):"
+        if (( ${#clean[@]} > 0 )); then
+          printf '  • %s\n' "${clean[@]}"
+        else
+          echo "  (none)"
+        fi
+      fi
+      ;;
+    add|create)
+      if [[ -z "${WARRIOR_PROFILE:-}" ]]; then
+        log_error "No active profile. Activate one with p-<profile-name> or use --profile."
+        exit 1
+      fi
+      if [[ -z "${1:-}" ]]; then
+        log_error "Ledger name required"
+        echo "Usage: ww ledger add <name>"
+        exit 1
+      fi
+      if ! add_ledger_to_profile "$WARRIOR_PROFILE" "$1"; then
+        exit 1
+      fi
+      ;;
+    remove|delete|rm)
+      if [[ -z "${WARRIOR_PROFILE:-}" ]]; then
+        log_error "No active profile. Activate one with p-<profile-name> or use --profile."
+        exit 1
+      fi
+      if [[ -z "${1:-}" ]]; then
+        log_error "Ledger name required"
+        echo "Usage: ww ledger remove <name>"
+        exit 1
+      fi
+      if ! remove_ledger_from_profile "$WARRIOR_PROFILE" "$1"; then
+        exit 1
+      fi
+      ;;
+    rename)
+      if [[ -z "${WARRIOR_PROFILE:-}" ]]; then
+        log_error "No active profile. Activate one with p-<profile-name> or use --profile."
+        exit 1
+      fi
+      if [[ -z "${1:-}" || -z "${2:-}" ]]; then
+        log_error "Old and new ledger names required"
+        echo "Usage: ww ledger rename <old> <new>"
+        exit 1
+      fi
+      if ! rename_ledger_in_profile "$WARRIOR_PROFILE" "$1" "$2"; then
+        exit 1
+      fi
+      ;;
+    inventory)
+      bash "$WW_BASE/scripts/build-ledger-inventory.sh" "$@"
+      ;;
+    help|-h|--help)
+      show_help_ledger
+      ;;
+    *)
+      log_error "Unknown ledger action: $action"
+      echo "Run 'ww ledger help' for usage"
+      exit 1
+      ;;
+  esac
+}
+
+# ============================================================================
+# ROUTINES COMMAND
+# ============================================================================
+
+cmd_routines() {
+  local subcommand="${1:-list}"
+  shift 2>/dev/null || true
+
+  _routines_require_profile() {
+    if [[ -z "${WORKWARRIOR_BASE:-}" || -z "${TASKRC:-}" || -z "${TASKDATA:-}" ]]; then
+      log_error "No active profile — activate one first: p-<profile-name>"
+      exit 1
+    fi
+  }
+
+  _routines_dir() {
+    echo "${WORKWARRIOR_BASE:-}/.config/routines"
+  }
+
+  _routines_state_file() {
+    echo "$(_routines_dir)/.ww-routines-state.json"
+  }
+
+  _routines_install_dir() {
+    echo "${WW_BASE}/tools/extensions/cron"
+  }
+
+  _routines_validate_name() {
+    local routine_name="${1:-}"
+    [[ "$routine_name" =~ ^[A-Za-z0-9._-]+$ ]]
+  }
+
+  _routines_routine_path() {
+    local routine_name="$1"
+    echo "$(_routines_dir)/${routine_name}.py"
+  }
+
+  _routines_slugify() {
+    local text="${1:-}"
+    python3 - "$text" << 'PY'
+import re
+import sys
+text = sys.argv[1].strip().lower()
+slug = re.sub(r'[^a-z0-9]+', '_', text).strip('_')
+print(slug or "routine")
+PY
+  }
+
+  _routines_class_name() {
+    local text="${1:-}"
+    python3 - "$text" << 'PY'
+import re
+import sys
+parts = re.findall(r'[A-Za-z0-9]+', sys.argv[1])
+if not parts:
+    print("Routine")
+else:
+    print("".join(p[:1].upper() + p[1:] for p in parts))
+PY
+  }
+
+  _routines_list_names() {
+    local routines_dir
+    routines_dir="$(_routines_dir)"
+    mkdir -p "$routines_dir"
+    while IFS= read -r -d '' f; do
+      basename "$f" .py
+    done < <(command find "$routines_dir" -maxdepth 1 -type f -name "*.py" ! -name "cron.py" -print0 2>/dev/null | sort -z)
+  }
+
+  _routines_state_update() {
+    local routine_name="$1"
+    local status="$2"
+    local exit_code="$3"
+    local duration_ms="$4"
+    local state_file
+    state_file="$(_routines_state_file)"
+    mkdir -p "$(dirname "$state_file")"
+    python3 - "$state_file" "$routine_name" "$status" "$exit_code" "$duration_ms" << 'PY'
+import datetime
+import json
+import os
+import sys
+
+state_file, routine_name, status, exit_code, duration_ms = sys.argv[1:]
+data = {}
+if os.path.isfile(state_file):
+    try:
+        with open(state_file, encoding="utf-8") as f:
+            data = json.load(f) or {}
+    except Exception:
+        data = {}
+data[routine_name] = {
+    "last_run_utc": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    "status": status,
+    "exit_code": int(exit_code),
+    "duration_ms": int(duration_ms),
+}
+with open(state_file, "w", encoding="utf-8") as f:
+    json.dump(data, f, indent=2, sort_keys=True)
+PY
+  }
+
+  _routines_render_list_json() {
+    local routines_dir
+    routines_dir="$(_routines_dir)"
+    local state_file
+    state_file="$(_routines_state_file)"
+    python3 - "$routines_dir" "$state_file" << 'PY'
+import json
+import os
+import sys
+
+routines_dir, state_file = sys.argv[1:]
+state = {}
+if os.path.isfile(state_file):
+    try:
+        with open(state_file, encoding="utf-8") as f:
+            state = json.load(f) or {}
+    except Exception:
+        state = {}
+rows = []
+if os.path.isdir(routines_dir):
+    for name in sorted(os.listdir(routines_dir)):
+        if not name.endswith(".py") or name == "cron.py":
+            continue
+        path = os.path.join(routines_dir, name)
+        if not os.path.isfile(path):
+            continue
+        key = name[:-3]
+        row = {
+            "name": key,
+            "path": path,
+            "last_run_utc": "",
+            "status": "",
+            "exit_code": None,
+        }
+        if key in state and isinstance(state[key], dict):
+            meta = state[key]
+            row["last_run_utc"] = str(meta.get("last_run_utc", "") or "")
+            row["status"] = str(meta.get("status", "") or "")
+            row["exit_code"] = meta.get("exit_code")
+        rows.append(row)
+print(json.dumps(rows, indent=2))
+PY
+  }
+
+  _routines_run_one() {
+    local routine_file="$1"
+    local routine_name="$2"
+    local routines_dir
+    routines_dir="$(_routines_dir)"
+    local install_dir
+    install_dir="$(_routines_install_dir)"
+    local start_ms end_ms duration_ms rc
+    start_ms=$(( $(date +%s) * 1000 ))
+    if PYTHONPATH="${routines_dir}:${install_dir}:${PYTHONPATH:-}" \
+      TASKRC="${TASKRC}" TASKDATA="${TASKDATA}" WORKWARRIOR_BASE="${WORKWARRIOR_BASE}" \
+      python3 "$routine_file"; then
+      end_ms=$(( $(date +%s) * 1000 ))
+      duration_ms=$(( end_ms - start_ms ))
+      _routines_state_update "$routine_name" "success" "0" "$duration_ms"
+      return 0
+    fi
+    rc=$?
+    end_ms=$(( $(date +%s) * 1000 ))
+    duration_ms=$(( end_ms - start_ms ))
+    _routines_state_update "$routine_name" "failed" "$rc" "$duration_ms"
+    return "$rc"
+  }
+
+  case "$subcommand" in
+    install)
+      if ! command -v git &>/dev/null; then
+        log_error "git not found. Install git to use 'ww routines install'."
+        exit 1
+      fi
+      local install_dir
+      install_dir="$(_routines_install_dir)"
+      mkdir -p "$(dirname "$install_dir")"
+      if [[ -d "${install_dir}/.git" ]]; then
+        echo "Updating allgreed/cron source..."
+        git -C "$install_dir" pull --quiet
+      else
+        echo "Installing allgreed/cron source..."
+        git clone --quiet https://github.com/allgreed/cron.git "$install_dir"
+      fi
+      if [[ ! -f "${install_dir}/cron.py" ]]; then
+        log_error "Install completed but cron.py not found in ${install_dir}"
+        exit 1
+      fi
+      if [[ -n "${WORKWARRIOR_BASE:-}" ]]; then
+        local routines_dir
+        routines_dir="$(_routines_dir)"
+        mkdir -p "$routines_dir"
+        ln -sf "${install_dir}/cron.py" "${routines_dir}/cron.py"
+      fi
+      log_success "allgreed/cron installed at ${install_dir}"
+      ;;
+    list)
+      _routines_require_profile
+      local routines_dir
+      routines_dir="$(_routines_dir)"
+      local names=()
+      mapfile -t names < <(_routines_list_names)
+      if [[ "$WW_OUTPUT_MODE" == "json" ]]; then
+        _routines_render_list_json
+      elif [[ "$WW_OUTPUT_MODE" == "compact" ]]; then
+        if (( ${#names[@]} > 0 )); then
+          printf '%s\n' "${names[@]}"
+        fi
+      else
+        echo "Routines (${WARRIOR_PROFILE:-active}):"
+        echo "  Directory: ${routines_dir}"
+        if (( ${#names[@]} == 0 )); then
+          echo "  (none)"
+        else
+          printf '  - %s\n' "${names[@]}"
+        fi
+      fi
+      ;;
+    add)
+      _routines_require_profile
+      local description="${1:-}"
+      shift 2>/dev/null || true
+      if [[ -z "$description" ]]; then
+        log_error "Description required"
+        echo "Usage: ww routines add \"<description>\" --frequency weekly [--name <name>] [--run-now]"
+        exit 1
+      fi
+
+      local frequency="weekly"
+      local explicit_name=""
+      local run_now=0
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          --frequency)
+            frequency="${2:-}"
+            shift 2
+            ;;
+          --name)
+            explicit_name="${2:-}"
+            shift 2
+            ;;
+          --run-now)
+            run_now=1
+            shift
+            ;;
+          *)
+            log_error "Unknown flag for routines add: $1"
+            echo "Usage: ww routines add \"<description>\" --frequency weekly [--name <name>] [--run-now]"
+            exit 1
+            ;;
+        esac
+      done
+
+      local cadence_class=""
+      case "${frequency,,}" in
+        daily) cadence_class="Daily" ;;
+        weekly) cadence_class="Weekly" ;;
+        monthly) cadence_class="Monthly" ;;
+        yearly) cadence_class="Yearly" ;;
+        *)
+          log_error "Unsupported frequency: ${frequency}. Use one of: daily, weekly, monthly, yearly."
+          exit 1
+          ;;
+      esac
+
+      local routine_name=""
+      if [[ -n "$explicit_name" ]]; then
+        routine_name="$explicit_name"
+      else
+        routine_name="$(_routines_slugify "$description")"
+      fi
+      if ! _routines_validate_name "$routine_name"; then
+        log_error "Invalid routine name. Use letters, numbers, dot, underscore, or hyphen."
+        exit 1
+      fi
+
+      local class_name
+      class_name="$(_routines_class_name "$routine_name")"
+      local routines_dir
+      routines_dir="$(_routines_dir)"
+      mkdir -p "$routines_dir"
+      local routine_path
+      routine_path="$(_routines_routine_path "$routine_name")"
+      if [[ -f "$routine_path" ]]; then
+        log_error "Routine already exists: ${routine_path}"
+        exit 1
+      fi
+
+      cat > "$routine_path" << EOF
+#!/usr/bin/env python3
+\"\"\"Workwarrior routine: ${routine_name}
+
+Generated by: ww routines add
+\"\"\"
+
+from cron import main, Task as T, ${cadence_class}
+
+
+class ${class_name}(${cadence_class}):
+    task = T("${description}")
+
+
+if __name__ == "__main__":
+    main()
+EOF
+      chmod +x "$routine_path"
+
+      local install_dir
+      install_dir="$(_routines_install_dir)"
+      if [[ -f "${install_dir}/cron.py" && ! -f "${routines_dir}/cron.py" ]]; then
+        ln -sf "${install_dir}/cron.py" "${routines_dir}/cron.py"
+      fi
+      log_success "Created routine from shortcut: ${routine_path}"
+      if [[ "$run_now" -eq 1 ]]; then
+        echo "Running routine: ${routine_name}"
+        if ! _routines_run_one "$routine_path" "$routine_name"; then
+          log_error "Routine failed: ${routine_name}"
+          exit 1
+        fi
+        log_success "Routine run complete: ${routine_name}"
+      elif [[ "${WW_ROUTINES_NO_EDIT:-0}" != "1" ]]; then
+        "${EDITOR:-vi}" "$routine_path"
+      fi
+      ;;
+    new)
+      _routines_require_profile
+      local routine_name="${1:-}"
+      if [[ -z "$routine_name" ]]; then
+        log_error "Routine name required"
+        echo "Usage: ww routines new <name>"
+        exit 1
+      fi
+      if ! _routines_validate_name "$routine_name"; then
+        log_error "Invalid routine name. Use letters, numbers, dot, underscore, or hyphen."
+        exit 1
+      fi
+      local routines_dir
+      routines_dir="$(_routines_dir)"
+      mkdir -p "$routines_dir"
+      local routine_path
+      routine_path="$(_routines_routine_path "$routine_name")"
+      if [[ -f "$routine_path" ]]; then
+        log_error "Routine already exists: ${routine_path}"
+        exit 1
+      fi
+      cat > "$routine_path" << EOF
+#!/usr/bin/env python3
+\"\"\"Workwarrior routine: ${routine_name}
+
+Requires allgreed/cron runtime. Install with:
+  ww routines install
+\"\"\"
+
+from cron import main, Task as T, Weekly
+
+
+class ${routine_name}(Weekly):
+    task = T("Replace with your recurring task description")
+
+
+if __name__ == "__main__":
+    main()
+EOF
+      chmod +x "$routine_path"
+      local install_dir
+      install_dir="$(_routines_install_dir)"
+      if [[ -f "${install_dir}/cron.py" && ! -f "${routines_dir}/cron.py" ]]; then
+        ln -sf "${install_dir}/cron.py" "${routines_dir}/cron.py"
+      fi
+      log_success "Created routine template: ${routine_path}"
+      if [[ "${WW_ROUTINES_NO_EDIT:-0}" != "1" ]]; then
+        "${EDITOR:-vi}" "$routine_path"
+      fi
+      ;;
+    edit)
+      _routines_require_profile
+      local routine_name="${1:-}"
+      if [[ -z "$routine_name" ]]; then
+        log_error "Routine name required"
+        echo "Usage: ww routines edit <name>"
+        exit 1
+      fi
+      local routine_path
+      routine_path="$(_routines_routine_path "$routine_name")"
+      if [[ ! -f "$routine_path" ]]; then
+        log_error "Routine not found: ${routine_path}"
+        exit 1
+      fi
+      "${EDITOR:-vi}" "$routine_path"
+      ;;
+    run)
+      _routines_require_profile
+      if ! command -v python3 &>/dev/null; then
+        log_error "python3 not found"
+        exit 1
+      fi
+      local routine_name="${1:-}"
+      local failures=0
+      if [[ -n "$routine_name" ]]; then
+        local routine_path
+        routine_path="$(_routines_routine_path "$routine_name")"
+        if [[ ! -f "$routine_path" ]]; then
+          log_error "Routine not found: ${routine_path}"
+          exit 1
+        fi
+        echo "Running routine: ${routine_name}"
+        if ! _routines_run_one "$routine_path" "$routine_name"; then
+          failures=1
+        fi
+      else
+        local names=()
+        mapfile -t names < <(_routines_list_names)
+        if (( ${#names[@]} == 0 )); then
+          echo "No routines defined."
+          return 0
+        fi
+        local name
+        for name in "${names[@]}"; do
+          local routine_path
+          routine_path="$(_routines_routine_path "$name")"
+          echo "Running routine: ${name}"
+          if ! _routines_run_one "$routine_path" "$name"; then
+            failures=$((failures + 1))
+          fi
+        done
+      fi
+      if [[ "$failures" -gt 0 ]]; then
+        log_error "One or more routines failed"
+        exit 1
+      fi
+      log_success "Routines run complete"
+      ;;
+    status)
+      _routines_require_profile
+      local routines_dir
+      routines_dir="$(_routines_dir)"
+      local install_dir
+      install_dir="$(_routines_install_dir)"
+      local state_file
+      state_file="$(_routines_state_file)"
+      local names=()
+      mapfile -t names < <(_routines_list_names)
+      if [[ "$WW_OUTPUT_MODE" == "json" ]]; then
+        python3 - "$routines_dir" "$install_dir" "$state_file" << 'PY'
+import json
+import os
+import sys
+
+routines_dir, install_dir, state_file = sys.argv[1:]
+state = {}
+if os.path.isfile(state_file):
+    try:
+        with open(state_file, encoding="utf-8") as f:
+            state = json.load(f) or {}
+    except Exception:
+        state = {}
+names = []
+if os.path.isdir(routines_dir):
+    for name in sorted(os.listdir(routines_dir)):
+        if name.endswith(".py") and name != "cron.py":
+            names.append(name[:-3])
+print(json.dumps({
+    "profile": os.environ.get("WARRIOR_PROFILE", ""),
+    "routines_dir": routines_dir,
+    "runtime_installed": os.path.isfile(os.path.join(install_dir, "cron.py")),
+    "count": len(names),
+    "routines": names,
+    "state": state,
+}, indent=2))
+PY
+      elif [[ "$WW_OUTPUT_MODE" == "compact" ]]; then
+        printf 'profile=%s count=%s runtime=%s\n' \
+          "${WARRIOR_PROFILE:-active}" \
+          "${#names[@]}" \
+          "$([[ -f "${install_dir}/cron.py" ]] && echo installed || echo missing)"
+      else
+        echo "Routines status for profile '${WARRIOR_PROFILE:-active}':"
+        echo "  directory: ${routines_dir}"
+        echo "  runtime:   $([[ -f "${install_dir}/cron.py" ]] && echo installed || echo missing) (${install_dir})"
+        echo "  count:     ${#names[@]}"
+        echo "  state:     ${state_file}"
+      fi
+      ;;
+    help|-h|--help|"")
+      cat << 'EOF'
+Routines Command — Recurring Task Generator
+
+Creates and runs profile-scoped Python routine definitions for recurring tasks.
+Integrated with allgreed/cron.
+
+Usage:
+  ww routines list            List routine definitions
+  ww routines add "<desc>" --frequency weekly [--name <name>] [--run-now]
+  ww routines new <name>      Create routine template and open in editor
+  ww routines edit <name>     Edit an existing routine
+  ww routines run [name]      Run all routines or one routine
+  ww routines status          Show runtime status + last run metadata
+  ww routines install         Install/update allgreed/cron source runtime
+  ww routines help            Show this help
+
+Storage:
+  profiles/<name>/.config/routines/
+    *.py                      Routine definitions
+    cron.py                   Runtime shim (linked from install)
+    .ww-routines-state.json   Last run metadata
+
+Examples:
+  ww routines install
+  ww routines add "Clean room" --frequency weekly
+  ww routines add "Clean room" --frequency weekly --run-now
+  ww routines new clean_room
+  ww routines list
+  ww routines run
+  ww routines run clean_room
+
+Powered by allgreed/cron · allgreed
+  https://github.com/allgreed/cron
+EOF
+      ;;
+    *)
+      log_error "Unknown routines subcommand: $subcommand"
+      cmd_routines help
+      exit 1
+      ;;
+  esac
+}
+
+# ============================================================================
+# SCHEDULE COMMAND
+# ============================================================================
+
+cmd_schedule() {
+  local subcommand="${1:-status}"
+  shift 2>/dev/null || true
+
+  # Upstream: https://github.com/00sapo/taskcheck
+  # Author: 00sapo · MIT License · Python
+  # Binary: taskcheck
+  # Config: appdirs.user_config_dir("task")/taskcheck.toml (global path)
+  # ww manages per-profile config by copying to/from global location before run.
+
+  _schedule_require_profile() {
+    if [[ -z "${TASKRC:-}" || -z "${TASKDATA:-}" ]]; then
+      log_error "No active profile — activate one first: p-<profile-name>"
+      exit 1
+    fi
+  }
+
+  _schedule_profile_config_dir() {
+    echo "${WORKWARRIOR_BASE:-}/.config/taskcheck"
+  }
+
+  _schedule_enabled_flag() {
+    echo "$(_schedule_profile_config_dir)/enabled"
+  }
+
+  _schedule_profile_toml() {
+    echo "$(_schedule_profile_config_dir)/taskcheck.toml"
+  }
+
+  _schedule_global_config_dir() {
+    python3 -c "import appdirs; print(appdirs.user_config_dir('task'))" 2>/dev/null \
+      || echo "${HOME}/.config/task"
+  }
+
+  _schedule_global_toml() {
+    echo "$(_schedule_global_config_dir)/taskcheck.toml"
+  }
+
+  # Copy profile config to global location before running taskcheck
+  _schedule_activate_config() {
+    local profile_toml
+    profile_toml=$(_schedule_profile_toml)
+    local global_toml
+    global_toml=$(_schedule_global_toml)
+    if [[ -f "${profile_toml}" ]]; then
+      mkdir -p "$(dirname "${global_toml}")"
+      cp "${profile_toml}" "${global_toml}"
+    fi
+  }
+
+  case "$subcommand" in
+    install)
+      if command -v taskcheck &>/dev/null; then
+        log_success "taskcheck already installed: $(taskcheck --version 2>/dev/null || echo 'version unknown')"
+        return 0
+      fi
+      if ! command -v pipx &>/dev/null; then
+        log_error "pipx not found. Install with: brew install pipx"
+        exit 1
+      fi
+      echo "Installing taskcheck..."
+      echo "  Upstream: https://github.com/00sapo/taskcheck"
+      echo "  Author:   00sapo · MIT License"
+      pipx install taskcheck
+      log_success "taskcheck installed"
+      ;;
+    enable)
+      _schedule_require_profile
+      local config_dir
+      config_dir=$(_schedule_profile_config_dir)
+      mkdir -p "${config_dir}"
+      touch "$(_schedule_enabled_flag)"
+      # Create default config if none exists
+      if [[ ! -f "$(_schedule_profile_toml)" ]]; then
+        if command -v taskcheck &>/dev/null; then
+          echo "Creating default taskcheck config for profile '${WARRIOR_PROFILE:-active}'..."
+          _schedule_activate_config
+          taskcheck --install 2>/dev/null || true
+          # Copy the generated global config to profile
+          local global_toml
+          global_toml=$(_schedule_global_toml)
+          [[ -f "${global_toml}" ]] && cp "${global_toml}" "$(_schedule_profile_toml)"
+        else
+          log_warning "taskcheck not installed — run 'ww schedule install' then 'ww schedule config' to set up"
+        fi
+      fi
+      log_success "Auto-scheduling enabled for profile '${WARRIOR_PROFILE:-active}'"
+      echo "  Config: $(_schedule_profile_toml)"
+      echo "  Run:    ww schedule run"
+      ;;
+    disable)
+      _schedule_require_profile
+      local flag
+      flag=$(_schedule_enabled_flag)
+      if [[ -f "${flag}" ]]; then
+        rm "${flag}"
+        log_success "Auto-scheduling disabled for profile '${WARRIOR_PROFILE:-active}'"
+        echo "  Config preserved at: $(_schedule_profile_toml)"
+      else
+        echo "Auto-scheduling was not enabled for this profile."
+      fi
+      ;;
+    status)
+      _schedule_require_profile
+      local flag
+      flag=$(_schedule_enabled_flag)
+      local profile_toml
+      profile_toml=$(_schedule_profile_toml)
+      echo "Schedule status for profile '${WARRIOR_PROFILE:-active}':"
+      echo ""
+      if [[ -f "${flag}" ]]; then
+        echo "  enabled:  yes"
+      else
+        echo "  enabled:  no  (run: ww schedule enable)"
+      fi
+      if [[ -f "${profile_toml}" ]]; then
+        echo "  config:   ${profile_toml}"
+      else
+        echo "  config:   not found (run: ww schedule enable)"
+      fi
+      echo "  taskcheck: $(command -v taskcheck 2>/dev/null || echo 'not installed')"
+      ;;
+    run)
+      _schedule_require_profile
+      local flag
+      flag=$(_schedule_enabled_flag)
+      if [[ ! -f "${flag}" ]]; then
+        log_error "Auto-scheduling is disabled for this profile. Run: ww schedule enable"
+        exit 1
+      fi
+      if ! command -v taskcheck &>/dev/null; then
+        log_error "taskcheck not installed — run: ww schedule install"
+        exit 1
+      fi
+      _schedule_activate_config
+      taskcheck --taskrc "${TASKRC}" "$@"
+      ;;
+    config)
+      _schedule_require_profile
+      local profile_toml
+      profile_toml=$(_schedule_profile_toml)
+      if [[ ! -f "${profile_toml}" ]]; then
+        log_error "No config found. Run: ww schedule enable"
+        exit 1
+      fi
+      "${EDITOR:-vi}" "${profile_toml}"
+      ;;
+    help|-h|--help)
+      cat << 'EOF'
+Schedule Command — Automatic Task Scheduler
+
+Schedules tasks into working hours around calendar events, respecting
+urgency and dependencies. Adds 'estimated' and 'time_map' UDAs.
+
+Usage:
+  ww schedule enable          Enable for active profile + create default config
+  ww schedule disable         Disable (config preserved)
+  ww schedule status          Show enabled/disabled state
+  ww schedule run             Run scheduler
+  ww schedule run --dry-run   Preview without writing
+  ww schedule config          Edit profile's taskcheck.toml
+  ww schedule install         Install taskcheck via pipx
+  ww schedule help            Show this help
+
+UDAs added:
+  estimated    Numeric — expected hours to complete the task
+  time_map     String  — working hours map key (e.g. work, weekend)
+
+Toggle:
+  Enable/disable per profile without removing config.
+  Config lives at: profiles/<name>/.config/taskcheck/taskcheck.toml
+
+Powered by taskcheck · 00sapo
+  https://github.com/00sapo/taskcheck · MIT License
+EOF
+      ;;
+    *)
+      log_error "Unknown schedule subcommand: $subcommand"
+      cmd_schedule help
+      exit 1
+      ;;
+  esac
+}
+
+# ============================================================================
+# NEXT COMMAND
+# ============================================================================
+
+cmd_next() {
+  local subcommand="${1:-}"
+
+  # Upstream: https://github.com/ftapajos/scheduler
+  # Author: Flávio Tapajós (ftapajos) · GPL-3.0 · Python
+  # Binary: 'next' (installed via pipx install taskwarrior-scheduler)
+
+  case "$subcommand" in
+    install)
+      if command -v next &>/dev/null && next --help 2>&1 | grep -q taskwarrior; then
+        log_success "taskwarrior-scheduler already installed"
+        return 0
+      fi
+      if ! command -v pipx &>/dev/null; then
+        log_error "pipx not found. Install with: brew install pipx"
+        exit 1
+      fi
+      echo "Installing taskwarrior-scheduler..."
+      echo "  Upstream: https://github.com/ftapajos/scheduler"
+      echo "  Author:   Flávio Tapajós (ftapajos) · GPL-3.0"
+      pipx install taskwarrior-scheduler
+      log_success "taskwarrior-scheduler installed (binary: next)"
+      ;;
+    help|-h|--help)
+      cat << 'EOF'
+Next Command — CFS-Inspired Task Recommendation
+
+Recommends which task to work on next by combining TaskWarrior urgency
+with TimeWarrior time-already-spent. Prevents high-urgency tasks from
+monopolising all attention (inspired by the Linux CFS scheduler).
+
+Usage:
+  ww next                     Show recommended next task
+  ww next [filters...]        Filter tasks before recommendation
+  ww next install             Install taskwarrior-scheduler
+  ww next help                Show this help
+
+Examples:
+  ww next
+  ww next +work
+  ww next project:dev
+
+Requires:
+  - Active ww profile (TASKRC, TASKDATA, TIMEWARRIORDB set)
+  - taskwarrior-scheduler installed (ww next install)
+  - TimeWarrior on-modify hook active (already installed per profile)
+
+Powered by taskwarrior-scheduler · Flávio Tapajós (ftapajos)
+  https://github.com/ftapajos/scheduler · GPL-3.0
+EOF
+      ;;
+    *)
+      if [[ -z "${TASKRC:-}" || -z "${TASKDATA:-}" ]]; then
+        log_error "No active profile — activate one first: p-<profile-name>"
+        exit 1
+      fi
+      if ! command -v next &>/dev/null; then
+        log_error "taskwarrior-scheduler not installed — run: ww next install"
+        exit 1
+      fi
+      # Pass all args (including the subcommand if it wasn't install/help) as filters
+      local filters=()
+      [[ -n "$subcommand" ]] && filters+=("$subcommand")
+      shift 2>/dev/null || true
+      filters+=("$@")
+      TASKRC="${TASKRC}" TASKDATA="${TASKDATA}" TIMEWARRIORDB="${TIMEWARRIORDB:-}" \
+        next "${filters[@]+${filters[@]}}"
+      ;;
+  esac
+}
+
+# ============================================================================
+# SWORD COMMAND — Task Splitting
+# ============================================================================
+
+cmd_sword() {
+  local subcommand="${1:-}"
+  shift 2>/dev/null || true
+
+  case "$subcommand" in
+    help|-h|--help|"")
+      cat << 'EOF'
+Sword Command — Task Splitting
+
+Splits a single task into sequential subtasks with dependencies.
+Each subtask depends on the previous one. Due dates are offset by interval.
+
+Usage:
+  ww sword <task-id> -p <parts> [--interval <dur>] [--prefix <text>]
+  ww sword install              (no install needed — ww-native)
+  ww sword help                 Show this help
+
+Options:
+  -p <parts>          Number of subtasks to create
+  --interval <dur>    Due date offset between parts (default: 1d)
+  --prefix <text>     Prefix for subtask descriptions (default: "Part N of:")
+
+Examples:
+  ww sword 5 -p 3                    Split task 5 into 3 parts
+  ww sword 5 -p 4 --interval 2d     Split with 2-day intervals
+  ww sword 12 -p 2 --prefix "Phase" Split into "Phase 1 of: ..." and "Phase 2 of: ..."
+EOF
+      ;;
+    install)
+      log_success "Sword is ww-native — no installation needed"
+      ;;
+    *)
+      # Parse: ww sword <task-id> -p <parts> [--interval <dur>] [--prefix <text>]
+      local task_id="$subcommand"
+      local parts=""
+      local interval="1d"
+      local prefix="Part"
+
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          -p) parts="$2"; shift 2 ;;
+          --interval) interval="$2"; shift 2 ;;
+          --prefix) prefix="$2"; shift 2 ;;
+          *) shift ;;
+        esac
+      done
+
+      if [[ -z "$task_id" || -z "$parts" ]]; then
+        log_error "Usage: ww sword <task-id> -p <parts>"
+        exit 1
+      fi
+
+      if [[ -z "${TASKRC:-}" || -z "${TASKDATA:-}" ]]; then
+        log_error "No active profile — activate one first: p-<profile-name>"
+        exit 1
+      fi
+
+      # Get the original task
+      local task_json
+      task_json=$(task rc.confirmation=no "$task_id" export 2>/dev/null)
+      if [[ -z "$task_json" || "$task_json" == "[]" ]]; then
+        log_error "Task $task_id not found"
+        exit 1
+      fi
+
+      local orig_desc
+      orig_desc=$(echo "$task_json" | python3 -c "import json,sys; t=json.load(sys.stdin)[0]; print(t['description'])" 2>/dev/null)
+      local orig_project
+      orig_project=$(echo "$task_json" | python3 -c "import json,sys; t=json.load(sys.stdin)[0]; print(t.get('project',''))" 2>/dev/null)
+      local orig_tags
+      orig_tags=$(echo "$task_json" | python3 -c "import json,sys; t=json.load(sys.stdin)[0]; print(' '.join('+'+t for t in t.get('tags',[])))" 2>/dev/null)
+
+      if [[ -z "$orig_desc" ]]; then
+        log_error "Could not read task $task_id description"
+        exit 1
+      fi
+
+      echo "Splitting task $task_id into $parts parts:"
+      echo "  Original: $orig_desc"
+      echo "  Interval: $interval"
+      echo ""
+
+      local prev_id=""
+      local created_ids=()
+
+      for ((i=1; i<=parts; i++)); do
+        local sub_desc="$prefix $i of: $orig_desc"
+        local cmd_parts=("add" "$sub_desc")
+
+        # Add project if original had one
+        if [[ -n "$orig_project" ]]; then
+          cmd_parts+=("project:$orig_project")
+        fi
+
+        # Add tags if original had them
+        if [[ -n "$orig_tags" ]]; then
+          cmd_parts+=($orig_tags)
+        fi
+
+        # Add due date offset
+        cmd_parts+=("due:${i}${interval}")
+
+        # Add dependency on previous subtask
+        if [[ -n "$prev_id" ]]; then
+          cmd_parts+=("depends:$prev_id")
+        fi
+
+        local result
+        result=$(task rc.confirmation=no "${cmd_parts[@]}" 2>&1)
+        # Extract the new task ID
+        local new_id
+        new_id=$(echo "$result" | grep -o 'Created task [0-9]*' | grep -o '[0-9]*')
+        if [[ -z "$new_id" ]]; then
+          new_id=$(task rc.confirmation=no +LATEST ids 2>/dev/null | tr -d ' ')
+        fi
+
+        created_ids+=("$new_id")
+        prev_id="$new_id"
+        echo "  ✓ $prefix $i: task $new_id (due: +${i}${interval}${prev_id:+, depends: $prev_id})"
+      done
+
+      echo ""
+      log_success "Created ${#created_ids[@]} subtasks: ${created_ids[*]}"
+      ;;
+  esac
+}
+
+# ============================================================================
+# GUN COMMAND
+# ============================================================================
+
+cmd_gun() {
+  local subcommand="${1:-}"
+  shift 2>/dev/null || true
+
+  # Upstream: https://github.com/hamzamohdzubair/taskgun
+  # Author: hamzamohdzubair · MIT License · Rust
+
+  case "$subcommand" in
+    install)
+      if command -v taskgun &>/dev/null; then
+        log_success "taskgun already installed: $(taskgun --version 2>/dev/null || echo 'version unknown')"
+        return 0
+      fi
+      if command -v cargo &>/dev/null; then
+        echo "Installing taskgun via cargo..."
+        echo "  Upstream: https://github.com/hamzamohdzubair/taskgun"
+        echo "  Author:   hamzamohdzubair · MIT License"
+        cargo install taskgun
+        log_success "taskgun installed"
+      elif command -v brew &>/dev/null; then
+        echo "Trying brew install taskgun..."
+        brew install taskgun 2>/dev/null || {
+          log_error "taskgun not available via brew. Install cargo first:"
+          echo "  brew install rust" >&2
+          echo "  cargo install taskgun" >&2
+          exit 1
+        }
+      else
+        log_error "Neither cargo nor brew found"
+        echo "Install cargo: https://rustup.rs/" >&2
+        echo "Then: cargo install taskgun" >&2
+        exit 1
+      fi
+      ;;
+    create)
+      if [[ -z "${TASKRC:-}" || -z "${TASKDATA:-}" ]]; then
+        log_error "No active profile — activate one first: p-<profile-name>"
+        exit 1
+      fi
+      if ! command -v taskgun &>/dev/null; then
+        log_error "taskgun not installed — run: ww gun install"
+        exit 1
+      fi
+      TASKRC="${TASKRC}" TASKDATA="${TASKDATA}" taskgun create "$@"
+      ;;
+    help|-h|--help)
+      cat << 'EOF'
+Gun Command — Bulk Task Series Generator
+
+Generates deadline-spaced task series from a single command.
+Useful for book chapters, lecture series, practice sets.
+
+Usage:
+  ww gun create <project> -p <parts> -u <unit> [options]
+  ww gun install              Install taskgun binary
+  ww gun help                 Show this help
+
+Options (passed to taskgun):
+  -p <parts>          Number of parts (or comma-separated per-chapter counts)
+  -u <unit>           Unit name (Lecture, Chapter, Exercise, etc.)
+  --offset <duration> Start offset from now (2d, 1w, 2h, 30m)
+  --interval <dur>    Interval between tasks (1d, 7d, 1h)
+  --skip <preset>     Skip rule: weekend, bedtime, or custom (2200-0600, mon,wed)
+
+Examples:
+  ww gun create ML_Course -p 10 -u Lecture --offset 2d --interval 1d
+  ww gun create CLRS -p 12 -u Chapter --offset 7d --interval 7d --skip weekend
+  ww gun create Exam_Prep -p 30 -u Lecture --offset 2h --interval 2h --skip bedtime
+  ww gun create Design_Patterns -p 3,4,2 -u Section --offset 3d --interval 3d
+
+Note: project names with spaces must use underscores.
+  Use: Design_Patterns
+  Not: "Design Patterns" (TaskWarrior splits on spaces)
+
+All ww gun create flags pass through to taskgun unchanged.
+Run 'taskgun create --help' for the full flag reference.
+
+Powered by taskgun · hamzamohdzubair
+  https://github.com/hamzamohdzubair/taskgun · MIT License
+EOF
+      ;;
+    "")
+      cmd_gun help
+      ;;
+    *)
+      # Pass all other subcommands through to taskgun directly
+      if [[ -z "${TASKRC:-}" || -z "${TASKDATA:-}" ]]; then
+        log_error "No active profile — activate one first: p-<profile-name>"
+        exit 1
+      fi
+      if ! command -v taskgun &>/dev/null; then
+        log_error "taskgun not installed — run: ww gun install"
+        exit 1
+      fi
+      TASKRC="${TASKRC}" TASKDATA="${TASKDATA}" taskgun "${subcommand}" "$@"
+      ;;
+  esac
+}
+
+# ============================================================================
+# TUI COMMAND
+# ============================================================================
+
+cmd_tui() {
+  local subcommand="${1:-}"
+
+  case "$subcommand" in
+    install)
+      if command -v taskwarrior-tui &>/dev/null; then
+        local ver
+        ver=$(taskwarrior-tui --version 2>/dev/null | head -1 || echo "unknown")
+        log_success "taskwarrior-tui already installed: $ver"
+      else
+        if command -v brew &>/dev/null; then
+          echo "Installing taskwarrior-tui via brew ..."
+          brew install taskwarrior-tui
+          log_success "taskwarrior-tui installed"
+        elif command -v cargo &>/dev/null; then
+          echo "Installing taskwarrior-tui via cargo ..."
+          cargo install taskwarrior-tui
+          log_success "taskwarrior-tui installed"
+        else
+          # Detect platform and emit appropriate hint -- do not auto-install on Linux
+          local _tui_pm
+          if command -v apt &>/dev/null; then
+            _tui_pm="apt"
+          elif command -v dnf &>/dev/null; then
+            _tui_pm="dnf"
+          elif command -v pacman &>/dev/null; then
+            _tui_pm="pacman"
+          else
+            _tui_pm="unknown"
+          fi
+          log_error "taskwarrior-tui not found and no auto-install path available"
+          echo "Install options:"
+          case "$_tui_pm" in
+            apt)
+              echo "  cargo: cargo install taskwarrior-tui  (recommended on Debian/Ubuntu)"
+              echo "  snap:  snap install taskwarrior-tui"
+              ;;
+            dnf)
+              echo "  cargo: cargo install taskwarrior-tui  (recommended on Fedora/RHEL)"
+              ;;
+            pacman)
+              echo "  pacman: sudo pacman -S taskwarrior-tui  (AUR: yay -S taskwarrior-tui)"
+              echo "  cargo:  cargo install taskwarrior-tui"
+              ;;
+            *)
+              echo "  brew:  brew install taskwarrior-tui"
+              echo "  cargo: cargo install taskwarrior-tui"
+              echo "  snap:  snap install taskwarrior-tui"
+              ;;
+          esac
+          exit 1
+        fi
+      fi
+      ;;
+    help|-h|--help)
+      cat << 'EOF'
+TUI Command
+
+Launch an interactive terminal UI for task management.
+
+Usage:
+  ww tui              Launch TUI (requires active profile)
+  ww tui install      Check / install taskwarrior-tui binary
+  ww tui help         Show this help
+
+All task operations run against the active profile's data.
+Profile isolation is automatic — TASKRC and TASKDATA are scoped.
+
+Powered by taskwarrior-tui · Karthikeyan Singaravelan (@kdheepak)
+  https://github.com/kdheepak/taskwarrior-tui · MIT License
+EOF
+      ;;
+    "")
+      if [[ -z "${TASKRC:-}" || -z "${TASKDATA:-}" ]]; then
+        log_error "No active profile — activate one first: p-<profile-name>"
+        exit 1
+      fi
+      if ! command -v taskwarrior-tui &>/dev/null; then
+        log_error "taskwarrior-tui not installed"
+        echo "Install it: ww tui install"
+        exit 1
+      fi
+      # Attribution visible in scroll buffer once TUI exits (alt-screen restore)
+      echo "taskwarrior-tui · @kdheepak · MIT · github.com/kdheepak/taskwarrior-tui"
+      exec taskwarrior-tui --taskrc "$TASKRC" --taskdata "$TASKDATA"
+      ;;
+    *)
+      log_error "Unknown tui subcommand: $subcommand"
+      echo "Run 'ww tui help' for usage"
+      exit 1
+      ;;
+  esac
+}
+
+# ============================================================================
+# MCP COMMAND
+# ============================================================================
+
+cmd_mcp() {
+  local subcommand="${1:-}"
+  shift 2>/dev/null || true
+
+  # Upstream: https://github.com/hnsstrk/taskwarrior-mcp
+  # Author: hnsstrk · MIT License · Python
+  local MCP_INSTALL_DIR="$HOME/.local/share/ww/mcp/taskwarrior"
+  local MCP_BINARY="taskwarrior-mcp"
+
+  case "$subcommand" in
+    install)
+      if command -v "$MCP_BINARY" &>/dev/null; then
+        log_success "$MCP_BINARY already installed: $(${MCP_BINARY} --version 2>/dev/null || echo 'version unknown')"
+        return 0
+      fi
+      if ! command -v uv &>/dev/null; then
+        if command -v brew &>/dev/null; then
+          echo "Installing uv (required for taskwarrior-mcp) via brew ..."
+          brew install uv
+        else
+          # Detect platform and emit appropriate hint -- do not auto-install on Linux
+          local _mcp_pm
+          if command -v apt &>/dev/null; then
+            _mcp_pm="apt"
+          elif command -v dnf &>/dev/null; then
+            _mcp_pm="dnf"
+          elif command -v pacman &>/dev/null; then
+            _mcp_pm="pacman"
+          else
+            _mcp_pm="unknown"
+          fi
+          log_error "uv not found and no auto-install path available"
+          echo "Install uv first, then re-run 'ww mcp install':" >&2
+          case "$_mcp_pm" in
+            apt)
+              echo "  curl -LsSf https://astral.sh/uv/install.sh | sh   (Debian/Ubuntu)" >&2
+              echo "  or: pip install uv" >&2
+              ;;
+            dnf)
+              echo "  curl -LsSf https://astral.sh/uv/install.sh | sh   (Fedora/RHEL)" >&2
+              echo "  or: pip install uv" >&2
+              ;;
+            pacman)
+              echo "  sudo pacman -S uv   (Arch/Manjaro)" >&2
+              echo "  or: curl -LsSf https://astral.sh/uv/install.sh | sh" >&2
+              ;;
+            *)
+              echo "  https://docs.astral.sh/uv/" >&2
+              ;;
+          esac
+          exit 1
+        fi
+      fi
+      echo "Installing taskwarrior-mcp from hnsstrk/taskwarrior-mcp …"
+      echo "  Upstream: https://github.com/hnsstrk/taskwarrior-mcp"
+      echo "  Author:   hnsstrk · MIT License"
+      mkdir -p "$(dirname "$MCP_INSTALL_DIR")"
+      if [[ -d "$MCP_INSTALL_DIR" ]]; then
+        echo "  Updating existing clone …"
+        git -C "$MCP_INSTALL_DIR" pull --quiet
+      else
+        git clone --quiet https://github.com/hnsstrk/taskwarrior-mcp.git "$MCP_INSTALL_DIR"
+      fi
+      uv tool install -e "$MCP_INSTALL_DIR/mcp-server"
+      if command -v "$MCP_BINARY" &>/dev/null; then
+        log_success "taskwarrior-mcp installed"
+        echo ""
+        echo "Next: register with your MCP client:"
+        echo "  ww mcp register"
+      else
+        log_error "Installation completed but $MCP_BINARY not found on PATH"
+        echo "Check that uv's bin directory is on your PATH" >&2
+        exit 1
+      fi
+      ;;
+    register)
+      local scope="user"
+      for arg in "$@"; do
+        case "$arg" in
+          --scope) ;;
+          user|project|local) scope="$arg" ;;
+        esac
+      done
+      if [[ -z "${TASKRC:-}" || -z "${TASKDATA:-}" ]]; then
+        log_error "No active profile — activate one first: p-<profile-name>"
+        echo "Profile env vars (TASKRC, TASKDATA) must be set for registration." >&2
+        exit 1
+      fi
+      if ! command -v "$MCP_BINARY" &>/dev/null; then
+        log_error "$MCP_BINARY not installed — run: ww mcp install"
+        exit 1
+      fi
+      local register_cmd="claude mcp add --transport stdio --scope ${scope} taskwarrior"
+      register_cmd+=' --env TW_MCP_TASKRC="$TASKRC"'
+      register_cmd+=' --env TW_MCP_TASK_DATA="$TASKDATA"'
+      register_cmd+=" -- $MCP_BINARY"
+      if command -v claude &>/dev/null; then
+        echo "Registering taskwarrior-mcp with Claude Code (scope: ${scope}) …"
+        echo "  Profile: ${WARRIOR_PROFILE:-active}"
+        echo "  TASKRC:  $TASKRC"
+        echo "  TASKDATA: $TASKDATA"
+        claude mcp add --transport stdio --scope "${scope}" taskwarrior \
+          --env "TW_MCP_TASKRC=${TASKRC}" \
+          --env "TW_MCP_TASK_DATA=${TASKDATA}" \
+          -- "$MCP_BINARY"
+        log_success "Registered. Restart Claude Code to activate."
+      else
+        echo "claude CLI not found — manual registration command:"
+        echo ""
+        echo "  $register_cmd"
+        echo ""
+        echo "For other MCP clients, configure with:"
+        echo "  command: $MCP_BINARY"
+        echo "  env:     TW_MCP_TASKRC=$TASKRC"
+        echo "           TW_MCP_TASK_DATA=$TASKDATA"
+      fi
+      ;;
+    status)
+      echo "taskwarrior-mcp status"
+      echo ""
+      if command -v "$MCP_BINARY" &>/dev/null; then
+        local ver
+        ver=$("$MCP_BINARY" --version 2>/dev/null || echo "unknown")
+        echo "  installed:  yes ($ver)"
+        echo "  binary:     $(command -v "$MCP_BINARY")"
+        echo "  source:     $MCP_INSTALL_DIR"
+      else
+        echo "  installed:  no"
+        echo "  install:    ww mcp install"
+      fi
+      echo ""
+      if [[ -n "${TASKRC:-}" && -n "${TASKDATA:-}" ]]; then
+        echo "  active profile: ${WARRIOR_PROFILE:-unknown}"
+        echo "  TW_MCP_TASKRC:      $TASKRC"
+        echo "  TW_MCP_TASK_DATA:   $TASKDATA"
+      else
+        echo "  active profile: none (activate with p-<profile-name>)"
+      fi
+      echo ""
+      if command -v claude &>/dev/null; then
+        echo "  claude CLI: available"
+        echo "  register:   ww mcp register [--scope user|project]"
+      else
+        echo "  claude CLI: not found (manual registration required)"
+      fi
+      ;;
+    help|-h|--help)
+      cat << 'EOF'
+MCP Command — TaskWarrior MCP Server
+
+Exposes TaskWarrior to any MCP-capable AI agent (Claude Code, Amazon Q, Gemini, etc.)
+with full ww profile isolation. Profile scoping is automatic via TASKRC/TASKDATA.
+
+Usage:
+  ww mcp install              Install taskwarrior-mcp server
+  ww mcp register [--scope]   Register with MCP client (scope: user|project, default: user)
+  ww mcp status               Show install and registration status
+  ww mcp help                 Show this help
+
+Profile isolation:
+  When a ww profile is active, TASKRC and TASKDATA are set automatically.
+  The MCP server reads TW_MCP_TASKRC and TW_MCP_TASK_DATA — same values.
+  Each profile gets its own isolated task database via the MCP server.
+
+AI agent usage:
+  Once registered, any MCP client can manage tasks in the active profile:
+    "What are my open tasks?"
+    "Create a task 'Review PR #42' with high priority, due Friday"
+    "Mark task a1b2c3d4 as done"
+
+Powered by taskwarrior-mcp · hnsstrk
+  https://github.com/hnsstrk/taskwarrior-mcp · MIT License
+EOF
+      ;;
+    "")
+      cmd_mcp status
+      ;;
+    *)
+      log_error "Unknown mcp subcommand: $subcommand"
+      echo "Run 'ww mcp help' for usage"
+      exit 1
+      ;;
+  esac
+}
+
+# ============================================================================
+# BROWSER COMMAND
+# ============================================================================
+
+cmd_browser_warlock() {
+  local warlock_sh="${WW_BASE}/services/warlock/warlock.sh"
+  if [[ ! -f "$warlock_sh" ]]; then
+    log_error "warlock service not found at ${warlock_sh}"
+    exit 2
+  fi
+  WARRIOR_PROFILE="${WARRIOR_PROFILE:-}" \
+  TASKRC="${TASKRC:-}" \
+  TASKDATA="${TASKDATA:-}" \
+    bash "$warlock_sh" "$@"
+}
+
+cmd_browser() {
+  # Intercept warlock subcommand before delegating to browser.sh
+  if [[ "${1:-}" == "warlock" ]]; then
+    shift
+    cmd_browser_warlock "$@"
+    return
+  fi
+
+  # Delegate remaining subcommands to services/browser/browser.sh.
+  if ! command -v python3 &>/dev/null; then
+    log_error "python3 not found — required by ww browser"
+    echo "Install Python 3: https://www.python.org/downloads/" >&2
+    exit 1
+  fi
+
+  local browser_sh="${WW_BASE}/services/browser/browser.sh"
+  if [[ ! -f "$browser_sh" ]]; then
+    log_error "browser service not found at ${browser_sh}"
+    exit 2
+  fi
+
+  bash "$browser_sh" "$@"
+}
+
+# ============================================================================
+# ISSUES UDA HELPERS
+# ============================================================================
+
+_issues_uda_install() {
+    # Idempotently install bugwarrior UDAs into the active profile's .taskrc.
+    # Runs `bugwarrior uda`, then appends only lines not already present.
+    if ! command -v bugwarrior &>/dev/null; then
+        log_error "bugwarrior is not installed"
+        echo "Install with: pipx install bugwarrior && pipx inject bugwarrior setuptools" >&2
+        exit 1
+    fi
+
+    local taskrc="${WORKWARRIOR_BASE}/.taskrc"
+    local bugwarrior_config="${WORKWARRIOR_BASE}/.config/bugwarrior/bugwarriorrc"
+    if [[ -f "${WORKWARRIOR_BASE}/.config/bugwarrior/bugwarrior.toml" ]]; then
+        bugwarrior_config="${WORKWARRIOR_BASE}/.config/bugwarrior/bugwarrior.toml"
+    fi
+    if [[ ! -f "$bugwarrior_config" ]]; then
+        log_error "Bugwarrior configuration not found"
+        echo "Run 'ww issues custom' to configure the issues service" >&2
+        exit 1
+    fi
+
+    local bw_udas
+    if ! bw_udas=$(BUGWARRIORRC="${bugwarrior_config}" bugwarrior uda 2>/dev/null); then
+        log_error "bugwarrior uda failed — is bugwarrior configured? Run: ww issues custom"
+        exit 1
+    fi
+
+    local added=0 skipped=0
+    while IFS= read -r line; do
+        [[ -z "${line}" || "${line}" =~ ^# ]] && continue
+        local key="${line%%=*}"
+        if grep -q "^${key}=" "${taskrc}" 2>/dev/null; then
+            skipped=$(( skipped + 1 ))
+        else
+            echo "${line}" >> "${taskrc}"
+            added=$(( added + 1 ))
+        fi
+    done <<< "${bw_udas}"
+
+    echo "✓ UDA install complete: ${added} added, ${skipped} already present"
+}
+
+_issues_uda_group() {
+    # Create or update a UDA group in BOTH:
+    #  - ${WORKWARRIOR_BASE}/.uda-groups   (fast, simple sidecar)
+    #  - ${WORKWARRIOR_BASE}/.taskrc       (portable metadata block)
+    local svc_name="$1"
+    local taskrc="${WORKWARRIOR_BASE}/.taskrc"
+    local group_file="${WORKWARRIOR_BASE}/.uda-groups"
+
+    local uda_list=""
+    case "${svc_name}" in
+        github)
+            # Standard bugwarrior GitHub group (15 fields) — no manual selection.
+            uda_list="github_number,github_repo,github_url,github_title,github_state,github_user,github_milestone,github_project,github_namespace,github_type,github_labels,github_created_at,github_updated_at,github_closed_at,github_body"
+            ;;
+        gitlab|jira|trello|sync)
+            local prefix="${svc_name}"
+            uda_list=$(grep -E "^uda\\.${prefix}[^.]+\\.type=" "${taskrc}" 2>/dev/null \
+                | awk -F. '{print $2}' | sort -u | tr '\n' ',' | sed 's/,$//' || true)
+            ;;
+        *)
+            log_error "Unknown service '${svc_name}'. Known: github gitlab jira trello sync"
+            exit 1 ;;
+    esac
+
+    if [[ -z "${uda_list}" ]]; then
+        log_error "No ${svc_name} UDAs found in .taskrc. Run: ww issues uda install"
+        exit 1
+    fi
+
+    # 1) Sidecar file (.uda-groups)
+    if grep -q "^${svc_name}:" "${group_file}" 2>/dev/null; then
+        if sed --version >/dev/null 2>&1; then
+            sed -i "s|^${svc_name}:.*|${svc_name}: ${uda_list}|" "${group_file}"
+        else
+            sed -i.bak "s|^${svc_name}:.*|${svc_name}: ${uda_list}|" "${group_file}" && rm -f "${group_file}.bak"
+        fi
+    else
+        echo "${svc_name}: ${uda_list}" >> "${group_file}"
+    fi
+
+    # 2) Portable taskrc metadata block (# === WW UDA GROUPS ===)
+    local group_line="# group:${svc_name} udas:${uda_list}"
+    if grep -q "^# === WW UDA GROUPS ===" "${taskrc}" 2>/dev/null; then
+        if grep -q "^# group:${svc_name} " "${taskrc}" 2>/dev/null; then
+            sed -i.bak "s|^# group:${svc_name} .*|${group_line}|" "${taskrc}" && rm -f "${taskrc}.bak"
+        else
+            sed -i.bak "/^# === END WW UDA GROUPS ===/i\\
+${group_line}" "${taskrc}" && rm -f "${taskrc}.bak"
+        fi
+    else
+        printf '\n# === WW UDA GROUPS ===\n%s\n# === END WW UDA GROUPS ===\n' "${group_line}" >> "${taskrc}"
+    fi
+
+    local count
+    count=$(echo "${uda_list}" | tr ',' '\n' | wc -l | tr -d ' ')
+    echo "✓ Group '${svc_name}' written to .uda-groups and .taskrc metadata — ${count} UDAs"
+}
+
+_issues_uda_sync_sidecar_from_taskrc() {
+    # taskrc-authoritative sync: rewrite .uda-groups from the taskrc metadata block.
+    local taskrc="${WORKWARRIOR_BASE}/.taskrc"
+    local group_file="${WORKWARRIOR_BASE}/.uda-groups"
+    local tmp
+    tmp="$(mktemp "${TMPDIR:-/tmp}/ww-uda-groups.XXXXXX")"
+
+    if [[ ! -f "$taskrc" ]]; then
+        rm -f "$tmp"
+        return 0
+    fi
+
+    # Extract lines like: "# group:github udas:a,b,c ..."
+    # Use awk for portability across BSD/GNU sed.
+    awk '
+      /^# === WW UDA GROUPS ===/ { in_block=1; next }
+      /^# === END WW UDA GROUPS ===/ { in_block=0; next }
+      in_block && /^# group:/ {
+        line=$0
+        sub(/^# group:/, "", line)
+        split(line, parts, " ")
+        grp=parts[1]
+        uds=""
+        for (i=2; i<=length(parts); i++) {
+          if (parts[i] ~ /^udas:/) {
+            uds=substr(parts[i], 6)
+            break
+          }
+        }
+        if (grp != "" && uds != "") {
+          print grp ": " uds
+        }
+      }
+    ' "$taskrc" > "$tmp"
+
+    # If no taskrc metadata exists, leave sidecar untouched.
+    if [[ ! -s "$tmp" ]]; then
+        rm -f "$tmp"
+        return 0
+    fi
+
+    mv "$tmp" "$group_file"
+}
+
+# ============================================================================
+# ISSUES COMMAND
+# ============================================================================
+
+cmd_issues() {
+  # Parse all args: first non-flag is the subcommand; strip --json from remaining
+  local json_mode=0
+  local subcommand=""
+  local remaining=()
+  for arg in "$@"; do
+    if [[ "$arg" == "--json" ]]; then
+      json_mode=1
+    elif [[ -z "$subcommand" && "$arg" != --* ]]; then
+      subcommand="$arg"
+    else
+      remaining+=("$arg")
+    fi
+  done
+  set -- "${remaining[@]+"${remaining[@]}"}"
+
+  case "$subcommand" in
+    ""|help|--help|-h)
+      cat << 'EOF'
+Issues Service
+
+Routes to bugwarrior (one-way pull) or github-sync (two-way):
+
+  ww issues pull [--dry-run] [--json]              Pull issues from all configured services
+  ww issues uda list                                List UDAs grouped by source service
+  ww issues uda install                             Install missing bugwarrior UDAs (idempotent)
+  ww issues uda group <service>                     Create UDA group (github gitlab jira trello sync)
+
+  ww issues push [task-id]                          Push task changes to GitHub
+  ww issues sync [task-id]                          Bidirectional sync with GitHub
+  ww issues enable-sync <task-id> <issue> <repo>    Enable GitHub sync for a task
+  ww issues disable-sync <task-id>                  Disable GitHub sync for a task
+  ww issues status [--json]                         Show GitHub sync status
+
+  ww issues custom                                  Configure issue services interactively
+  ww issues help                                    Show this help
+
+Note: 'ww issues' and 'i' are synonymous.
+Requires an active profile: p-<profile-name>
+
+Bugwarrior is one-way only (external services → TaskWarrior).
+For two-way GitHub sync, use: ww issues push / sync / enable-sync
+
+EOF
+      ;;
+    custom)
+      if [[ -z "${WORKWARRIOR_BASE:-}" ]]; then
+        log_error "Issues service requires an active profile"
+        echo "Activate a profile with: p-<profile-name>" >&2
+        exit 1
+      fi
+      WORKWARRIOR_BASE="$WORKWARRIOR_BASE" WARRIOR_PROFILE="$WARRIOR_PROFILE" \
+        "$WW_BASE/services/custom/configure-issues.sh" "$@"
+      ;;
+    push|sync|enable-sync|enable|disable-sync|disable|status|sync-status)
+      if [[ -z "${WORKWARRIOR_BASE:-}" ]]; then
+        log_error "Issues service requires an active profile"
+        echo "Activate a profile with: p-<profile-name>" >&2
+        exit 1
+      fi
+      local github_sync_cli="$WW_BASE/services/custom/github-sync.sh"
+      if [[ ! -f "$github_sync_cli" ]]; then
+        log_error "GitHub sync CLI not found at $github_sync_cli"
+        exit 1
+      fi
+      local sync_command
+      case "$subcommand" in
+        enable-sync|enable) sync_command="enable" ;;
+        disable-sync|disable) sync_command="disable" ;;
+        sync-status|status) sync_command="status" ;;
+        *) sync_command="$subcommand" ;;
+      esac
+      if [[ "$sync_command" == "status" && "$json_mode" -eq 1 ]]; then
+        local sync_output sync_exit=0
+        sync_output=$(WORKWARRIOR_BASE="$WORKWARRIOR_BASE" WARRIOR_PROFILE="$WARRIOR_PROFILE" \
+          "$github_sync_cli" "$sync_command" "$@" 2>&1) || sync_exit=$?
+        local escaped="${sync_output//\\/\\\\}"
+        escaped="${escaped//\"/\\\"}"
+        escaped="${escaped//$'\n'/\\n}"
+        if [[ "$sync_exit" -eq 0 ]]; then
+          echo "{\"command\":\"status\",\"status\":\"success\",\"output\":\"${escaped}\"}"
+        else
+          echo "{\"command\":\"status\",\"status\":\"failed\",\"exit_code\":${sync_exit},\"output\":\"${escaped}\"}"
+        fi
+        exit "$sync_exit"
+      fi
+      WORKWARRIOR_BASE="$WORKWARRIOR_BASE" WARRIOR_PROFILE="$WARRIOR_PROFILE" \
+        "$github_sync_cli" "$sync_command" "$@"
+      ;;
+    uda)
+      local uda_sub="${1:-list}"; shift || true
+      local uda_script="$WW_BASE/services/profile/subservices/profile-uda.sh"
+      # Keep .uda-groups in sync from taskrc metadata (taskrc is authority).
+      _issues_uda_sync_sidecar_from_taskrc
+      case "$uda_sub" in
+        help|--help|-h)
+          cat << 'EOF'
+ww issues uda — manage service UDAs
+
+  ww issues uda list              List all UDAs grouped by source service
+  ww issues uda install           Install missing bugwarrior UDAs (idempotent)
+  ww issues uda group <service>   Create UDA group for a service (github gitlab jira trello sync)
+  ww issues uda help              Show this help
+
+For full UDA management use: ww profile uda
+EOF
+          ;;
+        ""|list)
+          if [[ -z "${WORKWARRIOR_BASE:-}" ]]; then
+            log_error "Issues service requires an active profile"
+            echo "Activate a profile with: p-<profile-name>" >&2; exit 1
+          fi
+          if [[ ! -f "$uda_script" ]]; then
+            log_error "UDA service not found at $uda_script"; exit 1
+          fi
+          WORKWARRIOR_BASE="${WORKWARRIOR_BASE}" WARRIOR_PROFILE="${WARRIOR_PROFILE:-}" \
+            bash "$uda_script" list
+          ;;
+        install)
+          if [[ -z "${WORKWARRIOR_BASE:-}" ]]; then
+            log_error "Issues service requires an active profile"
+            echo "Activate a profile with: p-<profile-name>" >&2; exit 1
+          fi
+          _issues_uda_install
+          ;;
+        group)
+          local svc_arg="${1:-}"
+          if [[ -z "$svc_arg" ]]; then
+            log_error "Usage: ww issues uda group <service>  (github gitlab jira trello sync)"
+            exit 1
+          fi
+          if [[ -z "${WORKWARRIOR_BASE:-}" ]]; then
+            log_error "Issues service requires an active profile"
+            echo "Activate a profile with: p-<profile-name>" >&2; exit 1
+          fi
+          _issues_uda_group "$svc_arg"
+          ;;
+        *)
+          log_error "Unknown subcommand: ww issues uda ${uda_sub}"
+          echo "Run 'ww issues uda help' for usage." >&2; exit 1
+          ;;
+      esac
+      ;;
+    pull|*)
+      if [[ -z "${WORKWARRIOR_BASE:-}" ]]; then
+        log_error "Issues service requires an active profile"
+        echo "Activate a profile with: p-<profile-name>" >&2
+        exit 1
+      fi
+      local bugwarrior_config="$WORKWARRIOR_BASE/.config/bugwarrior/bugwarriorrc"
+      if [[ ! -f "$bugwarrior_config" ]]; then
+        bugwarrior_config="$WORKWARRIOR_BASE/.config/bugwarrior/bugwarrior.toml"
+        if [[ ! -f "$bugwarrior_config" ]]; then
+          log_error "Bugwarrior configuration not found"
+          echo "Run 'ww issues custom' to configure the issues service" >&2
+          exit 1
+        fi
+      fi
+      if ! command -v bugwarrior &>/dev/null; then
+        log_error "bugwarrior is not installed"
+        echo "Install with: pipx install bugwarrior && pipx inject bugwarrior setuptools" >&2
+        exit 1
+      fi
+      if [[ "$subcommand" == "pull" && "$json_mode" -eq 0 ]]; then
+        echo "⚠️  One-way sync: External services → TaskWarrior"
+        echo "   Changes in TaskWarrior will NOT sync back to issue trackers"
+        echo "   For two-way GitHub sync, use: ww issues push / sync / enable-sync"
+        echo ""
+      fi
+      if [[ "$json_mode" -eq 1 ]]; then
+        local bw_exit=0
+        BUGWARRIORRC="$bugwarrior_config" \
+        BUGWARRIOR_TASKRC="$WORKWARRIOR_BASE/.taskrc" \
+        BUGWARRIOR_TASKDATA="$WORKWARRIOR_BASE/.task" \
+          bugwarrior "$subcommand" "$@" >/dev/null 2>&1 || bw_exit=$?
+        if [[ "$bw_exit" -eq 0 ]]; then
+          echo "{\"command\":\"${subcommand}\",\"status\":\"success\"}"
+        else
+          echo "{\"command\":\"${subcommand}\",\"status\":\"failed\",\"exit_code\":${bw_exit}}"
+        fi
+        exit "$bw_exit"
+      fi
+      BUGWARRIORRC="$bugwarrior_config" \
+      BUGWARRIOR_TASKRC="$WORKWARRIOR_BASE/.taskrc" \
+      BUGWARRIOR_TASKDATA="$WORKWARRIOR_BASE/.task" \
+        bugwarrior "$subcommand" "$@"
+      ;;
+  esac
+}
+
+# ============================================================================
+# INSTANCE ACTIVATION / DISPATCH (@instance)
+# ============================================================================
+
+cmd_at() {
+  local iid="${1:-}"
+  shift 2>/dev/null || true
+  [[ -n "$iid" ]] || { log_error "Usage: ww @<instance> [profile] [command...]"; exit 1; }
+
+  # Check pin guard
+  if [[ -n "${WW_PINNED_INSTANCE:-}" && "${WW_PINNED_INSTANCE}" != "$iid" ]]; then
+    log_warning "Tab is pinned to '${WW_PINNED_INSTANCE}'. Use 'ww unpin' first or 'ww @${iid} --force'."
+    if [[ "${1:-}" != "--force" ]]; then
+      exit 1
+    fi
+    shift
+  fi
+
+  # Look up instance (include hidden)
+  local base=""
+  if command -v ww_instance_where >/dev/null 2>&1; then
+    base="$(ww_instance_where "$iid" 2>/dev/null || true)"
+  fi
+  [[ -n "$base" ]] || { log_error "Instance not found: $iid"; exit 1; }
+
+  # Determine if we have trailing command args
+  local first_remaining="${1:-}"
+
+  # Check if first arg looks like a profile name (no spaces, not a flag, not a known subcommand)
+  local profile_arg=""
+  local cmd_args=()
+  if [[ -n "$first_remaining" && "$first_remaining" != --* ]]; then
+    local profile_candidate="$first_remaining"
+    # If the profile dir exists in the target instance, treat it as a profile arg
+    if [[ -d "$base/profiles/$profile_candidate" ]]; then
+      profile_arg="$profile_candidate"
+      shift
+    fi
+  fi
+  cmd_args=("$@")
+
+  if [[ ${#cmd_args[@]} -eq 0 ]]; then
+    # ACTIVATE mode: switch shell context (must be called via eval or sourced context)
+    # Since we can't export to parent shell from a subprocess, print eval-compatible output
+    # when WW_AT_EVAL is set; otherwise print instructions.
+    local last_profile=""
+    local cfg_home="${WW_CONFIG_HOME:-$HOME/.config/ww}"
+    if [[ -n "$profile_arg" ]]; then
+      last_profile="$profile_arg"
+    else
+      last_profile="$(cat "$cfg_home/last-profile-${iid}" 2>/dev/null || echo "")"
+      if [[ -z "$last_profile" ]]; then
+        last_profile="default"
+      fi
+    fi
+
+    # Verify profile exists
+    if [[ ! -d "$base/profiles/$last_profile" ]]; then
+      log_warning "No profile found for '${iid}'."
+      echo "  Create one with:  ww @${iid} profile create <name>"
+      exit 0
+    fi
+
+    # Print eval-compatible exports
+    echo "export WW_BASE=\"$base\""
+    echo "export WW_ACTIVE_INSTANCE=\"$iid\""
+    echo "export WARRIOR_PROFILE=\"$last_profile\""
+    local profile_base="$base/profiles/$last_profile"
+    echo "export WORKWARRIOR_BASE=\"$profile_base\""
+    echo "export TASKRC=\"$profile_base/.taskrc\""
+    echo "export TASKDATA=\"$profile_base/.task\""
+    echo "export TIMEWARRIORDB=\"$profile_base/.timewarrior\""
+    echo "printf '%s\n' '$last_profile' > \"${cfg_home}/last-profile-${iid}\" 2>/dev/null || true"
+    echo "ww_set_last_instance '$iid' 2>/dev/null || true"
+    echo "echo \"  ✓ ${iid}:${last_profile}  ·  ${profile_base}\""
+  else
+    # DISPATCH mode: run command in the target instance context without switching shell
+    if [[ -n "$profile_arg" ]]; then
+      local profile_base="$base/profiles/$profile_arg"
+      if [[ ! -d "$profile_base" ]]; then
+        log_error "Profile '$profile_arg' not found in instance '$iid'"
+        exit 1
+      fi
+      env WW_BASE="$base" \
+          WW_ACTIVE_INSTANCE="$iid" \
+          WARRIOR_PROFILE="$profile_arg" \
+          WORKWARRIOR_BASE="$profile_base" \
+          TASKRC="$profile_base/.taskrc" \
+          TASKDATA="$profile_base/.task" \
+          TIMEWARRIORDB="$profile_base/.timewarrior" \
+          "$base/bin/ww" "${cmd_args[@]}"
+    else
+      env WW_BASE="$base" WW_ACTIVE_INSTANCE="$iid" "$base/bin/ww" "${cmd_args[@]}"
+    fi
+  fi
+}
+
+# ============================================================================
+# PIN / UNPIN — lock terminal tab to an instance
+# ============================================================================
+
+cmd_pin() {
+  local iid="${1:-${WW_ACTIVE_INSTANCE:-}}"
+  if [[ -z "$iid" ]]; then
+    log_error "Usage: ww pin <instance>  (or activate an instance first)"
+    exit 1
+  fi
+  export WW_PINNED_INSTANCE="$iid"
+  log_success "Tab pinned to instance '${iid}'. Use 'ww unpin' to release."
+}
+
+cmd_unpin() {
+  if [[ -z "${WW_PINNED_INSTANCE:-}" ]]; then
+    log_info "Tab is not pinned"
+    return 0
+  fi
+  local prev="$WW_PINNED_INSTANCE"
+  unset WW_PINNED_INSTANCE
+  log_success "Tab unpinned (was: '${prev}')"
+}
+
+# ============================================================================
+# UPGRADE / DOWNGRADE — in-place preset change
+# ============================================================================
+
+cmd_upgrade() {
+  local target_preset="${1:-}"
+  [[ -n "$target_preset" ]] || { log_error "Usage: ww upgrade <multi|hardened|direct>"; exit 1; }
+
+  local installer="$WW_BASE/install.sh"
+  [[ -f "$installer" ]] || { log_error "installer not found at $WW_BASE/install.sh"; exit 1; }
+
+  log_info "Upgrading instance at $WW_BASE to preset '$target_preset'..."
+  WW_INSTALL_DIR="$WW_BASE" bash "$installer" --preset "$target_preset" --force --skip-deps --non-interactive
+}
+
+cmd_downgrade() {
+  local target_preset="${1:-}"
+  [[ -n "$target_preset" ]] || { log_error "Usage: ww downgrade <basic|direct|multi>"; exit 1; }
+
+  # Safety check: if this instance is an anchor with children, warn before proceeding
+  local cfg_home="${WW_CONFIG_HOME:-$HOME/.config/ww}"
+  local reg_dir="$cfg_home/registry"
+  local my_id="${WW_ACTIVE_INSTANCE:-}"
+  local children=()
+
+  if [[ -n "$my_id" && -d "$reg_dir" ]]; then
+    for f in "$reg_dir"/*.json; do
+      [[ -f "$f" ]] || continue
+      local parent
+      parent="$(python3 -c "import json,sys; d=json.load(open('$f')); print(d.get('parent_anchor',''))" 2>/dev/null || true)"
+      if [[ "$parent" == "$my_id" ]]; then
+        local child_id
+        child_id="$(python3 -c "import json,sys; d=json.load(open('$f')); print(d.get('id',''))" 2>/dev/null || true)"
+        [[ -n "$child_id" ]] && children+=("$child_id")
+      fi
+    done
+  fi
+
+  if [[ ${#children[@]} -gt 0 ]]; then
+    log_warning "'${my_id}' is the parent orchestrator for: ${children[*]}"
+    echo "Downgrading will leave these instances without a parent."
+    echo ""
+
+    # Find other available anchors
+    local other_anchors=()
+    if [[ -d "$reg_dir" ]]; then
+      for f in "$reg_dir"/*.json; do
+        [[ -f "$f" ]] || continue
+        local fid fpreset
+        fid="$(python3 -c "import json,sys; d=json.load(open('$f')); print(d.get('id',''))" 2>/dev/null || true)"
+        fpreset="$(python3 -c "import json,sys; d=json.load(open('$f')); print(d.get('preset',''))" 2>/dev/null || true)"
+        if [[ "$fid" != "$my_id" && ( "$fpreset" == "multi" || "$fpreset" == "hardened" ) ]]; then
+          other_anchors+=("$fid")
+        fi
+      done
+    fi
+
+    if [[ ${#other_anchors[@]} -gt 0 ]]; then
+      echo "Assign a new orchestrator? Available anchors: ${other_anchors[*]}"
+      local i=1
+      for a in "${other_anchors[@]}"; do
+        echo "  $i) $a"
+        ((i++))
+      done
+      echo "  $i) Leave them solo (no parent)"
+      read -rp "Choose [1-$i]: " choice
+      if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice < i )); then
+        local new_anchor="${other_anchors[$((choice-1))]}"
+        for child in "${children[@]}"; do
+          local mf="$reg_dir/$child.json"
+          [[ -f "$mf" ]] || continue
+          python3 - "$mf" "$new_anchor" << 'PY'
+import json,sys
+p,a=sys.argv[1],sys.argv[2]
+d=json.load(open(p))
+d["parent_anchor"]=a
+d["allowed_orchestrators"]=[a]
+json.dump(d,open(p,"w"),indent=2)
+PY
+          log_success "Reassigned '$child' to anchor '$new_anchor'"
+        done
+      else
+        for child in "${children[@]}"; do
+          local mf="$reg_dir/$child.json"
+          [[ -f "$mf" ]] || continue
+          python3 - "$mf" << 'PY'
+import json,sys
+d=json.load(open(sys.argv[1]))
+d["parent_anchor"]=None
+d["allowed_orchestrators"]=[]
+json.dump(d,open(sys.argv[1],"w"),indent=2)
+PY
+          log_info "Instance '$child' is now solo"
+        done
+      fi
+    else
+      read -rp "No other anchors available. Leave children solo? [y/n]: " yn
+      if [[ "$yn" != "y" && "$yn" != "Y" ]]; then
+        log_info "Downgrade cancelled"
+        return 0
+      fi
+    fi
+  fi
+
+  local installer="$WW_BASE/install.sh"
+  [[ -f "$installer" ]] || { log_error "installer not found at $WW_BASE/install.sh"; exit 1; }
+
+  log_info "Downgrading instance at $WW_BASE to preset '$target_preset'..."
+  WW_INSTALL_DIR="$WW_BASE" bash "$installer" --preset "$target_preset" --force --skip-deps --non-interactive
+  echo ""
+  echo "Shell changes applied. Reload your shell:"
+  echo "  source ~/.bashrc  (or source ~/.zshrc)"
+}
+
+# ============================================================================
+# MAIN DISPATCHER
+# ============================================================================
+
+main() {
+  parse_global_flags "$@"
+  set -- "${WW_MAIN_ARGS[@]}"
+  local command="${1:-}"
+  shift 2>/dev/null || true
+
+  export WW_OUTPUT_MODE
+  export WW_VERBOSE
+
+  if [[ $WW_FLAG_HELP -eq 1 ]]; then
+    if [[ -n "$command" ]]; then
+      show_service_help "$command"
+    else
+      show_usage
+    fi
+    return 0
+  fi
+
+  resolve_scope_context
+
+  case "$command" in
+    @*)
+      cmd_at "${command#@}" "$@"
+      ;;
+    profile|p)
+      cmd_profile "$@"
+      ;;
+    profiles)
+      cmd_profile list "$@"
+      ;;
+    service|s)
+      cmd_service "$@"
+      ;;
+    services)
+      if [[ $# -eq 0 ]]; then
+        cmd_service list
+      else
+        cmd_service "$@"
+      fi
+      ;;
+    group)
+      cmd_group "$@"
+      ;;
+    groups)
+      if [[ $# -eq 0 ]]; then
+        cmd_group list
+      else
+        cmd_group "$@"
+      fi
+      ;;
+    model)
+      cmd_models "$@"
+      ;;
+    models)
+      if [[ $# -eq 0 ]]; then
+        cmd_models list
+      else
+        cmd_models "$@"
+      fi
+      ;;
+    journal)
+      cmd_journal "$@"
+      ;;
+    journals)
+      if [[ $# -eq 0 ]]; then
+        cmd_journal list
+      else
+        cmd_journal "$@"
+      fi
+      ;;
+    ledger)
+      cmd_ledger "$@"
+      ;;
+    ledgers)
+      if [[ $# -eq 0 ]]; then
+        cmd_ledger list
+      else
+        cmd_ledger "$@"
+      fi
+      ;;
+    ctrl)
+      cmd_ctrl "$@"
+      ;;
+    config)
+      cmd_config "$@"
+      ;;
+    extensions)
+      cmd_extensions "$@"
+      ;;
+    timew)
+      cmd_timew "$@"
+      ;;
+    find)
+      cmd_find "$@"
+      ;;
+    tui)
+      cmd_tui "$@"
+      ;;
+    gun)
+      cmd_gun "$@"
+      ;;
+    sword)
+      cmd_sword "$@"
+      ;;
+    remove)
+      bash "$WW_BASE/services/remove/remove.sh" "$@"
+      ;;
+    compile-heuristics)
+      python3 "$WW_BASE/scripts/compile-heuristics.py" --ww-base "$WW_BASE" "$@"
+      ;;
+    next)
+      cmd_next "$@"
+      ;;
+    schedule)
+      cmd_schedule "$@"
+      ;;
+    routines)
+      cmd_routines "$@"
+      ;;
+    mcp)
+      cmd_mcp "$@"
+      ;;
+    browser)
+      cmd_browser "$@"
+      ;;
+    web)
+      cmd_browser warlock "$@"
+      ;;
+    issues)
+      cmd_issues "$@"
+      ;;
+    custom)
+      cmd_custom "$@"
+      ;;
+    q|questions)
+      cmd_questions "$@"
+      ;;
+    task|tasks)
+      cmd_task_passthrough "$@"
+      ;;
+    time|times)
+      cmd_time_passthrough "$@"
+      ;;
+    jrnl)
+      cmd_jrnl_passthrough "$@"
+      ;;
+    hledger)
+      cmd_hledger_passthrough "$@"
+      ;;
+    list|lists)
+      cmd_list_passthrough "$@"
+      ;;
+    community)
+      cmd_community "$@"
+      ;;
+    shortcut)
+      cmd_shortcut "$@"
+      ;;
+    export|e)
+      if [[ -f "$WW_BASE/services/export/export.sh" ]]; then
+        "$WW_BASE/services/export/export.sh" "$@"
+      else
+        log_error "Export service not found"
+        exit 1
+      fi
+      ;;
+    x)
+      if [[ -f "$WW_BASE/services/x-delete/x.sh" ]]; then
+        "$WW_BASE/services/x-delete/x.sh" "$@"
+      else
+        log_error "Delete service not found"
+        exit 1
+      fi
+      ;;
+    warrior|w)
+      if [[ -f "$WW_BASE/services/warrior/warrior.sh" ]]; then
+        bash "$WW_BASE/services/warrior/warrior.sh" "$@"
+      else
+        log_error "warrior service not found"; exit 1
+      fi
+      ;;
+    projects|project)
+      if [[ -f "$WW_BASE/services/projects/projects.sh" ]]; then
+        bash "$WW_BASE/services/projects/projects.sh" "$@"
+      else
+        log_error "projects service not found"; exit 1
+      fi
+      ;;
+    network)
+      if [[ -f "$WW_BASE/services/network/network.sh" ]]; then
+        bash "$WW_BASE/services/network/network.sh" "$@"
+      else
+        log_error "network service not found"; exit 1
+      fi
+      ;;
+    saves)
+      if [[ -f "$WW_BASE/services/saves/saves.sh" ]]; then
+        bash "$WW_BASE/services/saves/saves.sh" "$@"
+      else
+        log_error "saves service not found"; exit 1
+      fi
+      ;;
+    resource|res)
+      cmd_resource "$@"
+      ;;
+    deps|d)
+      cmd_deps "$@"
+      ;;
+    instance)
+      cmd_instance "$@"
+      ;;
+    use)
+      cmd_use "$@"
+      ;;
+    unlock)
+      cmd_unlock "$@"
+      ;;
+    security)
+      cmd_security "$@"
+      ;;
+    enable-multi)
+      cmd_enable_multi "$@"
+      ;;
+    disable-multi)
+      cmd_disable_multi "$@"
+      ;;
+    pin)
+      cmd_pin "$@"
+      ;;
+    unpin)
+      cmd_unpin
+      ;;
+    upgrade)
+      cmd_upgrade "$@"
+      ;;
+    downgrade)
+      cmd_downgrade "$@"
+      ;;
+    version|--version|-v)
+      show_version
+      ;;
+    help|--help|-h|"")
+      if [[ -n "${1:-}" ]]; then
+        show_service_help "$1"
+      else
+        show_usage
+      fi
+      ;;
+    *)
+      if command -v ww_instance_lookup >/dev/null 2>&1; then
+        local resolved_iid=""
+        resolved_iid="$(ww_instance_lookup "$command" 2>/dev/null || true)"
+        if [[ -n "$resolved_iid" ]]; then
+          cmd_unlock "$resolved_iid"
+          return $?
+        fi
+      fi
+      log_error "Unknown command: $command"
+      echo ""
+      echo "Run 'ww help' for usage"
+      exit 1
+      ;;
+  esac
+}
+
+main "$@"
