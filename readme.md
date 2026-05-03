@@ -191,10 +191,10 @@ UDAs are classified by source: `[github]` for bugwarrior-injected fields, `[exte
 
 ## Installation
 
-Requires bash or zsh on macOS or Linux. Python 3 for the browser UI.
+Requires bash 3.2+ or zsh on macOS or Linux. Python 3 for the browser UI. Bash 5.x (via Homebrew on macOS) recommended.
 
 ```bash
-git clone <repo-url> ~/ww
+git clone https://github.com/babbworks/ww ~/ww
 cd ~/ww
 ./install.sh
 source ~/.bashrc

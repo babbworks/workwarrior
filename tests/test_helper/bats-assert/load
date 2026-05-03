@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+# Minimal bats-assert stub for local tests
+
+assert() {
+  "$@"
+  local status=$?
+  if [[ $status -ne 0 ]]; then
+    echo "assertion failed: $*" >&2
+    return 1
+  fi
+  return 0
+}
+
+assert_success() {
+  if [[ "$status" -ne 0 ]]; then
+    echo "expected success but got status: $status" >&2
+    return 1
+  fi
+  return 0
+}
+
+assert_failure() {
+  if [[ "$status" -eq 0 ]]; then
+    echo "expected failure but got status: $status" >&2
+    return 1
+  fi
+  return 0
+}
+
+assert_equal() {
+  local expected="$1"
+  local actual="$2"
+  if [[ "$expected" != "$actual" ]]; then
+    echo "expected: $expected" >&2
+    echo "actual:   $actual" >&2
+    return 1
+  fi
+  return 0
+}
+
+assert_output() {
+  local mode="exact"
+  if [[ "$1" == "--partial" ]]; then
+    mode="partial"
+    shift
+  fi
+  local expected="$1"
+  if [[ "$mode" == "partial" ]]; then
+    if [[ "$output" != *"$expected"* ]]; then
+      echo "expected output to contain: $expected" >&2
+      echo "actual output: $output" >&2
+      return 1
+    fi
+  else
+    if [[ "$output" != "$expected" ]]; then
+      echo "expected output: $expected" >&2
+      echo "actual output: $output" >&2
+      return 1
+    fi
+  fi
+  return 0
+}
+
+refute_output() {
+  local mode="exact"
+  if [[ "$1" == "--partial" ]]; then
+    mode="partial"
+    shift
+  fi
+  local unexpected="$1"
+  if [[ "$mode" == "partial" ]]; then
+    if [[ "$output" == *"$unexpected"* ]]; then
+      echo "expected output NOT to contain: $unexpected" >&2
+      echo "actual output: $output" >&2
+      return 1
+    fi
+  else
+    if [[ "$output" == "$unexpected" ]]; then
+      echo "expected output NOT to equal: $unexpected" >&2
+      return 1
+    fi
+  fi
+  return 0
+}
+
+return 0

@@ -1,0 +1,111 @@
+# marty-oehme/topen
+
+**URL:** https://github.com/marty-oehme/topen  
+**Stars:** 2  
+**Language:** Python  
+**Last push:** 2025-12-08  
+**Archived:** No  
+**Topics:** notes, taskwarrior, taskwarrior3  
+
+## Description
+
+Quickly edit notes for your taskwarrior tasks
+
+## Category
+
+API Libraries
+
+## Workwarrior Integration Rating
+
+**Score:** 4  
+**Rating:** ★★★☆☆  Medium  
+
+### Scoring notes
+
+- +1: Shell scripting — matches ww stack
+- +1: GitHub is ww's primary issue source
+- +1: CLI-first matches ww ethos
+- +1: Python — tooling language used in ww
+
+## README excerpt
+
+```
+# Simple taskwarrior note management
+
+[![Static Badge](https://img.shields.io/badge/pdoc-Docs-blue)](https://marty-oehme.github.io/topen)
+[![PyPI - Version](https://img.shields.io/pypi/v/topen)](https://pypi.org/project/topen)
+[![GitHub Release](https://img.shields.io/github/v/release/marty-oehme/topen)](https://github.com/marty-oehme/topen/releases/latest)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/marty-oehme/topen/release.yaml)
+
+A script without bells and whistles.
+Focuses on letting you quickly:
+
+- create new notes for taskwarrior tasks
+- edit existing notes for taskwarrior tasks
+
+It does both by simply being invoked with `topen <task-id>`.
+
+Or it can be used directly from taskwarrior by being aliased in your `taskrc`:
+
+```conf
+alias.note=exec topen
+```
+
+And you can open any note with your usual taskwarrior workflow,
+by doing `task note <id>`.
+
+Provide a taskwarrior task id or uuid and `topen` creates a new note file or lets
+you edit an existing one. Additionally it adds a small annotation to the task
+to let you see that there exists a note file next time you view the task.
+
+That's all there is to it.
+
+Everything should just work as-is without additional configuration in most modern taskwarrior setups.
+
+But if you want, many settings can be configured through your taskrc file, environment variables, or cli options, see below.
+
+## Installation
+
+You can install the script with your favorite python environment manager:
+
+```bash
+uv tool install topen
+```
+
+```bash
+pipx install topen
+```
+
+```bash
+pip install topen
+```
+
+Or just manually copy the `topen` file to a directory in your PATH.
+[tasklib](https://github.com/GothenburgBitFactory/tasklib) is the only dependency aside from the python standard library.
+
+If you just want to try the script out,
+feel free to do so by invoking it e.g. with `uvx topen`.
+
+If you want to install the trunk version instead of a versioned release simply substitute for the git path:
+
+```bash
+uv tool install git+https://git.martyoeh.me/Marty/topen.git
+```
+
+## Configuration
+
+Most taskwarrior setups should not need much further configuration and just work out of the box.
+However, if you want to diverge from the defaults explained here,
+use the below settings to configure everything to your preferences.
+
+It looks for a taskrc file in the user's home directory (`~/.taskrc`) or the XDG base config directory (usually `~/.config/task/taskrc`).
+The data directory also follows the taskwarrior defaults (`~/.task`) or is read from the taskrc `data.location` option.
+
+The notes directory defaults to be in the `notes` subdirectory of where-ever your taskwarrior data location is,
+but can be set to anywhere else independently as well.
+
+This program can be configured in 3 different ways: options set in your regular taskwarrior `taskrc` file,
+environment variables or options given on the command line.
+
+CLI options override environment variables, which in turn override configuration set in the `tas
+```

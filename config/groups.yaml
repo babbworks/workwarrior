@@ -20,6 +20,3 @@ groups: {}
   test:
     profiles:
       - wwdev
-  ww-beta:
-    profiles:
-      - ww-development

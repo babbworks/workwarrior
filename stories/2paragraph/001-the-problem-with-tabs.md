@@ -1,5 +1,0 @@
-# The Problem With Tabs
-
-There's a kind of person who has seventeen browser tabs open, a sticky note on every monitor, three different task apps for three different areas of life, and a growing suspicion that the system managing their work has itself become the work. They've tried consolidating everything into one app. It helped for a week. Then the app's categories mixed with their client project's categories. Then the time tracking didn't know which "Design Review" was billable and which was for the nonprofit board. The system collapsed under its own weight, like every system before it.
-
-Workwarrior exists because the right answer isn't consolidation — it's isolation with a shared interface. Your work profile and your personal profile look identical at the command line: same commands, same syntax, same muscle memory. But underneath, every scrap of data lives in its own directory, behind its own environment variables, completely sealed from the other. You don't give up power by switching profiles. You gain the one thing productivity apps almost never offer: the certainty that what you're looking at is only what belongs right now.

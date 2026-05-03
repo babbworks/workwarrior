@@ -1,0 +1,549 @@
+version: 1
+updated: "2026-04-20"
+policy:
+  canonical_source: "/Users/mp/ww/system/config/command-syntax.yaml"
+  update_required_on:
+    - "any CLI command/subcommand addition, rename, or removal"
+    - "any flag/scope/output behavior change"
+    - "any help/docs examples update for commands"
+  defaults:
+    profile_resolution: "active-or-last-profile"
+    output_mode: "human-compact"
+    output_mode_help_policy: "default compact human; use --verbose for expanded human and --json for machine-readable output"
+    json_mode: "opt-in --json only"
+    noun_policy:
+      singular: "primary action namespace"
+      plural_bare: "list shortcut when no subcommand is provided"
+    verb_policy:
+      canonical: "CRUD"
+      supports_natural_synonyms: true
+  aliases:
+    journal:
+      preferred: "journal"
+      accepted:
+        - "journal"
+        - "journals"
+    ledger:
+      preferred: "ledger"
+      accepted:
+        - "ledger"
+        - "ledgers"
+    group:
+      preferred: "group"
+      accepted:
+        - "group"
+        - "groups"
+    model:
+      preferred: "model"
+      accepted:
+        - "model"
+        - "models"
+  help_contract:
+    required_sections:
+      - "Usage"
+      - "Actions"
+      - "Examples"
+    alias_rule: "when singular and plural forms exist, help must mark singular as preferred and plural as alias"
+    global_flag_doc_rule: "commands that support --profile/--json/--compact must document them in help"
+  examples_library_policy:
+    required_tiers:
+      - "basic"
+      - "scoped override"
+      - "advanced"
+    scope_rule: "major command families must publish at least one approved example per tier"
+
+examples_library:
+  profile:
+    basic: "ww profile list"
+    scoped_override: "ww --profile babb profile list"
+    advanced: "ww --json profile info babb"
+  service:
+    basic: "ww service list"
+    scoped_override: "ww --profile babb service info custom"
+    advanced: "ww --json service list"
+  journal:
+    basic: "ww journal list"
+    scoped_override: "ww --profile babb journal list"
+    advanced: "ww --json journal list"
+  ledger:
+    basic: "ww ledger list"
+    scoped_override: "ww --profile babb ledger list"
+    advanced: "ww --json ledger list"
+  group:
+    basic: "ww group list"
+    scoped_override: "ww --global group list"
+    advanced: "ww groups"
+  model:
+    basic: "ww model list"
+    scoped_override: "ww --global model list"
+    advanced: "ww model providers"
+  find:
+    basic: "ww find invoice"
+    scoped_override: "ww find --profile babb --type task invoice"
+    advanced: "ww find --type task --native invoice"
+  issues:
+    basic: "ww issues uda list"
+    scoped_override: "ww --profile babb issues uda list"
+    advanced: "ww issues uda help"
+  questions:
+    basic: "ww q list"
+    scoped_override: "ww --profile babb q list"
+    advanced: "ww q journal"
+  timew:
+    basic: "ww timew extensions list"
+    scoped_override: "ww --profile babb timew extensions list"
+    advanced: "ww --json timew extensions list"
+  routines:
+    basic: "ww routines list"
+    scoped_override: "ww --profile babb routines list"
+    advanced: "ww routines add \"Clean room\" --frequency weekly --run-now"
+
+global_flags:
+  - name: "--profile"
+    args: "<name>"
+    semantics: "override active/last profile for this command only"
+  - name: "--global"
+    args: ""
+    semantics: "force global context when command supports global mode"
+  - name: "--json"
+    args: ""
+    semantics: "machine-readable output for supported read/list/status/check commands"
+  - name: "--compact"
+    args: ""
+    semantics: "terse human output"
+  - name: "--verbose"
+    args: ""
+    semantics: "expanded human output with additional detail"
+  - name: "--help"
+    args: ""
+    semantics: "show command usage and examples"
+  - name: "--profile + --global"
+    args: ""
+    semantics: "invalid combination (must choose exactly one scope override)"
+  - name: "--json + --compact"
+    args: ""
+    semantics: "invalid combination (machine output and compact human output are mutually exclusive)"
+
+global_flag_application:
+  parser_order: "flags are parsed only before the domain token"
+  default_scope_resolution:
+    - "explicit --profile override"
+    - "explicit --global override"
+    - "active shell profile env (WARRIOR_PROFILE/WORKWARRIOR_BASE)"
+    - "last active profile from $WW_BASE/.state/last_profile"
+  exported_runtime_env:
+    - "WW_OUTPUT_MODE=human|compact|json"
+    - "WW_VERBOSE=0|1"
+
+compatibility_layer:
+  warnings_policy: "compatibility aliases remain first-class and do not emit deprecation warnings"
+  warning_env_override: "n/a (deprecation nudges removed)"
+  deprecated_alias_matrix:
+    - legacy: "ww profiles"
+      preferred: "ww profile list"
+      behavior: "legacy still executes"
+    - legacy: "ww services"
+      preferred: "ww service list"
+      behavior: "legacy still executes"
+    - legacy: "ww groups <action>"
+      preferred: "ww group <action>"
+      behavior: "legacy still executes (bare 'ww groups' defaults to list)"
+    - legacy: "ww models <action>"
+      preferred: "ww model <action>"
+      behavior: "legacy still executes (bare 'ww models' defaults to list)"
+    - legacy: "ww journals [action]"
+      preferred: "ww journal [action]"
+      behavior: "legacy still executes"
+    - legacy: "ww ledgers [action]"
+      preferred: "ww ledger [action]"
+      behavior: "legacy still executes"
+    - legacy: "ww help groups|models|journals|ledgers"
+      preferred: "ww help group|model|journal|ledger"
+      behavior: "legacy still executes"
+
+commands:
+  - domain: "profile"
+    syntax:
+      - "ww profile create <name>"
+      - "ww profile list"
+      - "ww profile info <name>"
+      - "ww profile delete <name>"
+      - "ww profile backup <name> [dest]"
+      - "ww profile import <archive> [new-name]"
+      - "ww profile restore <profile> <archive>"
+    output_modes:
+      default: "human-compact"
+      supports_json: true
+    scope:
+      default: "active-or-last-profile where applicable"
+      override: "--profile"
+    status: "active"
+
+  - domain: "journal"
+    syntax:
+      - "ww journal add <journal>"
+      - "ww journal list"
+      - "ww journal remove <journal>"
+      - "ww journal rename <old> <new>"
+    aliases:
+      - "ww journals ..."
+    output_modes:
+      default: "human-compact"
+      supports_json: true
+    scope:
+      default: "active-or-last-profile"
+      override: "--profile"
+    status: "active"
+
+  - domain: "ledger"
+    syntax:
+      - "ww ledger add <ledger>"
+      - "ww ledger list"
+      - "ww ledger remove <ledger>"
+      - "ww ledger rename <old> <new>"
+    output_modes:
+      default: "human-compact"
+      supports_json: true
+    scope:
+      default: "active-or-last-profile"
+      override: "--profile"
+    status: "active"
+
+  - domain: "service"
+    syntax:
+      - "ww service list"
+      - "ww service info <name>"
+      - "ww service help <name>"
+    output_modes:
+      default: "human-compact"
+      supports_json: true
+    scope:
+      default: "global"
+      override: "--profile (where relevant)"
+    status: "active"
+
+  - domain: "issues"
+    implementation_note: >
+      'i' is a bash shell function defined in lib/shell-integration.sh and injected
+      into the user's shell at profile setup. It is NOT a bin/ww domain.
+      'ww issues' is the bin/ww synonym — use it in scripts that invoke ww directly.
+    syntax:
+      - "i help"
+      - "i pull [--dry-run] [--json]"
+      - "i uda list"
+      - "i uda install"
+      - "i uda group <service>"
+      - "i uda help"
+      - "i push [task-id]"
+      - "i sync [task-id]"
+      - "i enable-sync <task-id> <issue> <repo>"
+      - "i disable-sync <task-id>"
+      - "i status [--json]"
+      - "i custom"
+    aliases:
+      - "ww issues <subcommand>  # bin/ww synonym for use in scripts"
+    routing:
+      bugwarrior: "pull, uda  (one-way: external services → TaskWarrior)"
+      github_sync: "push, sync, enable-sync, disable-sync, status  (two-way)"
+      configure: "custom  (interactive config wizard)"
+    output_modes:
+      default: "human-compact"
+      supports_json: true
+      json_commands: "pull, status"
+    scope:
+      default: "active profile required"
+      override: "--profile via ww wrappers where supported"
+    preflight_errors:
+      not-installed: "gh CLI or jq not found"
+      not-authenticated: "gh CLI not logged in (run: gh auth login)"
+      env-missing: "WORKWARRIOR_BASE not set (activate a profile first)"
+      rate-limited: "GitHub API rate limit hit (retry after indicated delay)"
+      not-found: "Issue deleted or not accessible on GitHub"
+      permission-denied: "Insufficient GitHub permissions for repo"
+    status: "active"
+
+  - domain: "find"
+    syntax:
+      - "ww find <term>"
+      - "ww find --type <type> <term>"
+      - "ww find --profile <name> <term>"
+      - "ww find --query <expr>"
+    output_modes:
+      default: "human-compact"
+      supports_json: true
+    scope:
+      default: "active-or-last-profile unless explicitly cross-profile"
+      override: "--profile"
+    status: "active"
+
+  - domain: "group"
+    syntax:
+      - "ww group list"
+      - "ww group show <name>"
+      - "ww group create <name> [profiles...]"
+      - "ww group add <name> <profiles...>"
+      - "ww group remove <name> <profiles...>"
+      - "ww group delete <name>"
+    aliases:
+      - "ww groups ...  # bare form defaults to list"
+    output_modes:
+      default: "human-compact"
+      supports_json: true
+    scope:
+      default: "global"
+      override: "n/a"
+    status: "active"
+
+  - domain: "model"
+    syntax:
+      - "ww model <name> <type> <base_url> [api_key_env]"
+      - "ww model list"
+      - "ww model providers"
+      - "ww model env"
+      - "ww model check"
+      - "ww model show <name>"
+      - "ww model add-provider <name> <type> <base_url> [api_key_env]"
+      - "ww model remove-provider <name>"
+      - "ww model add-model <name> <provider> <model_id> [notes]"
+      - "ww model set-default <name>"
+      - "ww model remove-model <name>"
+    aliases:
+      - "ww models ...  # bare form defaults to list"
+    output_modes:
+      default: "human-compact"
+      supports_json: true
+    scope:
+      default: "global"
+      override: "n/a"
+    status: "active"
+
+  - domain: "ctrl"
+    syntax:
+      - "ww ctrl status"
+      - "ww ctrl ai-mode <off|local-only|local+remote>"
+      - "ww ctrl ai-cmd <on|off>"
+      - "ww ctrl prompt-ww <on|off>"
+      - "ww ctrl prompt-ai <on|off>"
+      - "ww ctrl ui-model-indicator <on|off>"
+    output_modes:
+      default: "human-compact"
+      supports_json: true
+    scope:
+      default: "global"
+      override: "n/a"
+    status: "active"
+
+  - domain: "extensions"
+    syntax:
+      - "ww extensions taskwarrior list --status active"
+      - "ww extensions taskwarrior search <term>"
+      - "ww extensions taskwarrior info <name>"
+    output_modes:
+      default: "human-compact"
+      supports_json: true
+    scope:
+      default: "global"
+      override: "n/a"
+    status: "active"
+
+  - domain: "timew"
+    upstream: "https://github.com/trev-dev/timew-billable"
+    upstream_author: "trev-dev · MIT License"
+    implementation_note: >
+      Per-profile TimeWarrior extensions under $TIMEWARRIORDB/extensions/.
+      Preset "billable" clones timew-billable, builds with nim c -d:release src/billable.nim,
+      installs binary as extensions/billable plus sidecar <name>.ww-ext.json metadata.
+      Generic "ww timew extensions install <git-url>" supports Nim billable layout, nimble
+      packages, or a shell script heuristic; Python extensions are manual.
+    syntax:
+      - "ww timew extensions list"
+      - "ww timew extensions install billable"
+      - "ww timew extensions install https://github.com/org/repo.git"
+      - "ww timew extensions remove <name>"
+      - "ww timew extensions help"
+      - "ww timew help"
+    output_modes:
+      default: "human-compact"
+      supports_json: true
+    scope:
+      default: "active profile required (TIMEWARRIORDB)"
+      override: "--profile"
+    status: "active"
+
+  - domain: "custom"
+    syntax:
+      - "ww custom journals"
+      - "ww custom ledgers"
+      - "ww custom tasks"
+      - "ww custom times"
+      - "ww custom list"
+    output_modes:
+      default: "human-compact"
+      supports_json: false
+    scope:
+      default: "active profile required except custom list"
+      override: "--profile where supported"
+    status: "active"
+
+  - domain: "schedule"
+    upstream: "https://github.com/00sapo/taskcheck"
+    upstream_author: "00sapo · MIT License"
+    implementation_note: >
+      Zero source modification. Per-profile toggle via enabled flag file.
+      Config managed per-profile at profiles/<n>/.config/taskcheck/taskcheck.toml.
+      ww copies profile config to global appdirs location before each run
+      (taskcheck config path is not overridable via CLI).
+      --taskrc flag passed to taskcheck for TASKRC/TASKDATA isolation.
+    syntax:
+      - "ww schedule enable"
+      - "ww schedule disable"
+      - "ww schedule status"
+      - "ww schedule run [--dry-run]"
+      - "ww schedule config"
+      - "ww schedule install"
+      - "ww schedule help"
+    scope:
+      default: "active profile required"
+      override: "n/a"
+    status: "active"
+
+  - domain: "routines"
+    upstream: "https://github.com/allgreed/cron"
+    upstream_author: "allgreed · Python"
+    implementation_note: >
+      Profile-scoped routine definitions at profiles/<n>/.config/routines/*.py.
+      Runtime source installs to $WW_BASE/tools/extensions/cron via
+      ww routines install, with cron.py linked into the profile routines dir.
+      Runs execute with TASKRC/TASKDATA env for profile isolation and write
+      .ww-routines-state.json metadata per profile.
+    syntax:
+      - "ww routines list"
+      - "ww routines add \"<desc>\" --frequency <daily|weekly|monthly|yearly> [--name <name>] [--run-now]"
+      - "ww routines new <name>"
+      - "ww routines edit <name>"
+      - "ww routines run [name]"
+      - "ww routines status"
+      - "ww routines install"
+      - "ww routines help"
+    output_modes:
+      default: "human-compact"
+      supports_json: true
+    scope:
+      default: "active profile required (except install/help)"
+      override: "--profile"
+    status: "active"
+
+  - domain: "next"
+    upstream: "https://github.com/ftapajos/scheduler"
+    upstream_author: "Flávio Tapajós (ftapajos) · GPL-3.0"
+    implementation_note: >
+      Zero source modification. Thin wrapper passing TASKRC/TASKDATA/TIMEWARRIORDB
+      to the 'next' binary (installed via pipx install taskwarrior-scheduler).
+      tasklib reads TASKRC/TASKDATA from environment when no explicit path given.
+    syntax:
+      - "ww next"
+      - "ww next [filters...]"
+      - "ww next install"
+      - "ww next help"
+    scope:
+      default: "active profile required"
+      override: "n/a"
+    status: "active"
+
+  - domain: "gun"
+    upstream: "https://github.com/hamzamohdzubair/taskgun"
+    upstream_author: "hamzamohdzubair · MIT License"
+    implementation_note: >
+      Zero source modification. Thin wrapper passing TASKRC/TASKDATA env to taskgun.
+      All taskgun flags pass through unchanged via ww gun create.
+      Known limitation: project names with spaces are split by TaskWarrior — use underscores.
+    syntax:
+      - "ww gun create <project> -p <parts> -u <unit> [--offset] [--interval] [--skip]"
+      - "ww gun install"
+      - "ww gun help"
+    scope:
+      default: "active profile required for create"
+      override: "n/a"
+    status: "active"
+
+  - domain: "tui"
+    upstream: "https://github.com/kdheepak/taskwarrior-tui"
+    upstream_author: "Karthikeyan Singaravelan (@kdheepak) · MIT License"
+    syntax:
+      - "ww tui"
+      - "ww tui install"
+      - "ww tui help"
+    scope:
+      default: "active profile required for launch"
+      override: "n/a"
+    status: "active"
+
+  - domain: "profile.density"
+    upstream: "https://github.com/00sapo/TWDensity"
+    upstream_author: "00sapo · MIT License"
+    implementation_note: >
+      Zero source modification. Thin wrapper that passes TASKRC/TASKDATA to twdensity.
+      UDAs (density, densitywindow) written idempotently to active profile .taskrc.
+      Extension UDAs classified as [extension:twdensity] in ww profile uda list.
+    syntax:
+      - "ww profile density install"
+      - "ww profile density run"
+      - "ww profile density config"
+      - "ww profile density help"
+    scope:
+      default: "active profile required"
+      override: "n/a"
+    status: "active"
+
+  - domain: "mcp"
+    upstream: "https://github.com/hnsstrk/taskwarrior-mcp"
+    upstream_author: "hnsstrk · MIT License"
+    implementation_note: >
+      Zero source modification. Profile isolation via TW_MCP_TASKRC and
+      TW_MCP_TASK_DATA env vars, which map directly to ww's TASKRC/TASKDATA.
+      Server installed to ~/.local/share/ww/mcp/taskwarrior/ (outside repo).
+    syntax:
+      - "ww mcp install"
+      - "ww mcp register [--scope user|project]"
+      - "ww mcp status"
+      - "ww mcp help"
+    scope:
+      default: "install/status are global; register requires active profile"
+      override: "n/a"
+    status: "active"
+
+  - domain: "questions"
+    syntax:
+      - "ww q"
+      - "ww q list"
+      - "ww q <service>"
+      - "ww q <service> <template>"
+      - "ww q new [service]"
+      - "ww q edit <template>"
+      - "ww q delete <template> [--yes]"
+    output_modes:
+      default: "human-compact"
+      supports_json: false
+    scope:
+      default: "active profile required"
+      override: "n/a"
+    status: "active"
+
+  - domain: "browser"
+    implementation_note: >
+      Python 3 stdlib HTTP server (ThreadingHTTPServer). Provides a local web
+      UI with SSE live-data, POST /cmd action endpoint, and POST /profile
+      profile-switch endpoint. PID and port written to
+      $WW_BASE/.state/browser.pid and $WW_BASE/.state/browser.port.
+    syntax:
+      - "ww browser [--port N] [--no-open]"
+      - "ww browser stop"
+      - "ww browser status"
+      - "ww browser --help"
+    scope:
+      default: "global (reads active profile from .state/active_profile)"
+      override: "n/a"
+    output_modes:
+      default: "human-compact"
+      supports_json: false
+    status: "active"

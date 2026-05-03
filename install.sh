@@ -348,12 +348,13 @@ configure_shells() {
   log_step "Configuring shell integration..."
 
   local rc_files
-  mapfile -t rc_files < <(get_shell_rc_files)
+  rc_files=()
+  while IFS= read -r _line; do rc_files+=("$_line"); done < <(get_shell_rc_files)
 
   local configured=0
 
   for rc_file in "${rc_files[@]}"; do
-    if add_ww_to_shell_rc "$rc_file"; then
+    if add_ww_to_shell_rc "$rc_file" "${COMMAND_NAME:-ww}"; then
       configured=$(( configured + 1 ))
     fi
   done
@@ -367,7 +368,8 @@ configure_shells() {
 
 migrate_legacy_shell_blocks() {
   local rc_files
-  mapfile -t rc_files < <(get_shell_rc_files)
+  rc_files=()
+  while IFS= read -r _line; do rc_files+=("$_line"); done < <(get_shell_rc_files)
   local rc
   for rc in "${rc_files[@]}"; do
     [[ -f "$rc" ]] || continue
@@ -390,11 +392,14 @@ configure_multi_bootstrap() {
   local bootstrap_file="$bootstrap_dir/bootstrap.sh"
   mkdir -p "$bootstrap_dir"
 
+  local guard_var="WW_BOOTSTRAP_LOADED_$(printf '%s' "$COMMAND_NAME" | tr '[:lower:]' '[:upper:]')"
+  guard_var="${guard_var//-/_}"
+
   cat > "$bootstrap_file" << EOF
 #!/usr/bin/env bash
 # Workwarrior multi-instance bootstrap
-[[ -n "\${WW_BOOTSTRAP_LOADED:-}" ]] && return 0
-export WW_BOOTSTRAP_LOADED=1
+[[ -n "\${${guard_var}:-}" ]] && return 0
+export ${guard_var}=1
 export WW_CONFIG_HOME="\${WW_CONFIG_HOME:-${WW_CONFIG_HOME}}"
 export WW_REGISTRY_DIR="\${WW_REGISTRY_DIR:-\$WW_CONFIG_HOME/registry}"
 export WW_LAST_INSTANCE_FILE="\${WW_LAST_INSTANCE_FILE:-\$WW_CONFIG_HOME/last-instance}"
@@ -499,6 +504,7 @@ ${COMMAND_NAME}() {
       export TASKDATA="\$_pb/.task"
       export TIMEWARRIORDB="\$_pb/.timewarrior"
       printf '%s\n' "\$last_profile" > "\${WW_CONFIG_HOME}/last-profile-\${iid}" 2>/dev/null || true
+      printf '%s\n' "\$iid" > "\${WW_LAST_INSTANCE_FILE}" 2>/dev/null || true
       echo "  ✓ \${iid}:\${last_profile}  ·  \${_pb}"
       return 0
     else
@@ -515,9 +521,20 @@ ${COMMAND_NAME}() {
       fi
     fi
   else
-    local base
-    base="\$(_ww_resolve_default_base)"
-    env WW_BASE="\$base" "\$base/bin/ww" "\$@"
+    if [[ \$# -eq 0 ]]; then
+      # No args: activate last known instance (or main)
+      local _last_iid
+      _last_iid="\$(cat "\${WW_LAST_INSTANCE_FILE}" 2>/dev/null || echo "main")"
+      if [[ -f "\${WW_REGISTRY_DIR}/\${_last_iid}.json" ]]; then
+        ${COMMAND_NAME} "@\${_last_iid}"
+      else
+        ${COMMAND_NAME} "@main"
+      fi
+    else
+      local base
+      base="\$(_ww_resolve_default_base)"
+      env WW_BASE="\$base" "\$base/bin/ww" "\$@"
+    fi
   fi
 }
 
@@ -536,13 +553,15 @@ timew() {
 _ww_prompt_prefix() {
   local profile="\${WARRIOR_PROFILE:-}"
   [[ -z "\$profile" ]] && return 0
-  local instance="\${WW_ACTIVE_INSTANCE:-\${WW_ORCH_INSTANCE:-}}"
+  local instance="\${WW_ACTIVE_INSTANCE:-}"
   local pin_marker=""
   [[ -n "\${WW_PINNED_INSTANCE:-}" ]] && pin_marker="[pin]"
-  if [[ -n "\$instance" && "\$instance" != "${COMMAND_NAME}" && "\$instance" != "main" ]]; then
-    printf 'ww|%s:%s%s' "\$instance" "\$profile" "\$pin_marker"
+  if [[ -z "\$instance" || "\$instance" == "main" ]]; then
+    printf '${COMMAND_NAME}|%s%s' "\$profile" "\$pin_marker"
+  elif [[ -f "\${WW_REGISTRY_DIR}/\${instance}.json" ]]; then
+    printf '${COMMAND_NAME}|%s:%s%s' "\$instance" "\$profile" "\$pin_marker"
   else
-    printf 'ww|%s%s' "\$profile" "\$pin_marker"
+    printf '%s|%s%s' "\$instance" "\$profile" "\$pin_marker"
   fi
 }
 
@@ -551,17 +570,18 @@ _ww_apply_prompt_prefix() {
   pfx="\$(_ww_prompt_prefix)"
   if [[ -n "\${ZSH_VERSION:-}" ]]; then
     if [[ -n "\$pfx" ]]; then
-      [[ "\$PROMPT" == ww\\|* ]] || PROMPT="\${pfx} \${PROMPT}"
-    else
-      [[ "\$PROMPT" == ww\\|* ]] && PROMPT="\${PROMPT#*\\|* }"
+      [[ "\$PROMPT" == "\${pfx} "* ]] || PROMPT="\${pfx} \${PROMPT}"
+    elif [[ -n "\${_WW_LAST_PREFIX:-}" ]]; then
+      PROMPT="\${PROMPT#\${_WW_LAST_PREFIX} }"
     fi
   else
     if [[ -n "\$pfx" ]]; then
-      [[ "\$PS1" == ww\\|* ]] || PS1="\${pfx} \${PS1}"
-    else
-      PS1="\${PS1#ww|* }"
+      [[ "\$PS1" == "\${pfx} "* ]] || PS1="\${pfx} \${PS1}"
+    elif [[ -n "\${_WW_LAST_PREFIX:-}" ]]; then
+      PS1="\${PS1#\${_WW_LAST_PREFIX} }"
     fi
   fi
+  _WW_LAST_PREFIX="\$pfx"
 }
 
 _ww_apply_prompt_prefix
@@ -579,7 +599,8 @@ EOF
   chmod +x "$bootstrap_file"
 
   local rc_files
-  mapfile -t rc_files < <(get_shell_rc_files)
+  rc_files=()
+  while IFS= read -r _line; do rc_files+=("$_line"); done < <(get_shell_rc_files)
   local rc_file
   for rc_file in "${rc_files[@]}"; do
     if ! grep -Fq "source \"$bootstrap_file\"" "$rc_file"; then
@@ -633,7 +654,8 @@ ensure_launcher_path() {
     return 0
   fi
   local rc_files
-  mapfile -t rc_files < <(get_shell_rc_files)
+  rc_files=()
+  while IFS= read -r _line; do rc_files+=("$_line"); done < <(get_shell_rc_files)
   local rc_file
   for rc_file in "${rc_files[@]}"; do
     if ! grep -Fq "export PATH=\"$launcher_dir:\$PATH\"" "$rc_file"; then
@@ -835,7 +857,8 @@ configure_shell_integration() {
   echo "Files to be modified:"
 
   local rc_files
-  mapfile -t rc_files < <(get_shell_rc_files)
+  rc_files=()
+  while IFS= read -r _line; do rc_files+=("$_line"); done < <(get_shell_rc_files)
 
   for rc_file in "${rc_files[@]}"; do
     echo "  • $(basename "$rc_file")"
@@ -864,6 +887,15 @@ configure_shell_integration() {
 }
 
 main() {
+  # Bash 3.x (macOS default /bin/bash) is supported; bash 4+ recommended.
+  # Process substitution < <(...) requires bash 3.x+, which all supported platforms provide.
+  local _bv="${BASH_VERSINFO[0]:-0}"
+  if (( _bv < 3 )); then
+    echo "ERROR: Workwarrior installer requires bash 3.2 or later." >&2
+    echo "Current shell: bash ${BASH_VERSION:-unknown}" >&2
+    exit 1
+  fi
+
   show_banner
 
   # Handle deprecated 'plain' preset

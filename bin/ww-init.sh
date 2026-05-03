@@ -89,14 +89,16 @@ fi
 
 _ww_prompt_prefix() {
   local profile="${WARRIOR_PROFILE:-}"
-  [[ -z "$profile" ]] && return 0  # silent when no profile active
-  local instance="${WW_ACTIVE_INSTANCE:-${WW_ORCH_INSTANCE:-}}"
+  [[ -z "$profile" ]] && return 0
+  local instance="${WW_ACTIVE_INSTANCE:-}"
   local pin_marker=""
   [[ -n "${WW_PINNED_INSTANCE:-}" ]] && pin_marker="[pin]"
-  if [[ -n "$instance" && "$instance" != "ww" && "$instance" != "main" ]]; then
+  if [[ -z "$instance" || "$instance" == "main" ]]; then
+    printf 'ww|%s%s' "$profile" "$pin_marker"
+  elif [[ -f "${HOME}/.config/ww/registry/${instance}.json" ]]; then
     printf 'ww|%s:%s%s' "$instance" "$profile" "$pin_marker"
   else
-    printf 'ww|%s%s' "$profile" "$pin_marker"
+    printf '%s|%s%s' "$instance" "$profile" "$pin_marker"
   fi
 }
 
@@ -105,18 +107,18 @@ _ww_apply_prompt_prefix() {
   pfx="$(_ww_prompt_prefix)"
   if [[ -n "${ZSH_VERSION:-}" ]]; then
     if [[ -n "$pfx" ]]; then
-      [[ "$PROMPT" == ww\|* ]] || PROMPT="${pfx} ${PROMPT}"
-    else
-      # Strip ww| prefix when profile deactivated
-      [[ "$PROMPT" == ww\|* ]] && PROMPT="${PROMPT#*\|* }"
+      [[ "$PROMPT" == "${pfx} "* ]] || PROMPT="${pfx} ${PROMPT}"
+    elif [[ -n "${_WW_LAST_PREFIX:-}" ]]; then
+      PROMPT="${PROMPT#${_WW_LAST_PREFIX} }"
     fi
   else
     if [[ -n "$pfx" ]]; then
-      [[ "$PS1" == ww\|* ]] || PS1="${pfx} ${PS1}"
-    else
-      PS1="${PS1#ww|* }"
+      [[ "$PS1" == "${pfx} "* ]] || PS1="${pfx} ${PS1}"
+    elif [[ -n "${_WW_LAST_PREFIX:-}" ]]; then
+      PS1="${PS1#${_WW_LAST_PREFIX} }"
     fi
   fi
+  _WW_LAST_PREFIX="$pfx"
 }
 
 _ww_apply_prompt_prefix

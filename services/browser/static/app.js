@@ -32,14 +32,20 @@
   const termPrompt    = document.getElementById('term-prompt');
   const cmdOutput     = document.getElementById('cmd-output');
   const hintsBar      = document.getElementById('hints-bar');
+  const hintsText     = document.getElementById('hints-text');
   const statTasksCount = document.getElementById('stat-tasks-count');
   const statTimeToday  = document.getElementById('stat-time-today');
   const statDate       = document.getElementById('stat-date');
   const statContextBar = document.getElementById('stat-context-bar');
 
   // ── Terminal position state ────────────────────────────────────────────────
+  // Cycles: 'bottom' → 'focus' → 'top' → 'bottom'
+  // 'focus' = full-screen terminal: content area hidden, terminal fills viewport
   let termPosition = localStorage.getItem('ww-term-position') || 'bottom';
   const termPosToggle = document.getElementById('term-pos-toggle');
+
+  // ── Journal date display toggle ────────────────────────────────────────────
+  let journalShowDates = localStorage.getItem('ww-journal-show-dates') !== 'false';
 
   // ── Typeahead command cache ────────────────────────────────────────────────
   let wwCommands = []; // [{name, desc}] loaded from /data/commands
@@ -697,6 +703,8 @@ CMD: "add task review and start tracking"
     const contentArea = document.getElementById('content-area');
     if (contentArea && activeSection) scrollPositions.set(activeSection, contentArea.scrollTop);
     activeSection = name;
+    if (typeof termMode !== 'undefined' && termMode === 'filter') setTermMode('execute');
+    document.dispatchEvent(new CustomEvent('sectionChanged', { detail: { name } }));
     document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
     const el = document.getElementById('section-' + name);
     if (el) el.classList.remove('hidden');
@@ -744,6 +752,10 @@ CMD: "add task review and start tracking"
     'journal entry': 'journal add', 'j entry': 'journal add',
     'ledger add': 'ledger add', 'l add': 'ledger add',
     'time track': 'time track', 'timew track': 'time track',
+    'j top': '__journal_top__', 'journal top': '__journal_top__',
+    'j add top': '__journal_top__', 'journal add top': '__journal_top__',
+    'ctx': '__ctx_toggle__', 'sidebar': '__ctx_toggle__',
+    'dates': '__dates_toggle__', 'j dates': '__dates_toggle__',
   };
 
   // Single-token commands that navigate to a section (no execution)
@@ -861,6 +873,8 @@ CMD: "add task review and start tracking"
     headerProfile.textContent = display;
     const badge = document.getElementById('term-profile-badge');
     if (badge) badge.textContent = display;
+    const focusProf = document.getElementById('focus-profile-btn');
+    if (focusProf) focusProf.textContent = display;
     document.querySelectorAll('#profile-switcher li').forEach(li => {
       li.classList.toggle('active-profile', li.dataset.profile === name);
     });
@@ -1061,13 +1075,13 @@ CMD: "add task review and start tracking"
     } else if (mode === 'filter') {
       termPrompt.textContent = '/ ';
       termPrompt.className = 'prompt-filter';
-      hintsBar.textContent = 'filtering ' + activeSection + ' — tab to execute mode';
+      hintsText.textContent = 'filtering ' + activeSection + ' — tab to execute mode';
       termInput.value = '';
       if (overlay) overlay.classList.add('hidden');
     } else if (mode === 'search') {
       termPrompt.textContent = '🔍 ';
       termPrompt.className = 'prompt-search';
-      hintsBar.textContent = 'global search — Escape to cancel';
+      hintsText.textContent = 'global search — Escape to cancel';
       termInput.value = '';
       if (overlay) { overlay.classList.remove('hidden'); overlay.querySelector('#search-results').innerHTML = '<div class="search-hint">Start typing to search tasks and journals…</div>'; }
     }
@@ -1080,7 +1094,7 @@ CMD: "add task review and start tracking"
       if (ctxEl) { ctxEl.textContent = cmd; ctxEl.classList.remove('hidden'); }
       termPrompt.textContent = '  ›  ';
       termPrompt.className = 'prompt-context';
-      hintsBar.textContent = `${cmd} › type args — Escape to cancel`;
+      hintsText.textContent = `${cmd} › type args — Escape to cancel`;
     } else {
       if (ctxEl) { ctxEl.textContent = ''; ctxEl.classList.add('hidden'); }
       termPrompt.textContent = '❯ ';
@@ -1148,6 +1162,19 @@ CMD: "add task review and start tracking"
       });
       const data = await res.json();
       showOutput(data.output || (data.error || 'no output'), !data.ok);
+      cachedTasks = [];
+      cachedJournalEntries = [];
+      // After a journal add, reload entries so write card "← last entry" is current
+      if (data.ok && /^(journal|j)\s+(add|entry)\b/i.test(cmd)) {
+        try {
+          const jr = await fetch('/data/journal?page=1');
+          const jd = await jr.json();
+          if (jd.ok && jd.entries?.length) {
+            cachedJournalEntries = jd.entries;
+            jwcLastEntryIdx = 0;
+          }
+        } catch(_) {}
+      }
     } catch (err) {
       showOutput('error: ' + err.message, true);
     }
@@ -1188,7 +1215,7 @@ CMD: "add task review and start tracking"
         e.preventDefault();
         if (termMode === 'execute' && cmdHistory.length) {
           historyIdx = Math.min(historyIdx + 1, cmdHistory.length - 1);
-          termInput.value = cmdHistory[historyIdx] || '';
+          termInput.value = String(cmdHistory[historyIdx] || '');
         }
         return;
       }
@@ -1213,6 +1240,13 @@ CMD: "add task review and start tracking"
             await execCmd(fullCmd);
             return;
           }
+          // Quick journal write: j "text" or j 'text' or j text... (j followed by space + content)
+          if (/^j\s+\S/.test(val) && !TERM_CONTEXT_CMDS[val.toLowerCase()]) {
+            const text = val.slice(val.indexOf(' ') + 1).trim();
+            termInput.value = '';
+            if (text) { await execCmd(`journal add ${text}`); } else { openJournalWriteCard(journalWriteMode); }
+            return;
+          }
           // Single-token section nav
           const navTarget = TERM_SECTION_NAV[val.toLowerCase()];
           if (navTarget) {
@@ -1225,7 +1259,22 @@ CMD: "add task review and start tracking"
           const ctxCmd = TERM_CONTEXT_CMDS[val.toLowerCase()];
           if (ctxCmd) {
             termInput.value = '';
+            if (ctxCmd === '__journal_top__') { openJournalWriteCard('top'); return; }
+            if (ctxCmd === '__ctx_toggle__') { toggleCtxSidebar(); return; }
+            if (ctxCmd === '__dates_toggle__') { toggleJournalDates(); renderHintsActions(activeSection); return; }
             setTermContext(ctxCmd);
+            return;
+          }
+          // p-<profile> shortcut: switch active profile
+          if (/^p-\S+$/.test(val)) {
+            const pname = val.slice(2);
+            termInput.value = '';
+            try {
+              const r = await fetch('/profile', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ profile: pname }) });
+              const d = await r.json();
+              if (d.ok) { toast(`profile: ${pname}`); await refreshCtrlState(); }
+              else showOutput(d.error || `profile '${pname}' not found`, true);
+            } catch(e) { showOutput('profile switch failed: ' + e.message, true); }
             return;
           }
           termInput.value = '';
@@ -1251,7 +1300,7 @@ CMD: "add task review and start tracking"
     termInput.addEventListener('input', () => {
       const val = termInput.value.trim();
       if (termContextCmd) {
-        hintsBar.textContent = `${termContextCmd} › type args — Escape to cancel`;
+        hintsText.textContent = `${termContextCmd} › type args — Escape to cancel`;
         return;
       }
       if (termMode === 'search') {
@@ -1263,19 +1312,19 @@ CMD: "add task review and start tracking"
           `#section-${activeSection} .task-row, #section-${activeSection} .journal-entry, #section-${activeSection} .ledger-row, #section-${activeSection} .list-row`
         );
         const visible = [...rows].filter(r => r.style.display !== 'none').length;
-        hintsBar.textContent = `filtering ${visible} item${visible !== 1 ? 's' : ''} in ${activeSection} — tab to execute mode`;
+        hintsText.textContent = `filtering ${visible} item${visible !== 1 ? 's' : ''} in ${activeSection} — tab to execute mode`;
         return;
       }
       if (!val) {
         const last = cmdHistory[0];
-        hintsBar.textContent = last ? `last: ${last}` : 'type a ww command — tab to filter mode';
+        hintsText.textContent = last ? `last: ${last}` : 'type a ww command — tab to filter mode';
         return;
       }
       const matches = wwCommands.filter(c => c.name.startsWith(val) || c.name.includes(val));
       if (matches.length) {
-        hintsBar.textContent = matches.slice(0, 3).map(c => `${c.name} — ${c.desc}`).join('  ·  ');
+        hintsText.textContent = matches.slice(0, 3).map(c => `${c.name} — ${c.desc}`).join('  ·  ');
       } else {
-        hintsBar.textContent = 'no matching command — tab to filter mode';
+        hintsText.textContent = 'no matching command — tab to filter mode';
       }
     });
   }
@@ -2185,7 +2234,7 @@ CMD: "add task review and start tracking"
     if (!resultsEl) return;
     if (!q) {
       resultsEl.innerHTML = '<div class="search-hint">Start typing to search tasks and journals…</div>';
-      hintsBar.textContent = 'global search — Escape to cancel';
+      hintsText.textContent = 'global search — Escape to cancel';
       return;
     }
     const ql = q.toLowerCase();
@@ -2228,7 +2277,7 @@ CMD: "add task review and start tracking"
       <div class="search-group-header">Tasks (${taskHits.length})</div>${taskHTML}
       <div class="search-group-header">Journal (${journalHits.length})</div>${journalHTML}`;
 
-    hintsBar.textContent = `${taskHits.length + journalHits.length} results — Enter to navigate, Escape to cancel`;
+    hintsText.textContent = `${taskHits.length + journalHits.length} results — Enter to navigate, Escape to cancel`;
 
     // Click task result → switch to tasks, open inline detail
     resultsEl.querySelectorAll('.search-result-task').forEach(el => {
@@ -2849,9 +2898,10 @@ CMD: "add task review and start tracking"
       let todayHtml = `<div class="time-card">`;
       todayHtml += `<span class="time-total">${fmt(data.today_total_seconds)}</span><span class="time-label"> today</span>`;
       if (data.active) {
-        const sinceLocal = data.active_since ? new Date(
+        const _sinceDate = data.active_since ? new Date(
           data.active_since.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/,
-            '$1-$2-$3T$4:$5:$6Z')).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '';
+            '$1-$2-$3T$4:$5:$6Z')) : null;
+        const sinceLocal = _sinceDate ? `${_sinceDate.getHours().toString().padStart(2,'0')}:${_sinceDate.getMinutes().toString().padStart(2,'0')}:${_sinceDate.getSeconds().toString().padStart(2,'0')}` : '';
         const elapsedSec = data.active_since
           ? (Date.now() - Date.parse(data.active_since.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/, '$1-$2-$3T$4:$5:$6Z'))) / 1000
           : 0;
@@ -2979,9 +3029,24 @@ CMD: "add task review and start tracking"
   function fmtJournalDate(raw) {
     try {
       const d = new Date(raw.replace(' ', 'T') + ':00');
-      return d.toLocaleDateString([], {weekday:'short',month:'short',day:'numeric'}) +
-             ' ' + d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+      const date = d.toLocaleDateString([], {weekday:'short', month:'short', day:'numeric'});
+      const h = d.getHours().toString().padStart(2, '0');
+      const m = d.getMinutes().toString().padStart(2, '0');
+      return `${date}  ${h}:${m}`;
     } catch (_) { return raw; }
+  }
+
+  function applyJournalDateVisibility() {
+    const jl = document.getElementById('journal-list');
+    if (!jl) return;
+    jl.classList.toggle('no-dates', !journalShowDates);
+  }
+
+  function toggleJournalDates() {
+    journalShowDates = !journalShowDates;
+    localStorage.setItem('ww-journal-show-dates', journalShowDates ? 'true' : 'false');
+    applyJournalDateVisibility();
+    if (hintsText) hintsText.textContent = journalShowDates ? 'dates shown' : 'dates hidden';
   }
 
   // Wrap @tags in body text with accent-colored span
@@ -3804,6 +3869,7 @@ CMD: "add task review and start tracking"
     });
 
     wireJournalEntryEvents(list);
+    applyJournalDateVisibility();
 
     // Update context bar with page info
     const pagesLoaded = Math.min(journalPage, totalPages);
@@ -3851,6 +3917,7 @@ CMD: "add task review and start tracking"
       cachedJournalEntries = data.entries.map((e, i) => ({ ...e, _idx: i }));
       renderJournalPage(list);
       wireJournalFilterButtons();
+      if (typeof updateCtxSidebar === 'function') updateCtxSidebar();
       // Client-side search
       document.getElementById('journal-search')?.addEventListener('input', (e) => {
         const q = e.target.value.toLowerCase();
@@ -4668,12 +4735,35 @@ CMD: "add task review and start tracking"
 
   function applyTermPosition(pos, animate) {
     const bar = document.getElementById('terminal-bar');
+    const appEl = document.getElementById('app');
+    if (!bar) return;
     if (!animate) bar.style.transition = 'none';
-    if (pos === 'top') {
+
+    const focusBarEl = document.getElementById('focus-bar');
+    if (pos === 'focus') {
+      bar.style.top = '';
+      bar.style.bottom = '0';
+      bar.style.borderTop = '1px solid var(--border)';
+      bar.style.borderBottom = 'none';
+      if (appEl) appEl.classList.add('term-focus-mode');
+      document.body.classList.add('term-focus-mode');
+      if (focusBarEl) focusBarEl.classList.remove('hidden');
+      requestAnimationFrame(() => {
+        const h = bar.getBoundingClientRect().height;
+        document.documentElement.style.setProperty('--term-h', h + 'px');
+        document.body.style.paddingBottom = '';
+        document.body.style.paddingTop = '30px'; // focus bar height
+        if (!animate) bar.style.transition = '';
+        updateFocusBar(activeSection);
+      });
+      if (termPosToggle) termPosToggle.textContent = '⊡';
+    } else if (pos === 'top') {
       bar.style.bottom = '';
       bar.style.top = '0';
       bar.style.borderTop = 'none';
       bar.style.borderBottom = '1px solid var(--border)';
+      if (appEl) appEl.classList.remove('term-focus-mode');
+      document.body.classList.remove('term-focus-mode');
       requestAnimationFrame(() => {
         const h = bar.getBoundingClientRect().height;
         document.documentElement.style.setProperty('--term-h', h + 'px');
@@ -4681,12 +4771,16 @@ CMD: "add task review and start tracking"
         document.body.style.paddingBottom = '';
         if (!animate) bar.style.transition = '';
       });
+      if (focusBarEl) focusBarEl.classList.add('hidden');
       if (termPosToggle) termPosToggle.textContent = '\u2193';
     } else {
       bar.style.top = '';
       bar.style.bottom = '0';
       bar.style.borderTop = '1px solid var(--border)';
       bar.style.borderBottom = 'none';
+      if (appEl) appEl.classList.remove('term-focus-mode');
+      document.body.classList.remove('term-focus-mode');
+      if (focusBarEl) focusBarEl.classList.add('hidden');
       requestAnimationFrame(() => {
         const h = bar.getBoundingClientRect().height;
         document.documentElement.style.setProperty('--term-h', h + 'px');
@@ -4701,7 +4795,8 @@ CMD: "add task review and start tracking"
   }
 
   function toggleTermPosition() {
-    applyTermPosition(termPosition === 'bottom' ? 'top' : 'bottom', true);
+    const next = termPosition === 'bottom' ? 'focus' : termPosition === 'focus' ? 'top' : 'bottom';
+    applyTermPosition(next, true);
   }
 
   // ── Density control ──────────────────────────────────────────────────────
@@ -7666,7 +7761,7 @@ CMD: "add task review and start tracking"
       return;
     }
     logEl.innerHTML = visible.map((e, idx) => {
-      const t = e.ts ? new Date(e.ts).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+      const t = e.ts ? (() => { const _d = new Date(e.ts); return `${_d.toLocaleDateString([],{month:'short',day:'numeric'})} ${_d.getHours().toString().padStart(2,'0')}:${_d.getMinutes().toString().padStart(2,'0')}`; })() : '';
       const ok = e.ok ? '✓' : '✗';
       const key = _cmdLogKey(e);
       const collapsed = idx > 0; // most-recent expanded, rest collapsed
@@ -7795,6 +7890,407 @@ CMD: "add task review and start tracking"
     });
   }
 
+  // ── Context sidebar ──────────────────────────────────────────────────────
+
+  let ctxSidebarOpen = false;
+  let journalWriteMode = localStorage.getItem('ww-journal-write-mode') || 'float';
+
+  function renderJournalSidebar() {
+    const content = document.getElementById('ctx-sidebar-content');
+    if (!content) return;
+    const jname = (profileResources && profileResources.active && profileResources.active.journal) ? profileResources.active.journal : '—';
+    const entries = cachedJournalEntries || [];
+    const today = new Date().toDateString();
+    const todayCount = entries.filter(e => e.date && new Date(e.date).toDateString() === today).length;
+    const weekAgo = Date.now() - 7 * 86400000;
+    const weekCount = entries.filter(e => e.date && new Date(e.date) >= weekAgo).length;
+    const total = entries.length;
+
+    // tag frequency
+    const tagFreq = {};
+    entries.forEach(e => (e.tags || []).forEach(t => { tagFreq[t] = (tagFreq[t] || 0) + 1; }));
+    const topTags = Object.entries(tagFreq).sort((a,b) => b[1]-a[1]).slice(0,6);
+
+    // recent 3
+    const recent = entries.slice(0,3);
+
+    const modeLabel = journalWriteMode === 'top' ? '<span class="ctx-wm-active">top</span> · float' : 'top · <span class="ctx-wm-active">float</span>';
+
+    content.innerHTML = `
+      <div class="ctx-sidebar-section">
+        <div class="ctx-sidebar-title">journal · ${jname}</div>
+        <div class="ctx-sidebar-stat">${todayCount} today &nbsp;${weekCount} this wk &nbsp;${total} total</div>
+        ${recent.length ? `<div class="ctx-sidebar-title" style="margin-top:8px">recent</div>
+        <ul class="ctx-sidebar-recent">${recent.map(e => {
+          const d = e.date ? new Date(e.date) : null;
+          const ds = d ? (d.toDateString()===today ? `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}` : d.toLocaleDateString([],{weekday:'short'})) : '—';
+          const body = (e.body||'').replace(/\n/g,' ').slice(0,42);
+          return `<li class="ctx-recent-row" data-idx="${entries.indexOf(e)}"><span class="ctx-recent-date">${ds}</span><span class="ctx-recent-body">${body}</span></li>`;
+        }).join('')}</ul>` : ''}
+        ${topTags.length ? `<div class="ctx-sidebar-title" style="margin-top:8px">tags</div>
+        <div class="ctx-sidebar-tags">${topTags.map(([t,n]) => `<span class="ctx-tag-chip" data-tag="${t}">${t}<span style="opacity:.5"> ${n}</span></span>`).join('')}</div>` : ''}
+      </div>
+      <div class="ctx-sidebar-actions">
+        <button class="ctx-action-btn" id="ctx-new-entry-btn">+ entry</button>
+        <button class="ctx-action-btn" id="ctx-search-btn">&#128269;</button>
+        <div class="ctx-write-mode-toggle" id="ctx-wm-toggle" title="Toggle write mode">write: ${modeLabel}</div>
+      </div>`;
+
+    // wire events
+    const newBtn = document.getElementById('ctx-new-entry-btn');
+    if (newBtn) newBtn.addEventListener('click', () => openJournalWriteCard(journalWriteMode));
+    const searchBtn = document.getElementById('ctx-search-btn');
+    if (searchBtn) searchBtn.addEventListener('click', () => { setTermMode('search'); document.getElementById('term-input').focus(); });
+    const wmToggle = document.getElementById('ctx-wm-toggle');
+    if (wmToggle) wmToggle.addEventListener('click', () => {
+      journalWriteMode = journalWriteMode === 'float' ? 'top' : 'float';
+      localStorage.setItem('ww-journal-write-mode', journalWriteMode);
+      renderJournalSidebar();
+    });
+    document.querySelectorAll('.ctx-recent-row').forEach(el => {
+      el.addEventListener('click', () => {
+        const idx = parseInt(el.dataset.idx);
+        const entry = entries[idx];
+        if (!entry) return;
+        const slug = entry.date ? new Date(entry.date).toISOString().slice(0,10) : '';
+        const target = document.querySelector(`.journal-entry[data-slug="${slug}"]`) || document.querySelector(`.journal-entry[data-idx="${idx}"]`);
+        if (target) { target.scrollIntoView({behavior:'smooth', block:'center'}); target.classList.add('journal-entry-highlight'); setTimeout(() => target.classList.remove('journal-entry-highlight'), 2000); }
+      });
+    });
+    document.querySelectorAll('.ctx-tag-chip').forEach(el => {
+      el.addEventListener('click', () => {
+        const tag = el.dataset.tag;
+        if (typeof setTermMode === 'function') setTermMode('filter');
+        const input = document.getElementById('term-input');
+        if (input) { input.value = tag; input.dispatchEvent(new Event('input')); input.focus(); }
+      });
+    });
+  }
+
+  function updateCtxSidebar() {
+    const sidebar = document.getElementById('ctx-sidebar');
+    if (!sidebar || sidebar.classList.contains('hidden')) return;
+    if (activeSection === 'journal') renderJournalSidebar();
+    else {
+      const content = document.getElementById('ctx-sidebar-content');
+      if (content) content.innerHTML = `<div class="ctx-sidebar-section"><div class="ctx-sidebar-title">${activeSection}</div><div style="color:var(--muted);font-size:11px;margin-top:4px">context panel for ${activeSection} coming soon</div></div>`;
+    }
+  }
+
+  function toggleCtxSidebar() {
+    const sidebar = document.getElementById('ctx-sidebar');
+    const btn = document.getElementById('term-ctx-sidebar-toggle');
+    if (!sidebar) { toast('ctx-sidebar element not found', 'error'); return; }
+    ctxSidebarOpen = !ctxSidebarOpen;
+    sidebar.classList.toggle('hidden', !ctxSidebarOpen);
+    if (btn) btn.classList.toggle('active', ctxSidebarOpen);
+    if (ctxSidebarOpen) updateCtxSidebar();
+    else if (hintsText) hintsText.textContent = 'sidebar closed';
+  }
+  // Expose for inline onclick fallback
+  window.__wwToggleSidebar = toggleCtxSidebar;
+
+  // ── Journal write card ──────────────────────────────────────────────────
+
+  let jwcLastEntryIdx = -1;
+  let jwcOpen = false;
+
+  function openJournalWriteCard(mode) {
+    mode = mode || journalWriteMode;
+    const card = document.getElementById('journal-write-card');
+    const ta = document.getElementById('jwc-textarea');
+    const meta = document.getElementById('jwc-meta');
+    const hint = document.getElementById('jwc-hint');
+    const confirm = document.getElementById('jwc-meta-confirm');
+    if (!card || !ta) return;
+
+    // meta line
+    const jname = (profileResources && profileResources.active && profileResources.active.journal) ? profileResources.active.journal : 'journal';
+    const now = new Date();
+    const dateStr = now.toLocaleDateString([], {weekday:'short', month:'short', day:'numeric'});
+    if (meta) {
+      meta.innerHTML = `<span>${jname} &nbsp;·&nbsp; ${dateStr}</span><span class="jwc-back-hint">&#8592; last entry</span>`;
+      meta.classList.remove('hidden');
+    }
+    if (confirm) confirm.classList.add('hidden');
+
+    card.className = 'journal-write-card mode-' + mode;
+    card.classList.remove('hidden');
+    jwcOpen = true;
+
+    ta.value = '';
+    ta.style.height = '';
+    setTimeout(() => ta.focus(), 50);
+
+    // fade hint
+    if (hint) {
+      hint.classList.remove('faded');
+      setTimeout(() => hint.classList.add('faded'), 3000);
+    }
+
+    // auto-expand textarea
+    ta.oninput = () => {
+      ta.style.height = 'auto';
+      const lineH = 14 * 1.6;
+      ta.style.height = Math.max(ta.scrollHeight, 3 * lineH) + 'px';
+    };
+  }
+
+  function jwcShowConfirm() {
+    const meta = document.getElementById('jwc-meta');
+    const confirm = document.getElementById('jwc-meta-confirm');
+    if (meta) meta.classList.add('hidden');
+    if (confirm) confirm.classList.remove('hidden');
+  }
+
+  function jwcHideConfirm() {
+    const meta = document.getElementById('jwc-meta');
+    const confirm = document.getElementById('jwc-meta-confirm');
+    if (meta) meta.classList.remove('hidden');
+    if (confirm) confirm.classList.add('hidden');
+  }
+
+  async function jwcSave() {
+    const ta = document.getElementById('jwc-textarea');
+    const entry = (ta ? ta.value : '').trim();
+    if (!entry) { closeJournalWriteCard(); return; }
+    try {
+      const res = await fetch('/action', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'journal_add', args:{ entry } }) });
+      const data = await res.json();
+      if (data.ok !== false) {
+        toast('entry saved');
+        closeJournalWriteCard();
+        if (activeSection === 'journal') await loadJournal();
+      } else {
+        toast('error saving entry', 'error');
+      }
+    } catch(e) {
+      toast('error: ' + e.message, 'error');
+    }
+  }
+
+  function closeJournalWriteCard(goBack) {
+    const card = document.getElementById('journal-write-card');
+    if (card) card.classList.add('hidden');
+    jwcOpen = false;
+    jwcHideConfirm();
+    if (goBack && jwcLastEntryIdx >= 0) {
+      const target = document.querySelector(`.journal-entry[data-idx="${jwcLastEntryIdx}"]`);
+      if (target) { target.scrollIntoView({behavior:'smooth', block:'center'}); target.classList.add('journal-entry-highlight'); setTimeout(() => target.classList.remove('journal-entry-highlight'), 2000); }
+    }
+  }
+
+  function initJournalWrite() {
+    const meta = document.getElementById('jwc-meta');
+    const saveBtn = document.getElementById('jwc-save-btn');
+    const discardBtn = document.getElementById('jwc-discard-btn');
+    const cancelBtn = document.getElementById('jwc-cancel-btn');
+    const ta = document.getElementById('jwc-textarea');
+
+    const closeBtn = document.getElementById('jwc-close-btn');
+    if (closeBtn) closeBtn.addEventListener('click', () => {
+      const entry = ta ? ta.value.trim() : '';
+      if (entry) jwcShowConfirm(); else closeJournalWriteCard(true);
+    });
+    if (meta) meta.addEventListener('click', () => {
+      const entry = ta ? ta.value.trim() : '';
+      if (entry) jwcShowConfirm(); else closeJournalWriteCard(true);
+    });
+    if (saveBtn) saveBtn.addEventListener('click', () => jwcSave());
+    if (discardBtn) discardBtn.addEventListener('click', () => closeJournalWriteCard(true));
+    if (cancelBtn) cancelBtn.addEventListener('click', () => jwcHideConfirm());
+
+    if (ta) {
+      ta.addEventListener('keydown', e => {
+        if (e.key === 'Escape') {
+          const entry = ta.value.trim();
+          if (entry) jwcShowConfirm(); else closeJournalWriteCard(true);
+          e.stopPropagation();
+          return;
+        }
+        if ((e.ctrlKey && e.key === 'Enter') || (e.key === 'Enter' && ta.value.slice(-1) === '\n')) {
+          e.preventDefault();
+          jwcSave();
+        }
+      });
+    }
+
+    // Sidebar toggle/close use inline onclick in HTML — no addEventListener needed here
+
+    // wire expand toggle — hides/shows hints bar
+    const expandBtn = document.getElementById('term-expand-toggle');
+    const hintsBarEl = document.getElementById('hints-bar');
+    let termExpanded = localStorage.getItem('ww-term-expanded') !== 'false';
+    function applyExpandState() {
+      if (hintsBarEl) hintsBarEl.style.display = termExpanded ? '' : 'none';
+      if (expandBtn) expandBtn.textContent = termExpanded ? '▾' : '▴';
+      localStorage.setItem('ww-term-expanded', termExpanded);
+    }
+    applyExpandState();
+    if (expandBtn) expandBtn.addEventListener('click', () => { termExpanded = !termExpanded; applyExpandState(); });
+
+    // dot-ctx: show active section namespace
+    const dotCtx = document.getElementById('term-dot-ctx');
+    document.addEventListener('sectionChanged', e => {
+      if (dotCtx && e.detail && e.detail.name) {
+        const map = { journal:'.journal', tasks:'.task', ledger:'.ledger', time:'.time' };
+        const label = map[e.detail.name];
+        if (label) { dotCtx.textContent = label; dotCtx.classList.remove('hidden'); }
+        else dotCtx.classList.add('hidden');
+      }
+      renderHintsActions(e.detail && e.detail.name);
+      updateCtxSidebar();
+      // In focus mode, auto-open sidebar when navigating to a section
+      if (termPosition === 'focus' && !ctxSidebarOpen) toggleCtxSidebar();
+    });
+
+    // hints-bar action strip
+    renderHintsActions(activeSection);
+
+    // power buttons
+    document.getElementById('hints-hist-btn')?.addEventListener('click', () => {
+      const last = (cmdHistory || []).slice(0, 8).map((c, i) => `${i+1}  ${c}`).join('\n');
+      showOutput(last || '(no history)', false);
+    });
+    document.getElementById('hints-ai-btn')?.addEventListener('click', () => {
+      const btn = document.getElementById('hints-ai-btn');
+      if (!btn) return;
+      const isOn = btn.classList.toggle('active');
+      hintsText.textContent = isOn ? 'AI mode on — natural language accepted' : 'AI mode off';
+      if (typeof setAiMode === 'function') setAiMode(isOn);
+    });
+    document.getElementById('hints-help-btn')?.addEventListener('click', () => {
+      document.getElementById('btn-ww-help')?.click();
+    });
+  }
+
+  const HINTS_ACTIONS = {
+    tasks:   [['+ task','task add'],['next','next'],['filter','__filter__'],['search','__search__'],['ctx','__ctx_toggle__']],
+    journal: [['+ entry','__jwrite__'],['top','j top'],['dates','__dates_toggle__'],['filter','__filter__'],['ctx','__ctx_toggle__']],
+    time:    [['track','time track'],['stop','timew stop'],['week','time week'],['ctx','__ctx_toggle__']],
+    ledger:  [['+ txn','ledger add'],['balance','ledger balance'],['filter','__filter__'],['ctx','__ctx_toggle__']],
+    lists:   [['+ item','__list_add__'],['filter','__filter__'],['ctx','__ctx_toggle__']],
+    warrior: [['urgency','warrior urgency'],['stats','warrior stats']],
+  };
+
+  function renderHintsActions(section) {
+    const el = document.getElementById('hints-actions');
+    if (!el) return;
+    const actions = HINTS_ACTIONS[section] || [];
+    el.innerHTML = actions.map(([label, cmd]) =>
+      `<button class="hints-action-btn" data-cmd="${cmd}">${label}</button>`
+      + (actions.indexOf(actions.find(a => a[0]===label)) < actions.length - 1 ? '<span class="hints-sep">·</span>' : '')
+    ).join('');
+    // Mark dates button active state
+    el.querySelectorAll('.hints-action-btn[data-cmd="__dates_toggle__"]').forEach(b => {
+      b.classList.toggle('active', journalShowDates);
+      b.textContent = journalShowDates ? 'dates' : 'no-dates';
+    });
+
+    el.querySelectorAll('.hints-action-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const cmd = btn.dataset.cmd;
+        if (cmd === '__filter__') { setTermMode('filter'); document.getElementById('term-input')?.focus(); return; }
+        if (cmd === '__search__') { setTermMode('search'); document.getElementById('term-input')?.focus(); return; }
+        if (cmd === '__jwrite__') { openJournalWriteCard(journalWriteMode); return; }
+        if (cmd === '__dates_toggle__') { toggleJournalDates(); renderHintsActions(activeSection); return; }
+        if (cmd === '__ctx_toggle__') { toggleCtxSidebar(); return; }
+        if (cmd === '__list_add__') {
+          const input = document.getElementById('term-input');
+          if (input) { input.value = 'list add '; input.focus(); } return;
+        }
+        const input = document.getElementById('term-input');
+        if (input) { input.value = cmd; input.dispatchEvent(new Event('input')); input.focus(); }
+      });
+    });
+  }
+
+  // ── Focus bar ──────────────────────────────────────────────────────────────
+
+  const FOCUS_CENTER_ACTIONS = {
+    tasks:   [['+ task','task add'],['next','next'],['done','task done'],['filter','__filter__']],
+    journal: [['+ entry','__jwrite__'],['list','journal list'],['filter','__filter__']],
+    time:    [['track','time track'],['stop','timew stop'],['report','time week']],
+    ledger:  [['+ txn','ledger add'],['balance','ledger balance']],
+    lists:   [['+ item','__list_add__'],['filter','__filter__']],
+  };
+
+  function updateFocusBar(section) {
+    const bar = document.getElementById('focus-bar');
+    if (!bar || bar.classList.contains('hidden')) return;
+
+    // Profile pill already updated by setProfile()
+
+    // Center: section label + quick actions
+    const center = document.getElementById('focus-bar-center');
+    if (center) {
+      const actions = FOCUS_CENTER_ACTIONS[section] || [];
+      const sec = section ? `<span class="focus-bar-section">${section}</span>` : '';
+      const btns = actions.map(([label, cmd]) =>
+        `<button class="focus-bar-action" data-cmd="${cmd}">${label}</button>`
+      ).join('');
+      center.innerHTML = sec + (sec && btns ? '<span class="focus-bar-sep">·</span>' : '') + btns;
+      center.querySelectorAll('.focus-bar-action').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const cmd = btn.dataset.cmd;
+          if (cmd === '__filter__') { setTermMode('filter'); termInput?.focus(); return; }
+          if (cmd === '__jwrite__') { openJournalWriteCard(journalWriteMode); return; }
+          if (cmd === '__list_add__') { if (termInput) { termInput.value = 'list add '; termInput.focus(); } return; }
+          if (termInput) { termInput.value = cmd; termInput.dispatchEvent(new Event('input')); termInput.focus(); }
+        });
+      });
+    }
+
+    // Right: tracking badge
+    const badge = document.getElementById('focus-track-badge');
+    if (badge) {
+      const isTracking = document.querySelector('.tracking-badge') !== null && !document.querySelector('.tracking-badge')?.closest('.hidden');
+      badge.classList.toggle('hidden', !isTracking);
+    }
+  }
+
+  function initFocusBar() {
+    const bar = document.getElementById('focus-bar');
+    const profBtn = document.getElementById('focus-profile-btn');
+    const profList = document.getElementById('focus-profile-list');
+    const exitBtn = document.getElementById('focus-btn-exit');
+
+    // Profile dropdown
+    if (profBtn && profList) {
+      profBtn.addEventListener('click', async e => {
+        e.stopPropagation();
+        if (!profList.classList.contains('hidden')) { profList.classList.add('hidden'); return; }
+        // Populate profile list
+        try {
+          const res = await fetch('/data/profiles');
+          const data = await res.json();
+          const current = state?.profile || '';
+          profList.innerHTML = (data.profiles || []).map(p =>
+            `<li class="${p === current ? 'active' : ''}" data-profile="${p}">${p}</li>`
+          ).join('');
+          profList.querySelectorAll('li').forEach(li => {
+            li.addEventListener('click', async () => {
+              profList.classList.add('hidden');
+              const pname = li.dataset.profile;
+              const r = await fetch('/profile', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ profile: pname }) });
+              const d = await r.json();
+              if (d.ok) { toast(`profile: ${pname}`); await refreshCtrlState(); }
+              else toast(d.error || 'switch failed', 'error');
+            });
+          });
+        } catch(e) { profList.innerHTML = '<li>error loading</li>'; }
+        profList.classList.remove('hidden');
+      });
+      document.addEventListener('click', () => profList.classList.add('hidden'));
+    }
+
+    // Exit focus mode
+    if (exitBtn) exitBtn.addEventListener('click', () => applyTermPosition('bottom', true));
+
+    // Update on section changes
+    document.addEventListener('sectionChanged', e => updateFocusBar(e.detail?.name));
+  }
+
   // ── Init ───────────────────────────────────────────────────────────────────
   async function init() {
     initToasts();
@@ -7807,6 +8303,8 @@ CMD: "add task review and start tracking"
     initCommJournalMini();
     initProfilePill();
     initTerminal();
+    initJournalWrite();
+    initFocusBar();
     initDensity();
     initAddForms();
     connectSSE();

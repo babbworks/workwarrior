@@ -5,6 +5,120 @@ Each entry: date, decision, context, and why — so future sessions don't re-lit
 
 ---
 
+## 2026-05-02 — Installer v0.2: multi-instance architecture, companion functions, 5 bug fixes
+
+**Decision:** Complete redesign of installer to support 6 presets, per-instance shell isolation, and `@instance` dispatch.
+
+**Key choices:**
+
+- **6-preset taxonomy** (`basic`, `direct`, `multi`, `hidden`, `isolated`, `hardened`): `basic` adds only a source block to rc; `direct` adds a launcher; `multi`/`hardened` write a full bootstrap with registry. `hidden` = `multi` but visibility hidden in `instance list`. `isolated` = launcher only, no registry. `plain` deprecated → `basic` with warning.
+
+- **Command-specific rc markers**: All installs previously used `# --- Workwarrior Installation ---`. With coexisting installs this caused idempotency false-positives (second install found first install's marker, skipped). Fixed: markers now include command name — `# --- Workwarrior Installation (basic1) ---`. Old generic markers still recognized by `remove_ww_from_shell_rc` for backward compat.
+
+- **Companion activation functions** (`write_instance_function()`): For standalone presets (basic/direct/isolated), a shell function is written to `~/.config/ww/instance-functions.sh`. The function is self-contained — no `use_task_profile` call (which uses stale `PROFILES_DIR`). Instead it exports `TASKRC`/`TASKDATA`/`TIMEWARRIORDB` directly from hardcoded install path. Sourced explicitly after `ww-init.sh` source line to bypass the `WW_INITIALIZED` guard.
+
+- **`ww()` no-args = activate last instance**: Previously called with no args showed help. Now reads `~/.config/ww/last-instance` and activates that instance (or `main` if not found). Instance id written to that file on every `ww @instance` activation.
+
+- **Prompt prefix uses registry check**: `_ww_prompt_prefix()` now: empty when no profile active; `ww|instance:profile` for registry-registered instances; `instance|profile` for standalone. Previously showed `ww|none` always.
+
+- **`_ww_apply_prompt_prefix()` uses regex detection**: Uses `=~ ^[a-z][a-z0-9_-]*\|` to detect and strip ww-style prefix on deactivation, instead of hardcoded `ww|*` glob (which would miss standalone instance prefixes like `basic1|`).
+
+- **Production migrated to `~/wwv02`**: Legacy `~/ww` eliminated. 23 profiles consolidated into new multi-instance install. Shell configs rewritten. GitHub package snapshot at `~/wwv02-package/`.
+
+- **Default profile renamed `main` → `default`**: `install.sh` `create_default_main_profile()` now creates `default` profile, not `main`.
+
+- **Multi-anchor registry isolation**: `WW_CONFIG_HOME` computed from `COMMAND_NAME` after arg parsing — `ww` anchor → `~/.config/ww/`, `hub` anchor → `~/.config/hub/`. Backward compatible.
+
+**Why not keep use_task_profile in companion functions:** `use_task_profile()` reads `PROFILES_DIR` which is set at ww-init.sh source time. When two installs coexist, the last-sourced ww-init.sh wins, so a standalone's companion function would use the anchor's profiles dir. Self-contained env var export sidesteps this entirely.
+
+---
+
+## 2026-04-25 — Browser header restructure: resource slot unified, green bar removed, stat-context-bar removed
+
+**Decision:** Three persistent UI complaints resolved in one header pass.
+
+**Changes:**
+- `active-task-pill` (green flex-1 element between title and stats) removed from `header-row1`. It expanded to fill available space, creating a green bar effect the user found visually disruptive. Active-task state is still reflected via `stat-tasks-count` highlight class.
+- `header-row2` / `#stat-context-bar` (the secondary text bar showing "pending: N · active: N") removed entirely. User had requested this removal multiple times across sessions.
+- All per-section `section-resource-bar` divs removed from Tasks, Times, Journals, Lists. The single `#header-resource-slot` in `header-row1` now serves all sections — `refreshResourceSelectors` shows/hides it on section switch.
+- `header-title-group` wrapper added so the title and resource dropdown are co-located as a flex unit with `margin-right: auto`, keeping stats pushed to the right edge.
+- `renderResourceSelector` now always renders the `+` button even when no resources exist (previously returned empty if `names.length === 0`, leaving users unable to create the first resource).
+
+**Why not keep the stat-context-bar:** It was a second line of text below the header that duplicated information already visible in the section body. It required every `loadSection` path to call `updateContextBar`, creating tight coupling between section logic and the header. Removal simplifies both.
+
+---
+
+## 2026-04-25 — Tags screen: design, chip filters, UDA detection
+
+**Decision:** Tags screen added as a first-class function alongside Tasks/Times/Journals/Ledger/Lists.
+
+**Design choices:**
+- Placed in the functions group (not services), after Lists. Tags are a core data dimension, not a service tool.
+- Server endpoint `/data/tags` returns per-tag: count, up to 20 tasks (urgency-sorted), priorities present, UDAs present, latest modified date. One network call populates all filter state client-side.
+- Three quick-filter chip rows: status tags (detected from tag name against a hardcoded STATUS_KEYWORDS set), priority (H/M/L/none filters by task priority presence within the tag), UDA (only rendered if tasks actually have UDA fields set — confirmed via `task _udas` + per-task field inspection).
+- **Exclude mode**: filter input paired with an "exclude" toggle — when active, the text filter hides matching tags rather than showing them. Requested by user as an inversion toggle.
+- Sort options: A→Z, most tasks, fewest tasks, recently modified (uses `latest_modified` field from server).
+
+**`buildTaskMetaPills` fix:** The function handled `tag:name` (singular) but the server encodes community-task meta as `tags:foo,bar` (plural comma-separated). Fixed with `flatMap` — `tags:` tokens are split by comma and each value rendered as a separate pill.
+
+---
+
+## 2026-04-25 — Task dependencies: inline display and add/remove
+
+**Decision:** Task dependency UI implemented purely in the inline detail (no separate screen). Two display levels.
+
+**Row-level badges:** `⊸N` (orange) = "blocked by N tasks" (this task's `depends` array). `→N` (blue) = "blocking N tasks" (computed client-side by scanning `cachedTasks` for entries whose `depends` includes this task's UUID). These badges are zero-cost to render since `cachedTasks` is already in memory.
+
+**Inline detail section:** `renderDepSection()` renders a "dependencies" panel at the bottom of expanded task detail. Shows blocked-by list (with `×` remove buttons) and blocking list (navigation only, no remove — removing a blocking dep would modify the other task). Add input accepts task ID (numeric) or description substring; resolves against `cachedTasks` client-side before calling server.
+
+**Server actions `dep_add` / `dep_remove`:** Use `task {id} modify depends+:{uuid}` / `depends-:{uuid}`. Added to `TASK_MUTATING` set so SSE broadcast fires on change.
+
+**Why UUID not ID for dep_remove:** Task IDs are ephemeral in Taskwarrior (renumbered on filter). UUIDs are stable. The remove button stores the dep task's UUID in `data-uuid` and sends that to the server.
+
+---
+
+## 2026-04-25 — Community task → journal: removed redundant @project suffix
+
+**Decision:** The `community_journal_entry` server action was appending ` @project:{project}` after the `[community-task:...]` marker in every stored journal line. This was a legacy artefact — the project is already encoded inside the marker's meta field and rendered as a blue pill by `buildTaskMetaPills`. The trailing `@project:` token was showing as a second redundant project display in the journal.
+
+**Fix:** Removed `proj_tag` variable and interpolation from the line builder. The marker's meta field is the single source of project/tag/priority data for these entries.
+
+---
+
+## 2026-04-24 — Ledger UI overhaul: annotation model, balance grouping, reporting toggle
+
+**Decision:** Five concrete ledger UI changes applied in this session. Three larger items deferred to TASK-LED-001–003.
+
+**Changes applied:**
+- `ledger_add` action now accepts optional `comment` field → appended as `; comment` posting-level comment
+- New `ledger_annotate` action appends a standalone top-level comment `; [date] desc: note` to the ledger file (not a transaction — valid hledger syntax, skipped by balance/register commands)
+- Balance display now groups by account type prefix (assets / liabilities / equity / income / expenses) with labelled section headers
+- `ledger-balances` div moved to after `ledger-recent` so the transaction list is seen first
+- Reporting buttons (hl-btn) now toggle: clicking the active button again collapses the output panel; active button gets highlight state
+
+**annotation model (settled):**
+The previous annotation implementation was invalid — it called `ledger_add` with `description: "; note"` and `amount: "0"`, producing a malformed transaction. The new `ledger_annotate` action writes a raw comment line. This is intentionally NOT a transaction: it produces no balance effect and won't show in `register`. It serves as a human-readable memo attached to the ledger file near a date.
+
+**amount field (settled):**
+`ledger_add` previously hardcoded `$` prefix on amounts, breaking non-dollar commodities (hours `h`, sessions `sess`, etc.). Fixed: amount is written verbatim from the form input. Users should type `$50` or `2h` or `1 sess` themselves.
+
+**account hierarchy for non-accounting use (proposed, captured in TASK-LED-002):**
+```
+time:project:<name>    ; hours invested
+sessions:agent:claude  ; agent-assisted sessions (source of time)
+costs:api:anthropic    ; external costs
+output:features        ; value produced
+backlog:tech-debt      ; deferred work (like liabilities)
+```
+hledger's commodity-agnostic model makes this work naturally. Use `h` for hours, `sess` for sessions, `$` for money.
+
+**hledger status markers:**
+- unmarked = in-progress or not reviewed
+- `!` pending = ready for review / awaiting confirmation  
+- `*` cleared = reviewed, approved, reconciled
+
+---
+
 ## 2026-04-23 — Communities panel: reference model, task/journal action semantics, terminology
 
 **Decision:** Finalized how journal entries, task items, and community entries relate to each other through annotations, rejournal operations, and back-references. Five concrete changes made.
@@ -81,6 +195,16 @@ Sidebar label changed from "Community" to "Communities" — the service manages 
 **Why:** Community's purpose is assembly for export/sharing, not task management. Tasks shown in simplified screened view. Warrior is the meta-profile control plane enabling global access.
 
 **Consequence:** COMM-001 (storage) is the root dependency for most other COMM tasks. Journal scanner (COMM-005) is the shared utility for annotation parsing, metadata parsing, and filter buttons.
+
+---
+
+## 2026-04-24 — TASK-EXT-WARLOCK-001 complete: task-warlock adopted as `ww browser warlock`
+
+**Decision:** Adopt jonestristand/task-warlock (Next.js 15, MIT, v0.3.0) as a sibling web UI at `ww browser warlock` (port 5001). Profile isolation via environment variable inheritance — no source patches required. `ww browser` (port 7777) remains primary.
+
+**Architecture:** `services/warlock/warlock.sh` handles install/start/stop/status/PID management. `ww web` synonym registered in `config/shortcuts.yaml`. Browser sidebar panel added to `ww browser` with status badge and Install/Start/Stop controls. `/data/warlock/status` endpoint added to `server.py`. 25 bats tests in `tests/test-browser-warlock.bats`.
+
+**Consequence:** `tools/warlock/source/` and `tools/warlock/settings/` are gitignored runtime dirs. `tools/warlock/WW-PATCHES.md` is version-controlled documentation of the isolation wiring. Future warlock upgrades: update `WARLOCK_GIT_TAG` in `warlock.sh` and run `ww browser warlock reinstall`.
 
 ---
 

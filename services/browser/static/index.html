@@ -618,17 +618,42 @@
       </div>
     </div>
   </div>
+  <!-- Focus mode power bar (visible only in term-focus-mode) -->
+  <div id="focus-bar" class="focus-bar hidden">
+    <div class="focus-bar-left">
+      <span class="focus-bar-label">ww</span>
+      <span class="focus-bar-sep">·</span>
+      <button id="focus-profile-btn" class="focus-profile-btn" title="Switch profile">—</button>
+      <ul id="focus-profile-list" class="focus-profile-list hidden"></ul>
+    </div>
+    <div class="focus-bar-center" id="focus-bar-center"></div>
+    <div class="focus-bar-right" id="focus-bar-right">
+      <span id="focus-track-badge" class="focus-track-badge hidden"></span>
+      <button class="focus-bar-btn" id="focus-btn-exit" title="Exit focus mode">⊡</button>
+    </div>
+  </div>
   <!-- Terminal line -->
   <div id="terminal-bar">
     <div id="cmd-output" class="hidden"></div>
-    <div id="hints-bar">type a ww command — tab to filter mode</div>
+    <div id="hints-bar">
+      <span id="hints-actions" class="hints-actions"></span>
+      <span id="hints-text" class="hints-text">type a ww command — tab to filter mode</span>
+      <span id="hints-power" class="hints-power">
+        <button class="hints-btn" id="hints-hist-btn" title="Command history">hist</button>
+        <button class="hints-btn" id="hints-ai-btn" title="Toggle AI mode">ai</button>
+        <button class="hints-btn" id="hints-help-btn" title="Help (?)">?</button>
+      </span>
+    </div>
     <div id="terminal-input-row">
       <span id="term-profile-badge" class="term-badge"></span>
       <span id="term-pinned-icon" class="term-pinned-icon hidden"></span>
       <span id="term-context" class="term-context hidden"></span>
       <span id="term-prompt" class="prompt-exec">❯ </span>
       <input type="text" id="term-input" autocomplete="off" spellcheck="false" />
-      <button id="term-pos-toggle" title="Move terminal (Ctrl+Shift+T)">↑</button>
+      <span id="term-dot-ctx" class="term-dot-ctx hidden" onclick="window.__wwToggleSidebar && window.__wwToggleSidebar()"></span>
+      <button id="term-pos-toggle" class="term-icon-btn" title="Move terminal (Ctrl+Shift+T)">↑</button>
+      <button id="term-expand-toggle" class="term-icon-btn" title="Expand/collapse terminal">▾</button>
+      <button id="term-ctx-sidebar-toggle" class="term-icon-btn" title="Context sidebar" onclick="window.__wwToggleSidebar && window.__wwToggleSidebar()">⊞</button>
     </div>
   </div>
   <!-- ww Help Panel -->
@@ -645,5 +670,29 @@
     </div>
   </div>
   <script src="/app.js"></script>
+
+  <!-- Context sidebar panel -->
+  <div id="ctx-sidebar" class="ctx-sidebar hidden">
+    <div class="ctx-sidebar-header">
+      <span class="ctx-sidebar-header-title">context</span>
+      <button class="ctx-sidebar-close" id="ctx-sidebar-close" title="Close sidebar" onclick="window.__wwToggleSidebar && window.__wwToggleSidebar()">×</button>
+    </div>
+    <div id="ctx-sidebar-content"></div>
+  </div>
+
+  <!-- Journal writing card -->
+  <div id="journal-write-card" class="journal-write-card hidden">
+    <div class="jwc-header">
+      <div class="jwc-meta" id="jwc-meta"></div>
+      <button class="jwc-close-btn" id="jwc-close-btn" title="Close (Esc)">×</button>
+    </div>
+    <div class="jwc-meta-confirm hidden" id="jwc-meta-confirm">
+      <button class="jwc-confirm-btn" id="jwc-save-btn">save</button>
+      <button class="jwc-confirm-btn jwc-discard" id="jwc-discard-btn">discard</button>
+      <button class="jwc-confirm-btn jwc-cancel" id="jwc-cancel-btn">back</button>
+    </div>
+    <textarea id="jwc-textarea" placeholder="write here…" spellcheck="true"></textarea>
+    <div class="jwc-hint" id="jwc-hint">ctrl+enter to save  ·  esc to cancel</div>
+  </div>
 </body>
 </html>

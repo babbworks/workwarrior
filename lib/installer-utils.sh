@@ -20,9 +20,13 @@ WW_PRESET="${WW_PRESET:-basic}"
 WW_COMMAND_NAME="${WW_COMMAND_NAME:-ww}"
 WW_SECURITY_BACKEND="${WW_SECURITY_BACKEND:-auto}"
 
-# Section markers for shell configuration
+# Section markers for shell configuration (generic — backward compat only)
 readonly SECTION_WW_INSTALL="# --- Workwarrior Installation ---"
 readonly SECTION_WW_INSTALL_END="# --- End Workwarrior Installation ---"
+
+# Command-specific section markers (used for coexisting installs)
+_ww_section_start() { echo "# --- Workwarrior Installation (${1:-ww}) ---"; }
+_ww_section_end()   { echo "# --- End Workwarrior Installation (${1:-ww}) ---"; }
 
 # Shell RC files
 readonly SHELL_RC_BASH="$HOME/.bashrc"
@@ -147,51 +151,67 @@ get_shell_rc_files() {
 
 # Add workwarrior configuration to a shell RC file
 # Idempotent - safe to run multiple times
-# Usage: add_ww_to_shell_rc "/path/to/.bashrc"
+# Usage: add_ww_to_shell_rc "/path/to/.bashrc" [cmd_name]
+# cmd_name defaults to WW_COMMAND_NAME or "ww". Each install writes a
+# uniquely-marked block so multiple coexisting installs can share one rc file.
 # Returns: 0 on success, 1 on failure
 add_ww_to_shell_rc() {
   local rc_file="$1"
+  local cmd_name="${2:-${WW_COMMAND_NAME:-ww}}"
+  local section_start; section_start="$(_ww_section_start "$cmd_name")"
+  local section_end;   section_end="$(_ww_section_end   "$cmd_name")"
 
   if [[ -z "$rc_file" ]]; then
     log_error "RC file path required"
     return 1
   fi
 
-  # Create file if it doesn't exist
   if [[ ! -f "$rc_file" ]]; then
-    touch "$rc_file" || {
-      log_error "Failed to create $rc_file"
-      return 1
-    }
+    touch "$rc_file" || { log_error "Failed to create $rc_file"; return 1; }
   fi
 
-  # Check if already configured (idempotence)
-  if grep -Fq "$SECTION_WW_INSTALL" "$rc_file"; then
-    log_info "Workwarrior already configured in $(basename "$rc_file")"
+  # Idempotence: check for this install's specific block
+  if grep -Fq "$section_start" "$rc_file"; then
+    log_info "Workwarrior (${cmd_name}) already configured in $(basename "$rc_file")"
     return 0
   fi
 
-  # Append configuration block (uses actual install dir, not hardcoded $HOME/ww)
+  # For standalone presets (basic/direct/isolated), source instance-functions.sh
+  # explicitly — ww-init.sh's WW_INITIALIZED guard would skip it on re-source.
+  local instance_fn_block=""
+  local preset="${INSTALL_PRESET:-multi}"
+  if [[ "$preset" != "multi" && "$preset" != "hidden" && "$preset" != "hardened" ]]; then
+    instance_fn_block="
+# Load ${cmd_name} activation function (always, even if ww-init.sh already ran)
+if [[ -f \"${WW_CONFIG_HOME}/instance-functions.sh\" ]]; then
+  source \"${WW_CONFIG_HOME}/instance-functions.sh\"
+fi"
+  fi
+
   cat >> "$rc_file" << EOF
 
-# --- Workwarrior Installation ---
+${section_start}
 # Added by workwarrior installer
 export WW_BASE="${WW_INSTALL_DIR}"
 if [[ -f "${WW_INSTALL_DIR}/bin/ww-init.sh" ]]; then
   source "${WW_INSTALL_DIR}/bin/ww-init.sh"
-fi
-# --- End Workwarrior Installation ---
+fi${instance_fn_block}
+${section_end}
 EOF
 
-  log_success "Added workwarrior to $(basename "$rc_file")"
+  log_success "Added workwarrior (${cmd_name}) to $(basename "$rc_file")"
   return 0
 }
 
 # Remove workwarrior configuration from a shell RC file
-# Usage: remove_ww_from_shell_rc "/path/to/.bashrc"
+# Usage: remove_ww_from_shell_rc "/path/to/.bashrc" [cmd_name]
+# Removes the command-specific block (if cmd_name given) or the generic block.
 # Returns: 0 on success, 1 on failure
 remove_ww_from_shell_rc() {
   local rc_file="$1"
+  local cmd_name="${2:-${WW_COMMAND_NAME:-ww}}"
+  local section_start; section_start="$(_ww_section_start "$cmd_name")"
+  local section_end;   section_end="$(_ww_section_end   "$cmd_name")"
 
   if [[ -z "$rc_file" ]]; then
     log_error "RC file path required"
@@ -202,8 +222,17 @@ remove_ww_from_shell_rc() {
     return 0
   fi
 
-  # Check if configured
-  if ! grep -Fq "$SECTION_WW_INSTALL" "$rc_file"; then
+  # Check for command-specific block first, then fall back to legacy generic block
+  local found_marker=""
+  if grep -Fq "$section_start" "$rc_file"; then
+    found_marker="specific"
+  elif grep -Fq "$SECTION_WW_INSTALL" "$rc_file"; then
+    found_marker="legacy"
+    section_start="$SECTION_WW_INSTALL"
+    section_end="$SECTION_WW_INSTALL_END"
+  fi
+
+  if [[ -z "$found_marker" ]]; then
     log_info "Workwarrior not configured in $(basename "$rc_file")"
     return 0
   fi
@@ -216,20 +245,19 @@ remove_ww_from_shell_rc() {
   }
 
   # Remove section using awk
-  awk -v start="$SECTION_WW_INSTALL" -v end="$SECTION_WW_INSTALL_END" '
+  awk -v start="$section_start" -v end="$section_end" '
     $0 == start { skip = 1; next }
     $0 == end { skip = 0; next }
     !skip { print }
   ' "$rc_file" > "$rc_file.tmp"
 
-  # Also remove any blank lines before the section that we added
   mv "$rc_file.tmp" "$rc_file" || {
     log_error "Failed to update $rc_file"
     rm -f "$rc_file.tmp"
     return 1
   }
 
-  log_success "Removed workwarrior from $(basename "$rc_file")"
+  log_success "Removed workwarrior (${cmd_name}) from $(basename "$rc_file")"
   log_info "Backup saved: $backup_file"
   return 0
 }
@@ -346,15 +374,24 @@ write_instance_function() {
 # ww-instance-fn: ${cmd_name}
 ${cmd_name}() {
   if [[ \$# -eq 0 ]]; then
-    export WW_BASE="${install_path}"
+    local _base="${install_path}"
+    local _cfg="\$HOME/.config/${cmd_name}"
+    export WW_BASE="\$_base"
     export WW_ACTIVE_INSTANCE="${cmd_name}"
-    local last
-    last="\$(cat "\${WW_CONFIG_HOME:-\$HOME/.config/ww}/last-profile-${cmd_name}" 2>/dev/null || echo "default")"
-    if command -v use_task_profile &>/dev/null; then
-      use_task_profile "\$last" 2>/dev/null || true
-    else
-      p-"\$last" 2>/dev/null || true
+    local _last
+    _last="\$(cat "\${_cfg}/last-profile-${cmd_name}" 2>/dev/null || echo "default")"
+    local _pb="\${_base}/profiles/\${_last}"
+    if [[ ! -d "\$_pb" ]]; then
+      echo "  No profile for '${cmd_name}'. Create: ${cmd_name} profile create <name>" >&2
+      return 0
     fi
+    export WARRIOR_PROFILE="\$_last"
+    export WORKWARRIOR_BASE="\$_pb"
+    export TASKRC="\${_pb}/.taskrc"
+    export TASKDATA="\${_pb}/.task"
+    export TIMEWARRIORDB="\${_pb}/.timewarrior"
+    printf '%s\n' "\$_last" > "\${_cfg}/last-profile-${cmd_name}" 2>/dev/null || true
+    echo "  ✓ ${cmd_name}:\${_last}  ·  \${_pb}"
   else
     env WW_BASE="${install_path}" "${install_path}/bin/ww" "\$@"
   fi

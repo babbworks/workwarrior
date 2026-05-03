@@ -1,0 +1,46 @@
+always_active:
+  - orchestrator
+  - builder
+  - verifier
+  - docs
+
+conditional:
+  - name: explorer
+    deploy_when:
+      - phase_1_audit
+      - high_risk_cross_cutting_analysis
+      - fragility_area_pre_change
+    absorbed_as: builder_preflight_paragraph
+    absorbed_when: routine_single_file_or_service_change
+  - name: simplifier
+    deploy_when:
+      - diff_exceeds_200_lines
+      - multiple_lib_files_in_scope
+    embedded_as: verifier_checklist_step
+    embedded_when: standard_change
+
+phase_role_profile:
+  phase_1:
+    active:
+      - orchestrator
+      - explorer        # dedicated A/B audit agents
+      - builder         # artifact cleanup task only
+      - verifier
+      - docs
+    notes: "Explorer deployed as dedicated parallel A/B agents for audit work"
+  phase_2_plus:
+    active:
+      - orchestrator
+      - builder
+      - verifier
+      - docs
+    conditional:
+      - explorer
+      - simplifier
+    notes: "Explorer absorbed into builder pre-flight for routine tasks"
+
+constraints:
+  no_self_approval: true
+  orchestrator_never_implements: true
+  verifier_never_implements: true
+  parallel_requires_disjoint_write_sets: true

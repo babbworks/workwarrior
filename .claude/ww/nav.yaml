@@ -1,0 +1,16 @@
+# Navbar service order configuration.
+# Reorder items under 'services' to customize the sidebar.
+# The 'functions' group (tasks/time/journal/ledger/lists/community) is always fixed at top.
+nav:
+  services:
+    - projects
+    - groups
+    - questions
+    - next
+    - schedule
+    - sync
+    - warlock
+    - models
+    - network
+    - bookbuilder
+    - export

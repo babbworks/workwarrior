@@ -1,0 +1,27 @@
+gates:
+  A:
+    name: acceptance_required
+    rule: "No implementation without explicit acceptance criteria"
+    enforced_by: orchestrator
+    checked_by: verifier
+  B:
+    name: verification_required
+    rule: "No merge with failing required tests or unresolved high-severity findings"
+    enforced_by: verifier
+    checked_by: verifier
+  C:
+    name: docs_help_parity
+    rule: "No completion claim unless docs and CLI help match behavior"
+    enforced_by: docs_agent
+    checked_by: verifier
+  D:
+    name: release_checklist
+    rule: "No release-ready claim with unchecked critical checklist items"
+    enforced_by: orchestrator
+    checked_by: orchestrator
+  E:
+    name: tracked_todos_only
+    rule: "No untracked TODO/placeholder in production code paths"
+    enforced_by: verifier
+    scan_command: "git diff HEAD | grep -E '^\\+.*\\b(TODO|FIXME|HACK|XXX|PLACEHOLDER)\\b'"
+    checked_by: verifier

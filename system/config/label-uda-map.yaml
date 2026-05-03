@@ -1,0 +1,15 @@
+# label-uda-map.yaml — Categorical UDA ↔ GitHub label encoding (SYNC-006)
+#
+# Each entry maps a TaskWarrior UDA name to a GitHub label prefix.
+# On push: a task with type=bug produces the label "type:bug".
+# On pull: a label "type:bug" writes type=bug back to the task's UDA.
+#
+# Multi-value UDAs (comma-separated in TaskWarrior) produce one label per value.
+# Unknown label prefixes encountered on pull are silently ignored.
+#
+# Format:  uda_name: label_prefix
+# -----------------------------------------------------------------------
+type: type
+phase: phase
+scope: scope
+stack: stack

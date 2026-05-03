@@ -1,0 +1,7 @@
+root: ./
+
+structure:
+  readme: ./whyworkwarrior.md
+  summary: ./SUMMARY.md
+
+title: Workwarrior Project

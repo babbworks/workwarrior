@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Minimal bats-support stub for local tests
+# Provides no additional helpers beyond what bats offers.
+
+return 0

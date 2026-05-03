@@ -1,0 +1,223 @@
+# docs/overviews/source-map.yaml
+#
+# Maps each overview doc to the source files it describes.
+# Used by: wwctl docs-check (staleness detection)
+#          wwctl diff-summary (impact analysis)
+#
+# Format:
+#   <relative-path-to-overview-doc>:
+#     sources:
+#       - <relative-path-to-source-file>
+#
+# Paths are relative to the project root (WW_ROOT).
+# Maintained by: Docs agent — update when adding new docs or new source files.
+
+docs/overviews/INDEX.md:
+  sources:
+    - bin/ww
+    - bin/ww-init.sh
+    - lib/core-utils.sh
+    - lib/profile-manager.sh
+    - lib/shell-integration.sh
+
+docs/overviews/bin/ww.md:
+  sources:
+    - bin/ww
+
+docs/overviews/bin/ww-init.md:
+  sources:
+    - bin/ww-init.sh
+
+docs/overviews/lib/core-utils.md:
+  sources:
+    - lib/core-utils.sh
+
+docs/overviews/lib/profile-manager.md:
+  sources:
+    - lib/profile-manager.sh
+
+docs/overviews/lib/shell-integration.md:
+  sources:
+    - lib/shell-integration.sh
+
+docs/overviews/lib/logging.md:
+  sources:
+    - lib/logging.sh
+
+docs/overviews/lib/github-api.md:
+  sources:
+    - lib/github-api.sh
+
+docs/overviews/lib/sync-pull-push.md:
+  sources:
+    - lib/sync-pull.sh
+    - lib/sync-push.sh
+
+docs/overviews/lib/field-mapper.md:
+  sources:
+    - lib/field-mapper.sh
+
+docs/overviews/lib/sync-detector-state.md:
+  sources:
+    - lib/sync-detector.sh
+    - lib/github-sync-state.sh
+
+docs/overviews/lib/sync-permissions.md:
+  sources:
+    - lib/sync-permissions.sh
+
+docs/overviews/lib/taskwarrior-api.md:
+  sources:
+    - lib/taskwarrior-api.sh
+
+docs/overviews/lib/config-utils.md:
+  sources:
+    - lib/config-utils.sh
+
+docs/overviews/lib/bugwarrior-integration.md:
+  sources:
+    - lib/bugwarrior-integration.sh
+
+docs/overviews/lib/export-utils.md:
+  sources:
+    - lib/export-utils.sh
+
+docs/overviews/lib/delete-utils.md:
+  sources:
+    - lib/delete-utils.sh
+
+docs/overviews/lib/profile-stats.md:
+  sources:
+    - lib/profile-stats.sh
+
+docs/overviews/lib/shortcode-registry.md:
+  sources:
+    - lib/shortcode-registry.sh
+
+docs/overviews/lib/dependency-installer.md:
+  sources:
+    - lib/dependency-installer.sh
+
+docs/overviews/services/github-sync.md:
+  sources:
+    - services/custom/github-sync.sh
+
+docs/overviews/services/profile-uda.md:
+  sources:
+    - services/profile/subservices/profile-uda.sh
+    - system/config/service-uda-registry.yaml
+    - system/config/uda-indicator-map.yaml
+    - system/config/uda-color-map.yaml
+
+docs/overviews/services/profile-urgency.md:
+  sources:
+    - services/profile/urgency.sh
+
+docs/overviews/services/questions.md:
+  sources:
+    - services/questions/q.sh
+
+docs/overviews/services/profile/create-ww-profile.md:
+  sources:
+    - services/profile/create-ww-profile.sh
+
+docs/overviews/services/profile/manage-profiles.md:
+  sources:
+    - services/profile/manage-profiles.sh
+
+docs/overviews/services/custom/configure-issues.md:
+  sources:
+    - services/custom/configure-issues.sh
+
+docs/overviews/services/extensions/extensions.md:
+  sources:
+    - services/extensions/extensions.sh
+    - services/extensions/taskwarrior.py
+
+docs/overviews/services/find/find.md:
+  sources:
+    - services/find/find.sh
+    - services/find/find.py
+
+docs/overviews/services/groups/groups.md:
+  sources:
+    - services/groups/groups.sh
+
+docs/overviews/services/models/models.md:
+  sources:
+    - services/models/models.sh
+
+docs/overviews/services/export/export.md:
+  sources:
+    - services/export/export.sh
+    - lib/export-utils.sh
+
+docs/overviews/cross-cutting/installer-utils.md:
+  sources:
+    - lib/installer-utils.sh
+    - install.sh
+    - uninstall.sh
+
+docs/overviews/cross-cutting/config-loader.md:
+  sources:
+    - lib/config-loader.sh
+
+docs/overviews/cross-cutting/error-handler.md:
+  sources:
+    - lib/error-handler.sh
+
+docs/overviews/cross-cutting/sync-engine/overview.md:
+  sources:
+    - services/custom/github-sync.sh
+    - lib/github-api.sh
+    - lib/github-sync-state.sh
+    - lib/sync-detector.sh
+    - lib/sync-pull.sh
+    - lib/sync-push.sh
+    - lib/sync-bidirectional.sh
+    - lib/conflict-resolver.sh
+    - lib/annotation-sync.sh
+    - lib/field-mapper.sh
+    - lib/error-handler.sh
+
+docs/overviews/cross-cutting/sync-engine/conflict-resolver.md:
+  sources:
+    - lib/conflict-resolver.sh
+
+docs/overviews/cross-cutting/sync-engine/annotation-sync.md:
+  sources:
+    - lib/annotation-sync.sh
+
+docs/overviews/cross-cutting/sync-engine/sync-bidirectional.md:
+  sources:
+    - lib/sync-bidirectional.sh
+
+docs/overviews/services/browser/browser.md:
+  sources:
+    - services/browser/server.py
+    - services/browser/static/app.js
+    - services/browser/static/index.html
+    - services/browser/static/style.css
+    - services/browser/browser.sh
+
+docs/overviews/services/ctrl/ctrl.md:
+  sources:
+    - services/ctrl/ctrl.sh
+    - config/ctrl.yaml
+
+docs/overviews/scripts/compile-heuristics.md:
+  sources:
+    - scripts/compile-heuristics.py
+    - config/cmd-heuristics.yaml
+    - config/cmd-heuristics-corpus.yaml
+    - config/ai.yaml
+
+docs/overviews/weapons/gun.md:
+  sources:
+    - weapons/gun/README.md
+    - bin/ww
+
+docs/overviews/weapons/sword.md:
+  sources:
+    - weapons/sword/README.md
+    - bin/ww

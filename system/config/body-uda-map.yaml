@@ -1,0 +1,17 @@
+# body-uda-map.yaml — Rich UDA ↔ GitHub issue body block (SYNC-007)
+#
+# Each entry maps a TaskWarrior UDA name to a display label used as the YAML key
+# in the ww-metadata fenced block written to the GitHub issue body.
+#
+# Only UDAs listed here participate in body sync.
+# All other issue body content is never read or modified.
+# If all listed UDAs are empty on a task, no block is written (not an empty block).
+#
+# Round-trip guarantee: push → pull produces identical UDA values.
+#
+# Format:  uda_name: Display Label
+# -----------------------------------------------------------------------
+goals: Goals
+deliverables: Deliverables
+risks: Risks
+notes: Notes
