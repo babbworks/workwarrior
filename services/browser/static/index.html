@@ -52,8 +52,8 @@
         <button class="nav-item" data-section="questions"><span class="nav-icon">？</span><span class="nav-label">Questions</span></button>
         <button class="nav-item" data-section="saves"><span class="nav-icon">📖</span><span class="nav-label">Saves</span></button>
         <button class="nav-item" data-section="projects"><span class="nav-icon">◆</span><span class="nav-label">Projects</span></button>
-        <button class="nav-item" data-section="stream"><span class="nav-icon">∿</span><span class="nav-label">Stream</span></button>
-        <button class="nav-item" data-section="uda"><span class="nav-icon">⊛</span><span class="nav-label">UDAs</span></button>
+        <button class="nav-item" data-section="attributes"><span class="nav-icon">⊕</span><span class="nav-label">Atts</span></button>
+        <button class="nav-item" data-section="stream" id="nav-stream"><span class="nav-icon">≋</span><span class="nav-label">Stream</span></button>
       </nav>
       <div class="sidebar-footer" id="sidebar-footer">
         <div class="warrior-stats" id="warrior-stats">
@@ -437,36 +437,128 @@
         </section>
         <!-- Stream -->
         <section class="section hidden" id="section-stream">
-          <div class="service-panel" id="stream-panel">
-            <div class="service-panel-header">Stream · Hollerith event log</div>
-            <div class="service-panel-body" id="stream-body"><div class="skeleton-msg">Loading…</div></div>
-            <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-              <button class="btn-inline-submit" id="btn-stream-status">status</button>
-              <button class="btn-inline-alt" id="btn-stream-ingest">ingest all</button>
-              <button class="btn-inline-alt" id="btn-stream-sessions">sessions</button>
-              <select id="stream-lens-select" style="font-size:11px;background:var(--bg2,#1a1a1a);color:var(--muted,#888);border:1px solid var(--border,#2a2a2a);border-radius:3px;padding:2px 5px">
-                <option value="burroughs">burroughs (raw)</option>
-                <option value="bundy">bundy (intervals)</option>
-                <option value="hollerith">hollerith (matrix)</option>
-                <option value="pacioli">pacioli (balance)</option>
-                <option value="frick">frick (state)</option>
-                <option value="felt">felt (density)</option>
-                <option value="dey">dey (signal)</option>
-                <option value="cooper">cooper (polar)</option>
-              </select>
-              <button class="btn-inline-alt" id="btn-stream-view">view lens</button>
+          <div class="stream-dashboard" id="stream-dashboard">
+            <div class="stream-metrics-bar">
+              <div class="stream-metric"><span class="stream-metric-label">events</span><span class="stream-metric-value" id="stream-metric-events">—</span></div>
+              <div class="stream-metric"><span class="stream-metric-label">log size</span><span class="stream-metric-value" id="stream-metric-size">—</span></div>
+              <div class="stream-metric"><span class="stream-metric-label">last event</span><span class="stream-metric-value" id="stream-metric-session">—</span></div>
+              <div class="stream-metric"><span class="stream-metric-label">lens</span><span class="stream-metric-value" id="stream-metric-lens">—</span></div>
             </div>
-            <div class="cmd-unified-output hidden" id="stream-output"></div>
           </div>
-        </section>
-        <!-- UDAs -->
-        <section class="section hidden" id="section-uda">
-          <div class="service-panel" id="uda-panel">
-            <div class="service-panel-header">UDAs · User Defined Attributes</div>
-            <div style="margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-              <input type="text" id="uda-search" placeholder="filter…" autocomplete="off" style="font-size:11px;background:var(--bg2,#1a1a1a);color:var(--fg,#d0d0d0);border:1px solid var(--border,#2a2a2a);border-radius:3px;padding:3px 7px;width:160px" />
+          <div class="stream-controls">
+            <div class="stream-controls-left">
+              <select id="stream-lens-select" class="resource-select" title="Active lens">
+                <option value="burroughs">Burroughs (log)</option>
+                <option value="bundy">Bundy (intervals)</option>
+                <option value="hollerith">Hollerith (matrix)</option>
+                <option value="pacioli">Pacioli (balance)</option>
+                <option value="frick">Frick (transitions)</option>
+                <option value="felt">Felt (density)</option>
+                <option value="dey">Dey (signal)</option>
+                <option value="cooper">Cooper (field)</option>
+              </select>
+              <select id="stream-time-range" class="resource-select" title="Time range">
+                <option value="session">this session (1h)</option>
+                <option value="today">today</option>
+                <option value="week">this week</option>
+                <option value="all">all time</option>
+                <option value="custom">custom range…</option>
+              </select>
             </div>
-            <div class="service-panel-body" id="uda-body"><div class="skeleton-msg">Loading…</div></div>
+            <div class="stream-controls-right">
+              <button class="btn-toolbar" id="btn-stream-ingest" title="Ingest from ww data sources">ingest</button>
+              <button class="btn-toolbar" id="btn-stream-sessions" title="Detect session boundaries">sessions</button>
+              <button class="btn-toolbar" id="btn-stream-ascii" title="Toggle ASCII mode">ascii</button>
+              <button class="btn-toolbar" id="btn-stream-filter" title="Filter events">filter</button>
+              <button class="btn-toolbar" id="btn-stream-export" title="Export stream data">export</button>
+              <button class="btn-toolbar" id="btn-stream-config" title="Stream settings">config</button>
+            </div>
+          </div>
+          <div class="stream-custom-range hidden" id="stream-custom-range">
+            <input type="date" id="stream-date-from" class="resource-select" />
+            <span style="color:var(--muted)">to</span>
+            <input type="date" id="stream-date-to" class="resource-select" />
+            <button class="btn-toolbar" id="btn-stream-custom-apply">apply</button>
+          </div>
+          <div class="stream-filter-panel hidden" id="stream-filter-panel">
+            <div class="stream-filter-row">
+              <label class="stream-filter-label">source</label>
+              <select id="stream-filter-service" class="resource-select">
+                <option value="">all</option>
+                <option value="T">tasks (T)</option>
+                <option value="B">timew (B)</option>
+                <option value="A">journal (A)</option>
+                <option value="F">frick (F)</option>
+                <option value="S">system (S)</option>
+              </select>
+              <label class="stream-filter-label">project</label>
+              <input type="text" id="stream-filter-project" class="inline-filter" placeholder="project…" style="width:110px" />
+            </div>
+            <div class="stream-filter-row">
+              <button class="btn-toolbar" id="btn-stream-filter-apply">apply</button>
+              <button class="btn-toolbar" id="btn-stream-filter-clear">clear</button>
+            </div>
+          </div>
+          <div class="stream-panel-body" id="stream-panel-body">
+            <div class="stream-col stream-col-primary" id="stream-col-primary">
+              <div class="stream-lens-view" id="stream-lens-view"><div class="skeleton-msg">Select a lens and range to view stream data.</div></div>
+            </div>
+          </div>
+          <div class="stream-config-panel hidden" id="stream-config-panel">
+            <div class="stream-config-header">Stream Configuration</div>
+            <div class="stream-config-body">
+              <div class="stream-config-row">
+                <label>Gap threshold (seconds)</label>
+                <input type="number" id="cfg-gap-threshold" value="300" min="60" max="3600" style="width:70px" />
+              </div>
+              <div class="stream-config-row">
+                <button class="btn-inline-alt" id="btn-stream-verify">verify log integrity</button>
+                <span id="stream-verify-result" style="font-size:11px;color:var(--muted);margin-left:8px"></span>
+              </div>
+              <div class="stream-config-row">
+                <button class="btn-inline-alt" id="btn-stream-backup">backup to file</button>
+              </div>
+            </div>
+          </div>
+          <div class="cmd-unified-output hidden" id="stream-output"></div>
+        </section>
+        <!-- Attributes (Atts) -->
+        <section class="section hidden" id="section-attributes">
+          <div class="attr-tabs">
+            <button class="attr-tab active" data-attr-view="current">Current Attributes</button>
+            <button class="attr-tab" data-attr-view="templates">Templates</button>
+          </div>
+          <div id="attr-view-current" class="attr-view">
+            <div class="attr-toolbar">
+              <input type="text" id="attr-search" class="inline-filter" placeholder="search attributes…" autocomplete="off" />
+              <button class="btn-inline-alt" id="btn-add-attr">+ Add</button>
+              <button class="btn-inline-alt" id="btn-export-attr-csv">Export CSV</button>
+            </div>
+            <div id="attr-add-form" class="attr-add-form hidden">
+              <div class="attr-form-grid">
+                <label>name</label><input type="text" id="attr-name" placeholder="attribute_name" autocomplete="off" />
+                <label>label</label><input type="text" id="attr-label" placeholder="Display Label" autocomplete="off" />
+                <label>type</label>
+                <select id="attr-type">
+                  <option value="string">string</option>
+                  <option value="numeric">numeric</option>
+                  <option value="date">date</option>
+                  <option value="duration">duration</option>
+                </select>
+                <label>default</label><input type="text" id="attr-default" placeholder="default value" autocomplete="off" />
+                <label>allowed</label><input type="text" id="attr-allowed" placeholder="val1, val2, val3" autocomplete="off" />
+                <label>urgency coeff</label><input type="number" id="attr-urgency" step="0.1" value="0" style="width:70px" />
+              </div>
+              <div class="attr-form-actions">
+                <button class="btn-inline-submit" id="btn-attr-save">Save</button>
+                <button class="btn-inline-alt" id="btn-attr-cancel">Cancel</button>
+              </div>
+            </div>
+            <div id="attr-list"><div class="skeleton-msg">Loading…</div></div>
+          </div>
+          <div id="attr-view-templates" class="attr-view hidden">
+            <div class="attr-templates-hint">Apply a template pack to add a curated set of attributes to the active profile.</div>
+            <div id="attr-templates-list"><div class="skeleton-msg">Loading…</div></div>
           </div>
         </section>
         <!-- Community -->

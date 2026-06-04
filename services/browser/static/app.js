@@ -1334,7 +1334,7 @@ CMD: "add task review and start tracking"
       export:'Export', questions:'Questions', saves:'Saves',
       profile:'Profile', warrior:'Warrior', projects:'Projects', sword:'Sword',
       community:'Communities', warlock:'Warlock', tags:'Tags',
-      stream:'Stream', uda:'UDAs'
+      stream:'Stream', attributes:'Atts'
     };
     sectionTitle.textContent = titleMap[name] || name;
     // Twain journal mode needs content-area overflow change when journal is visible
@@ -1388,7 +1388,7 @@ CMD: "add task review and start tracking"
     'export': 'export',    'questions': 'questions', 'saves': 'saves',
     'projects': 'projects','cmd': 'cmd',            'ctrl': 'ctrl',
     'warrior': 'warrior',  'community': 'community', 'warlock': 'warlock',
-    'stream': 'stream',    'uda': 'uda',             'udas': 'uda',
+    'stream': 'stream',    'attributes': 'attributes', 'atts': 'attributes', 'uda': 'attributes', 'udas': 'attributes',
   };
 
   let gPrefixPending = false;
@@ -2202,7 +2202,7 @@ CMD: "add task review and start tracking"
     else if (name === 'warlock') { updateContextBar('warlock', null); await loadWarlock(); }
     else if (name === 'tags') { updateContextBar('tags', null); await loadTags(); }
     else if (name === 'stream') { updateContextBar('stream', null); await loadStream(); }
-    else if (name === 'uda') { updateContextBar('uda', null); await loadUda(); }
+    else if (name === 'attributes') { updateContextBar('attributes', null); await loadAttributes(); }
     else updateContextBar(name, null);
     await refreshResourceSelectors(name);
   }
@@ -5808,67 +5808,160 @@ CMD: "add task review and start tracking"
     } catch (e) { renderError(body, `Warlock: ${e.message}`, loadWarlock); }
   }
 
+  // ── Stream state ────────────────────────────────────────────────────────────
+  let _streamFilter = {};
+  let _streamCustomFrom = null;
+  let _streamCustomTo = null;
+  let _streamAscii = false;
+
   async function loadStream() {
-    const body = document.getElementById('stream-body');
-    body.innerHTML = '<div class="skeleton-msg">Loading stream…</div>';
     try {
       const res = await fetch('/data/stream');
       const d = await res.json();
-      if (!d.ok) { renderError(body, d.error || 'stream error', loadStream); return; }
-      const logStatus = d.log_exists
-        ? `<span class="sync-badge sync-badge-enabled">active</span>`
-        : `<span class="sync-badge sync-badge-disabled">no log</span>`;
-      body.innerHTML = `
-        <div class="sync-dashboard">
-          <div class="sync-row"><span class="sync-label">status</span>${logStatus}</div>
-          <div class="sync-row"><span class="sync-label">events</span><span class="sync-val">${d.total.toLocaleString()}</span></div>
-          <div class="sync-row"><span class="sync-label">first event</span><span class="sync-val">${d.first_ts || '—'}</span></div>
-          <div class="sync-row"><span class="sync-label">last event</span><span class="sync-val">${d.last_ts || '—'}</span></div>
-          <div class="sync-row"><span class="sync-label">log path</span><span class="sync-val" style="font-size:10px;word-break:break-all">${esc(d.log_path)}</span></div>
-        </div>
-        ${d.events.length ? `<div style="margin-top:12px">
-          <table class="stream-event-table">
-            <thead><tr><th>time</th><th>op</th><th>action</th><th>object</th><th>src</th><th>proj</th></tr></thead>
-            <tbody>${d.events.slice().reverse().map(ev => {
-              const dt = new Date(ev.ts * 1000).toISOString().slice(0,16).replace('T',' ');
-              const opCls = {'T':'op-t','F':'op-f','B':'op-b','A':'op-a','S':'op-s'}[ev.op] || '';
-              return `<tr><td class="stream-ts">${dt}</td><td class="stream-op ${opCls}">${esc(ev.op)}</td><td>${esc(ev.action)}</td><td class="stream-obj" title="${esc(ev.obj)}">${esc(ev.obj.length > 12 ? ev.obj.slice(0,12)+'…' : ev.obj)}</td><td>${esc(ev.ctx.src||'')}</td><td>${esc(ev.ctx.proj||'')}</td></tr>`;
-            }).join('')}</tbody>
-          </table>
-        </div>` : '<div class="empty-state">No events in stream log</div>'}`;
-    } catch (e) { renderError(body, `Stream: ${e.message}`, loadStream); }
+      if (!d.ok) return;
+      const evEl = document.getElementById('stream-metric-events');
+      const szEl = document.getElementById('stream-metric-size');
+      const sessEl = document.getElementById('stream-metric-session');
+      if (evEl) evEl.textContent = d.total.toLocaleString();
+      if (szEl) szEl.textContent = d.log_exists ? 'active' : 'no log';
+      if (sessEl) sessEl.textContent = d.last_ts || '—';
+    } catch (_) {}
+    await loadStreamLens();
   }
 
-  async function loadUda() {
-    const body = document.getElementById('uda-body');
-    body.innerHTML = '<div class="skeleton-msg">Loading UDAs…</div>';
+  async function loadStreamLens() {
+    const lens = document.getElementById('stream-lens-select')?.value || 'burroughs';
+    const range = document.getElementById('stream-time-range')?.value || 'all';
+    const container = document.getElementById('stream-lens-view');
+    if (!container) return;
+    const lensLabel = document.getElementById('stream-metric-lens');
+    if (lensLabel) lensLabel.textContent = lens;
+    container.innerHTML = '<div class="skeleton-msg">Computing…</div>';
+
+    const now = Math.floor(Date.now() / 1000);
+    let fromTs = 0;
+    if (range === 'session') fromTs = now - 3600;
+    else if (range === 'today') fromTs = now - 86400;
+    else if (range === 'week') fromTs = now - 604800;
+    else if (range === 'custom' && _streamCustomFrom) fromTs = _streamCustomFrom;
+
+    const proj = _streamFilter.proj || '';
+    const op = _streamFilter.op || '';
+
+    try {
+      const res = await fetch('/data/stream?limit=200');
+      const d = await res.json();
+      if (!d.ok) { container.innerHTML = `<div class="empty-state">No stream data</div>`; return; }
+      let events = d.events.filter(ev => {
+        if (fromTs && ev.ts < fromTs) return false;
+        if (op && ev.op !== op) return false;
+        if (proj && (ev.ctx.proj || '') !== proj) return false;
+        return true;
+      });
+      if (!events.length) { container.innerHTML = '<div class="empty-state">No events for this range/filter</div>'; return; }
+      const rows = events.slice().reverse().map(ev => {
+        const dt = new Date(ev.ts * 1000).toISOString().slice(0, 16).replace('T', ' ');
+        const opCls = { T: 'op-t', F: 'op-f', B: 'op-b', A: 'op-a', S: 'op-s' }[ev.op] || '';
+        const obj = ev.obj.length > 14 ? ev.obj.slice(0, 14) + '…' : ev.obj;
+        return `<tr><td class="stream-ts">${dt}</td><td class="stream-op ${opCls}">${esc(ev.op)}</td><td>${esc(ev.action)}</td><td class="stream-obj" title="${esc(ev.obj)}">${esc(obj)}</td><td>${esc(ev.ctx.src || '')}</td><td>${esc(ev.ctx.proj || '')}</td></tr>`;
+      }).join('');
+      container.innerHTML = `<table class="stream-event-table">
+        <thead><tr><th>time</th><th>op</th><th>action</th><th>object</th><th>src</th><th>project</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div style="color:var(--muted);font-size:10px;margin-top:4px">${events.length} events · lens: ${esc(lens)}</div>`;
+    } catch (e) { container.innerHTML = `<div class="empty-state" style="color:var(--error)">Error: ${esc(e.message)}</div>`; }
+  }
+
+  // ── Attributes (Atts) state ────────────────────────────────────────────────
+  let _attsData = [];
+  let _attrEditName = null;
+
+  const ATTR_TEMPLATE_PACKS = {
+    priority: { label: 'Priority', description: 'H/M/L priority with urgency coefficient', definitions: [
+      { name: 'priority', label: 'Priority', type: 'string', defaultValue: '', allowedValues: ['H','M','L'], urgencyCoefficient: 6.0 }
+    ]},
+    project_management: { label: 'Project Management', description: 'Milestones, stages, scope, effort', definitions: [
+      { name: 'milestones', label: 'Milestones', type: 'string', defaultValue: '', allowedValues: [], urgencyCoefficient: 0 },
+      { name: 'stages', label: 'Stages', type: 'string', defaultValue: '', allowedValues: [], urgencyCoefficient: 0 },
+      { name: 'progress', label: 'Progress', type: 'string', defaultValue: '', allowedValues: [], urgencyCoefficient: 0 },
+      { name: 'manhours', label: 'Man-Hours', type: 'numeric', defaultValue: '', allowedValues: [], urgencyCoefficient: 0 },
+    ]},
+    development: { label: 'Development', description: 'Stack, testing, deployment, bugs', definitions: [
+      { name: 'stack', label: 'Stack', type: 'string', defaultValue: '', allowedValues: [], urgencyCoefficient: 0 },
+      { name: 'testing', label: 'Testing', type: 'string', defaultValue: '', allowedValues: [], urgencyCoefficient: 0 },
+      { name: 'deployment', label: 'Deployment', type: 'string', defaultValue: '', allowedValues: [], urgencyCoefficient: 0 },
+      { name: 'bugs', label: 'Bugs', type: 'string', defaultValue: '', allowedValues: [], urgencyCoefficient: 1.5 },
+    ]},
+    github: { label: 'GitHub Integration', description: 'Issue/PR sync metadata', definitions: [
+      { name: 'githubissue', label: 'GitHub Issue', type: 'numeric', defaultValue: '', allowedValues: [], urgencyCoefficient: 0 },
+      { name: 'githubrepo', label: 'GitHub Repo', type: 'string', defaultValue: '', allowedValues: [], urgencyCoefficient: 0 },
+      { name: 'githubstate', label: 'GitHub State', type: 'string', defaultValue: '', allowedValues: ['open','closed'], urgencyCoefficient: 0 },
+      { name: 'githuburl', label: 'GitHub URL', type: 'string', defaultValue: '', allowedValues: [], urgencyCoefficient: 0 },
+    ]},
+    financial: { label: 'Financial', description: 'Cost, invoice, quantity', definitions: [
+      { name: 'dollars', label: 'Dollars', type: 'numeric', defaultValue: '', allowedValues: [], urgencyCoefficient: 0 },
+      { name: 'invoice', label: 'Invoice', type: 'numeric', defaultValue: '', allowedValues: [], urgencyCoefficient: 0 },
+      { name: 'costtodevelop', label: 'Cost to Develop', type: 'string', defaultValue: '', allowedValues: [], urgencyCoefficient: 0 },
+    ]},
+    time_tracking: { label: 'Time Tracking', description: 'Tracked time, estimates, sessions', definitions: [
+      { name: 'timetracked', label: 'Time Tracked', type: 'string', defaultValue: '', allowedValues: [], urgencyCoefficient: 0 },
+      { name: 'estimate', label: 'Estimate', type: 'duration', defaultValue: '', allowedValues: [], urgencyCoefficient: 0 },
+    ]},
+    documentation: { label: 'Documentation', description: 'Doc impact, changelog, patch notes', definitions: [
+      { name: 'docimpact', label: 'Doc Impact', type: 'string', defaultValue: 'none', allowedValues: ['none','minor','major'], urgencyCoefficient: 0 },
+      { name: 'changelognote', label: 'Changelog Note', type: 'string', defaultValue: '', allowedValues: [], urgencyCoefficient: 0 },
+      { name: 'patchnotes', label: 'Patch Notes', type: 'string', defaultValue: '', allowedValues: [], urgencyCoefficient: 0 },
+    ]},
+  };
+
+  async function loadAttributes() {
     try {
       const res = await fetch('/data/udas');
       const d = await res.json();
-      if (!d.ok || !d.udas.length) {
-        body.innerHTML = '<div class="empty-state">No UDAs defined in active profile</div>';
-        return;
-      }
-      const renderUdaTable = (filter) => {
-        const rows = d.udas.filter(u =>
-          !filter || u.name.includes(filter) || u.label.toLowerCase().includes(filter)
-        );
-        if (!rows.length) { body.innerHTML = '<div class="empty-state">No matching UDAs</div>'; return; }
-        body.innerHTML = `<table class="uda-table">
-          <thead><tr><th>name</th><th>label</th><th>type</th></tr></thead>
-          <tbody>${rows.map(u =>
-            `<tr><td class="uda-name">${esc(u.name)}</td><td>${esc(u.label)}</td><td class="uda-type">${esc(u.type)}</td></tr>`
-          ).join('')}</tbody>
-        </table>
-        <div style="color:var(--muted);font-size:10px;margin-top:6px">${rows.length} of ${d.udas.length} UDAs</div>`;
-      };
-      renderUdaTable('');
-      const searchEl = document.getElementById('uda-search');
-      if (searchEl && !searchEl.dataset.wired) {
-        searchEl.dataset.wired = '1';
-        searchEl.addEventListener('input', () => renderUdaTable(searchEl.value.toLowerCase().trim()));
-      }
-    } catch (e) { renderError(body, `UDAs: ${e.message}`, loadUda); }
+      _attsData = d.ok ? d.udas : [];
+    } catch (_) { _attsData = []; }
+    renderAttrList('');
+  }
+
+  function renderAttrList(filter) {
+    const listEl = document.getElementById('attr-list');
+    if (!listEl) return;
+    const rows = filter
+      ? _attsData.filter(u => u.name.includes(filter) || u.label.toLowerCase().includes(filter))
+      : _attsData;
+    if (!rows.length) {
+      listEl.innerHTML = '<div class="empty-state">No attributes defined. Click "+ Add" or apply a template pack.</div>';
+      return;
+    }
+    listEl.innerHTML = rows.map(u => `
+      <div class="attr-card" data-name="${esc(u.name)}">
+        <div class="attr-card-main">
+          <span class="attr-card-name">${esc(u.name)}</span>
+          <span class="attr-card-label">${esc(u.label)}</span>
+          <span class="attr-card-type">${esc(u.type)}</span>
+        </div>
+        <div class="attr-card-actions">
+          <button class="act-btn attr-edit-btn" data-name="${esc(u.name)}">edit</button>
+          <button class="act-btn attr-delete-btn" data-name="${esc(u.name)}" style="color:var(--error)">delete</button>
+        </div>
+      </div>`).join('') +
+      `<div style="color:var(--muted);font-size:10px;margin-top:8px">${rows.length} attribute${rows.length === 1 ? '' : 's'}</div>`;
+  }
+
+  function renderAttrTemplates() {
+    const listEl = document.getElementById('attr-templates-list');
+    if (!listEl) return;
+    listEl.innerHTML = Object.entries(ATTR_TEMPLATE_PACKS).map(([key, pack]) => `
+      <div class="attr-template-card">
+        <div class="attr-template-header">
+          <span class="attr-template-label">${esc(pack.label)}</span>
+          <span class="attr-template-count">${pack.definitions.length} attr${pack.definitions.length === 1 ? '' : 's'}</span>
+          <button class="btn-inline-submit attr-template-apply-btn" data-pack="${esc(key)}">apply</button>
+        </div>
+        <div class="attr-template-desc">${esc(pack.description)}</div>
+        <div class="attr-template-names">${pack.definitions.map(d => `<span class="uda-chip"><span class="uda-key">${esc(d.name)}</span></span>`).join('')}</div>
+      </div>`).join('');
   }
 
   async function loadNetwork() {
@@ -8463,15 +8556,174 @@ CMD: "add task review and start tracking"
       } catch (e) { out.textContent = 'error: ' + e.message; }
       await loadStream();
     }
-    document.getElementById('btn-stream-status')?.addEventListener('click', async () => {
-      await loadStream();
-      streamOut().className = 'cmd-unified-output hidden';
-    });
     document.getElementById('btn-stream-ingest')?.addEventListener('click', () => streamCmd('ingest --source all', 'ingest all'));
-    document.getElementById('btn-stream-sessions')?.addEventListener('click', () => streamCmd('sessions', 'sessions'));
-    document.getElementById('btn-stream-view')?.addEventListener('click', () => {
-      const lens = document.getElementById('stream-lens-select')?.value || 'burroughs';
-      streamCmd(`view --lens ${lens}`, `view --lens ${lens}`);
+    document.getElementById('btn-stream-sessions')?.addEventListener('click', async () => {
+      const gap = document.getElementById('cfg-gap-threshold')?.value || '300';
+      streamCmd(`sessions --gap ${gap}`, 'sessions');
+    });
+    document.getElementById('btn-stream-ascii')?.addEventListener('click', () => {
+      _streamAscii = !_streamAscii;
+      document.getElementById('btn-stream-ascii')?.classList.toggle('active', _streamAscii);
+      loadStreamLens();
+    });
+    document.getElementById('btn-stream-export')?.addEventListener('click', async () => {
+      const out = streamOut();
+      out.className = 'cmd-unified-output'; out.textContent = 'exporting…';
+      try {
+        const res = await fetch('/data/stream?limit=100000');
+        const d = await res.json();
+        const lines = (d.events || []).map(ev => `${ev.ts} ${ev.op} ${ev.action} ${ev.obj} ${JSON.stringify(ev.ctx)}`).join('\n');
+        const blob = new Blob([lines], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = `stream-${new Date().toISOString().slice(0,10)}.log`; a.click(); URL.revokeObjectURL(url);
+        out.textContent = `exported ${(d.events||[]).length} events`;
+      } catch (e) { out.textContent = 'error: ' + e.message; }
+    });
+    document.getElementById('btn-stream-filter')?.addEventListener('click', () => {
+      document.getElementById('stream-filter-panel')?.classList.toggle('hidden');
+    });
+    document.getElementById('btn-stream-config')?.addEventListener('click', () => {
+      document.getElementById('stream-config-panel')?.classList.toggle('hidden');
+    });
+    document.getElementById('btn-stream-filter-apply')?.addEventListener('click', () => {
+      _streamFilter = {
+        op: document.getElementById('stream-filter-service')?.value || '',
+        proj: document.getElementById('stream-filter-project')?.value?.trim() || '',
+      };
+      loadStreamLens();
+    });
+    document.getElementById('btn-stream-filter-clear')?.addEventListener('click', () => {
+      _streamFilter = {};
+      const svc = document.getElementById('stream-filter-service'); if (svc) svc.value = '';
+      const prj = document.getElementById('stream-filter-project'); if (prj) prj.value = '';
+      loadStreamLens();
+    });
+    document.getElementById('stream-lens-select')?.addEventListener('change', loadStreamLens);
+    document.getElementById('stream-time-range')?.addEventListener('change', () => {
+      const val = document.getElementById('stream-time-range')?.value;
+      document.getElementById('stream-custom-range')?.classList.toggle('hidden', val !== 'custom');
+      if (val !== 'custom') loadStreamLens();
+    });
+    document.getElementById('btn-stream-custom-apply')?.addEventListener('click', () => {
+      const from = document.getElementById('stream-date-from')?.value;
+      const to = document.getElementById('stream-date-to')?.value;
+      _streamCustomFrom = from ? Math.floor(new Date(from).getTime() / 1000) : null;
+      _streamCustomTo = to ? Math.floor(new Date(to + 'T23:59:59').getTime() / 1000) : null;
+      loadStreamLens();
+    });
+    document.getElementById('btn-stream-verify')?.addEventListener('click', async () => {
+      const resEl = document.getElementById('stream-verify-result');
+      if (resEl) resEl.textContent = 'checking…';
+      try {
+        const res = await fetch('/data/stream?limit=100000');
+        const d = await res.json();
+        const bad = (d.events || []).filter((ev, i, arr) => i > 0 && ev.ts < arr[i-1].ts).length;
+        if (resEl) resEl.textContent = bad === 0 ? `✓ ${d.total} events, no ordering issues` : `⚠ ${bad} out-of-order events`;
+      } catch (e) { if (resEl) resEl.textContent = 'error: ' + e.message; }
+    });
+    document.getElementById('btn-stream-backup')?.addEventListener('click', () => document.getElementById('btn-stream-export')?.click());
+
+    // Attributes (Atts) buttons
+    function clearAttrForm() {
+      ['attr-name','attr-label','attr-default','attr-allowed'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+      const ty = document.getElementById('attr-type'); if (ty) ty.value = 'string';
+      const urg = document.getElementById('attr-urgency'); if (urg) urg.value = '0';
+      _attrEditName = null;
+    }
+    document.getElementById('attr-tabs')?.addEventListener('click', () => {});
+    document.querySelectorAll('.attr-tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.attr-tab').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const view = btn.dataset.attrView;
+        document.querySelectorAll('.attr-view').forEach(v => v.classList.add('hidden'));
+        document.getElementById(`attr-view-${view}`)?.classList.remove('hidden');
+        if (view === 'templates') renderAttrTemplates();
+        else renderAttrList(document.getElementById('attr-search')?.value?.toLowerCase()?.trim() || '');
+      });
+    });
+    document.getElementById('attr-search')?.addEventListener('input', (e) => {
+      renderAttrList(e.target.value.toLowerCase().trim());
+    });
+    document.getElementById('btn-add-attr')?.addEventListener('click', () => {
+      _attrEditName = null;
+      clearAttrForm();
+      document.getElementById('attr-add-form')?.classList.toggle('hidden');
+    });
+    document.getElementById('btn-attr-cancel')?.addEventListener('click', () => {
+      _attrEditName = null;
+      document.getElementById('attr-add-form')?.classList.add('hidden');
+      clearAttrForm();
+    });
+    document.getElementById('btn-attr-save')?.addEventListener('click', async () => {
+      const name = document.getElementById('attr-name')?.value.trim();
+      const label = document.getElementById('attr-label')?.value.trim() || name;
+      const type = document.getElementById('attr-type')?.value || 'string';
+      const defaultValue = document.getElementById('attr-default')?.value.trim();
+      const allowedRaw = document.getElementById('attr-allowed')?.value.trim();
+      const urgencyCoefficient = parseFloat(document.getElementById('attr-urgency')?.value) || 0;
+      if (!name) { toast('Name is required'); return; }
+      const allowedValues = allowedRaw ? allowedRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+      const action = _attrEditName ? 'update' : 'add';
+      const payload = { action, name: _attrEditName || name, label, type, defaultValue, allowedValues, urgencyCoefficient };
+      try {
+        const res = await fetch('/data/udas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const d = await res.json();
+        if (d.ok) {
+          toast(`attribute "${name}" ${action === 'add' ? 'added' : 'updated'}`);
+          document.getElementById('attr-add-form')?.classList.add('hidden');
+          clearAttrForm();
+          await loadAttributes();
+        } else { toast(d.error || 'error saving attribute'); }
+      } catch (e) { toast('error: ' + e.message); }
+    });
+    document.getElementById('btn-export-attr-csv')?.addEventListener('click', () => {
+      const lines = ['name,label,type'].concat(_attsData.map(u => `${u.name},${u.label},${u.type}`));
+      const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob); const a = document.createElement('a');
+      a.href = url; a.download = 'attributes.csv'; a.click(); URL.revokeObjectURL(url);
+    });
+    document.getElementById('attr-list')?.addEventListener('click', async (e) => {
+      const editBtn = e.target.closest('.attr-edit-btn');
+      const delBtn = e.target.closest('.attr-delete-btn');
+      if (editBtn) {
+        const name = editBtn.dataset.name;
+        const u = _attsData.find(x => x.name === name);
+        if (!u) return;
+        _attrEditName = name;
+        const form = document.getElementById('attr-add-form');
+        if (form) form.classList.remove('hidden');
+        const ne = document.getElementById('attr-name'); if (ne) { ne.value = u.name; ne.setAttribute('readonly', ''); }
+        const le = document.getElementById('attr-label'); if (le) le.value = u.label;
+        const te = document.getElementById('attr-type'); if (te) te.value = u.type;
+      }
+      if (delBtn) {
+        const name = delBtn.dataset.name;
+        if (!confirm(`Delete attribute "${name}"? This only removes the definition from .taskrc.`)) return;
+        try {
+          const res = await fetch('/data/udas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete', name }) });
+          const d = await res.json();
+          if (d.ok) { toast(`attribute "${name}" removed`); await loadAttributes(); }
+          else toast(d.error || 'error');
+        } catch (e) { toast('error: ' + e.message); }
+      }
+    });
+    document.getElementById('attr-templates-list')?.addEventListener('click', async (e) => {
+      const btn = e.target.closest('.attr-template-apply-btn');
+      if (!btn) return;
+      const packKey = btn.dataset.pack;
+      const pack = ATTR_TEMPLATE_PACKS[packKey];
+      if (!pack) return;
+      let applied = 0;
+      for (const def of pack.definitions) {
+        try {
+          const res = await fetch('/data/udas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'add', ...def }) });
+          const d = await res.json();
+          if (d.ok) applied++;
+        } catch (_) {}
+      }
+      toast(`applied "${pack.label}": ${applied} attribute${applied === 1 ? '' : 's'} added`);
+      await loadAttributes();
     });
 
     // BookBuilder / Saves buttons

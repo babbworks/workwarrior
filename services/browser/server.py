@@ -1047,7 +1047,9 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                 self._send_json(404, {"error": "not found"})
 
         def do_POST(self) -> None:  # noqa: N802
-            if self.path == "/cmd":
+            if self.path == "/data/udas":
+                self._handle_udas_post()
+            elif self.path == "/cmd":
                 self._handle_cmd()
             elif self.path == "/profile":
                 self._handle_profile()
@@ -2316,6 +2318,75 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
             except Exception:
                 pass
             self._send_json(200, {"ok": True, "udas": udas})
+
+        # -- POST /data/udas (add / update / delete) -------------------------
+
+        def _handle_udas_post(self) -> None:
+            """CRUD operations on UDA definitions in the active profile's .taskrc."""
+            import re as _re
+            length = int(self.headers.get("Content-Length", 0))
+            body = json.loads(self.rfile.read(length)) if length else {}
+            action = body.get("action", "")  # add | update | delete
+            paths = state.get_profile_paths()
+            if not paths:
+                self._send_json(400, {"ok": False, "error": "no active profile"})
+                return
+            taskrc = paths["taskrc"]
+            if not os.path.isfile(taskrc):
+                self._send_json(400, {"ok": False, "error": "taskrc not found"})
+                return
+
+            name = (body.get("name") or "").strip().lower()
+            if not name:
+                self._send_json(400, {"ok": False, "error": "name required"})
+                return
+
+            try:
+                with open(taskrc, "r") as fh:
+                    lines = fh.readlines()
+
+                if action == "delete":
+                    prefix = f"uda.{name}."
+                    urgency_prefix = f"urgency.uda.{name}."
+                    lines = [l for l in lines if not l.startswith(prefix) and not l.startswith(urgency_prefix)]
+                    with open(taskrc, "w") as fh:
+                        fh.writelines(lines)
+                    self._send_json(200, {"ok": True})
+                    return
+
+                if action in ("add", "update"):
+                    label = (body.get("label") or name).strip()
+                    utype = body.get("type", "string")
+                    default = (body.get("defaultValue") or "").strip()
+                    allowed = body.get("allowedValues", [])
+                    urgency = body.get("urgencyCoefficient", 0)
+
+                    # Remove existing lines for this UDA
+                    prefix = f"uda.{name}."
+                    urgency_prefix = f"urgency.uda.{name}."
+                    lines = [l for l in lines if not l.startswith(prefix) and not l.startswith(urgency_prefix)]
+
+                    # Append new definitions
+                    new_lines = [
+                        f"uda.{name}.type={utype}\n",
+                        f"uda.{name}.label={label}\n",
+                    ]
+                    if default:
+                        new_lines.append(f"uda.{name}.default={default}\n")
+                    if allowed:
+                        new_lines.append(f"uda.{name}.values={','.join(str(v) for v in allowed)}\n")
+                    if urgency and float(urgency) != 0:
+                        new_lines.append(f"urgency.uda.{name}.coefficient={urgency}\n")
+
+                    lines.extend(new_lines)
+                    with open(taskrc, "w") as fh:
+                        fh.writelines(lines)
+                    self._send_json(200, {"ok": True})
+                    return
+
+                self._send_json(400, {"ok": False, "error": f"unknown action: {action}"})
+            except Exception as e:
+                self._send_json(500, {"ok": False, "error": str(e)})
 
         # -- GET /data/stream ------------------------------------------------
 
