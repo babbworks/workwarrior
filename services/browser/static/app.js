@@ -1333,7 +1333,8 @@ CMD: "add task review and start tracking"
       sync:'Sync', groups:'Groups', models:'Models', network:'Network',
       export:'Export', questions:'Questions', saves:'Saves',
       profile:'Profile', warrior:'Warrior', projects:'Projects', sword:'Sword',
-      community:'Communities', warlock:'Warlock', tags:'Tags'
+      community:'Communities', warlock:'Warlock', tags:'Tags',
+      stream:'Stream', uda:'UDAs'
     };
     sectionTitle.textContent = titleMap[name] || name;
     // Twain journal mode needs content-area overflow change when journal is visible
@@ -1387,6 +1388,7 @@ CMD: "add task review and start tracking"
     'export': 'export',    'questions': 'questions', 'saves': 'saves',
     'projects': 'projects','cmd': 'cmd',            'ctrl': 'ctrl',
     'warrior': 'warrior',  'community': 'community', 'warlock': 'warlock',
+    'stream': 'stream',    'uda': 'uda',             'udas': 'uda',
   };
 
   let gPrefixPending = false;
@@ -2199,6 +2201,8 @@ CMD: "add task review and start tracking"
     else if (name === 'warrior') { updateContextBar('warrior', null); await loadWarrior(); }
     else if (name === 'warlock') { updateContextBar('warlock', null); await loadWarlock(); }
     else if (name === 'tags') { updateContextBar('tags', null); await loadTags(); }
+    else if (name === 'stream') { updateContextBar('stream', null); await loadStream(); }
+    else if (name === 'uda') { updateContextBar('uda', null); await loadUda(); }
     else updateContextBar(name, null);
     await refreshResourceSelectors(name);
   }
@@ -5804,6 +5808,69 @@ CMD: "add task review and start tracking"
     } catch (e) { renderError(body, `Warlock: ${e.message}`, loadWarlock); }
   }
 
+  async function loadStream() {
+    const body = document.getElementById('stream-body');
+    body.innerHTML = '<div class="skeleton-msg">Loading stream…</div>';
+    try {
+      const res = await fetch('/data/stream');
+      const d = await res.json();
+      if (!d.ok) { renderError(body, d.error || 'stream error', loadStream); return; }
+      const logStatus = d.log_exists
+        ? `<span class="sync-badge sync-badge-enabled">active</span>`
+        : `<span class="sync-badge sync-badge-disabled">no log</span>`;
+      body.innerHTML = `
+        <div class="sync-dashboard">
+          <div class="sync-row"><span class="sync-label">status</span>${logStatus}</div>
+          <div class="sync-row"><span class="sync-label">events</span><span class="sync-val">${d.total.toLocaleString()}</span></div>
+          <div class="sync-row"><span class="sync-label">first event</span><span class="sync-val">${d.first_ts || '—'}</span></div>
+          <div class="sync-row"><span class="sync-label">last event</span><span class="sync-val">${d.last_ts || '—'}</span></div>
+          <div class="sync-row"><span class="sync-label">log path</span><span class="sync-val" style="font-size:10px;word-break:break-all">${esc(d.log_path)}</span></div>
+        </div>
+        ${d.events.length ? `<div style="margin-top:12px">
+          <table class="stream-event-table">
+            <thead><tr><th>time</th><th>op</th><th>action</th><th>object</th><th>src</th><th>proj</th></tr></thead>
+            <tbody>${d.events.slice().reverse().map(ev => {
+              const dt = new Date(ev.ts * 1000).toISOString().slice(0,16).replace('T',' ');
+              const opCls = {'T':'op-t','F':'op-f','B':'op-b','A':'op-a','S':'op-s'}[ev.op] || '';
+              return `<tr><td class="stream-ts">${dt}</td><td class="stream-op ${opCls}">${esc(ev.op)}</td><td>${esc(ev.action)}</td><td class="stream-obj" title="${esc(ev.obj)}">${esc(ev.obj.length > 12 ? ev.obj.slice(0,12)+'…' : ev.obj)}</td><td>${esc(ev.ctx.src||'')}</td><td>${esc(ev.ctx.proj||'')}</td></tr>`;
+            }).join('')}</tbody>
+          </table>
+        </div>` : '<div class="empty-state">No events in stream log</div>'}`;
+    } catch (e) { renderError(body, `Stream: ${e.message}`, loadStream); }
+  }
+
+  async function loadUda() {
+    const body = document.getElementById('uda-body');
+    body.innerHTML = '<div class="skeleton-msg">Loading UDAs…</div>';
+    try {
+      const res = await fetch('/data/udas');
+      const d = await res.json();
+      if (!d.ok || !d.udas.length) {
+        body.innerHTML = '<div class="empty-state">No UDAs defined in active profile</div>';
+        return;
+      }
+      const renderUdaTable = (filter) => {
+        const rows = d.udas.filter(u =>
+          !filter || u.name.includes(filter) || u.label.toLowerCase().includes(filter)
+        );
+        if (!rows.length) { body.innerHTML = '<div class="empty-state">No matching UDAs</div>'; return; }
+        body.innerHTML = `<table class="uda-table">
+          <thead><tr><th>name</th><th>label</th><th>type</th></tr></thead>
+          <tbody>${rows.map(u =>
+            `<tr><td class="uda-name">${esc(u.name)}</td><td>${esc(u.label)}</td><td class="uda-type">${esc(u.type)}</td></tr>`
+          ).join('')}</tbody>
+        </table>
+        <div style="color:var(--muted);font-size:10px;margin-top:6px">${rows.length} of ${d.udas.length} UDAs</div>`;
+      };
+      renderUdaTable('');
+      const searchEl = document.getElementById('uda-search');
+      if (searchEl && !searchEl.dataset.wired) {
+        searchEl.dataset.wired = '1';
+        searchEl.addEventListener('input', () => renderUdaTable(searchEl.value.toLowerCase().trim()));
+      }
+    } catch (e) { renderError(body, `UDAs: ${e.message}`, loadUda); }
+  }
+
   async function loadNetwork() {
     const body = document.getElementById('network-body');
     body.innerHTML = '<div class="skeleton-msg">Checking connectivity…</div>';
@@ -8382,6 +8449,29 @@ CMD: "add task review and start tracking"
       out.className = 'cmd-unified-output';
       await loadWarlock();
       out.textContent = '';
+    });
+
+    // Stream buttons
+    const streamOut = () => document.getElementById('stream-output');
+    async function streamCmd(cmd, label) {
+      const out = streamOut();
+      out.className = 'cmd-unified-output'; out.textContent = `running: ww stream ${label || cmd}…`;
+      try {
+        const res = await fetch('/cmd', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cmd: `stream ${cmd}` }) });
+        const d = await res.json();
+        out.textContent = d.output || d.error || 'done';
+      } catch (e) { out.textContent = 'error: ' + e.message; }
+      await loadStream();
+    }
+    document.getElementById('btn-stream-status')?.addEventListener('click', async () => {
+      await loadStream();
+      streamOut().className = 'cmd-unified-output hidden';
+    });
+    document.getElementById('btn-stream-ingest')?.addEventListener('click', () => streamCmd('ingest --source all', 'ingest all'));
+    document.getElementById('btn-stream-sessions')?.addEventListener('click', () => streamCmd('sessions', 'sessions'));
+    document.getElementById('btn-stream-view')?.addEventListener('click', () => {
+      const lens = document.getElementById('stream-lens-select')?.value || 'burroughs';
+      streamCmd(`view --lens ${lens}`, `view --lens ${lens}`);
     });
 
     // BookBuilder / Saves buttons

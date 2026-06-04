@@ -1025,6 +1025,8 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                 self._handle_data_task_meta()
             elif self.path == "/data/udas":
                 self._handle_data_udas()
+            elif self.path == "/data/stream" or self.path.startswith("/data/stream?"):
+                self._handle_data_stream()
             elif self.path == "/data/sync":
                 self._handle_data_sync()
             elif self.path == "/data/models":
@@ -2314,6 +2316,63 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
             except Exception:
                 pass
             self._send_json(200, {"ok": True, "udas": udas})
+
+        # -- GET /data/stream ------------------------------------------------
+
+        def _handle_data_stream(self) -> None:
+            """Return stream log stats and recent events."""
+            from urllib.parse import urlparse, parse_qs
+            qs = parse_qs(urlparse(self.path).query)
+            lens = qs.get("lens", ["burroughs"])[0]
+            limit = int(qs.get("limit", ["100"])[0])
+
+            stream_log = os.path.join(state.ww_base, "stream", "stream.log")
+            events = []
+            total = 0
+            last_ts = None
+            first_ts = None
+
+            if os.path.isfile(stream_log):
+                import re as _re
+                lines = []
+                try:
+                    with open(stream_log, "r") as fh:
+                        lines = fh.readlines()
+                except Exception:
+                    pass
+                total = len(lines)
+                for raw in lines:
+                    parts = raw.strip().split(" ", 4)
+                    if len(parts) < 4:
+                        continue
+                    ts_str, op, action, obj = parts[0], parts[1], parts[2], parts[3]
+                    ctx_raw = parts[4] if len(parts) > 4 else "{}"
+                    try:
+                        ts = int(ts_str)
+                        ctx = json.loads(ctx_raw)
+                    except Exception:
+                        continue
+                    if first_ts is None:
+                        first_ts = ts
+                    last_ts = ts
+                    events.append({"ts": ts, "op": op, "action": action, "obj": obj, "ctx": ctx})
+                events = events[-limit:]
+
+            def fmt_ts(ts):
+                if ts is None:
+                    return None
+                import datetime
+                return datetime.datetime.utcfromtimestamp(ts).strftime("%Y-%m-%d %H:%M UTC")
+
+            self._send_json(200, {
+                "ok": True,
+                "total": total,
+                "first_ts": fmt_ts(first_ts),
+                "last_ts": fmt_ts(last_ts),
+                "log_path": stream_log,
+                "log_exists": os.path.isfile(stream_log),
+                "events": events,
+            })
 
         # -- GET /data/sync --------------------------------------------------
 

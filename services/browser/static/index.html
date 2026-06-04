@@ -52,6 +52,8 @@
         <button class="nav-item" data-section="questions"><span class="nav-icon">？</span><span class="nav-label">Questions</span></button>
         <button class="nav-item" data-section="saves"><span class="nav-icon">📖</span><span class="nav-label">Saves</span></button>
         <button class="nav-item" data-section="projects"><span class="nav-icon">◆</span><span class="nav-label">Projects</span></button>
+        <button class="nav-item" data-section="stream"><span class="nav-icon">∿</span><span class="nav-label">Stream</span></button>
+        <button class="nav-item" data-section="uda"><span class="nav-icon">⊛</span><span class="nav-label">UDAs</span></button>
       </nav>
       <div class="sidebar-footer" id="sidebar-footer">
         <div class="warrior-stats" id="warrior-stats">
@@ -431,6 +433,40 @@
             </div>
             <div class="cmd-unified-output hidden" id="warlock-output"></div>
             <div class="warlock-credit">task-warlock by <a href="https://github.com/jonestristand/task-warlock" target="_blank" rel="noopener">jonestristand</a> (MIT)</div>
+          </div>
+        </section>
+        <!-- Stream -->
+        <section class="section hidden" id="section-stream">
+          <div class="service-panel" id="stream-panel">
+            <div class="service-panel-header">Stream · Hollerith event log</div>
+            <div class="service-panel-body" id="stream-body"><div class="skeleton-msg">Loading…</div></div>
+            <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+              <button class="btn-inline-submit" id="btn-stream-status">status</button>
+              <button class="btn-inline-alt" id="btn-stream-ingest">ingest all</button>
+              <button class="btn-inline-alt" id="btn-stream-sessions">sessions</button>
+              <select id="stream-lens-select" style="font-size:11px;background:var(--bg2,#1a1a1a);color:var(--muted,#888);border:1px solid var(--border,#2a2a2a);border-radius:3px;padding:2px 5px">
+                <option value="burroughs">burroughs (raw)</option>
+                <option value="bundy">bundy (intervals)</option>
+                <option value="hollerith">hollerith (matrix)</option>
+                <option value="pacioli">pacioli (balance)</option>
+                <option value="frick">frick (state)</option>
+                <option value="felt">felt (density)</option>
+                <option value="dey">dey (signal)</option>
+                <option value="cooper">cooper (polar)</option>
+              </select>
+              <button class="btn-inline-alt" id="btn-stream-view">view lens</button>
+            </div>
+            <div class="cmd-unified-output hidden" id="stream-output"></div>
+          </div>
+        </section>
+        <!-- UDAs -->
+        <section class="section hidden" id="section-uda">
+          <div class="service-panel" id="uda-panel">
+            <div class="service-panel-header">UDAs · User Defined Attributes</div>
+            <div style="margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+              <input type="text" id="uda-search" placeholder="filter…" autocomplete="off" style="font-size:11px;background:var(--bg2,#1a1a1a);color:var(--fg,#d0d0d0);border:1px solid var(--border,#2a2a2a);border-radius:3px;padding:3px 7px;width:160px" />
+            </div>
+            <div class="service-panel-body" id="uda-body"><div class="skeleton-msg">Loading…</div></div>
           </div>
         </section>
         <!-- Community -->

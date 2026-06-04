@@ -3013,3 +3013,23 @@ body.river-mode .header-theme-select {
 #btn-sidebar-fullscreen { background: none; border: none; color: var(--muted); font-size: 14px; cursor: pointer; padding: 2px 6px; font-family: inherit; transition: color 0.15s; }
 #btn-sidebar-fullscreen:hover { color: var(--text); }
 #btn-sidebar-fullscreen.active { color: var(--accent); }
+
+/* ── Stream section ───────────────────────────────────────────────────────── */
+.stream-event-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.stream-event-table th { text-align: left; color: var(--muted); padding: 3px 8px 3px 0; border-bottom: 1px solid var(--border); font-size: 10px; text-transform: uppercase; letter-spacing: .05em; }
+.stream-event-table td { padding: 3px 8px 3px 0; border-bottom: 1px solid #161b22; vertical-align: middle; }
+.stream-ts { color: var(--muted); font-size: 10px; white-space: nowrap; }
+.stream-op { font-weight: bold; font-size: 12px; min-width: 20px; }
+.stream-obj { font-size: 10px; color: var(--muted); font-family: monospace; }
+.op-t { color: #58a6ff; }
+.op-f { color: #7ec8a0; }
+.op-b { color: #d2993a; }
+.op-a { color: #bc8cff; }
+.op-s { color: #888; }
+
+/* ── UDA section ──────────────────────────────────────────────────────────── */
+.uda-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.uda-table th { text-align: left; color: var(--muted); padding: 3px 8px 3px 0; border-bottom: 1px solid var(--border); font-size: 10px; text-transform: uppercase; letter-spacing: .05em; }
+.uda-table td { padding: 4px 8px 4px 0; border-bottom: 1px solid #161b22; vertical-align: middle; }
+.uda-name { font-family: monospace; color: #58a6ff; font-size: 11px; }
+.uda-type { color: var(--muted); font-size: 10px; }
