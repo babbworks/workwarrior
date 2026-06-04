@@ -3074,3 +3074,9 @@ body.river-mode .header-theme-select {
 .attr-template-count { font-size: 10px; color: var(--muted); }
 .attr-template-desc { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
 .attr-template-names { display: flex; flex-wrap: wrap; gap: 4px; }
+
+/* ── Stream topbar (header stats area) ───────────────────────────────────── */
+.stream-topbar { display: flex; align-items: center; gap: 5px; }
+.stream-topbar-btn { background: none; border: 1px solid var(--border); color: var(--muted); font-size: 13px; border-radius: 3px; padding: 1px 6px; cursor: pointer; font-family: inherit; transition: color .15s, border-color .15s; line-height: 1.4; }
+.stream-topbar-btn:hover { color: var(--text); border-color: var(--accent); }
+.stream-topbar-status { font-size: 10px; color: var(--muted); white-space: nowrap; }

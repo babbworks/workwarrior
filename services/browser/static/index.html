@@ -38,6 +38,7 @@
         <button class="nav-item" data-section="ledger"><span class="nav-icon icon-ledger">═</span><span class="nav-label">Ledgers</span></button>
         <button class="nav-item" data-section="lists"><span class="nav-icon icon-lists">•</span><span class="nav-label">Lists</span></button>
         <button class="nav-item" data-section="tags"><span class="nav-icon">⌗</span><span class="nav-label">Tags</span></button>
+        <button class="nav-item" data-section="attributes"><span class="nav-icon">⊕</span><span class="nav-label">Atts</span></button>
         <div class="nav-divider"></div>
         <button class="community-footer-btn" data-section="community"><span class="community-footer-icon">◎</span><span class="community-footer-label">Communities</span></button>
         <div class="nav-group-label">services</div>
@@ -52,7 +53,6 @@
         <button class="nav-item" data-section="questions"><span class="nav-icon">？</span><span class="nav-label">Questions</span></button>
         <button class="nav-item" data-section="saves"><span class="nav-icon">📖</span><span class="nav-label">Saves</span></button>
         <button class="nav-item" data-section="projects"><span class="nav-icon">◆</span><span class="nav-label">Projects</span></button>
-        <button class="nav-item" data-section="attributes"><span class="nav-icon">⊕</span><span class="nav-label">Atts</span></button>
         <button class="nav-item" data-section="stream" id="nav-stream"><span class="nav-icon">≋</span><span class="nav-label">Stream</span></button>
       </nav>
       <div class="sidebar-footer" id="sidebar-footer">
@@ -81,6 +81,11 @@
             <div id="header-resource-slot" class="header-resource-slot hidden"></div>
           </div>
           <div class="header-stats">
+            <div class="stream-topbar hidden" id="stream-topbar">
+              <button class="stream-topbar-btn" id="btn-stream-toggle-top" title="Stream on/off">≋</button>
+              <button class="stream-topbar-btn hidden" id="btn-stream-ingest-top" title="Ingest now">⟳</button>
+              <span class="stream-topbar-status" id="stream-topbar-status">off</span>
+            </div>
             <span id="stat-tasks-count" class="stat-item hidden"></span>
             <span id="stat-time-today" class="stat-item hidden"></span>
             <span id="stat-date" class="stat-item"></span>

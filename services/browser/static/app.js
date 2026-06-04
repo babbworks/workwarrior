@@ -1316,6 +1316,7 @@ CMD: "add task review and start tracking"
     if (typeof termMode !== 'undefined' && termMode === 'filter') setTermMode('execute');
     document.dispatchEvent(new CustomEvent('sectionChanged', { detail: { name } }));
     document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
+    if (name !== 'stream') showStreamTopbar(false);
     const el = document.getElementById('section-' + name);
     if (el) el.classList.remove('hidden');
     document.querySelectorAll('.nav-item').forEach(b => {
@@ -2201,7 +2202,7 @@ CMD: "add task review and start tracking"
     else if (name === 'warrior') { updateContextBar('warrior', null); await loadWarrior(); }
     else if (name === 'warlock') { updateContextBar('warlock', null); await loadWarlock(); }
     else if (name === 'tags') { updateContextBar('tags', null); await loadTags(); }
-    else if (name === 'stream') { updateContextBar('stream', null); await loadStream(); }
+    else if (name === 'stream') { updateContextBar('stream', null); showStreamTopbar(true); await loadStream(); }
     else if (name === 'attributes') { updateContextBar('attributes', null); await loadAttributes(); }
     else updateContextBar(name, null);
     await refreshResourceSelectors(name);
@@ -5825,6 +5826,7 @@ CMD: "add task review and start tracking"
       if (evEl) evEl.textContent = d.total.toLocaleString();
       if (szEl) szEl.textContent = d.log_exists ? 'active' : 'no log';
       if (sessEl) sessEl.textContent = d.last_ts || '—';
+      _updateStreamTopbarStatus(d);
     } catch (_) {}
     await loadStreamLens();
   }
@@ -8544,6 +8546,28 @@ CMD: "add task review and start tracking"
       out.textContent = '';
     });
 
+    // Stream topbar helper
+    function showStreamTopbar(visible) {
+      const bar = document.getElementById('stream-topbar');
+      if (!bar) return;
+      bar.classList.toggle('hidden', !visible);
+      const ingestBtn = document.getElementById('btn-stream-ingest-top');
+      if (ingestBtn) ingestBtn.classList.toggle('hidden', !visible);
+    }
+    document.getElementById('btn-stream-toggle-top')?.addEventListener('click', () => {
+      showSection('stream');
+    });
+    document.getElementById('btn-stream-ingest-top')?.addEventListener('click', async () => {
+      const st = document.getElementById('stream-topbar-status');
+      if (st) st.textContent = 'ingesting…';
+      try {
+        await fetch('/cmd', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cmd: 'stream ingest --source all' }) });
+        const res = await fetch('/data/stream'); const d = await res.json();
+        _updateStreamTopbarStatus(d.ok ? d : null);
+        if (activeSection === 'stream') await loadStream();
+      } catch (_) { if (st) st.textContent = 'error'; }
+    });
+
     // Stream buttons
     const streamOut = () => document.getElementById('stream-output');
     async function streamCmd(cmd, label) {
@@ -10200,6 +10224,14 @@ CMD: "add task review and start tracking"
 
     // Update on section changes
     document.addEventListener('sectionChanged', e => updateFocusBar(e.detail?.name));
+  }
+
+  function _updateStreamTopbarStatus(d) {
+    const st = document.getElementById('stream-topbar-status');
+    if (!st) return;
+    if (!d) { st.textContent = 'off'; st.style.color = ''; return; }
+    st.textContent = d.log_exists ? `${(d.total || 0).toLocaleString()} events` : 'no log';
+    st.style.color = d.log_exists ? 'var(--accent)' : 'var(--muted)';
   }
 
   // ── Init ───────────────────────────────────────────────────────────────────
