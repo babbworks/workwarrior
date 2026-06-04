@@ -39,7 +39,10 @@
       "Bash(find /Users/mp/ww -name *.yaml -path */questions/*)",
       "Bash(find /Users/mp/ww -name *.yaml -path */q/*)",
       "Bash(sqlite3 /Users/mp/ww/profiles/babb/.task/taskchampion.sqlite3 'SELECT COUNT\\(*\\) FROM tasks')",
-      "Bash(sqlite3 /Users/mp/ww/profiles/babb/.task/taskchampion.sqlite3 'SELECT data FROM tasks LIMIT 1')"
+      "Bash(sqlite3 /Users/mp/ww/profiles/babb/.task/taskchampion.sqlite3 'SELECT data FROM tasks LIMIT 1')",
+      "Bash(mkdir -p /Users/mp/ww-yupi/.claude/ww)",
+      "Bash(cat)",
+      "Read(//Users/mp/ww-yupi/.claude/ww/**)"
     ]
   }
 }

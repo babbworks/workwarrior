@@ -1,9 +1,0 @@
-# Context Is the Product
-
-Most productivity software treats context as a problem to be minimized. It tries to hold everything you've ever done in a single unified view, with tags and filters and smart sorting to help you find the signal. And it works — until it doesn't. Until the morning standup task and the anniversary dinner reminder appear on the same screen. Until the budget tracker for your freelance clients and the budget tracker for your household groceries start bleeding into each other. The software isn't broken. But the context is.
-
-Workwarrior starts from a different premise: context isn't a view. It's a reality. When you're at work, your tasks, your time, your notes, and your money are categorically different from when you're at home. They belong in separate places, governed by separate rules, measured by separate metrics. A profile in Workwarrior isn't a filter over shared data — it's a completely isolated workspace. Its own task database. Its own time log. Its own journal. Its own ledger. Activating a profile means all four tools are now living in that world and none other.
-
-The mechanism is deliberately simple: shell aliases and environment variables. Type `p-work` and your shell updates `TASKRC`, `TASKDATA`, `TIMEWARRIORDB`, and a handful of others. Every subsequent command — whether it goes through `ww` or directly to the underlying tool — lands in the work profile. There's no daemon to restart, no sync to wait for, no UI to navigate. The switch is instantaneous because it's nothing more than telling the shell where to look.
-
-What you get from this is something most productivity systems have never offered: the ability to be fully present in one context without the cognitive weight of every other context looming in the background. Workwarrior doesn't help you manage your attention. It just removes the things that were stealing it.

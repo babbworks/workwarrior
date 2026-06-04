@@ -1039,7 +1039,7 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                 self._handle_data_community_path()
             elif self.path == "/data/warlock/status":
                 self._handle_data_warlock_status()
-            elif self.path == "/export/snapshot":
+            elif self.path == "/export/snapshot" or self.path.startswith("/export/snapshot?"):
                 self._handle_export_snapshot()
             else:
                 self._send_json(404, {"error": "not found"})
@@ -3461,6 +3461,10 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
 
         def _handle_export_snapshot(self) -> None:
             """Generate a self-contained static HTML snapshot of the active profile."""
+            from urllib.parse import urlparse, parse_qs
+            qs = parse_qs(urlparse(self.path).query)
+            detail_mode = qs.get("detail", ["summary"])[0]  # "summary" | "full"
+
             paths = state.get_profile_paths()
             profile = state.get_active_profile() or "unknown"
             exported_at = time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime())
@@ -3508,19 +3512,44 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
             def esc(s):
                 return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
+            # UDAs to surface in full mode (skip internal/noise fields)
+            _SKIP_FIELDS = {"uuid","id","status","entry","modified","urgency","depends",
+                            "description","project","tags","priority","due","start","end",
+                            "scheduled","wait","recur","mask","imask","parent","annotation_count"}
             task_rows = ""
             for t in tasks:
                 pri = t.get("priority", "")
                 pri_cls = {"H": "pri-h", "M": "pri-m", "L": "pri-l"}.get(pri, "")
                 tags = ", ".join(t.get("tags", []))
                 due = (t.get("due", "") or "")[:10]
+                tid = esc(t.get("uuid","")[:8])
                 task_rows += (
-                    f'<tr><td>{esc(t.get("description",""))}</td>'
+                    f'<tr class="task-row" data-uuid="{tid}">'
+                    f'<td>{esc(t.get("description",""))}</td>'
                     f'<td>{esc(t.get("project",""))}</td>'
                     f'<td>{esc(tags)}</td>'
                     f'<td class="{pri_cls}">{esc(pri)}</td>'
                     f'<td>{esc(due)}</td></tr>\n'
                 )
+                # Detail row: annotations + non-empty UDAs
+                annotations = t.get("annotations", [])
+                udas = {k: v for k, v in t.items() if k not in _SKIP_FIELDS and v not in (None, "", [], {})}
+                if annotations or udas:
+                    ann_html = "".join(
+                        f'<div class="ann-row"><span class="ann-date">{esc((a.get("entry","")or "")[:16])}</span> {esc(a.get("description",""))}</div>'
+                        for a in annotations
+                    )
+                    uda_html = "".join(
+                        f'<span class="uda-chip"><span class="uda-key">{esc(k)}</span> {esc(str(v))}</span>'
+                        for k, v in udas.items()
+                    )
+                    task_rows += (
+                        f'<tr class="task-detail hidden" data-uuid="{tid}">'
+                        f'<td colspan="5"><div class="detail-inner">'
+                        f'{("<div class=\"ann-block\">" + ann_html + "</div>") if ann_html else ""}'
+                        f'{("<div class=\"uda-block\">" + uda_html + "</div>") if uda_html else ""}'
+                        f'</div></td></tr>\n'
+                    )
 
             journal_html = ""
             for e in journal_entries:
@@ -3532,6 +3561,7 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                 for b in balances
             )
 
+            detail_checked = 'checked' if detail_mode == 'full' else ''
             html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -3542,7 +3572,10 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
   *, *::before, *::after {{ box-sizing: border-box; }}
   body {{ font-family: 'JetBrains Mono', 'Fira Mono', monospace; background: #0e0e0e; color: #d0d0d0; margin: 0; padding: 24px; font-size: 13px; line-height: 1.5; }}
   h1 {{ font-size: 16px; color: #fff; margin: 0 0 4px; }}
-  .meta {{ color: #666; font-size: 11px; margin-bottom: 32px; }}
+  .meta {{ color: #666; font-size: 11px; margin-bottom: 8px; }}
+  .toggle-bar {{ display:flex; align-items:center; gap:10px; margin-bottom:24px; }}
+  .toggle-bar label {{ font-size:11px; color:#666; cursor:pointer; display:flex; align-items:center; gap:5px; }}
+  .toggle-bar input[type=checkbox] {{ accent-color:#7ec8a0; width:13px; height:13px; cursor:pointer; }}
   h2 {{ font-size: 13px; color: #aaa; border-bottom: 1px solid #222; padding-bottom: 6px; margin: 28px 0 12px; text-transform: uppercase; letter-spacing: .08em; }}
   table {{ width: 100%; border-collapse: collapse; margin-bottom: 16px; }}
   th {{ text-align: left; font-size: 10px; color: #555; text-transform: uppercase; letter-spacing: .06em; padding: 4px 8px 4px 0; border-bottom: 1px solid #222; }}
@@ -3550,6 +3583,15 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
   .pri-h {{ color: #e74c3c; font-weight: bold; }}
   .pri-m {{ color: #e67e22; }}
   .pri-l {{ color: #888; }}
+  .task-detail td {{ background: #111; border-bottom: 1px solid #1e1e1e; }}
+  .detail-inner {{ padding: 6px 0 4px; }}
+  .ann-block {{ margin-bottom: 6px; }}
+  .ann-row {{ font-size:11px; color:#999; padding: 1px 0; }}
+  .ann-date {{ color:#555; margin-right:6px; }}
+  .uda-block {{ display:flex; flex-wrap:wrap; gap:4px; }}
+  .uda-chip {{ font-size:10px; background:#1a1a1a; border:1px solid #2a2a2a; border-radius:3px; padding:1px 5px; color:#aaa; }}
+  .uda-key {{ color:#666; margin-right:3px; }}
+  .hidden {{ display: none !important; }}
   .j-entry {{ margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #1a1a1a; }}
   .j-date {{ font-size: 10px; color: #555; margin-bottom: 4px; }}
   .j-body {{ color: #c8c8c8; }}
@@ -3560,6 +3602,9 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
 <body>
 <h1>workwarrior · {esc(profile)}</h1>
 <div class="meta">exported {esc(exported_at)} · {len(tasks)} tasks · {len(journal_entries)} journal entries</div>
+<div class="toggle-bar">
+  <label><input type="checkbox" id="detail-toggle" {detail_checked}> show annotations &amp; UDAs</label>
+</div>
 
 <h2>Tasks</h2>
 {"<table><thead><tr><th>Description</th><th>Project</th><th>Tags</th><th>Pri</th><th>Due</th></tr></thead><tbody>" + task_rows + "</tbody></table>" if tasks else '<p class="empty">no pending tasks</p>'}
@@ -3569,6 +3614,20 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
 
 <h2>Ledger</h2>
 {"<table><thead><tr><th>Account</th><th style='text-align:right'>Balance</th></tr></thead><tbody>" + bal_rows + "</tbody></table>" if balances else '<p class="empty">no ledger data</p>'}
+
+<script>
+(function() {{
+  var tog = document.getElementById('detail-toggle');
+  function applyDetail() {{
+    var show = tog.checked;
+    document.querySelectorAll('.task-detail').forEach(function(el) {{
+      el.classList.toggle('hidden', !show);
+    }});
+  }}
+  tog.addEventListener('change', applyDetail);
+  applyDetail();
+}})();
+</script>
 </body>
 </html>"""
 
@@ -3937,7 +3996,7 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                 return active + [t for t in pending if t.get("uuid") not in {a["uuid"] for a in active}]
 
             try:
-                TASK_MUTATING = {"done", "start", "stop", "add", "annotate", "task_modify", "bulk", "dep_add", "dep_remove", "task_delete"}
+                TASK_MUTATING = {"done", "start", "stop", "add", "annotate", "annotate_delete", "task_modify", "bulk", "dep_add", "dep_remove", "task_delete"}
                 TIME_MUTATING = {"timew_start", "timew_stop", "timew_track", "timew_delete", "timew_retag"}
                 JOURNAL_MUTATING = {"journal_add", "journal_delete", "journal_archive", "journal_restore", "journal_update"}
                 LEDGER_MUTATING = {"ledger_delete"}
@@ -4025,6 +4084,16 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                     tid = str(body.get("id", ""))
                     note = body.get("args", {}).get("note", "")
                     r = run_task(tid, "annotate", note)
+                    tasks = fetch_tasks()
+                    self._send_json(200, {"ok": r.returncode == 0, "output": r.stdout or r.stderr, "tasks": tasks})
+
+                elif action == "annotate_delete":
+                    tid = str(body.get("id", ""))
+                    note = (body.get("args", {}).get("note") or "").strip()
+                    if not tid or not note:
+                        self._send_json(400, {"ok": False, "error": "id and note required"})
+                        return
+                    r = run_task(tid, "denotate", note)
                     tasks = fetch_tasks()
                     self._send_json(200, {"ok": r.returncode == 0, "output": r.stdout or r.stderr, "tasks": tasks})
 

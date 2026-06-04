@@ -353,7 +353,15 @@
       const anns = _drawerTask.annotations || [];
       const ann = anns[idx];
       if (!ann) return;
-      toast('annotation deletion not yet supported via CLI', 'warning');
+      const r = await fetch('/action', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'annotate_delete', id: _drawerTask.id, args: { note: ann.description } }) });
+      const d = await r.json();
+      if (d.ok) {
+        toast('✓ annotation removed');
+        renderTasks(d.tasks || cachedTasks);
+        _drawerTask = cachedTasks.find(t => t.uuid === _drawerUuid) || _drawerTask;
+        if (_drawerTask) populateTaskDrawer(_drawerTask);
+      } else toast(d.error || 'denotate failed', 'error');
     });
     document.getElementById('btn-tdr-to-journal')?.addEventListener('click', async () => {
       if (!_drawerTask) return;
@@ -1478,6 +1486,23 @@ CMD: "add task review and start tracking"
   // ── Profile ────────────────────────────────────────────────────────────────
   function setProfile(name) {
     const display = name || '—';
+    // Track last profile for quick-switch
+    const prev = localStorage.getItem('ww_active_profile');
+    if (name && prev && prev !== name) {
+      localStorage.setItem('ww_last_profile', prev);
+    }
+    if (name) localStorage.setItem('ww_active_profile', name);
+    // Update last-profile button visibility
+    const lastBtn = document.getElementById('btn-profile-last');
+    const lastProf = localStorage.getItem('ww_last_profile');
+    if (lastBtn) {
+      if (lastProf && lastProf !== name) {
+        lastBtn.title = `Switch back to ${lastProf}`;
+        lastBtn.classList.remove('hidden');
+      } else {
+        lastBtn.classList.add('hidden');
+      }
+    }
     profilePill.textContent = display;
     headerProfile.textContent = display;
     const badge = document.getElementById('term-profile-badge');
@@ -1603,8 +1628,19 @@ CMD: "add task review and start tracking"
       }
     };
     profilePill.addEventListener('click', _toggleProfileSwitcher);
-    // Header profile name also opens the profile switcher
     headerProfile?.addEventListener('click', _toggleProfileSwitcher);
+    document.getElementById('btn-profile-last')?.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const lastProf = localStorage.getItem('ww_last_profile');
+      if (!lastProf) return;
+      try {
+        const r = await fetch('/resource', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ kind: 'profiles', name: lastProf }) });
+        const d = await r.json();
+        if (d.ok) { setProfile(lastProf); toast(`↩ ${lastProf}`); await loadSection(activeSection); }
+        else toast(d.error || 'switch failed', 'error');
+      } catch (err) { toast('switch failed', 'error'); }
+    });
     document.addEventListener('click', () => profileList.classList.add('hidden'));
   }
 
@@ -4761,6 +4797,13 @@ CMD: "add task review and start tracking"
     });
   }
 
+  function _parseListItemDate(text) {
+    // Detect leading [YYYY-MM-DD HH:MM] or [YYYY-MM-DD] timestamp in item text
+    const m = text.match(/^\[(\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2})?)\]\s*/);
+    if (!m) return { ts: null, stripped: text };
+    return { ts: new Date(m[1].replace(' ', 'T')), stripped: text.slice(m[0].length) };
+  }
+
   function renderListRows() {
     const box = document.getElementById('list-items');
     if (!box) return;
@@ -4768,17 +4811,30 @@ CMD: "add task review and start tracking"
       box.innerHTML = '<div class="empty-state">No items — add one above</div>';
       return;
     }
-    box.innerHTML = cachedListItems.map((it, i) => {
-      const sepIdx = it.text.indexOf(' // ');
-      const mainText = sepIdx >= 0 ? it.text.slice(0, sepIdx) : it.text;
-      const noteText = sepIdx >= 0 ? it.text.slice(sepIdx + 4) : '';
-      const noteHTML = noteText
-        ? `<div class="list-row-note">↳ ${_listEscText(noteText)}</div>`
-        : '';
+    const sortMode = document.getElementById('list-sort-select')?.value || 'default';
+    let items = cachedListItems.map((it, i) => ({ ...it, _origIdx: i }));
+    if (sortMode === 'newest' || sortMode === 'oldest') {
+      items = items.map(it => ({ ...it, _ts: _parseListItemDate(it.text).ts }));
+      items.sort((a, b) => {
+        const at = a._ts ? a._ts.getTime() : 0;
+        const bt = b._ts ? b._ts.getTime() : 0;
+        return sortMode === 'newest' ? bt - at : at - bt;
+      });
+    } else if (sortMode === 'alpha') {
+      items.sort((a, b) => a.text.localeCompare(b.text));
+    }
+    box.innerHTML = items.map((it) => {
+      const i = it._origIdx;
+      const { ts, stripped: strippedText } = _parseListItemDate(it.text);
+      const sepIdx = strippedText.indexOf(' // ');
+      const mainText = sepIdx >= 0 ? strippedText.slice(0, sepIdx) : strippedText;
+      const noteText = sepIdx >= 0 ? strippedText.slice(sepIdx + 4) : '';
+      const noteHTML = noteText ? `<div class="list-row-note">↳ ${_listEscText(noteText)}</div>` : '';
+      const tsHTML = ts ? `<span class="list-row-ts" title="${ts.toISOString()}">${ts.toLocaleDateString([],{month:'short',day:'numeric',year:'2-digit'})}</span>` : '';
       return `
       <div class="list-row" data-idx="${i}">
         <span class="list-prefix">${_listEscText(it.prefix)}</span>
-        <span class="list-text">${_listEscText(mainText)}</span>
+        ${tsHTML}<span class="list-text">${_listEscText(mainText)}</span>
         <span class="list-row-actions">
           <button type="button" class="act-btn list-done-btn" data-prefix="${_listEscAttr(it.prefix)}"><span class="btn-icon">✓</span><span class="btn-word">done</span></button>
           <button type="button" class="act-btn list-edit-btn" data-prefix="${_listEscAttr(it.prefix)}"><span class="btn-icon">✎</span><span class="btn-word">edit</span></button>
@@ -4792,6 +4848,12 @@ CMD: "add task review and start tracking"
       </div>`;
     }).join('');
     wireListRowEvents(box);
+    // Wire sort select once
+    const sortSel = document.getElementById('list-sort-select');
+    if (sortSel && !sortSel.dataset.wired) {
+      sortSel.dataset.wired = '1';
+      sortSel.addEventListener('change', renderListRows);
+    }
   }
 
   async function loadLists() {
@@ -7044,6 +7106,20 @@ CMD: "add task review and start tracking"
             <button class="btn-inline-submit" id="btn-create-profile">create</button>
           </div>
           <div id="create-profile-out" style="font-size:11px;margin-top:4px;color:var(--muted)"></div>
+        </div>
+        <div class="profile-create-section" id="profile-bulk-delete-section">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px;padding-top:12px;border-top:1px solid var(--border)">delete profiles</div>
+          <div id="profile-bulk-checklist">
+            ${profiles.filter(p => p !== active).map(p =>
+              `<label style="display:flex;gap:6px;align-items:center;font-size:12px;padding:2px 0;cursor:pointer">
+                <input type="checkbox" class="profile-bulk-cb" value="${p}"> ${p}
+              </label>`
+            ).join('') || '<span style="font-size:11px;color:var(--muted)">no other profiles</span>'}
+          </div>
+          <div style="margin-top:6px;display:flex;gap:6px">
+            <button class="btn-inline-danger" id="btn-profile-bulk-delete" style="font-size:11px">delete selected</button>
+          </div>
+          <div id="bulk-delete-out" style="font-size:11px;margin-top:4px;color:var(--muted)"></div>
         </div>`;
       body.innerHTML = html;
 
@@ -7140,6 +7216,25 @@ CMD: "add task review and start tracking"
         else { out.textContent = rd.output || 'create failed'; }
       });
       document.getElementById('new-profile-name')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); document.getElementById('btn-create-profile')?.click(); } });
+
+      // Bulk delete
+      document.getElementById('btn-profile-bulk-delete')?.addEventListener('click', async () => {
+        const checked = [...document.querySelectorAll('.profile-bulk-cb:checked')].map(cb => cb.value);
+        if (!checked.length) { toast('no profiles selected', 'info'); return; }
+        const out = document.getElementById('bulk-delete-out');
+        if (!confirm(`Delete ${checked.length} profile(s): ${checked.join(', ')}? This cannot be undone.`)) return;
+        let errors = [];
+        for (const pName of checked) {
+          try {
+            const r = await fetch('/cmd', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ cmd: `profile remove ${pName} --yes` }) });
+            const rd = await r.json();
+            if (!rd.ok) errors.push(`${pName}: ${rd.output || 'failed'}`);
+          } catch (e) { errors.push(`${pName}: ${e.message}`); }
+        }
+        if (errors.length) { if (out) out.textContent = errors.join('; '); toast('some deletions failed', 'error'); }
+        else { toast(`deleted ${checked.length} profile(s)`); await loadProfileScreen(); }
+      });
 
       await loadDetail(active || profiles[0] || '');
     } catch (e) { renderError(body, `Profile screen: ${e.message}`, loadProfileScreen); }
@@ -7552,6 +7647,7 @@ CMD: "add task review and start tracking"
         }
         taskForm.reset();
         if (taskDueInput) taskDueInput.value = futureDateStr(2);
+        taskForm.querySelector('input[name="description"]')?.focus();
       } else { toast('add failed', 'error'); }
     }
 
@@ -8253,7 +8349,8 @@ CMD: "add task review and start tracking"
       const out = document.getElementById('export-output');
       out.className = 'cmd-unified-output'; out.textContent = 'generating snapshot…';
       try {
-        const res = await fetch('/export/snapshot');
+        const detail = document.getElementById('export-snapshot-detail')?.value || 'summary';
+        const res = await fetch(`/export/snapshot?detail=${encodeURIComponent(detail)}`);
         if (!res.ok) { out.textContent = 'error: ' + res.status; return; }
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
@@ -8638,7 +8735,13 @@ CMD: "add task review and start tracking"
     });
   }
 
-  const _dismissedCmdLog = new Set(); // session-only dismissed entry keys
+  const _dismissedCmdLog = new Set(
+    JSON.parse(localStorage.getItem('ww_dismissed_cmd_log') || '[]')
+  );
+  function _dismissCmdLogKey(key) {
+    _dismissedCmdLog.add(key);
+    localStorage.setItem('ww_dismissed_cmd_log', JSON.stringify([..._dismissedCmdLog]));
+  }
 
   function _cmdLogKey(e) { return `${e.ts || ''}:${e.command || ''}`; }
 
@@ -8674,7 +8777,7 @@ CMD: "add task review and start tracking"
       });
       entry.querySelector('.cmd-log-dismiss')?.addEventListener('click', ev => {
         ev.stopPropagation();
-        _dismissedCmdLog.add(entry.dataset.key);
+        _dismissCmdLogKey(entry.dataset.key);
         entry.remove();
         if (!logEl.querySelector('.cmd-log-entry'))
           logEl.innerHTML = '<div class="empty-state">No commands yet this session</div>';
@@ -8692,7 +8795,7 @@ CMD: "add task review and start tracking"
     if (clearBtn && !clearBtn.dataset.wired) {
       clearBtn.dataset.wired = '1';
       clearBtn.addEventListener('click', () => {
-        logEl.querySelectorAll('.cmd-log-entry').forEach(el => _dismissedCmdLog.add(el.dataset.key));
+        logEl.querySelectorAll('.cmd-log-entry').forEach(el => _dismissCmdLogKey(el.dataset.key));
         logEl.innerHTML = '<div class="empty-state">No commands yet this session</div>';
       });
     }

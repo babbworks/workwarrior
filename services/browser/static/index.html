@@ -16,6 +16,7 @@
       <div class="profile-row">
         <div class="profile-pill" id="profile-pill">—</div>
         <button class="profile-info-btn" id="btn-profile-screen" title="Profile info">P</button>
+        <button class="profile-info-btn hidden" id="btn-profile-last" title="Switch to last profile">↩</button>
         <ul class="profile-switcher hidden" id="profile-switcher"></ul>
       </div>
       <div class="cmd-ctrl-row">
@@ -322,6 +323,12 @@
           </form>
           <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
             <input type="text" id="list-filter" class="inline-filter" placeholder="filter items…" style="flex:1" />
+            <select id="list-sort-select" class="resource-select" style="font-size:11px;padding:3px 6px" title="Sort order">
+              <option value="default">default order</option>
+              <option value="newest">newest first</option>
+              <option value="oldest">oldest first</option>
+              <option value="alpha">A–Z</option>
+            </select>
             <button type="button" class="btn-inline-alt" id="list-show-done-btn">show done</button>
           </div>
           <div class="list-items" id="list-items"><div class="skeleton-msg">Loading lists…</div></div>
@@ -402,6 +409,10 @@
                 <button class="btn-inline-alt" id="btn-export-run">ww export</button>
                 <button class="btn-inline-alt" id="btn-export-html">HTML export</button>
                 <button class="btn-inline-alt" id="btn-export-snapshot">HTML snapshot</button>
+                <select id="export-snapshot-detail" style="font-size:11px;background:var(--bg2,#1a1a1a);color:var(--muted,#888);border:1px solid var(--border,#2a2a2a);border-radius:3px;padding:2px 4px">
+                  <option value="summary">summary</option>
+                  <option value="full">full (UDAs+annotations)</option>
+                </select>
               </div>
               <div class="cmd-unified-output hidden" id="export-output"></div>
             </div>
