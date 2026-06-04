@@ -8,7 +8,7 @@ set -e
 # CONFIGURATION
 # ============================================================================
 
-WW_BASE="${WW_BASE:-$HOME/ww}"
+[[ -z "${WW_BASE:-}" ]] && WW_BASE="$HOME/ww"
 EXPORT_DIR="${WW_BASE}/exports"
 
 # Source libraries
@@ -46,7 +46,7 @@ parse_arguments() {
         EXPORT_TYPE="$1"
         shift
         # Check if next arg is a format
-        if [[ "${1:-}" =~ ^(json|csv|markdown|md)$ ]]; then
+        if [[ "${1:-}" =~ ^(json|csv|markdown|md|html)$ ]]; then
           EXPORT_FORMAT="$1"
           [[ "$EXPORT_FORMAT" == "md" ]] && EXPORT_FORMAT="markdown"
           shift
@@ -112,10 +112,10 @@ require_profile() {
 
 validate_format() {
   case "$EXPORT_FORMAT" in
-    json|csv|markdown) ;;
+    json|csv|markdown|html) ;;
     *)
       log_error "Invalid format: $EXPORT_FORMAT"
-      log_info "Supported formats: json, csv, markdown"
+      log_info "Supported formats: json, csv, markdown, html"
       exit 1
       ;;
   esac
@@ -154,6 +154,9 @@ do_export_tasks() {
     markdown)
       result=$(export_tasks_markdown "$profile_dir" "$output_file")
       ;;
+    html)
+      result=$(export_tasks_html "$profile_dir" "$output_file")
+      ;;
   esac
 
   if [[ -f "$result" ]]; then
@@ -184,6 +187,9 @@ do_export_time() {
     markdown)
       result=$(export_time_markdown "$profile_dir" "$output_file" "$filter")
       ;;
+    html)
+      result=$(export_time_html "$profile_dir" "$output_file" "$filter")
+      ;;
   esac
 
   if [[ -f "$result" ]]; then
@@ -211,6 +217,9 @@ do_export_journal() {
       ;;
     markdown)
       result=$(export_journal_markdown "$profile_dir" "$output_file")
+      ;;
+    html)
+      result=$(export_journal_html "$profile_dir" "$output_file")
       ;;
   esac
 
@@ -240,6 +249,9 @@ do_export_ledger() {
     markdown)
       result=$(export_ledger_markdown "$profile_dir" "$output_file")
       ;;
+    html)
+      result=$(export_ledger_html "$profile_dir" "$output_file")
+      ;;
   esac
 
   if [[ -f "$result" ]]; then
@@ -253,14 +265,19 @@ do_export_ledger() {
 do_export_all() {
   local profile_dir="$1"
 
-  if [[ "$EXPORT_FORMAT" == "json" ]]; then
+  if [[ "$EXPORT_FORMAT" == "json" || "$EXPORT_FORMAT" == "html" ]]; then
+    local ext="$EXPORT_FORMAT"
     local output_file
-    output_file=$(get_export_path "$PROFILE_NAME" "all" "json" "$OUTPUT_PATH")
+    output_file=$(get_export_path "$PROFILE_NAME" "all" "$ext" "$OUTPUT_PATH")
 
-    log_info "Exporting all data as JSON..."
+    log_info "Exporting all data as $EXPORT_FORMAT..."
 
     local result
-    result=$(export_all_json "$profile_dir" "$output_file")
+    if [[ "$EXPORT_FORMAT" == "html" ]]; then
+      result=$(export_all_html "$profile_dir" "$output_file")
+    else
+      result=$(export_all_json "$profile_dir" "$output_file")
+    fi
 
     if [[ -f "$result" ]]; then
       log_success "Exported to: $result"
@@ -383,13 +400,15 @@ interactive_export() {
     echo "  1. json      - JSON (structured, parseable)"
     echo "  2. csv       - CSV (spreadsheet compatible)"
     echo "  3. markdown  - Markdown (human readable)"
+    echo "  4. html      - HTML (interactive, with task detail/annotation toggles)"
     echo ""
-    read -p "Enter choice (1-3 or name) [json]: " format_choice
+    read -p "Enter choice (1-4 or name) [json]: " format_choice
 
     case "$format_choice" in
       1|json|"") EXPORT_FORMAT="json" ;;
       2|csv) EXPORT_FORMAT="csv" ;;
       3|markdown|md) EXPORT_FORMAT="markdown" ;;
+      4|html) EXPORT_FORMAT="html" ;;
       *)
         log_error "Invalid format"
         exit 1
@@ -458,6 +477,7 @@ Formats:
   json        JSON format (default)
   csv         CSV format (spreadsheet compatible)
   markdown    Markdown format (human readable)
+  html        HTML format (interactive, task detail/annotation toggles)
 
 Options:
   -f, --format <fmt>     Output format (json, csv, markdown)

@@ -83,6 +83,14 @@
             <span id="stat-date" class="stat-item"></span>
             <span id="header-profile" class="stat-item stat-profile" title="Switch profile">—</span>
             <span class="conn-dot" id="conn-dot" title="disconnected"></span>
+            <button id="btn-sidebar-fullscreen" title="Expand view / collapse sidebar">⊞</button>
+            <select id="journal-theme-select" class="header-theme-select" title="Journal theme">
+              <option value="default">default</option>
+              <option value="twain">Twain ✦</option>
+            </select>
+            <select id="global-mode-select" class="header-theme-select" title="Theme mode" disabled>
+              <option value="">—</option>
+            </select>
           </div>
         </div>
       </header>
@@ -147,8 +155,24 @@
         </section>
         <!-- Journals -->
         <section class="section hidden" id="section-journal">
+          <span id="twain-datetime" class="twain-datetime"></span>
           <form class="add-form-inline add-form-journal" id="add-journal-form">
-            <textarea name="entry" id="journal-entry-textarea" placeholder="New journal entry… (Enter to submit, Shift+Enter for newline)" rows="3"></textarea>
+            <div class="twain-writing-wrap">
+              <textarea name="entry" id="journal-entry-textarea" placeholder="New journal entry… (Enter to submit, Shift+Enter for newline)" rows="3"></textarea>
+              <div id="twain-ink-panel" class="twain-ink-panel hidden">
+                <div class="twain-ink-group" id="twain-ink-sections-group">
+                  <span class="twain-ink-label">sections <button type="button" id="btn-collapse-sections" class="twain-ink-toggle" title="collapse">−</button></span>
+                  <div id="twain-section-list" class="twain-ink-sections"></div>
+                </div>
+                <div class="twain-ink-group" id="twain-ink-tags-group" style="margin-top:10px">
+                  <span class="twain-ink-label">tags <button type="button" id="btn-collapse-tags" class="twain-ink-toggle" title="collapse">−</button></span>
+                  <div id="twain-tag-list" class="twain-ink-tags"></div>
+                </div>
+              </div>
+              <div id="twain-status-bar" class="twain-status-bar">
+                <span id="twain-word-count" class="twain-status-text"></span>
+              </div>
+            </div>
             <div class="journal-meta-row">
               <input type="text" name="project" id="journal-project-input" class="journal-meta-input" placeholder="@project" autocomplete="off" list="journal-projects-dl" />
               <datalist id="journal-projects-dl"></datalist>
@@ -176,6 +200,61 @@
             <button class="journal-filter-btn" id="journal-archive-toggle" title="Show/hide archived entries">⊘ archived</button>
           </div>
           <div class="journal-list" id="journal-list"><div class="skeleton-msg">Loading journal…</div></div>
+          <!-- Twain mode elements (hidden in default theme) -->
+          <div id="twain-scratch-col" class="twain-scratch-col hidden">
+            <div class="twain-scratch-header">
+              <span class="twain-scratch-label">scratch</span>
+              <button type="button" id="btn-scratch-expand" class="twain-scratch-toggle-btn" title="Expand to 3 columns">⇥</button>
+              <button type="button" id="btn-scratch-collapse" class="twain-scratch-toggle-btn" title="Collapse scratchpad">‹</button>
+            </div>
+            <div class="twain-scratch-cols">
+              <textarea id="twain-scratch" class="twain-scratch-textarea" placeholder="" spellcheck="false"></textarea>
+              <textarea id="twain-scratch-b" class="twain-scratch-textarea twain-scratch-extra hidden" placeholder="" spellcheck="false"></textarea>
+              <textarea id="twain-scratch-c" class="twain-scratch-textarea twain-scratch-extra hidden" placeholder="" spellcheck="false"></textarea>
+            </div>
+          </div>
+          <div id="twain-save-bar" class="twain-save-bar hidden">
+            <div class="twain-savebar-left">
+              <button type="button" id="btn-twain-save" class="twain-save-btn">save</button>
+              <span class="twain-save-hint">to <em id="twain-save-to">main</em></span>
+              <span class="twain-save-shortcut">⌘S</span>
+              <input type="text" id="twain-entries-search" class="twain-entries-search" placeholder="🔍" autocomplete="off" />
+              <span class="twain-savebar-spacer"></span>
+              <button type="button" id="btn-twain-focus" class="twain-savebar-btn" title="Focus mode — full window journal">▣</button>
+              <button type="button" id="btn-twain-expand" class="twain-savebar-btn" title="Expand / collapse scratch">⤢</button>
+              <button type="button" id="btn-twain-river" class="twain-savebar-btn" title="Mississippi mode">〰</button>
+            </div>
+            <div class="twain-savebar-right">
+              <input type="text" id="twain-list-input" class="twain-list-input" placeholder="list item…" autocomplete="off" />
+              <select id="twain-list-select" class="twain-list-select"></select>
+              <button type="button" id="btn-twain-list-add" class="twain-savebar-btn" title="New list">+</button>
+              <button type="button" id="btn-twain-list-show" class="twain-savebar-btn" title="Show list items">↑</button>
+            </div>
+            <div id="twain-list-popup" class="twain-list-popup hidden"></div>
+          </div>
+          <div id="twain-task-bar" class="twain-task-bar hidden">
+            <div class="twain-task-bar-row">
+              <input type="text" id="twain-task-desc" class="twain-task-input" placeholder="task…" autocomplete="off" />
+              <input type="text" id="twain-task-project" class="twain-task-input twain-task-meta" placeholder="project" autocomplete="off" />
+              <input type="text" id="twain-task-tags" class="twain-task-input twain-task-meta" placeholder="tags" autocomplete="off" />
+              <select id="twain-task-priority" class="twain-task-select">
+                <option value="">pri</option>
+                <option value="H">H</option>
+                <option value="M">M</option>
+                <option value="L">L</option>
+              </select>
+              <button type="button" id="btn-twain-task-add" class="twain-task-add-btn">+ task</button>
+            </div>
+          </div>
+          <div id="twain-entries-bar" class="twain-entries-bar hidden">
+            <div class="twain-entries-bar-row">
+              <button type="button" id="btn-twain-entries-toggle" class="twain-entries-toggle-btn">
+                <span id="twain-entries-info" class="twain-entries-info">— entries</span>
+                <span class="twain-entries-caret">▲</span>
+              </button>
+            </div>
+            <div id="twain-entries-drawer" class="twain-entries-drawer hidden"></div>
+          </div>
         </section>
         <!-- Ledgers -->
         <section class="section hidden" id="section-ledger">
@@ -321,6 +400,7 @@
               <div class="export-actions">
                 <button class="btn-inline-submit" id="btn-export-json">JSON</button>
                 <button class="btn-inline-alt" id="btn-export-run">ww export</button>
+                <button class="btn-inline-alt" id="btn-export-html">HTML export</button>
                 <button class="btn-inline-alt" id="btn-export-snapshot">HTML snapshot</button>
               </div>
               <div class="cmd-unified-output hidden" id="export-output"></div>
@@ -618,17 +698,42 @@
       </div>
     </div>
   </div>
+  <!-- Focus mode power bar (visible only in term-focus-mode) -->
+  <div id="focus-bar" class="focus-bar hidden">
+    <div class="focus-bar-left">
+      <span class="focus-bar-label" id="focus-bar-cmd-label">ww</span>
+      <span class="focus-bar-sep">·</span>
+      <button id="focus-profile-btn" class="focus-profile-btn" title="Switch profile">—</button>
+      <ul id="focus-profile-list" class="focus-profile-list hidden"></ul>
+    </div>
+    <div class="focus-bar-center" id="focus-bar-center"></div>
+    <div class="focus-bar-right" id="focus-bar-right">
+      <span id="focus-track-badge" class="focus-track-badge hidden"></span>
+      <button class="focus-bar-btn" id="focus-btn-exit" title="Exit focus mode">⊡</button>
+    </div>
+  </div>
   <!-- Terminal line -->
   <div id="terminal-bar">
     <div id="cmd-output" class="hidden"></div>
-    <div id="hints-bar">type a ww command — tab to filter mode</div>
+    <div id="hints-bar">
+      <span id="hints-actions" class="hints-actions"></span>
+      <span id="hints-text" class="hints-text">type a ww command — tab to filter mode</span>
+      <span id="hints-power" class="hints-power">
+        <button class="hints-btn" id="hints-hist-btn" title="Command history">hist</button>
+        <button class="hints-btn" id="hints-ai-btn" title="Toggle AI mode">ai</button>
+        <button class="hints-btn" id="hints-help-btn" title="Help (?)">?</button>
+      </span>
+    </div>
     <div id="terminal-input-row">
       <span id="term-profile-badge" class="term-badge"></span>
       <span id="term-pinned-icon" class="term-pinned-icon hidden"></span>
       <span id="term-context" class="term-context hidden"></span>
       <span id="term-prompt" class="prompt-exec">❯ </span>
       <input type="text" id="term-input" autocomplete="off" spellcheck="false" />
-      <button id="term-pos-toggle" title="Move terminal (Ctrl+Shift+T)">↑</button>
+      <span id="term-dot-ctx" class="term-dot-ctx hidden" onclick="window.__wwToggleSidebar && window.__wwToggleSidebar()"></span>
+      <button id="term-pos-toggle" class="term-icon-btn" title="Move terminal (Ctrl+Shift+T)">↑</button>
+      <button id="term-expand-toggle" class="term-icon-btn" title="Expand/collapse terminal">▾</button>
+      <button id="term-ctx-sidebar-toggle" class="term-icon-btn" title="Context sidebar" onclick="window.__wwToggleSidebar && window.__wwToggleSidebar()">⊞</button>
     </div>
   </div>
   <!-- ww Help Panel -->
@@ -645,5 +750,163 @@
     </div>
   </div>
   <script src="/app.js"></script>
+
+  <!-- Context sidebar panel -->
+  <div id="ctx-sidebar" class="ctx-sidebar hidden">
+    <div class="ctx-sidebar-header">
+      <span class="ctx-sidebar-header-title">context</span>
+      <button class="ctx-sidebar-close" id="ctx-sidebar-close" title="Close sidebar" onclick="window.__wwToggleSidebar && window.__wwToggleSidebar()">×</button>
+    </div>
+    <div id="ctx-sidebar-content"></div>
+  </div>
+
+  <!-- Journal writing card -->
+  <div id="journal-write-card" class="journal-write-card hidden">
+    <div class="jwc-header">
+      <div class="jwc-meta" id="jwc-meta"></div>
+      <button class="jwc-close-btn" id="jwc-close-btn" title="Close (Esc)">×</button>
+    </div>
+    <div class="jwc-meta-confirm hidden" id="jwc-meta-confirm">
+      <button class="jwc-confirm-btn" id="jwc-save-btn">save</button>
+      <button class="jwc-confirm-btn jwc-discard" id="jwc-discard-btn">discard</button>
+      <button class="jwc-confirm-btn jwc-cancel" id="jwc-cancel-btn">back</button>
+    </div>
+    <textarea id="jwc-textarea" placeholder="write here…" spellcheck="true"></textarea>
+    <div class="jwc-hint" id="jwc-hint">ctrl+enter to save  ·  esc to cancel</div>
+  </div>
+  <!-- ── Task Detail Drawer ──────────────────────────────────────────────── -->
+  <div id="task-drawer" class="task-drawer hidden" aria-hidden="true">
+    <div class="task-drawer-backdrop" id="tdr-backdrop"></div>
+    <div class="task-drawer-panel" role="dialog" aria-label="Task detail">
+      <div class="tdr-header">
+        <span class="tdr-urgency-score" id="tdr-urgency-score"></span>
+        <span class="tdr-project-badge" id="tdr-header-project"></span>
+        <span class="tdr-header-title" id="tdr-header-title"></span>
+        <span class="tdr-header-tags" id="tdr-header-tags"></span>
+        <div class="tdr-header-actions" id="tdr-header-actions"></div>
+        <button class="tdr-close-btn" id="tdr-close" title="Close">✕</button>
+      </div>
+      <div class="tdr-body">
+        <div class="tdr-fields">
+          <div class="tdr-field-row"><label class="tdr-label">description</label><input class="tdr-input" id="tdr-desc" type="text" autocomplete="off"></div>
+          <div class="tdr-field-row"><label class="tdr-label">project</label><input class="tdr-input" id="tdr-proj" type="text" autocomplete="off"></div>
+          <div class="tdr-field-row"><label class="tdr-label">priority</label>
+            <select class="tdr-input tdr-select" id="tdr-pri"><option value="">—</option><option value="H">H</option><option value="M">M</option><option value="L">L</option></select>
+          </div>
+          <div class="tdr-field-row"><label class="tdr-label">due</label><input class="tdr-input" id="tdr-due" type="date"></div>
+          <div class="tdr-field-row"><label class="tdr-label">sched</label><input class="tdr-input" id="tdr-sched" type="date"></div>
+          <div class="tdr-field-row"><label class="tdr-label">wait</label><input class="tdr-input" id="tdr-wait" type="date"></div>
+          <div class="tdr-field-row"><label class="tdr-label">tags</label><input class="tdr-input" id="tdr-tags" type="text" placeholder="space or comma separated" autocomplete="off"></div>
+          <div class="tdr-field-row tdr-field-readonly"><label class="tdr-label">status</label><span class="tdr-value" id="tdr-status"></span></div>
+          <div class="tdr-field-row tdr-field-readonly"><label class="tdr-label">urgency</label><span class="tdr-value" id="tdr-urgency-val"></span></div>
+          <div class="tdr-field-row tdr-field-readonly"><label class="tdr-label">created</label><span class="tdr-value" id="tdr-created"></span></div>
+        </div>
+        <button class="btn-inline-submit" id="btn-tdr-save" style="margin:10px 0 6px">save</button>
+        <div class="tdr-section-toggle" id="tdr-ann-toggle">
+          <span class="tdr-section-caret" id="tdr-ann-caret">▾</span>
+          <div class="tdr-section-header" style="border-top:none;margin-top:0">ANNOTATIONS</div>
+        </div>
+        <div class="tdr-section-body" id="tdr-ann-body">
+          <div id="tdr-annotations"></div>
+          <div class="tdr-ann-add-row">
+            <input class="tdr-input" id="tdr-ann-text" type="text" placeholder="add annotation…" style="flex:1">
+            <button class="btn-inline-submit tdr-btn-sm" id="btn-tdr-annotate">annotate</button>
+          </div>
+        </div>
+        <div class="tdr-section-header">NOTE TO JOURNAL</div>
+        <div class="tdr-journal-row">
+          <input class="tdr-input" id="tdr-journal-text" type="text" placeholder="note to journal…" style="flex:1">
+          <button class="btn-inline-submit tdr-btn-sm" id="btn-tdr-to-journal">→ journal</button>
+        </div>
+        <div class="tdr-section-header">DEPENDENCIES</div>
+        <div id="tdr-dep-list"></div>
+        <div class="tdr-dep-search-row">
+          <input class="tdr-input" id="tdr-dep-search" type="text" placeholder="task ID or description…" style="flex:1" autocomplete="off">
+          <button class="btn-inline-alt tdr-btn-sm" id="btn-tdr-blocked-by">→ blocked by</button>
+          <button class="btn-inline-alt tdr-btn-sm" id="btn-tdr-blocks">→ blocks</button>
+        </div>
+        <div id="tdr-dep-results" class="tdr-dep-results hidden"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Journal Entry Drawer ─────────────────────────────────────────────── -->
+  <div id="journal-drawer" class="task-drawer hidden" aria-hidden="true">
+    <div class="task-drawer-backdrop" id="jdr-backdrop"></div>
+    <div class="task-drawer-panel" role="dialog" aria-label="Journal entry detail">
+      <div class="tdr-header">
+        <span class="tdr-urgency-score" id="jdr-journal-badge" style="background:rgba(63,185,80,0.1);border-color:rgba(63,185,80,0.3);color:var(--success)"></span>
+        <span class="tdr-header-title" id="jdr-date-title"></span>
+        <div class="tdr-header-actions" id="jdr-header-actions"></div>
+        <button class="tdr-close-btn" id="jdr-close">✕</button>
+      </div>
+      <div class="tdr-body">
+        <div class="tdr-section-header" style="margin-top:0;border-top:none">BODY</div>
+        <textarea class="jdr-body-textarea" id="jdr-body" rows="8" placeholder="Journal entry body…"></textarea>
+        <div class="tdr-fields" style="margin-top:8px">
+          <div class="tdr-field-row tdr-field-readonly"><label class="tdr-label">created</label><span class="tdr-value" id="jdr-created"></span></div>
+        </div>
+        <button class="btn-inline-submit" id="btn-jdr-save" style="margin:10px 0 14px">save</button>
+        <div id="jdr-annotations"></div>
+        <div class="tdr-ann-add-row">
+          <input class="tdr-input" id="jdr-ann-text" type="text" placeholder="add annotation…" style="flex:1">
+          <button class="btn-inline-submit tdr-btn-sm" id="btn-jdr-annotate">annotate</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Time Interval Drawer ─────────────────────────────────────────────── -->
+  <div id="time-drawer" class="task-drawer hidden" aria-hidden="true">
+    <div class="task-drawer-backdrop" id="tmr-backdrop"></div>
+    <div class="task-drawer-panel" role="dialog" aria-label="Time interval detail">
+      <div class="tdr-header">
+        <span class="tdr-urgency-score" id="tmr-dur-badge" style="background:rgba(88,166,255,0.1);border-color:rgba(88,166,255,0.3);color:var(--accent)"></span>
+        <span class="tdr-header-title" id="tmr-tags-title"></span>
+        <div class="tdr-header-actions" id="tmr-header-actions"></div>
+        <button class="tdr-close-btn" id="tmr-close">✕</button>
+      </div>
+      <div class="tdr-body">
+        <div class="tdr-fields">
+          <div class="tdr-field-row"><label class="tdr-label">tags</label><input class="tdr-input" id="tmr-tags" type="text" placeholder="space separated" autocomplete="off"></div>
+          <div class="tdr-field-row tdr-field-readonly"><label class="tdr-label">start</label><span class="tdr-value" id="tmr-start-display"></span></div>
+          <div class="tdr-field-row tdr-field-readonly"><label class="tdr-label">end</label><span class="tdr-value" id="tmr-end-display"></span></div>
+          <div class="tdr-field-row tdr-field-readonly"><label class="tdr-label">duration</label><span class="tdr-value" id="tmr-duration"></span></div>
+        </div>
+        <button class="btn-inline-submit" id="btn-tmr-save" style="margin:10px 0 14px">retag</button>
+        <div class="tdr-section-header">CROSS-POST</div>
+        <div class="tdr-journal-row" style="margin-top:6px">
+          <input class="tdr-input" id="tmr-journal-text" type="text" placeholder="note to journal…" style="flex:1">
+          <button class="btn-inline-submit tdr-btn-sm" id="btn-tmr-to-journal">→ journal</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Ledger Transaction Drawer ────────────────────────────────────────── -->
+  <div id="ledger-drawer" class="task-drawer hidden" aria-hidden="true">
+    <div class="task-drawer-backdrop" id="ldr-backdrop"></div>
+    <div class="task-drawer-panel" role="dialog" aria-label="Transaction detail">
+      <div class="tdr-header">
+        <span class="tdr-urgency-score" id="ldr-date-badge" style="background:rgba(210,153,34,0.1);border-color:rgba(210,153,34,0.3);color:var(--warning)"></span>
+        <span class="tdr-header-title" id="ldr-desc-title"></span>
+        <div class="tdr-header-actions" id="ldr-header-actions"></div>
+        <button class="tdr-close-btn" id="ldr-close">✕</button>
+      </div>
+      <div class="tdr-body">
+        <div class="tdr-fields">
+          <div class="tdr-field-row tdr-field-readonly"><label class="tdr-label">date</label><span class="tdr-value" id="ldr-date-display"></span></div>
+          <div class="tdr-field-row tdr-field-readonly"><label class="tdr-label">description</label><span class="tdr-value" id="ldr-desc-display"></span></div>
+        </div>
+        <div class="tdr-section-header">POSTINGS</div>
+        <div id="ldr-postings"></div>
+        <div class="tdr-section-header" style="margin-top:14px">CROSS-POST</div>
+        <div class="tdr-journal-row" style="margin-top:6px">
+          <input class="tdr-input" id="ldr-journal-text" type="text" placeholder="note to journal…" style="flex:1">
+          <button class="btn-inline-submit tdr-btn-sm" id="btn-ldr-to-journal">→ journal</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

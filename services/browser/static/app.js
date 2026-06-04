@@ -5,6 +5,7 @@
   'use strict';
 
   // ── State ─────────────────────────────────────────────────────────────────
+  let instanceCmd = 'ww'; // overwritten by /health response
   let activeSection = 'tasks';
   const scrollPositions = new Map(); // section → scrollTop
   let termMode = 'execute'; // 'execute' | 'filter'
@@ -20,6 +21,606 @@
     ui: { show_active_model: true },
   };
 
+  // ── Journal / Twain state ──────────────────────────────────────────────────
+  let journalTheme          = localStorage.getItem('ww_journal_theme') || 'default';
+  let twainRecentSections   = [];
+  let twainRecentTags       = [];
+  let twainHiddenSections   = new Set();
+  let twainSectionsCollapsed = false;
+  let twainTagsCollapsed     = false;
+
+  const THEME_MODES = {
+    twain: [{ value: '', label: '—' }, { value: 'river', label: '〰 river' }],
+  };
+
+  function updateThemeModeSelect(theme, resetValue = true) {
+    const sel = document.getElementById('global-mode-select');
+    if (!sel) return;
+    const modes = THEME_MODES[theme];
+    if (!modes) {
+      sel.innerHTML = '<option value="">—</option>';
+      sel.disabled = true;
+      sel.value = '';
+      return;
+    }
+    sel.disabled = false;
+    sel.innerHTML = modes.map(m => `<option value="${m.value}">${m.label}</option>`).join('');
+    if (resetValue) sel.value = '';
+  }
+
+  function syncThemeModeSelectToRiver() {
+    const sel = document.getElementById('global-mode-select');
+    if (!sel) return;
+    sel.value = document.body.classList.contains('river-mode') ? 'river' : '';
+  }
+
+  function activateJournalTheme(theme) {
+    journalTheme = theme;
+    localStorage.setItem('ww_journal_theme', theme);
+    const sec    = document.getElementById('section-journal');
+    const area   = document.getElementById('content-area');
+    const list   = document.getElementById('journal-list');
+    const drawer = document.getElementById('twain-entries-drawer');
+    const ta     = document.getElementById('journal-entry-textarea');
+    const proj   = document.getElementById('journal-project-input');
+    const twainEls = ['twain-scratch-col', 'twain-save-bar', 'twain-entries-bar', 'twain-task-bar'];
+    const thSel  = document.getElementById('journal-theme-select');
+    if (thSel) thSel.value = theme;
+    if (theme === 'twain') {
+      sec?.classList.add('twain-mode');
+      if (activeSection === 'journal') area?.classList.add('twain-journal-active');
+      twainEls.forEach(id => document.getElementById(id)?.classList.remove('hidden'));
+      if (list && drawer && !drawer.contains(list)) drawer.appendChild(list);
+      if (proj) proj.placeholder = '@sections';
+      if (ta) ta.placeholder = 'Write here…';
+      const saveTo = document.getElementById('twain-save-to');
+      if (saveTo) saveTo.textContent = 'main';
+      updateTwainDatetime();
+      const scratch = document.getElementById('twain-scratch');
+      if (scratch) scratch.value = localStorage.getItem('ww_twain_scratch') || '';
+      twainRecentSections = JSON.parse(localStorage.getItem('ww_twain_sections') || '[]');
+      twainRecentTags     = JSON.parse(localStorage.getItem('ww_twain_tags')     || '[]');
+      twainHiddenSections = new Set(JSON.parse(localStorage.getItem('ww_twain_sections_hidden') || '[]'));
+      updateTwainInkPanel();
+      const cb = document.getElementById('jrnl-enter-toggle');
+      if (cb) cb.checked = false;
+    } else {
+      sec?.classList.remove('twain-mode', 'scratch-collapsed', 'scratch-expanded');
+      area?.classList.remove('twain-journal-active');
+      twainEls.forEach(id => document.getElementById(id)?.classList.add('hidden'));
+      document.getElementById('twain-ink-panel')?.classList.add('hidden');
+      const scratchCol = document.getElementById('twain-scratch-col');
+      if (list && sec && scratchCol) sec.insertBefore(list, scratchCol);
+      else if (list && sec) sec.appendChild(list);
+      if (proj) proj.placeholder = '@project';
+      if (ta) ta.placeholder = 'New journal entry… (Enter to submit, Shift+Enter for newline)';
+    }
+  }
+
+  function updateTwainDatetime() {
+    const el = document.getElementById('twain-datetime');
+    if (!el) return;
+    const now = new Date();
+    el.textContent = now.toLocaleDateString('en', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) +
+      '  ' + now.toLocaleTimeString('en', { hour: 'numeric', minute: '2-digit' });
+  }
+
+  function updateTwainInkPanel() {
+    if (journalTheme !== 'twain') return;
+    const panel = document.getElementById('twain-ink-panel');
+    if (!panel) return;
+    const esc2 = s => String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const activeProj = document.getElementById('journal-project-input')?.value.trim() || '';
+    const activeTags = (document.getElementById('journal-tags-input')?.value || '').split(/[\s,]+/).filter(Boolean);
+    const visible = twainRecentSections.filter(s => !twainHiddenSections.has(s));
+    const secList = document.getElementById('twain-section-list');
+    if (secList) {
+      secList.innerHTML = twainSectionsCollapsed ? '' : visible.map((s, i) =>
+        `<span class="twain-ink-section-row" draggable="true" data-section-index="${i}">
+          <span class="twain-ink-drag-handle" title="Drag to reorder">⠿</span>
+          <button class="twain-ink-section-item${s === activeProj ? ' active' : ''}" data-ctx-section="${esc2(s)}">${esc2(s)}</button>
+          <button class="twain-ink-section-remove" data-remove-section="${esc2(s)}" title="Remove">×</button>
+        </span>`
+      ).join('');
+      document.getElementById('twain-ink-sections-group')?.classList.toggle('hidden',
+        twainSectionsCollapsed && visible.length === 0);
+    }
+    const tagList = document.getElementById('twain-tag-list');
+    if (tagList) {
+      tagList.innerHTML = twainTagsCollapsed ? '' : twainRecentTags.map(t =>
+        `<button class="twain-ink-tag-item${activeTags.includes(t) ? ' active' : ''}" data-ctx-tag="${esc2(t)}">${esc2(t)}</button>`
+      ).join('');
+    }
+    const hasContent = visible.length > 0 || twainRecentTags.length > 0;
+    panel.classList.toggle('hidden', !hasContent);
+  }
+
+  function updateTwainEntriesInfo(entries) {
+    const info = document.getElementById('twain-entries-info');
+    if (!info) return;
+    const total = entries.length;
+    if (total === 0) { info.textContent = 'no entries yet'; return; }
+    const latest = entries[0];
+    const d = latest?.date ? new Date(latest.date) : null;
+    const dateStr = d ? d.toLocaleDateString('en', { month: 'short', day: 'numeric' }) : '';
+    info.textContent = `${total} ${total === 1 ? 'entry' : 'entries'} · last: ${dateStr}`;
+  }
+
+  function mergeTwainSectionsFromEntries(entries) {
+    const fromEntries = [...new Set(
+      entries.map(e => (e.project || '').trim()).filter(Boolean)
+    )];
+    const merged = [...new Set([...fromEntries, ...twainRecentSections])]
+      .filter(s => !twainHiddenSections.has(s));
+    twainRecentSections = merged;
+    updateTwainInkPanel();
+  }
+
+  function addTwainSection(val) {
+    if (!val) return;
+    if (!twainRecentSections.includes(val)) {
+      twainRecentSections = [val, ...twainRecentSections].slice(0, 8);
+      localStorage.setItem('ww_twain_sections', JSON.stringify(twainRecentSections));
+    }
+    const inp = document.getElementById('journal-project-input');
+    if (inp) inp.value = val;
+    updateTwainInkPanel();
+  }
+
+  function addTwainTag(val) {
+    if (!val) return;
+    if (!twainRecentTags.includes(val)) {
+      twainRecentTags = [val, ...twainRecentTags].slice(0, 12);
+      localStorage.setItem('ww_twain_tags', JSON.stringify(twainRecentTags));
+    }
+    const inp = document.getElementById('journal-tags-input');
+    if (!inp) return;
+    const current = inp.value.split(/[\s,]+/).filter(Boolean);
+    if (current.includes(val)) {
+      inp.value = current.filter(t => t !== val).join(', ');
+    } else {
+      inp.value = [...current, val].join(', ');
+    }
+    updateTwainInkPanel();
+  }
+
+  // ── Drawer state ──────────────────────────────────────────────────────────
+  let _drawerUuid = null;
+  let _drawerTask = null;
+  let _jdrEntry   = null;
+  let _jdrSlug    = null;
+  let _tmrInterval = null;
+  let _tmrTimewId  = null;
+  let _ldrTxn      = null;
+
+  // ── Task drawer ────────────────────────────────────────────────────────────
+  function openTaskDrawer(uuid) {
+    if (!uuid) return;
+    _drawerUuid = uuid;
+    const task = cachedTasks.find(t => t.uuid === uuid);
+    if (!task) return;
+    _drawerTask = task;
+    document.getElementById('task-drawer')?.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    document.querySelectorAll('.task-row.drawer-open').forEach(r => r.classList.remove('drawer-open'));
+    document.querySelector(`.task-row[data-uuid="${uuid}"]`)?.classList.add('drawer-open');
+    populateTaskDrawer(task);
+  }
+
+  function closeTaskDrawer() {
+    document.getElementById('task-drawer')?.classList.add('hidden');
+    document.body.style.overflow = '';
+    document.querySelectorAll('.task-row.drawer-open').forEach(r => r.classList.remove('drawer-open'));
+    _drawerUuid = null; _drawerTask = null;
+  }
+
+  function populateTaskDrawer(t) {
+    const esc2 = s => String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const urgency = parseFloat(t.urgency) || 0;
+    document.getElementById('tdr-urgency-score').textContent = urgency.toFixed(1);
+    const projBadge = document.getElementById('tdr-header-project');
+    projBadge.textContent = t.project || '';
+    projBadge.style.display = t.project ? '' : 'none';
+    document.getElementById('tdr-header-title').textContent = '';
+    document.getElementById('tdr-header-tags').innerHTML = (t.tags||[]).map(g => `<span class="task-tag">${esc2(g)}</span>`).join('');
+    const isActive = t.status === 'active';
+    document.getElementById('tdr-header-actions').innerHTML = `
+      ${isActive ? `<button data-tdr-action="stop">■ stop</button>` : `<button data-tdr-action="start">▶ start</button>`}
+      <button class="tdr-btn-primary" data-tdr-action="done">✓ done</button>
+      <button data-tdr-action="delete" style="color:var(--error);border-color:var(--error)">✗ delete</button>`;
+    const toDateVal = iso => iso ? iso.slice(0,10) : '';
+    document.getElementById('tdr-desc').value  = t.description || '';
+    document.getElementById('tdr-proj').value  = t.project     || '';
+    document.getElementById('tdr-pri').value   = t.priority    || '';
+    document.getElementById('tdr-due').value   = toDateVal(t.due);
+    document.getElementById('tdr-sched').value = toDateVal(t.scheduled);
+    document.getElementById('tdr-wait').value  = toDateVal(t.wait);
+    document.getElementById('tdr-tags').value  = (t.tags||[]).join(', ');
+    document.getElementById('tdr-status').textContent  = t.status || '';
+    document.getElementById('tdr-urgency-val').textContent = urgency.toFixed(2);
+    const entryDate = t.entry ? t.entry.replace(/(\d{4})(\d{2})(\d{2})T.*/, '$1-$2-$3') : '';
+    document.getElementById('tdr-created').textContent = entryDate;
+    // Annotations
+    const anns = t.annotations || [];
+    document.getElementById('tdr-annotations').innerHTML = anns.length === 0
+      ? '<div style="font-size:11px;color:var(--muted);padding:3px 0">None.</div>'
+      : `<div class="tdr-ann-list">${anns.map((a,i) => `
+          <div class="tdr-ann-item">
+            <span class="tdr-ann-date">${(a.entry||'').replace(/(\d{4})(\d{2})(\d{2})T.*/,'$1-$2-$3')}</span>
+            <span class="tdr-ann-text">${esc2(a.description)}</span>
+            <button class="tdr-ann-del" data-tdr-ann-del="${i}">✗</button>
+          </div>`).join('')}</div>`;
+    // Dependencies
+    const deps = t.depends || [];
+    document.getElementById('tdr-dep-list').innerHTML = deps.length === 0
+      ? '<div class="tdr-dep-empty">no dependencies</div>'
+      : deps.map(dep => {
+          const found = cachedTasks.find(x => x.uuid === dep);
+          return `<div class="tdr-dep-item">
+            <span class="tdr-dep-desc">${esc2(found ? found.description : dep)}</span>
+            <button class="tdr-dep-del" data-tdr-dep-del="${esc2(dep)}">✗</button>
+          </div>`;
+        }).join('');
+  }
+
+  function wireTaskDrawer() {
+    document.getElementById('tdr-backdrop')?.addEventListener('click', closeTaskDrawer);
+    document.getElementById('tdr-close')?.addEventListener('click', closeTaskDrawer);
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && !document.getElementById('task-drawer')?.classList.contains('hidden'))
+        closeTaskDrawer();
+    });
+    document.getElementById('tdr-ann-toggle')?.addEventListener('click', () => {
+      document.getElementById('tdr-ann-body')?.classList.toggle('collapsed');
+      document.getElementById('tdr-ann-caret')?.classList.toggle('collapsed');
+    });
+    document.getElementById('btn-tdr-save')?.addEventListener('click', async () => {
+      if (!_drawerTask) return;
+      const rawTags = document.getElementById('tdr-tags').value;
+      const tags = rawTags.split(/[\s,]+/).map(s => s.trim()).filter(Boolean);
+      const id = _drawerTask.id;
+      const args = {};
+      const newDesc = document.getElementById('tdr-desc').value.trim();
+      if (newDesc !== _drawerTask.description) args.description = newDesc;
+      const newProj = document.getElementById('tdr-proj').value.trim();
+      if (newProj !== (_drawerTask.project||'')) args.project = newProj || '';
+      const newPri = document.getElementById('tdr-pri').value;
+      if (newPri !== (_drawerTask.priority||'')) args.priority = newPri || '';
+      const newDue = document.getElementById('tdr-due').value;
+      if (newDue !== ((_drawerTask.due||'').slice(0,10))) args.due = newDue || '';
+      const newSched = document.getElementById('tdr-sched').value;
+      if (newSched !== ((_drawerTask.scheduled||'').slice(0,10))) args.scheduled = newSched || '';
+      const newWait = document.getElementById('tdr-wait').value;
+      if (newWait !== ((_drawerTask.wait||'').slice(0,10))) args.wait = newWait || '';
+      const curTags = (_drawerTask.tags||[]).join(', ');
+      if (tags.join(', ') !== curTags) {
+        const toRemove = (_drawerTask.tags||[]).filter(tg => !tags.includes(tg));
+        const toAdd    = tags.filter(tg => !(_drawerTask.tags||[]).includes(tg));
+        if (toRemove.length) args.tags_remove = toRemove;
+        if (toAdd.length)    args.tags_add    = toAdd;
+      }
+      const r = await fetch('/action', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ action: 'task_modify', id, args }) });
+      const d = await r.json();
+      if (d.ok) {
+        toast('✓ saved');
+        renderTasks(d.tasks || cachedTasks);
+        _drawerTask = cachedTasks.find(t => t.uuid === _drawerUuid) || _drawerTask;
+        if (_drawerTask) populateTaskDrawer(_drawerTask);
+      } else toast(d.error || 'save failed', 'error');
+    });
+    document.getElementById('tdr-header-actions')?.addEventListener('click', async e => {
+      const btn = e.target.closest('[data-tdr-action]');
+      if (!btn || !_drawerTask) return;
+      const action = btn.dataset.tdrAction;
+      const id = _drawerTask.id;
+      if (action === 'delete') {
+        if (!confirm('Delete this task?')) return;
+        const r = await fetch('/action', { method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ action: 'task_delete', id }) });
+        const d = await r.json();
+        if (d.ok) { toast('deleted'); closeTaskDrawer(); renderTasks(d.tasks || []); }
+        return;
+      }
+      const r = await fetch('/action', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ action, id }) });
+      const d = await r.json();
+      if (d.ok) {
+        toast(`✓ ${action}`);
+        renderTasks(d.tasks || cachedTasks);
+        _drawerTask = cachedTasks.find(t => t.uuid === _drawerUuid) || _drawerTask;
+        if (_drawerTask) populateTaskDrawer(_drawerTask);
+      }
+    });
+    document.getElementById('btn-tdr-annotate')?.addEventListener('click', async () => {
+      const note = document.getElementById('tdr-ann-text').value.trim();
+      if (!note || !_drawerTask) return;
+      const r = await fetch('/action', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ action: 'annotate', id: _drawerTask.id, args: { note } }) });
+      const d = await r.json();
+      if (d.ok) {
+        toast('✓ annotated'); document.getElementById('tdr-ann-text').value = '';
+        renderTasks(d.tasks || cachedTasks);
+        _drawerTask = cachedTasks.find(t => t.uuid === _drawerUuid) || _drawerTask;
+        if (_drawerTask) populateTaskDrawer(_drawerTask);
+      }
+    });
+    document.getElementById('tdr-annotations')?.addEventListener('click', async e => {
+      const btn = e.target.closest('[data-tdr-ann-del]');
+      if (!btn || !_drawerTask) return;
+      if (!confirm('Delete annotation?')) return;
+      const idx = parseInt(btn.dataset.tdrAnnDel);
+      const anns = _drawerTask.annotations || [];
+      const ann = anns[idx];
+      if (!ann) return;
+      toast('annotation deletion not yet supported via CLI', 'warning');
+    });
+    document.getElementById('btn-tdr-to-journal')?.addEventListener('click', async () => {
+      if (!_drawerTask) return;
+      const text = document.getElementById('tdr-journal-text').value.trim();
+      if (!text) return;
+      const entry = `[task-note:${_drawerTask.uuid}|${_drawerTask.description}|${text}]`;
+      const r = await fetch('/action', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ action: 'journal_add', args: { entry } }) });
+      const d = await r.json();
+      if (d.ok) { toast('→ journal'); document.getElementById('tdr-journal-text').value = ''; }
+    });
+    // Dependency search
+    const depSearch = document.getElementById('tdr-dep-search');
+    depSearch?.addEventListener('input', e => {
+      const q = e.target.value.toLowerCase().trim();
+      const res = document.getElementById('tdr-dep-results');
+      if (!q) { res?.classList.add('hidden'); return; }
+      const esc2 = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      const matches = cachedTasks.filter(t => t.uuid !== _drawerUuid && (
+        String(t.id).includes(q) || (t.description||'').toLowerCase().includes(q)
+      )).slice(0, 10);
+      if (res) {
+        res.innerHTML = matches.map(t => `<div class="tdr-dep-result-item" data-dep-uuid="${esc2(t.uuid)}">
+          <span>#${t.id}</span><span>${esc2(t.description)}</span></div>`).join('');
+        res.classList.toggle('hidden', matches.length === 0);
+      }
+    });
+    document.getElementById('tdr-dep-results')?.addEventListener('click', e => {
+      const item = e.target.closest('[data-dep-uuid]');
+      if (item && depSearch) { depSearch.value = item.querySelector('span:nth-child(2)')?.textContent || ''; depSearch.dataset.selectedUuid = item.dataset.depUuid; document.getElementById('tdr-dep-results')?.classList.add('hidden'); }
+    });
+    async function addDep(dir) {
+      if (!_drawerTask) return;
+      const uuid2 = depSearch?.dataset.selectedUuid || '';
+      const numId = parseInt(depSearch?.value) || 0;
+      const depTask = uuid2 ? cachedTasks.find(t => t.uuid === uuid2) : cachedTasks.find(t => t.id === numId);
+      if (!depTask) { toast('task not found', 'warning'); return; }
+      const r = await fetch('/action', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ action: 'dep_add', id: _drawerTask.id, args: { dep_uuid: depTask.uuid, direction: dir } }) });
+      const d = await r.json();
+      if (d.ok) { toast('✓ dependency added'); renderTasks(d.tasks || cachedTasks); _drawerTask = cachedTasks.find(t => t.uuid === _drawerUuid) || _drawerTask; if (_drawerTask) populateTaskDrawer(_drawerTask); }
+    }
+    document.getElementById('btn-tdr-blocked-by')?.addEventListener('click', () => addDep('blocked_by'));
+    document.getElementById('btn-tdr-blocks')?.addEventListener('click', () => addDep('blocks'));
+    document.getElementById('tdr-dep-list')?.addEventListener('click', async e => {
+      const btn = e.target.closest('[data-tdr-dep-del]');
+      if (!btn || !_drawerTask) return;
+      const depUuid = btn.dataset.tdrDepDel;
+      const r = await fetch('/action', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ action: 'dep_remove', id: _drawerTask.id, args: { dep_uuid: depUuid } }) });
+      const d = await r.json();
+      if (d.ok) { renderTasks(d.tasks || cachedTasks); _drawerTask = cachedTasks.find(t => t.uuid === _drawerUuid) || _drawerTask; if (_drawerTask) populateTaskDrawer(_drawerTask); }
+    });
+  }
+
+  // ── Journal drawer ─────────────────────────────────────────────────────────
+  function openJournalDrawer(entry) {
+    if (!entry) return;
+    _jdrEntry = entry;
+    _jdrSlug  = entry.date_slug;
+    document.getElementById('journal-drawer')?.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    populateJournalDrawer(entry);
+  }
+
+  function closeJournalDrawer() {
+    document.getElementById('journal-drawer')?.classList.add('hidden');
+    document.body.style.overflow = '';
+    _jdrEntry = null; _jdrSlug = null;
+  }
+
+  function populateJournalDrawer(e) {
+    const esc2 = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    document.getElementById('jdr-journal-badge').textContent = e.journal || 'journal';
+    document.getElementById('jdr-date-title').textContent = e.date || '';
+    document.getElementById('jdr-body').value    = e.body || '';
+    document.getElementById('jdr-created').textContent = e.date || '';
+    document.getElementById('jdr-header-actions').innerHTML = `
+      <button data-jdr-action="archive"># archive</button>
+      <button data-jdr-action="delete" style="color:var(--error);border-color:var(--error)">✗ delete</button>`;
+    const anns = e.annotations || [];
+    const annEl = document.getElementById('jdr-annotations');
+    if (annEl) {
+      annEl.innerHTML = `<div class="tdr-section-header">ANNOTATIONS</div>
+        ${anns.length === 0 ? '<div style="font-size:11px;color:var(--muted);padding:3px 0">None.</div>' : ''}
+        <div class="tdr-ann-list">${anns.map((a,i) => `
+          <div class="tdr-ann-item">
+            <span class="tdr-ann-date">${esc2(a.entry||'')}</span>
+            <span class="tdr-ann-text">${esc2(a.text||a.description||'')}</span>
+          </div>`).join('')}</div>`;
+    }
+  }
+
+  function wireJournalDrawer() {
+    document.getElementById('jdr-backdrop')?.addEventListener('click', closeJournalDrawer);
+    document.getElementById('jdr-close')?.addEventListener('click', closeJournalDrawer);
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && !document.getElementById('journal-drawer')?.classList.contains('hidden'))
+        closeJournalDrawer();
+    });
+    document.getElementById('btn-jdr-save')?.addEventListener('click', async () => {
+      if (!_jdrSlug) return;
+      const body = document.getElementById('jdr-body').value;
+      const r = await fetch('/action', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ action: 'journal_update', args: { date_slug: _jdrSlug, body } }) });
+      const d = await r.json();
+      if (d.ok) { toast('✓ saved'); closeJournalDrawer(); await loadJournal(); }
+      else toast(d.error || 'save failed', 'error');
+    });
+    document.getElementById('jdr-header-actions')?.addEventListener('click', async e => {
+      const btn = e.target.closest('[data-jdr-action]');
+      if (!btn || !_jdrSlug) return;
+      if (btn.dataset.jdrAction === 'archive') {
+        await fetch('/action', { method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ action: 'journal_archive', args: { date_slug: _jdrSlug } }) });
+        toast('archived'); closeJournalDrawer(); await loadJournal();
+      } else if (btn.dataset.jdrAction === 'delete') {
+        if (!confirm('Delete this journal entry?')) return;
+        await fetch('/action', { method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ action: 'journal_delete', args: { date_slug: _jdrSlug } }) });
+        toast('deleted'); closeJournalDrawer(); await loadJournal();
+      }
+    });
+    document.getElementById('btn-jdr-annotate')?.addEventListener('click', async () => {
+      const text = document.getElementById('jdr-ann-text').value.trim();
+      if (!text || !_jdrSlug) return;
+      const r = await fetch('/action', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ action: 'journal_annotate', args: { date_slug: _jdrSlug, text } }) });
+      const d = await r.json();
+      if (d.ok) { toast('✓ annotated'); document.getElementById('jdr-ann-text').value = ''; closeJournalDrawer(); await loadJournal(); }
+    });
+  }
+
+  // ── Time drawer ────────────────────────────────────────────────────────────
+  function openTimeDrawer(interval) {
+    if (!interval) return;
+    _tmrInterval = interval;
+    _tmrTimewId  = interval.timew_id || String(interval.id || '');
+    document.getElementById('time-drawer')?.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    populateTimeDrawer(interval);
+  }
+
+  function closeTimeDrawer() {
+    document.getElementById('time-drawer')?.classList.add('hidden');
+    document.body.style.overflow = '';
+    _tmrInterval = null; _tmrTimewId = null;
+  }
+
+  function populateTimeDrawer(i) {
+    const tags = (i.tags || i.tag_list || '').toString();
+    const active = !i.end;
+    document.getElementById('tmr-dur-badge').textContent  = i.duration || (active ? 'active' : '—');
+    document.getElementById('tmr-tags-title').textContent = tags || 'untagged';
+    document.getElementById('tmr-tags').value             = tags;
+    document.getElementById('tmr-start-display').textContent = i.start ? i.start.replace('T', ' ').slice(0,16) : '—';
+    document.getElementById('tmr-end-display').textContent   = i.end   ? i.end.replace('T', ' ').slice(0,16)   : active ? '(active)' : '—';
+    document.getElementById('tmr-duration').textContent = i.duration || (active ? 'active' : '—');
+    const ha = document.getElementById('tmr-header-actions');
+    if (ha) ha.innerHTML = `<button data-tmr-action="delete" style="color:var(--error);border-color:var(--error)">✗ delete</button>`;
+  }
+
+  function wireTimeDrawer() {
+    document.getElementById('tmr-backdrop')?.addEventListener('click', closeTimeDrawer);
+    document.getElementById('tmr-close')?.addEventListener('click', closeTimeDrawer);
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && !document.getElementById('time-drawer')?.classList.contains('hidden'))
+        closeTimeDrawer();
+    });
+    document.getElementById('btn-tmr-save')?.addEventListener('click', async () => {
+      if (!_tmrTimewId) return;
+      const tags = document.getElementById('tmr-tags').value.trim();
+      const r = await fetch('/action', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ action: 'timew_retag', args: { timew_id: _tmrTimewId, tags } }) });
+      const d = await r.json();
+      if (d.ok) { toast('✓ retagged'); closeTimeDrawer(); await loadTime(); }
+      else toast(d.error || 'retag failed', 'error');
+    });
+    document.getElementById('tmr-header-actions')?.addEventListener('click', async e => {
+      const btn = e.target.closest('[data-tmr-action="delete"]');
+      if (!btn || !_tmrTimewId) return;
+      if (!confirm('Delete this time interval?')) return;
+      await fetch('/action', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ action: 'timew_delete', args: { timew_id: _tmrTimewId } }) });
+      toast('deleted'); closeTimeDrawer(); await loadTime();
+    });
+    document.getElementById('btn-tmr-to-journal')?.addEventListener('click', async () => {
+      if (!_tmrInterval) return;
+      const text = document.getElementById('tmr-journal-text').value.trim();
+      if (!text) return;
+      const tags = document.getElementById('tmr-tags').value || 'time';
+      const dur  = _tmrInterval.duration || '';
+      const entry = `[time-note:${tags}|${dur}|${text}]`;
+      const r = await fetch('/action', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ action: 'journal_add', args: { entry } }) });
+      const d = await r.json();
+      if (d.ok) { toast('→ journal'); document.getElementById('tmr-journal-text').value = ''; }
+    });
+  }
+
+  // ── Ledger drawer ──────────────────────────────────────────────────────────
+  function openLedgerDrawer(txn) {
+    if (!txn) return;
+    _ldrTxn = txn;
+    document.getElementById('ledger-drawer')?.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    populateLedgerDrawer(txn);
+  }
+
+  function closeLedgerDrawer() {
+    document.getElementById('ledger-drawer')?.classList.add('hidden');
+    document.body.style.overflow = '';
+    _ldrTxn = null;
+  }
+
+  function populateLedgerDrawer(t) {
+    const esc2 = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    document.getElementById('ldr-date-badge').textContent  = t.date || '';
+    document.getElementById('ldr-desc-title').textContent  = t.description || '';
+    document.getElementById('ldr-date-display').textContent = t.date || '';
+    document.getElementById('ldr-desc-display').textContent = t.description || '';
+    const ha = document.getElementById('ldr-header-actions');
+    if (ha) ha.innerHTML = '';
+    const postings = t.postings || [];
+    const pel = document.getElementById('ldr-postings');
+    if (pel) {
+      pel.innerHTML = postings.length === 0
+        ? '<div style="font-size:12px;color:var(--muted);padding:4px 0">No postings.</div>'
+        : postings.map(p => `<div class="ldr-posting-edit-row">
+            <span class="ldr-posting-edit-acct" style="flex:1.5;font-size:12px;padding:4px 6px">${esc2(p.account||p.acct||'')}</span>
+            <span class="ldr-posting-edit-amt" style="flex:0.7;font-size:12px;padding:4px 6px;color:var(--accent)">${esc2(String(p.amount||''))}</span>
+            <span class="ldr-posting-edit-cmt" style="flex:1;font-size:11px;color:var(--muted);padding:4px 6px">${esc2(p.comment||'')}</span>
+          </div>`).join('');
+    }
+  }
+
+  function wireLedgerDrawer() {
+    document.getElementById('ldr-backdrop')?.addEventListener('click', closeLedgerDrawer);
+    document.getElementById('ldr-close')?.addEventListener('click', closeLedgerDrawer);
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && !document.getElementById('ledger-drawer')?.classList.contains('hidden'))
+        closeLedgerDrawer();
+    });
+    document.getElementById('btn-ldr-to-journal')?.addEventListener('click', async () => {
+      if (!_ldrTxn) return;
+      const text = document.getElementById('ldr-journal-text').value.trim();
+      if (!text) return;
+      const entry = `[ledger-note:${_ldrTxn.date}|${_ldrTxn.description}|${text}]`;
+      const r = await fetch('/action', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ action: 'journal_add', args: { entry } }) });
+      const d = await r.json();
+      if (d.ok) { toast('→ journal'); document.getElementById('ldr-journal-text').value = ''; }
+    });
+  }
+
+  // ── Sidebar fullscreen button ──────────────────────────────────────────────
+  function wireSidebarFullscreen() {
+    const btn = document.getElementById('btn-sidebar-fullscreen');
+    const sidebar = document.getElementById('sidebar');
+    if (!btn || !sidebar) return;
+    btn.addEventListener('click', () => {
+      const collapsed = sidebar.classList.toggle('collapsed');
+      btn.classList.toggle('active', collapsed);
+      btn.title = collapsed ? 'Restore sidebar' : 'Expand view / collapse sidebar';
+    });
+  }
+
   // ── DOM refs ───────────────────────────────────────────────────────────────
   const sidebar       = document.getElementById('sidebar');
   const sidebarToggle = document.getElementById('sidebar-toggle');
@@ -32,18 +633,25 @@
   const termPrompt    = document.getElementById('term-prompt');
   const cmdOutput     = document.getElementById('cmd-output');
   const hintsBar      = document.getElementById('hints-bar');
+  const hintsText     = document.getElementById('hints-text');
   const statTasksCount = document.getElementById('stat-tasks-count');
   const statTimeToday  = document.getElementById('stat-time-today');
   const statDate       = document.getElementById('stat-date');
   const statContextBar = document.getElementById('stat-context-bar');
 
   // ── Terminal position state ────────────────────────────────────────────────
+  // Cycles: 'bottom' → 'focus' → 'top' → 'bottom'
+  // 'focus' = full-screen terminal: content area hidden, terminal fills viewport
   let termPosition = localStorage.getItem('ww-term-position') || 'bottom';
   const termPosToggle = document.getElementById('term-pos-toggle');
+
+  // ── Journal date display toggle ────────────────────────────────────────────
+  let journalShowDates = localStorage.getItem('ww-journal-show-dates') !== 'false';
 
   // ── Typeahead command cache ────────────────────────────────────────────────
   let wwCommands = []; // [{name, desc}] loaded from /data/commands
   let cachedTasks = []; // full task objects for detail panel lookup
+  let hoveredTaskId = null;
   let taskGroupMode = localStorage.getItem('ww-task-group-mode') === 'grouped';
   let taskShowDone = false;
   let taskAnnVisible = localStorage.getItem('ww-task-ann-visible') !== 'false';
@@ -697,6 +1305,8 @@ CMD: "add task review and start tracking"
     const contentArea = document.getElementById('content-area');
     if (contentArea && activeSection) scrollPositions.set(activeSection, contentArea.scrollTop);
     activeSection = name;
+    if (typeof termMode !== 'undefined' && termMode === 'filter') setTermMode('execute');
+    document.dispatchEvent(new CustomEvent('sectionChanged', { detail: { name } }));
     document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
     const el = document.getElementById('section-' + name);
     if (el) el.classList.remove('hidden');
@@ -718,6 +1328,12 @@ CMD: "add task review and start tracking"
       community:'Communities', warlock:'Warlock', tags:'Tags'
     };
     sectionTitle.textContent = titleMap[name] || name;
+    // Twain journal mode needs content-area overflow change when journal is visible
+    if (name === 'journal' && journalTheme === 'twain') {
+      contentArea?.classList.add('twain-journal-active');
+    } else {
+      contentArea?.classList.remove('twain-journal-active');
+    }
     // header-resource-slot visibility is handled by refreshResourceSelectors
     await loadSection(name);
     // Restore scroll position after content loads
@@ -739,11 +1355,16 @@ CMD: "add task review and start tracking"
 
   // Compound commands that enter context mode (next Enter appends free-form args)
   const TERM_CONTEXT_CMDS = {
-    'task add': 'task add',    't add': 'task add',
+    'task add': '__task_new__', 't add': '__task_new__',
     'journal add': 'journal add', 'j add': 'journal add',
-    'journal entry': 'journal add', 'j entry': 'journal add',
+    'journal write': 'journal write', 'j write': 'journal write',
+    'journal entry': 'journal write', 'j entry': 'journal write',
     'ledger add': 'ledger add', 'l add': 'ledger add',
     'time track': 'time track', 'timew track': 'time track',
+    'j top': '__journal_top__', 'journal top': '__journal_top__',
+    'j add top': '__journal_top__', 'journal add top': '__journal_top__',
+    'ctx': '__ctx_toggle__', 'sidebar': '__ctx_toggle__',
+    'dates': '__dates_toggle__', 'j dates': '__dates_toggle__',
   };
 
   // Single-token commands that navigate to a section (no execution)
@@ -861,6 +1482,8 @@ CMD: "add task review and start tracking"
     headerProfile.textContent = display;
     const badge = document.getElementById('term-profile-badge');
     if (badge) badge.textContent = display;
+    const focusProf = document.getElementById('focus-profile-btn');
+    if (focusProf) focusProf.textContent = display;
     document.querySelectorAll('#profile-switcher li').forEach(li => {
       li.classList.toggle('active-profile', li.dataset.profile === name);
     });
@@ -873,7 +1496,7 @@ CMD: "add task review and start tracking"
     const aiActive = ctrlState.ai && ctrlState.ai.mode !== 'off' && ctrlState.ai.cmd_ai;
     if (badge) {
       const bits = [];
-      if (ctrlState.command_line?.show_ww) bits.push('ww');
+      if (ctrlState.command_line?.show_ww) bits.push(instanceCmd);
       if (ctrlState.command_line?.show_ai && aiActive) bits.push('(AI)');
       badge.textContent = bits.join(' ') || (profilePill.textContent || '');
     }
@@ -883,7 +1506,7 @@ CMD: "add task review and start tracking"
         const m = ctrlState.ai.model ? `/${ctrlState.ai.model}` : '';
         modelBits.push(`ai:${ctrlState.ai.provider}${m}`);
       }
-      wwHint.textContent = `type a ww command — tab to filter mode${modelBits.length ? ' · ' + modelBits.join(' ') : ''}`;
+      wwHint.textContent = `type a ${instanceCmd} command — tab to filter mode${modelBits.length ? ' · ' + modelBits.join(' ') : ''}`;
     }
   }
 
@@ -1061,13 +1684,13 @@ CMD: "add task review and start tracking"
     } else if (mode === 'filter') {
       termPrompt.textContent = '/ ';
       termPrompt.className = 'prompt-filter';
-      hintsBar.textContent = 'filtering ' + activeSection + ' — tab to execute mode';
+      hintsText.textContent = 'filtering ' + activeSection + ' — tab to execute mode';
       termInput.value = '';
       if (overlay) overlay.classList.add('hidden');
     } else if (mode === 'search') {
       termPrompt.textContent = '🔍 ';
       termPrompt.className = 'prompt-search';
-      hintsBar.textContent = 'global search — Escape to cancel';
+      hintsText.textContent = 'global search — Escape to cancel';
       termInput.value = '';
       if (overlay) { overlay.classList.remove('hidden'); overlay.querySelector('#search-results').innerHTML = '<div class="search-hint">Start typing to search tasks and journals…</div>'; }
     }
@@ -1080,7 +1703,7 @@ CMD: "add task review and start tracking"
       if (ctxEl) { ctxEl.textContent = cmd; ctxEl.classList.remove('hidden'); }
       termPrompt.textContent = '  ›  ';
       termPrompt.className = 'prompt-context';
-      hintsBar.textContent = `${cmd} › type args — Escape to cancel`;
+      hintsText.textContent = `${cmd} › type args — Escape to cancel`;
     } else {
       if (ctxEl) { ctxEl.textContent = ''; ctxEl.classList.add('hidden'); }
       termPrompt.textContent = '❯ ';
@@ -1148,6 +1771,36 @@ CMD: "add task review and start tracking"
       });
       const data = await res.json();
       showOutput(data.output || (data.error || 'no output'), !data.ok);
+      if (data.ok) {
+        const c = cmd.trim();
+        // Task mutations → reload tasks
+        if (/^(task\s+(?!list\b|ls\b|info\b|export\b)|next\b)/i.test(c)) {
+          cachedTasks = [];
+          if (activeSection === 'tasks') await loadTasks();
+        }
+        // Time mutations → reload time
+        if (/^(time\s+(?!report\b|summary\b|week\b|month\b)|timew\s+(?!report\b|summary\b))/i.test(c)) {
+          if (activeSection === 'time') await loadTime();
+        }
+        // Journal writes → refresh entry cache + write card precursor
+        if (/^(journal|j)\s+(write|entry|new)\b/i.test(c)) {
+          try {
+            const jr = await fetch('/data/journal?page=1');
+            const jd = await jr.json();
+            if (jd.ok && jd.entries?.length) {
+              cachedJournalEntries = jd.entries;
+              jwcLastEntryIdx = 0;
+            }
+          } catch(_) {}
+          if (activeSection === 'journal') { journalPage = 1; await loadJournal(); }
+        }
+        // List mutations → reload lists
+        if (/^list\s+(?!show\b|ls\b)/i.test(c)) {
+          if (activeSection === 'lists') await loadLists();
+        }
+        // Refresh context sidebar with new data
+        if (ctxSidebarOpen) updateCtxSidebar();
+      }
     } catch (err) {
       showOutput('error: ' + err.message, true);
     }
@@ -1188,7 +1841,7 @@ CMD: "add task review and start tracking"
         e.preventDefault();
         if (termMode === 'execute' && cmdHistory.length) {
           historyIdx = Math.min(historyIdx + 1, cmdHistory.length - 1);
-          termInput.value = cmdHistory[historyIdx] || '';
+          termInput.value = String(cmdHistory[historyIdx] || '');
         }
         return;
       }
@@ -1202,7 +1855,10 @@ CMD: "add task review and start tracking"
       }
 
       if (e.key === 'Enter') {
-        const val = termInput.value.trim();
+        // Strip leading "ww " or "<instanceCmd> " prefix — users may naturally type it
+        let val = termInput.value.trim();
+        const cmdPrefix = instanceCmd + ' ';
+        if (val.toLowerCase().startsWith(cmdPrefix.toLowerCase())) val = val.slice(cmdPrefix.length).trim();
         if (!val && !termContextCmd) return;
         if (termMode === 'execute') {
           // Context mode: prepend primed command to args
@@ -1211,6 +1867,13 @@ CMD: "add task review and start tracking"
             termInput.value = '';
             setTermContext(null);
             await execCmd(fullCmd);
+            return;
+          }
+          // Quick journal write: j "text" or j 'text' or j text... (j followed by space + content)
+          if (/^j\s+\S/.test(val) && !TERM_CONTEXT_CMDS[val.toLowerCase()]) {
+            const text = val.slice(val.indexOf(' ') + 1).trim();
+            termInput.value = '';
+            if (text) { await execCmd(`journal write ${text}`); } else { openJournalWriteCard(journalWriteMode); }
             return;
           }
           // Single-token section nav
@@ -1225,7 +1888,23 @@ CMD: "add task review and start tracking"
           const ctxCmd = TERM_CONTEXT_CMDS[val.toLowerCase()];
           if (ctxCmd) {
             termInput.value = '';
+            if (ctxCmd === '__task_new__') { openNewTaskOverlay(); return; }
+            if (ctxCmd === '__journal_top__') { openJournalWriteCard('top'); return; }
+            if (ctxCmd === '__ctx_toggle__') { toggleCtxSidebar(); return; }
+            if (ctxCmd === '__dates_toggle__') { toggleJournalDates(); renderHintsActions(activeSection); return; }
             setTermContext(ctxCmd);
+            return;
+          }
+          // p-<profile> shortcut: switch active profile
+          if (/^p-\S+$/.test(val)) {
+            const pname = val.slice(2);
+            termInput.value = '';
+            try {
+              const r = await fetch('/profile', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ profile: pname }) });
+              const d = await r.json();
+              if (d.ok) { setProfile(pname); toast(`profile: ${pname}`); await loadSection(activeSection); }
+              else showOutput(d.error || `profile '${pname}' not found`, true);
+            } catch(e) { showOutput('profile switch failed: ' + e.message, true); }
             return;
           }
           termInput.value = '';
@@ -1251,7 +1930,7 @@ CMD: "add task review and start tracking"
     termInput.addEventListener('input', () => {
       const val = termInput.value.trim();
       if (termContextCmd) {
-        hintsBar.textContent = `${termContextCmd} › type args — Escape to cancel`;
+        hintsText.textContent = `${termContextCmd} › type args — Escape to cancel`;
         return;
       }
       if (termMode === 'search') {
@@ -1263,19 +1942,19 @@ CMD: "add task review and start tracking"
           `#section-${activeSection} .task-row, #section-${activeSection} .journal-entry, #section-${activeSection} .ledger-row, #section-${activeSection} .list-row`
         );
         const visible = [...rows].filter(r => r.style.display !== 'none').length;
-        hintsBar.textContent = `filtering ${visible} item${visible !== 1 ? 's' : ''} in ${activeSection} — tab to execute mode`;
+        hintsText.textContent = `filtering ${visible} item${visible !== 1 ? 's' : ''} in ${activeSection} — tab to execute mode`;
         return;
       }
       if (!val) {
         const last = cmdHistory[0];
-        hintsBar.textContent = last ? `last: ${last}` : 'type a ww command — tab to filter mode';
+        hintsText.textContent = last ? `last: ${last}` : `type a ${instanceCmd} command — tab to filter mode`;
         return;
       }
       const matches = wwCommands.filter(c => c.name.startsWith(val) || c.name.includes(val));
       if (matches.length) {
-        hintsBar.textContent = matches.slice(0, 3).map(c => `${c.name} — ${c.desc}`).join('  ·  ');
+        hintsText.textContent = matches.slice(0, 3).map(c => `${c.name} — ${c.desc}`).join('  ·  ');
       } else {
-        hintsBar.textContent = 'no matching command — tab to filter mode';
+        hintsText.textContent = 'no matching command — tab to filter mode';
       }
     });
   }
@@ -1718,11 +2397,13 @@ CMD: "add task review and start tracking"
 
   function renderTasks(tasks) {
     const list = document.getElementById('task-list');
-    // Preserve open inline detail across re-renders (SSE updates, action results)
-    const openDetail = list.querySelector('.task-inline-detail:not(.hidden)');
-    const openDetailId = openDetail ? parseInt(openDetail.id.replace('tid-', '')) : null;
     cachedTasks = tasks;
     startActiveTaskRefresh();
+    // Refresh open drawer if the underlying task data changed
+    if (_drawerUuid) {
+      const updated = tasks.find(t => t.uuid === _drawerUuid);
+      if (updated) { _drawerTask = updated; populateTaskDrawer(updated); }
+    }
 
     if (!tasks.length) {
       list.innerHTML = '<div class="empty-state">No pending tasks</div>';
@@ -2004,23 +2685,18 @@ CMD: "add task review and start tracking"
       });
     });
 
-    // Click row to toggle inline detail
+    // Click row to open task drawer
     list.querySelectorAll('.task-row').forEach(row => {
       row.addEventListener('click', () => {
-        const id = parseInt(row.dataset.id);
-        const detailDiv = document.getElementById('tid-' + id);
-        if (!detailDiv) return;
-        // Close any other open detail
-        list.querySelectorAll('.task-inline-detail').forEach(d => {
-          if (d !== detailDiv) { d.classList.add('hidden'); d.innerHTML = ''; }
-        });
-        if (!detailDiv.classList.contains('hidden')) {
-          detailDiv.classList.add('hidden'); detailDiv.innerHTML = '';
-          return;
-        }
-        const task = cachedTasks.find(t => t.id === id);
-        if (task) expandTaskInline(detailDiv, task);
+        const uuid = row.dataset.uuid;
+        if (uuid) openTaskDrawer(uuid);
       });
+    });
+
+    // "o" key on hovered task → open as overlay
+    list.querySelectorAll('.task-row').forEach(row => {
+      row.addEventListener('mouseenter', () => { hoveredTaskId = parseInt(row.dataset.id) || null; });
+      row.addEventListener('mouseleave', () => { hoveredTaskId = null; });
     });
 
     // Group headers: toggle collapse
@@ -2071,12 +2747,6 @@ CMD: "add task review and start tracking"
 
     document.getElementById('task-filter').addEventListener('input', filterTasks);
 
-    // Re-open inline detail that was open before the re-render
-    if (openDetailId) {
-      const task = cachedTasks.find(t => t.id === openDetailId);
-      const detail = document.getElementById('tid-' + openDetailId);
-      if (task && detail) expandTaskInline(detail, task);
-    }
   }
 
   async function doBulkAction(op, args) {
@@ -2185,7 +2855,7 @@ CMD: "add task review and start tracking"
     if (!resultsEl) return;
     if (!q) {
       resultsEl.innerHTML = '<div class="search-hint">Start typing to search tasks and journals…</div>';
-      hintsBar.textContent = 'global search — Escape to cancel';
+      hintsText.textContent = 'global search — Escape to cancel';
       return;
     }
     const ql = q.toLowerCase();
@@ -2228,7 +2898,7 @@ CMD: "add task review and start tracking"
       <div class="search-group-header">Tasks (${taskHits.length})</div>${taskHTML}
       <div class="search-group-header">Journal (${journalHits.length})</div>${journalHTML}`;
 
-    hintsBar.textContent = `${taskHits.length + journalHits.length} results — Enter to navigate, Escape to cancel`;
+    hintsText.textContent = `${taskHits.length + journalHits.length} results — Enter to navigate, Escape to cancel`;
 
     // Click task result → switch to tasks, open inline detail
     resultsEl.querySelectorAll('.search-result-task').forEach(el => {
@@ -2849,9 +3519,10 @@ CMD: "add task review and start tracking"
       let todayHtml = `<div class="time-card">`;
       todayHtml += `<span class="time-total">${fmt(data.today_total_seconds)}</span><span class="time-label"> today</span>`;
       if (data.active) {
-        const sinceLocal = data.active_since ? new Date(
+        const _sinceDate = data.active_since ? new Date(
           data.active_since.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/,
-            '$1-$2-$3T$4:$5:$6Z')).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '';
+            '$1-$2-$3T$4:$5:$6Z')) : null;
+        const sinceLocal = _sinceDate ? `${_sinceDate.getHours().toString().padStart(2,'0')}:${_sinceDate.getMinutes().toString().padStart(2,'0')}:${_sinceDate.getSeconds().toString().padStart(2,'0')}` : '';
         const elapsedSec = data.active_since
           ? (Date.now() - Date.parse(data.active_since.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/, '$1-$2-$3T$4:$5:$6Z'))) / 1000
           : 0;
@@ -2900,6 +3571,7 @@ CMD: "add task review and start tracking"
           intHtml += `<div class="interval-row" data-tags="${escapedTags}" data-timew-id="${iv.timew_id || ''}">
             ${dot}<span class="int-tags" style="cursor:pointer" title="Click to start tracking">${iv.tags}</span><span class="int-dur">${fmt(iv.duration)}</span>
             <span class="int-actions">
+              <button class="act-btn int-detail-btn" data-timew-id="${iv.timew_id || ''}" title="Open detail panel">⊞</button>
               <button class="act-btn int-journal-btn" data-tags="${escapedTags}" data-dur="${fmt(iv.duration)}">→ journal</button>
               ${!iv.active ? `<button class="act-btn int-archive-btn" data-timew-id="${iv.timew_id || ''}" data-tags="${escapedTags}" data-dur="${fmt(iv.duration)}" title="Delete this interval">⊗</button>` : ''}
             </span>
@@ -2952,6 +3624,16 @@ CMD: "add task review and start tracking"
         });
       });
 
+      // ⊞ open time drawer
+      ints.querySelectorAll('.int-detail-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const timewId = btn.dataset.timewId;
+          const iv = cachedTimeIntervals.find(x => String(x.timew_id || '') === String(timewId));
+          if (iv) openTimeDrawer(iv);
+        });
+      });
+
       // ⊗ archive time interval
       ints.querySelectorAll('.int-archive-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -2979,9 +3661,24 @@ CMD: "add task review and start tracking"
   function fmtJournalDate(raw) {
     try {
       const d = new Date(raw.replace(' ', 'T') + ':00');
-      return d.toLocaleDateString([], {weekday:'short',month:'short',day:'numeric'}) +
-             ' ' + d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+      const date = d.toLocaleDateString([], {weekday:'short', month:'short', day:'numeric'});
+      const h = d.getHours().toString().padStart(2, '0');
+      const m = d.getMinutes().toString().padStart(2, '0');
+      return `${date}  ${h}:${m}`;
     } catch (_) { return raw; }
+  }
+
+  function applyJournalDateVisibility() {
+    const jl = document.getElementById('journal-list');
+    if (!jl) return;
+    jl.classList.toggle('no-dates', !journalShowDates);
+  }
+
+  function toggleJournalDates() {
+    journalShowDates = !journalShowDates;
+    localStorage.setItem('ww-journal-show-dates', journalShowDates ? 'true' : 'false');
+    applyJournalDateVisibility();
+    if (hintsText) hintsText.textContent = journalShowDates ? 'dates shown' : 'dates hidden';
   }
 
   // Wrap @tags in body text with accent-colored span
@@ -3322,19 +4019,14 @@ CMD: "add task review and start tracking"
     await switchSection('tasks');
     task = cachedTasks.find(t => t.uuid === uuid);
     if (!task) { toast('task not found', 'info'); return; }
-    const detail = document.getElementById('tid-' + task.id);
-    if (!detail) return;
-    document.querySelectorAll('.task-inline-detail').forEach(d => {
-      if (d !== detail) { d.classList.add('hidden'); d.innerHTML = ''; }
-    });
-    expandTaskInline(detail, task);
     setTimeout(() => {
-      const row = document.querySelector(`.task-row[data-id="${task.id}"]`);
+      const row = document.querySelector(`.task-row[data-uuid="${uuid}"]`);
       if (row) {
         row.scrollIntoView({ behavior: 'smooth', block: 'center' });
         row.classList.add('task-row-highlight');
         setTimeout(() => row.classList.remove('task-row-highlight'), 2200);
       }
+      openTaskDrawer(uuid);
     }, 100);
   };
 
@@ -3448,6 +4140,18 @@ CMD: "add task review and start tracking"
   }
 
   function wireJournalEntryEvents(list) {
+    // Click on entry body/date to open journal drawer
+    list.querySelectorAll('.journal-entry').forEach(el => {
+      el.addEventListener('click', e => {
+        if (e.target.closest('button, .entry-action-row, .entry-ann-block, .entry-meta-chips, a')) return;
+        const slug = el.dataset.slug;
+        const entry = cachedJournalEntries.find(x =>
+          (x.date_slug || x.date.replace(' ', '_').replace(/:/g, '-')) === slug
+        );
+        if (entry) openJournalDrawer(entry);
+      });
+    });
+
     list.querySelectorAll('.entry-more').forEach(btn => {
       btn.addEventListener('click', () => {
         const idx = btn.dataset.idx;
@@ -3804,6 +4508,7 @@ CMD: "add task review and start tracking"
     });
 
     wireJournalEntryEvents(list);
+    applyJournalDateVisibility();
 
     // Update context bar with page info
     const pagesLoaded = Math.min(journalPage, totalPages);
@@ -3851,6 +4556,11 @@ CMD: "add task review and start tracking"
       cachedJournalEntries = data.entries.map((e, i) => ({ ...e, _idx: i }));
       renderJournalPage(list);
       wireJournalFilterButtons();
+      if (typeof updateCtxSidebar === 'function') updateCtxSidebar();
+      if (journalTheme === 'twain') {
+        updateTwainEntriesInfo(cachedJournalEntries);
+        mergeTwainSectionsFromEntries(cachedJournalEntries);
+      }
       // Client-side search
       document.getElementById('journal-search')?.addEventListener('input', (e) => {
         const q = e.target.value.toLowerCase();
@@ -4246,24 +4956,23 @@ CMD: "add task review and start tracking"
           });
         };
 
-        // Click primary row → expand/collapse detail
-        recDiv.querySelectorAll('.ledger-row').forEach(row => {
-          const toggleDetail = (e) => {
-            if (e.target.closest('.ledger-annotate-btn')) return; // note icon handles its own click
+        // Click primary row → open ledger drawer
+        recDiv.querySelectorAll('.ledger-row').forEach((row) => {
+          const openDrawer = (e) => {
+            if (e.target.closest('.ledger-annotate-btn')) return;
             const item = row.closest('.ledger-item');
-            const detail = item?.querySelector('.ledger-detail');
-            if (!detail) return;
-            const open = detail.classList.toggle('hidden');
-            row.setAttribute('aria-expanded', String(!open));
+            const idx = parseInt(item?.dataset.idx ?? '-1');
+            const raw = (data.recent || [])[idx];
+            if (!raw) return;
+            // Synthesize postings array from register row (server gives account+amount at top level)
+            const txn = Object.assign({}, raw, {
+              postings: raw.postings || (raw.account ? [{ account: raw.account, amount: raw.amount, comment: '' }] : [])
+            });
+            openLedgerDrawer(txn);
           };
-          row.addEventListener('click', toggleDetail);
+          row.addEventListener('click', openDrawer);
           row.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') { e.preventDefault(); toggleDetail(e); }
-            if (e.key === 'Escape') {
-              const detail = row.closest('.ledger-item')?.querySelector('.ledger-detail');
-              detail?.classList.add('hidden');
-              row.setAttribute('aria-expanded', 'false');
-            }
+            if (e.key === 'Enter') { e.preventDefault(); openDrawer(e); }
           });
         });
 
@@ -4668,12 +5377,35 @@ CMD: "add task review and start tracking"
 
   function applyTermPosition(pos, animate) {
     const bar = document.getElementById('terminal-bar');
+    const appEl = document.getElementById('app');
+    if (!bar) return;
     if (!animate) bar.style.transition = 'none';
-    if (pos === 'top') {
+
+    const focusBarEl = document.getElementById('focus-bar');
+    if (pos === 'focus') {
+      bar.style.top = '';
+      bar.style.bottom = '0';
+      bar.style.borderTop = '1px solid var(--border)';
+      bar.style.borderBottom = 'none';
+      if (appEl) appEl.classList.add('term-focus-mode');
+      document.body.classList.add('term-focus-mode');
+      if (focusBarEl) focusBarEl.classList.remove('hidden');
+      requestAnimationFrame(() => {
+        const h = bar.getBoundingClientRect().height;
+        document.documentElement.style.setProperty('--term-h', h + 'px');
+        document.body.style.paddingBottom = '';
+        document.body.style.paddingTop = '30px'; // focus bar height
+        if (!animate) bar.style.transition = '';
+        updateFocusBar(activeSection);
+      });
+      if (termPosToggle) termPosToggle.textContent = '⊡';
+    } else if (pos === 'top') {
       bar.style.bottom = '';
       bar.style.top = '0';
       bar.style.borderTop = 'none';
       bar.style.borderBottom = '1px solid var(--border)';
+      if (appEl) appEl.classList.remove('term-focus-mode');
+      document.body.classList.remove('term-focus-mode');
       requestAnimationFrame(() => {
         const h = bar.getBoundingClientRect().height;
         document.documentElement.style.setProperty('--term-h', h + 'px');
@@ -4681,12 +5413,16 @@ CMD: "add task review and start tracking"
         document.body.style.paddingBottom = '';
         if (!animate) bar.style.transition = '';
       });
+      if (focusBarEl) focusBarEl.classList.add('hidden');
       if (termPosToggle) termPosToggle.textContent = '\u2193';
     } else {
       bar.style.top = '';
       bar.style.bottom = '0';
       bar.style.borderTop = '1px solid var(--border)';
       bar.style.borderBottom = 'none';
+      if (appEl) appEl.classList.remove('term-focus-mode');
+      document.body.classList.remove('term-focus-mode');
+      if (focusBarEl) focusBarEl.classList.add('hidden');
       requestAnimationFrame(() => {
         const h = bar.getBoundingClientRect().height;
         document.documentElement.style.setProperty('--term-h', h + 'px');
@@ -4701,7 +5437,8 @@ CMD: "add task review and start tracking"
   }
 
   function toggleTermPosition() {
-    applyTermPosition(termPosition === 'bottom' ? 'top' : 'bottom', true);
+    const next = termPosition === 'bottom' ? 'focus' : termPosition === 'focus' ? 'top' : 'bottom';
+    applyTermPosition(next, true);
   }
 
   // ── Density control ──────────────────────────────────────────────────────
@@ -6875,6 +7612,14 @@ CMD: "add task review and start tracking"
     const journalTextarea = document.querySelector('#add-journal-form textarea');
     if (journalTextarea) {
       journalTextarea.addEventListener('keydown', (e) => {
+        // Cmd/Ctrl+S saves in Twain mode
+        if (journalTheme === 'twain' && (e.metaKey || e.ctrlKey) && e.key === 's') {
+          e.preventDefault();
+          document.getElementById('add-journal-form')?.requestSubmit();
+          return;
+        }
+        // In Twain mode Enter never submits
+        if (journalTheme === 'twain') return;
         const toggle = document.getElementById('jrnl-enter-toggle');
         const enterSubmits = !toggle || toggle.checked;
         if (e.key === 'Enter' && !e.shiftKey && enterSubmits) {
@@ -6907,8 +7652,238 @@ CMD: "add task review and start tracking"
         toast('✓ journal entry added');
         await loadJournal();
         e.target.reset();
+        if (journalTheme === 'twain') {
+          const proj = document.getElementById('journal-project-input');
+          const val = proj?.value.trim();
+          if (val) addTwainSection(val);
+          const tagsInp = document.getElementById('journal-tags-input');
+          (tagsInp?.value || '').split(/[\s,]+/).filter(Boolean).forEach(t => addTwainTag(t));
+        }
       } else { toast('journal failed', 'error'); }
     });
+
+    // ── Twain theme wiring ────────────────────────────────────────────────
+    document.getElementById('journal-theme-select')?.addEventListener('change', (e) => {
+      const theme = e.target.value;
+      activateJournalTheme(theme);
+      updateThemeModeSelect(theme);
+      if (theme !== 'twain' && document.body.classList.contains('river-mode')) {
+        document.body.classList.remove('river-mode');
+      }
+      if (theme === 'twain') loadJournal();
+    });
+
+    document.getElementById('global-mode-select')?.addEventListener('change', (e) => {
+      document.body.classList.toggle('river-mode', e.target.value === 'river');
+    });
+
+    document.getElementById('btn-twain-save')?.addEventListener('click', () => {
+      document.getElementById('add-journal-form')?.requestSubmit();
+    });
+
+    // Entries bar: toggle drawer
+    function openEntriesDrawer() {
+      const bar = document.getElementById('twain-entries-bar');
+      const drawer = document.getElementById('twain-entries-drawer');
+      const search = document.getElementById('twain-entries-search');
+      if (drawer?.classList.contains('hidden')) {
+        drawer.classList.remove('hidden');
+        bar?.classList.add('open');
+        search?.focus();
+      }
+    }
+    function closeEntriesDrawer() {
+      const bar = document.getElementById('twain-entries-bar');
+      const drawer = document.getElementById('twain-entries-drawer');
+      drawer?.classList.add('hidden');
+      bar?.classList.remove('open');
+    }
+    document.getElementById('twain-entries-bar')?.addEventListener('click', () => {
+      const drawer = document.getElementById('twain-entries-drawer');
+      if (drawer?.classList.contains('hidden')) openEntriesDrawer(); else closeEntriesDrawer();
+    });
+    document.getElementById('twain-entries-search')?.addEventListener('focus', openEntriesDrawer);
+    document.getElementById('twain-entries-search')?.addEventListener('input', (e) => {
+      const q = e.target.value.trim().toLowerCase();
+      document.querySelectorAll('#journal-list .journal-entry').forEach(el => {
+        el.style.display = (!q || el.textContent.toLowerCase().includes(q)) ? '' : 'none';
+      });
+      document.querySelectorAll('#journal-list .journal-date-group').forEach(g => {
+        const vis = g.querySelectorAll('.journal-entry:not([style*="display: none"])');
+        g.style.display = vis.length > 0 || !q ? '' : 'none';
+      });
+    });
+    document.getElementById('journal-entry-textarea')?.addEventListener('focus', closeEntriesDrawer);
+
+    // Focus mode
+    document.getElementById('btn-twain-focus')?.addEventListener('click', () => {
+      const active = document.body.classList.toggle('twain-focus-mode');
+      document.getElementById('btn-twain-focus')?.classList.toggle('active', active);
+    });
+
+    // Scratch pad collapse/expand
+    function toggleTwainScratch() {
+      const sec = document.getElementById('section-journal');
+      if (!sec) return;
+      const collapsed = sec.classList.toggle('scratch-collapsed');
+      if (collapsed) sec.classList.remove('scratch-expanded');
+      const btn = document.getElementById('btn-scratch-collapse');
+      if (btn) btn.textContent = collapsed ? '›' : '‹';
+    }
+    document.getElementById('btn-scratch-collapse')?.addEventListener('click', toggleTwainScratch);
+    document.getElementById('btn-twain-expand')?.addEventListener('click', toggleTwainScratch);
+    document.getElementById('btn-scratch-expand')?.addEventListener('click', () => {
+      const sec = document.getElementById('section-journal');
+      if (!sec) return;
+      const expanded = sec.classList.toggle('scratch-expanded');
+      if (expanded) {
+        sec.classList.remove('scratch-collapsed');
+        document.getElementById('btn-scratch-collapse')?.textContent === '‹' || null;
+        document.querySelectorAll('.twain-scratch-extra').forEach(el => el.classList.remove('hidden'));
+      } else {
+        document.querySelectorAll('.twain-scratch-extra').forEach(el => el.classList.add('hidden'));
+      }
+      const btn = document.getElementById('btn-scratch-expand');
+      if (btn) btn.textContent = expanded ? '⇤' : '⇥';
+    });
+    document.getElementById('twain-scratch')?.addEventListener('input', (e) => {
+      localStorage.setItem('ww_twain_scratch', e.target.value);
+    });
+
+    // Twain task bar quick-add
+    document.getElementById('btn-twain-task-add')?.addEventListener('click', async () => {
+      const desc = document.getElementById('twain-task-desc')?.value.trim();
+      if (!desc) return;
+      const project = document.getElementById('twain-task-project')?.value.trim() || '';
+      const tags = document.getElementById('twain-task-tags')?.value.trim() || '';
+      const priority = document.getElementById('twain-task-priority')?.value || '';
+      const args = { description: desc };
+      if (project) args.project = project;
+      if (tags) args.tags = tags;
+      if (priority) args.priority = priority;
+      await fetch('/action', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ action: 'task_add', args }) });
+      document.getElementById('twain-task-desc').value = '';
+      toast('✓ task added');
+    });
+    document.getElementById('twain-task-bar')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); document.getElementById('btn-twain-task-add')?.click(); }
+    });
+
+    // @sections and @tags fields — ink panel updates
+    document.getElementById('journal-project-input')?.addEventListener('keydown', (e) => {
+      if (journalTheme !== 'twain' || e.key !== 'Enter') return;
+      e.preventDefault();
+      const val = e.target.value.trim();
+      if (val) addTwainSection(val);
+    });
+    document.getElementById('journal-project-input')?.addEventListener('input', () => {
+      if (journalTheme === 'twain') updateTwainInkPanel();
+    });
+    document.getElementById('journal-tags-input')?.addEventListener('keydown', (e) => {
+      if (journalTheme !== 'twain' || e.key !== 'Enter') return;
+      e.preventDefault();
+      const val = e.target.value.trim().replace(/,\s*$/, '');
+      if (val) { addTwainTag(val); e.target.value = ''; }
+    });
+    document.getElementById('journal-tags-input')?.addEventListener('input', () => {
+      if (journalTheme === 'twain') updateTwainInkPanel();
+    });
+
+    // Ink panel clicks (sections + tags)
+    document.getElementById('twain-ink-panel')?.addEventListener('click', (e) => {
+      const rBtn = e.target.closest('[data-remove-section]');
+      if (rBtn) {
+        const s = rBtn.dataset.removeSection;
+        twainHiddenSections.add(s);
+        localStorage.setItem('ww_twain_sections_hidden', JSON.stringify([...twainHiddenSections]));
+        twainRecentSections = twainRecentSections.filter(x => x !== s);
+        localStorage.setItem('ww_twain_sections', JSON.stringify(twainRecentSections));
+        updateTwainInkPanel(); return;
+      }
+      const sBtn = e.target.closest('[data-ctx-section]');
+      if (sBtn) {
+        const inp = document.getElementById('journal-project-input');
+        if (inp) inp.value = sBtn.dataset.ctxSection;
+        updateTwainInkPanel(); return;
+      }
+      const tBtn = e.target.closest('[data-ctx-tag]');
+      if (tBtn) { addTwainTag(tBtn.dataset.ctxTag); return; }
+      if (e.target.closest('#btn-collapse-sections')) {
+        twainSectionsCollapsed = !twainSectionsCollapsed;
+        const b = document.getElementById('btn-collapse-sections');
+        if (b) b.textContent = twainSectionsCollapsed ? '+' : '−';
+        updateTwainInkPanel(); return;
+      }
+      if (e.target.closest('#btn-collapse-tags')) {
+        twainTagsCollapsed = !twainTagsCollapsed;
+        const b = document.getElementById('btn-collapse-tags');
+        if (b) b.textContent = twainTagsCollapsed ? '+' : '−';
+        updateTwainInkPanel(); return;
+      }
+    });
+
+    // Drag-to-reorder sections in ink panel
+    (() => {
+      const secList = document.getElementById('twain-section-list');
+      if (!secList) return;
+      let dragSrc = null;
+      secList.addEventListener('dragstart', (e) => {
+        const row = e.target.closest('[data-section-index]');
+        if (!row) return;
+        dragSrc = parseInt(row.dataset.sectionIndex, 10);
+        row.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      secList.addEventListener('dragend', () => {
+        secList.querySelectorAll('.twain-ink-section-row').forEach(r => r.classList.remove('dragging', 'drag-over'));
+        dragSrc = null;
+      });
+      secList.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        const row = e.target.closest('[data-section-index]');
+        if (!row) return;
+        secList.querySelectorAll('.twain-ink-section-row').forEach(r => r.classList.remove('drag-over'));
+        row.classList.add('drag-over');
+      });
+      secList.addEventListener('dragleave', (e) => {
+        if (!secList.contains(e.relatedTarget))
+          secList.querySelectorAll('.drag-over').forEach(r => r.classList.remove('drag-over'));
+      });
+      secList.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const row = e.target.closest('[data-section-index]');
+        if (!row || dragSrc === null) return;
+        const dest = parseInt(row.dataset.sectionIndex, 10);
+        if (dragSrc === dest) return;
+        const visible = twainRecentSections.filter(s => !twainHiddenSections.has(s));
+        const [moved] = visible.splice(dragSrc, 1);
+        visible.splice(dest, 0, moved);
+        twainRecentSections = visible;
+        localStorage.setItem('ww_twain_sections', JSON.stringify(twainRecentSections));
+        updateTwainInkPanel();
+      });
+    })();
+
+    // River mode button
+    document.getElementById('btn-twain-river')?.addEventListener('click', () => {
+      document.body.classList.toggle('river-mode');
+      syncThemeModeSelectToRiver();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && document.body.classList.contains('river-mode')) {
+        document.body.classList.remove('river-mode');
+        e.stopPropagation();
+      }
+    }, true);
+
+    // Apply persisted theme on load
+    if (journalTheme === 'twain') {
+      activateJournalTheme('twain');
+      updateThemeModeSelect('twain', false);
+    } else {
+      updateThemeModeSelect('default');
+    }
 
     // ── Lists (list.py) ─────────────────────────────────────────────────────
     const addListForm = document.getElementById('add-list-form');
@@ -7263,6 +8238,16 @@ CMD: "add task review and start tracking"
       out.className = 'cmd-unified-output'; out.textContent = 'running…';
       const res = await fetch('/cmd', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ cmd: 'export json' }) });
       const data = await res.json(); out.textContent = data.output || 'done';
+    });
+    document.getElementById('btn-export-html')?.addEventListener('click', async () => {
+      const out = document.getElementById('export-output');
+      out.className = 'cmd-unified-output'; out.textContent = 'generating HTML export…';
+      try {
+        const res = await fetch('/cmd', { method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ cmd: 'export all html' }) });
+        const data = await res.json();
+        out.textContent = data.output || 'done';
+      } catch (err) { out.textContent = 'error: ' + err.message; }
     });
     document.getElementById('btn-export-snapshot')?.addEventListener('click', async () => {
       const out = document.getElementById('export-output');
@@ -7666,7 +8651,7 @@ CMD: "add task review and start tracking"
       return;
     }
     logEl.innerHTML = visible.map((e, idx) => {
-      const t = e.ts ? new Date(e.ts).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+      const t = e.ts ? (() => { const _d = new Date(e.ts); return `${_d.toLocaleDateString([],{month:'short',day:'numeric'})} ${_d.getHours().toString().padStart(2,'0')}:${_d.getMinutes().toString().padStart(2,'0')}`; })() : '';
       const ok = e.ok ? '✓' : '✗';
       const key = _cmdLogKey(e);
       const collapsed = idx > 0; // most-recent expanded, rest collapsed
@@ -7795,6 +8780,983 @@ CMD: "add task review and start tracking"
     });
   }
 
+  // ── Context sidebar ──────────────────────────────────────────────────────
+
+  let ctxSidebarOpen = false;
+  let journalWriteMode = localStorage.getItem('ww-journal-write-mode') || 'float';
+
+  function renderJournalSidebar() {
+    const content = document.getElementById('ctx-sidebar-content');
+    if (!content) return;
+    const jname = (profileResources && profileResources.active && profileResources.active.journal) ? profileResources.active.journal : '—';
+    const entries = cachedJournalEntries || [];
+    const today = new Date().toDateString();
+    const todayCount = entries.filter(e => e.date && new Date(e.date).toDateString() === today).length;
+    const weekAgo = Date.now() - 7 * 86400000;
+    const weekCount = entries.filter(e => e.date && new Date(e.date) >= weekAgo).length;
+    const total = entries.length;
+
+    // tag frequency
+    const tagFreq = {};
+    entries.forEach(e => (e.tags || []).forEach(t => { tagFreq[t] = (tagFreq[t] || 0) + 1; }));
+    const topTags = Object.entries(tagFreq).sort((a,b) => b[1]-a[1]).slice(0,6);
+
+    // recent 3
+    const recent = entries.slice(0,3);
+
+    const modeLabel = journalWriteMode === 'top' ? '<span class="ctx-wm-active">top</span> · float' : 'top · <span class="ctx-wm-active">float</span>';
+
+    content.innerHTML = `
+      <div class="ctx-sidebar-section">
+        <div class="ctx-sidebar-title">journal · ${jname}</div>
+        <div class="ctx-sidebar-stat">${todayCount} today &nbsp;${weekCount} this wk &nbsp;${total} total</div>
+        ${recent.length ? `<div class="ctx-sidebar-title" style="margin-top:8px">recent</div>
+        <ul class="ctx-sidebar-recent">${recent.map(e => {
+          const d = e.date ? new Date(e.date) : null;
+          const ds = d ? (d.toDateString()===today ? `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}` : d.toLocaleDateString([],{weekday:'short'})) : '—';
+          const body = (e.body||'').replace(/\n/g,' ').slice(0,42);
+          return `<li class="ctx-recent-row" data-idx="${entries.indexOf(e)}"><span class="ctx-recent-date">${ds}</span><span class="ctx-recent-body">${body}</span></li>`;
+        }).join('')}</ul>` : ''}
+        ${topTags.length ? `<div class="ctx-sidebar-title" style="margin-top:8px">tags</div>
+        <div class="ctx-sidebar-tags">${topTags.map(([t,n]) => `<span class="ctx-tag-chip" data-tag="${t}">${t}<span style="opacity:.5"> ${n}</span></span>`).join('')}</div>` : ''}
+      </div>
+      <div class="ctx-sidebar-actions">
+        <button class="ctx-action-btn" id="ctx-new-entry-btn">+ entry</button>
+        <button class="ctx-action-btn" id="ctx-search-btn">&#128269;</button>
+        <div class="ctx-write-mode-toggle" id="ctx-wm-toggle" title="Toggle write mode">write: ${modeLabel}</div>
+      </div>`;
+
+    // wire events
+    const newBtn = document.getElementById('ctx-new-entry-btn');
+    if (newBtn) newBtn.addEventListener('click', () => openJournalWriteCard(journalWriteMode));
+    const searchBtn = document.getElementById('ctx-search-btn');
+    if (searchBtn) searchBtn.addEventListener('click', () => { setTermMode('search'); document.getElementById('term-input').focus(); });
+    const wmToggle = document.getElementById('ctx-wm-toggle');
+    if (wmToggle) wmToggle.addEventListener('click', () => {
+      journalWriteMode = journalWriteMode === 'float' ? 'top' : 'float';
+      localStorage.setItem('ww-journal-write-mode', journalWriteMode);
+      renderJournalSidebar();
+    });
+    document.querySelectorAll('.ctx-recent-row').forEach(el => {
+      el.addEventListener('click', () => {
+        const idx = parseInt(el.dataset.idx);
+        const entry = entries[idx];
+        if (!entry) return;
+        const slug = entry.date ? new Date(entry.date).toISOString().slice(0,10) : '';
+        const target = document.querySelector(`.journal-entry[data-slug="${slug}"]`) || document.querySelector(`.journal-entry[data-idx="${idx}"]`);
+        if (target) { target.scrollIntoView({behavior:'smooth', block:'center'}); target.classList.add('journal-entry-highlight'); setTimeout(() => target.classList.remove('journal-entry-highlight'), 2000); }
+      });
+    });
+    document.querySelectorAll('.ctx-tag-chip').forEach(el => {
+      el.addEventListener('click', () => {
+        const tag = el.dataset.tag;
+        if (typeof setTermMode === 'function') setTermMode('filter');
+        const input = document.getElementById('term-input');
+        if (input) { input.value = tag; input.dispatchEvent(new Event('input')); input.focus(); }
+      });
+    });
+  }
+
+  function renderTasksSidebar() {
+    const content = document.getElementById('ctx-sidebar-content');
+    if (!content) return;
+    const tasks = cachedTasks || [];
+    const pending = tasks.filter(t => t.status === 'pending' || t.status === 'active');
+    const overdue = pending.filter(t => t.due && new Date(t.due) < new Date());
+    const active  = tasks.filter(t => t.status === 'active');
+    const todayStr = new Date().toDateString();
+    const dueToday = pending.filter(t => t.due && new Date(t.due).toDateString() === todayStr);
+
+    // Project counts
+    const projMap = {};
+    pending.forEach(t => { if (t.project) projMap[t.project] = (projMap[t.project]||0)+1; });
+    const topProj = Object.entries(projMap).sort((a,b)=>b[1]-a[1]).slice(0,6);
+
+    content.innerHTML = `
+      <div class="ctx-sidebar-section">
+        <div class="ctx-sidebar-title">tasks</div>
+        <div class="ctx-sidebar-stat">${pending.length} pending &nbsp;${overdue.length > 0 ? `<span style="color:var(--error)">${overdue.length} overdue</span>` : '0 overdue'} &nbsp;${dueToday.length} due today</div>
+        ${active.length ? `<div class="ctx-sidebar-stat" style="margin-top:4px"><span style="color:var(--success)">● tracking</span> ${active[0].description?.slice(0,32) || ''}</div>` : ''}
+        ${topProj.length ? `<div class="ctx-sidebar-title" style="margin-top:8px">projects</div>
+        <ul class="ctx-sidebar-recent">${topProj.map(([p,n]) =>
+          `<li class="ctx-recent-row ctx-proj-row" data-proj="${p}"><span class="ctx-recent-body">${p}</span><span class="ctx-recent-date">${n}</span></li>`
+        ).join('')}</ul>` : ''}
+      </div>
+      <div class="ctx-sidebar-actions">
+        <button class="ctx-action-btn" id="ctx-task-add-btn">+ task</button>
+        <button class="ctx-action-btn" id="ctx-task-filter-btn">filter</button>
+        <button class="ctx-action-btn" id="ctx-task-next-btn">next</button>
+      </div>`;
+
+    document.getElementById('ctx-task-add-btn')?.addEventListener('click', () => openNewTaskOverlay());
+    document.getElementById('ctx-task-filter-btn')?.addEventListener('click', () => {
+      setTermMode('filter'); termInput?.focus();
+    });
+    document.getElementById('ctx-task-next-btn')?.addEventListener('click', () => execCmd('next'));
+    document.querySelectorAll('.ctx-proj-row').forEach(el => {
+      el.addEventListener('click', () => {
+        setTermMode('filter');
+        if (termInput) { termInput.value = el.dataset.proj; termInput.dispatchEvent(new Event('input')); termInput.focus(); }
+      });
+    });
+  }
+
+  async function renderTimeSidebar() {
+    const content = document.getElementById('ctx-sidebar-content');
+    if (!content) return;
+    content.innerHTML = `<div class="ctx-sidebar-section"><div class="ctx-sidebar-stat" style="color:var(--muted)">loading…</div></div>`;
+    try {
+      const res = await fetch('/data/time');
+      const d = await res.json();
+      if (!d.ok) { content.innerHTML = `<div class="ctx-sidebar-section"><div class="ctx-sidebar-stat">${d.error||'unavailable'}</div></div>`; return; }
+
+      const fmt = fmtDuration;
+      const isTracking = !!d.active;
+      const trackingLine = isTracking
+        ? `<div class="ctx-sidebar-stat" style="margin-top:4px"><span style="color:var(--success)">● ${d.active_tags||'tracking'}</span></div>`
+        : `<div class="ctx-sidebar-stat" style="margin-top:4px;color:var(--muted)">idle</div>`;
+
+      // Recent 4 intervals from this week
+      const wkAgo = Date.now() - 7*86400000;
+      const recent = (cachedTimeIntervals||[])
+        .filter(iv => { try { return Date.parse(iv.start.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/,'$1-$2-$3T$4:$5:$6Z')) > wkAgo; } catch(_){return false;} })
+        .slice(-4).reverse();
+
+      const recentHtml = recent.length ? `<div class="ctx-sidebar-title" style="margin-top:8px">recent</div>
+        <ul class="ctx-sidebar-recent">${recent.map(iv => {
+          const tags = (iv.tags||[]).join(' ') || '—';
+          const sec = iv.duration_seconds || 0;
+          return `<li class="ctx-recent-row"><span class="ctx-recent-body">${tags.slice(0,30)}</span><span class="ctx-recent-date">${fmt(sec)}</span></li>`;
+        }).join('')}</ul>` : '';
+
+      content.innerHTML = `
+        <div class="ctx-sidebar-section">
+          <div class="ctx-sidebar-title">time tracking</div>
+          <div class="ctx-sidebar-stat">${fmt(d.today_total_seconds||0)} today &nbsp;${fmt(d.week_total_seconds||0)} this wk</div>
+          ${trackingLine}
+          ${recentHtml}
+        </div>
+        <div class="ctx-sidebar-actions">
+          <button class="ctx-action-btn" id="ctx-time-track-btn">${isTracking ? 'stop' : 'track'}</button>
+          <button class="ctx-action-btn" id="ctx-time-report-btn">report</button>
+        </div>`;
+
+      document.getElementById('ctx-time-track-btn')?.addEventListener('click', () => {
+        if (isTracking) { execCmd('timew stop'); }
+        else { if (termInput) { termInput.value = 'time track '; termInput.focus(); } }
+      });
+      document.getElementById('ctx-time-report-btn')?.addEventListener('click', () => execCmd('time week'));
+    } catch(_) {
+      content.innerHTML = `<div class="ctx-sidebar-section"><div class="ctx-sidebar-stat" style="color:var(--muted)">error loading time data</div></div>`;
+    }
+  }
+
+  async function renderLedgerSidebar() {
+    const content = document.getElementById('ctx-sidebar-content');
+    if (!content) return;
+    content.innerHTML = `<div class="ctx-sidebar-section"><div class="ctx-sidebar-stat" style="color:var(--muted)">loading…</div></div>`;
+    try {
+      const res = await fetch('/data/ledger');
+      const d = await res.json();
+      if (!d.ok) { content.innerHTML = `<div class="ctx-sidebar-section"><div class="ctx-sidebar-stat">${d.error||'unavailable'}</div></div>`; return; }
+
+      // Top-level accounts only (no colon in account name)
+      const topAccts = (d.balances||[]).filter(b => !b.account.includes(':'));
+      const acctHtml = topAccts.length
+        ? topAccts.map(b => {
+            const type = b.account.toLowerCase();
+            const cls = type.startsWith('asset') ? 'bal-asset' : type.startsWith('liab') ? 'bal-liability' : type.startsWith('expense') ? 'bal-expense' : '';
+            return `<li class="ctx-recent-row"><span class="ctx-recent-body ${cls}">${b.account}</span><span class="ctx-recent-date">${b.amount}</span></li>`;
+          }).join('')
+        : '<li class="ctx-recent-row"><span class="ctx-recent-body" style="color:var(--muted)">no balances</span></li>';
+
+      content.innerHTML = `
+        <div class="ctx-sidebar-section">
+          <div class="ctx-sidebar-title">ledger</div>
+          <ul class="ctx-sidebar-recent" style="margin-top:6px">${acctHtml}</ul>
+        </div>
+        <div class="ctx-sidebar-actions">
+          <button class="ctx-action-btn" id="ctx-ledger-add-btn">+ txn</button>
+          <button class="ctx-action-btn" id="ctx-ledger-bal-btn">balance</button>
+        </div>`;
+
+      document.getElementById('ctx-ledger-add-btn')?.addEventListener('click', () => {
+        if (termInput) { termInput.value = 'ledger add '; termInput.focus(); }
+      });
+      document.getElementById('ctx-ledger-bal-btn')?.addEventListener('click', () => execCmd('ledger balance'));
+    } catch(_) {
+      content.innerHTML = `<div class="ctx-sidebar-section"><div class="ctx-sidebar-stat" style="color:var(--muted)">error loading ledger</div></div>`;
+    }
+  }
+
+  function renderListsSidebar() {
+    const content = document.getElementById('ctx-sidebar-content');
+    if (!content) return;
+    const items = cachedListItems || [];
+    const open = items.filter(i => !i.done);
+    const done = items.filter(i => i.done);
+    const recent = open.slice(0, 5);
+    const listName = (profileResources?.active?.list) || '—';
+
+    content.innerHTML = `
+      <div class="ctx-sidebar-section">
+        <div class="ctx-sidebar-title">lists · ${listName}</div>
+        <div class="ctx-sidebar-stat">${open.length} open &nbsp;${done.length} done</div>
+        ${recent.length ? `<div class="ctx-sidebar-title" style="margin-top:8px">open</div>
+        <ul class="ctx-sidebar-recent">${recent.map(it =>
+          `<li class="ctx-recent-row"><span class="ctx-recent-body">${(it.text||'').slice(0,40)}</span></li>`
+        ).join('')}</ul>` : ''}
+      </div>
+      <div class="ctx-sidebar-actions">
+        <button class="ctx-action-btn" id="ctx-list-add-btn">+ item</button>
+        <button class="ctx-action-btn" id="ctx-list-filter-btn">filter</button>
+      </div>`;
+
+    document.getElementById('ctx-list-add-btn')?.addEventListener('click', () => {
+      if (termInput) { termInput.value = 'list add '; termInput.focus(); }
+    });
+    document.getElementById('ctx-list-filter-btn')?.addEventListener('click', () => {
+      setTermMode('filter'); termInput?.focus();
+    });
+  }
+
+  function updateCtxSidebar() {
+    const sidebar = document.getElementById('ctx-sidebar');
+    if (!sidebar || sidebar.classList.contains('hidden')) return;
+    if      (activeSection === 'journal') renderJournalSidebar();
+    else if (activeSection === 'tasks')   renderTasksSidebar();
+    else if (activeSection === 'time')    renderTimeSidebar();
+    else if (activeSection === 'ledger')  renderLedgerSidebar();
+    else if (activeSection === 'lists')   renderListsSidebar();
+    else {
+      const content = document.getElementById('ctx-sidebar-content');
+      if (content) content.innerHTML = `<div class="ctx-sidebar-section"><div class="ctx-sidebar-title">${activeSection}</div></div>`;
+    }
+  }
+
+  // ── New task overlay ───────────────────────────────────────────────────────
+
+  function openNewTaskOverlay() {
+    document.getElementById('task-add-overlay')?.remove();
+
+    const now = new Date();
+    const createdStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+    const activeProfile = profilePill?.textContent || '—';
+
+    // Pending items (annotations + UDAs queued before task exists)
+    const pendingItems = []; // { type:'ann'|'uda', label, text }
+
+    // Build profile options from profilePill — just shows active for now
+    const profileOpts = `<option value="${esc(activeProfile)}" selected>${esc(activeProfile)}</option>`;
+
+    // Build UDA datalist options
+    let udaOpts = '';
+    if (udaSchema && udaSchema.size) {
+      udaSchema.forEach(u => {
+        udaOpts += `<option value="${esc(u.name)}" label="${esc(u.name)} (${u.type}) — ${esc(u.label||'')}">`;
+      });
+    }
+
+    // Build dep task datalist
+    const depOpts = (cachedTasks || []).map(t =>
+      `<option value="${t.id}" label="#${t.id} ${(t.description||'').slice(0,40)}">`
+    ).join('');
+
+    const overlay = document.createElement('div');
+    overlay.id = 'task-add-overlay';
+    overlay.className = 'task-add-overlay';
+
+    overlay.innerHTML = `
+      <div class="task-add-modal" id="task-add-modal">
+        <div class="task-add-title-row">
+          <div class="task-add-modal-title" style="margin-bottom:0">new task</div>
+          <select class="task-add-profile-sel" id="tan-profile-sel">${profileOpts}</select>
+        </div>
+        <div class="task-add-meta-row">
+          <div class="task-status-pills">
+            <button class="task-status-pill selected" data-status="pending">pending</button>
+            <button class="task-status-pill" data-status="active">active</button>
+            <button class="task-status-pill" data-status="waiting">waiting</button>
+          </div>
+          <div class="task-add-meta-created">created: ${createdStr}</div>
+        </div>
+        <div class="task-add-grid">
+          <label>description</label><input id="tan-desc" type="text" placeholder="what needs doing…" autocomplete="off" />
+          <label>project</label><input id="tan-project" type="text" placeholder="" autocomplete="off" />
+          <label>priority</label>
+          <select id="tan-priority">
+            <option value="">—</option>
+            <option value="H">H</option>
+            <option value="M">M</option>
+            <option value="L">L</option>
+          </select>
+          <label>due</label><input id="tan-due" type="date" />
+          <label>sched</label><input id="tan-sched" type="date" />
+          <label>wait</label><input id="tan-wait" type="date" />
+          <label>tags</label><input id="tan-tags" type="text" placeholder="comma separated" autocomplete="off" />
+        </div>
+
+        <div style="padding-top:8px;border-top:1px solid var(--border);margin-bottom:4px">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px">dependencies</div>
+          <div class="task-add-dep-preview" id="tan-dep-preview"></div>
+          <div class="task-add-dep-row">
+            <input id="tan-dep-input" type="text" placeholder="task ID or description…" list="tan-dep-list" autocomplete="off" />
+            <datalist id="tan-dep-list">${depOpts}</datalist>
+            <button class="task-add-dep-btn" id="tan-dep-blocked-by" title="this task is blocked by the selected task">⊸ blocked by</button>
+            <button class="task-add-dep-btn" id="tan-dep-blocks" title="this task blocks the selected task">→ blocks</button>
+          </div>
+        </div>
+
+        <div class="task-add-uda-row">
+          <input class="task-add-uda-name" id="tan-uda-name" type="text" placeholder="UDA name…" list="tan-uda-list" autocomplete="off" />
+          <datalist id="tan-uda-list">${udaOpts}</datalist>
+          <input class="task-add-uda-val" id="tan-uda-val" type="text" placeholder="value" />
+          <button class="task-add-uda-btn" id="tan-uda-add">+ UDA</button>
+        </div>
+
+        <div class="task-add-side-row" style="margin-top:10px">
+          <div class="task-add-side-col">
+            <div class="task-add-side-label">annotation <span style="font-size:10px;color:var(--muted)">(Enter to add)</span></div>
+            <textarea id="tan-annotation" class="tan-textarea" rows="3" placeholder="add annotation…"></textarea>
+          </div>
+          <div class="task-add-side-col">
+            <div class="task-add-side-label">note to journal</div>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <textarea id="tan-journal-note" class="tan-textarea" rows="3" placeholder="note to journal…"></textarea>
+              <span id="tan-journal-sel-slot" style="display:flex;gap:4px;align-items:center"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="task-add-footer">
+          <button class="task-add-cancel" id="tan-cancel">cancel</button>
+          <button class="task-add-submit" id="tan-submit">add task</button>
+        </div>
+      </div>
+      <div class="task-add-below hidden" id="tan-below"></div>`;
+
+    document.body.appendChild(overlay);
+
+    // Journal selector
+    const jslot = overlay.querySelector('#tan-journal-sel-slot');
+    if (jslot && typeof makeJournalSelect === 'function') jslot.appendChild(makeJournalSelect());
+
+    // Profile selector: populate from /data/profiles
+    (async () => {
+      try {
+        const res = await fetch('/data/profiles');
+        const d = await res.json();
+        const sel = overlay.querySelector('#tan-profile-sel');
+        if (sel && d.profiles?.length > 1) {
+          const cur = d.active || activeProfile;
+          sel.innerHTML = d.profiles.map(p => `<option value="${esc(p)}"${p===cur?' selected':''}>${esc(p)}</option>`).join('');
+        }
+      } catch(_) {}
+    })();
+
+    // Render below list
+    function renderBelowList() {
+      const below = overlay.querySelector('#tan-below');
+      if (!below) return;
+      if (!pendingItems.length) { below.classList.add('hidden'); return; }
+      below.classList.remove('hidden');
+      below.innerHTML = pendingItems.length > 2
+        ? `<div class="task-add-below-hint">↑ scroll to see all ${pendingItems.length} queued</div>`
+        : '';
+      below.innerHTML += pendingItems.map(it =>
+        `<div class="task-add-below-item ${it.type}">${it.label}: ${esc(it.text)}</div>`
+      ).join('');
+      below.addEventListener('scroll', () => below.classList.add('show-all'), { once: true });
+    }
+
+    // Status pills
+    let selectedStatus = 'pending';
+    overlay.querySelectorAll('.task-status-pill').forEach(pill => {
+      pill.addEventListener('click', () => {
+        overlay.querySelectorAll('.task-status-pill').forEach(p => p.classList.remove('selected'));
+        pill.classList.add('selected');
+        selectedStatus = pill.dataset.status;
+        if (selectedStatus === 'waiting') overlay.querySelector('#tan-wait')?.focus();
+      });
+    });
+
+    // Click on modal surface (not interactive elements) → expand
+    const modal = overlay.querySelector('#task-add-modal');
+    modal.addEventListener('click', e => {
+      const tag = e.target.tagName;
+      if (!['INPUT','SELECT','TEXTAREA','BUTTON','LABEL','OPTION','DATALIST','SPAN'].includes(tag) && !modal.classList.contains('expanded')) {
+        modal.classList.add('expanded');
+      }
+    });
+
+    // Dep preview
+    const depInput = overlay.querySelector('#tan-dep-input');
+    const depPreview = overlay.querySelector('#tan-dep-preview');
+    const pendingDeps = { blockedBy: [], blocks: [] }; // uuids queued
+
+    const resolveDepTask = () => {
+      const raw = depInput.value.trim();
+      if (!raw) return null;
+      const numId = /^\d+$/.test(raw) ? parseInt(raw) : null;
+      return numId
+        ? cachedTasks.find(x => x.id === numId)
+        : cachedTasks.find(x => x.description?.toLowerCase().includes(raw.toLowerCase()));
+    };
+    depInput.addEventListener('input', () => {
+      const t = resolveDepTask();
+      depPreview.textContent = t ? `#${t.id} ${t.description.slice(0,50)}` : (depInput.value ? 'no match' : '');
+    });
+    overlay.querySelector('#tan-dep-blocked-by').addEventListener('click', () => {
+      const t = resolveDepTask();
+      if (!t) return;
+      if (!pendingDeps.blockedBy.includes(t.uuid)) pendingDeps.blockedBy.push(t.uuid);
+      pendingItems.push({ type: 'uda', label: '⊸ blocked by', text: `#${t.id} ${t.description.slice(0,40)}` });
+      depInput.value = ''; depPreview.textContent = '';
+      renderBelowList();
+    });
+    overlay.querySelector('#tan-dep-blocks').addEventListener('click', () => {
+      const t = resolveDepTask();
+      if (!t) return;
+      if (!pendingDeps.blocks.includes(t.uuid)) pendingDeps.blocks.push(t.uuid);
+      pendingItems.push({ type: 'uda', label: '→ blocks', text: `#${t.id} ${t.description.slice(0,40)}` });
+      depInput.value = ''; depPreview.textContent = '';
+      renderBelowList();
+    });
+
+    // UDA add
+    const udaNameInp = overlay.querySelector('#tan-uda-name');
+    const udaValInp  = overlay.querySelector('#tan-uda-val');
+    const pendingUdas = []; // { name, value }
+    const doAddUda = () => {
+      const name = udaNameInp.value.trim();
+      const val  = udaValInp.value.trim();
+      if (!name || !val) return;
+      pendingUdas.push({ name, value: val });
+      pendingItems.push({ type: 'uda', label: name, text: val });
+      udaNameInp.value = ''; udaValInp.value = '';
+      renderBelowList();
+    };
+    overlay.querySelector('#tan-uda-add').addEventListener('click', doAddUda);
+    udaValInp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doAddUda(); } });
+    // UDA type hint
+    udaNameInp.addEventListener('input', () => {
+      const def = udaSchema.get(udaNameInp.value.trim());
+      if (!def) return;
+      udaValInp.type = def.type === 'numeric' ? 'number' : def.type === 'date' ? 'date' : 'text';
+      udaValInp.placeholder = def.type === 'duration' ? 'e.g. 2h 30m' : def.type === 'date' ? 'YYYY-MM-DD' : 'value';
+    });
+
+    // Annotation: Enter adds to pending list immediately
+    const annTa = overlay.querySelector('#tan-annotation');
+    annTa.addEventListener('keydown', async e => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        const note = annTa.value.trim();
+        if (!note) return;
+        pendingItems.push({ type: 'ann', label: 'annotation', text: note });
+        annTa.value = '';
+        renderBelowList();
+      }
+    });
+
+    // Close on backdrop click
+    overlay.addEventListener('click', e => { if (e.target === overlay) closeNewTaskOverlay(); });
+
+    // Escape to close
+    const onKey = e => { if (e.key === 'Escape') closeNewTaskOverlay(); };
+    document.addEventListener('keydown', onKey);
+    overlay._onKey = onKey;
+
+    overlay.querySelector('#tan-cancel').addEventListener('click', closeNewTaskOverlay);
+
+    // Submit
+    overlay.querySelector('#tan-submit').addEventListener('click', async () => {
+      const desc = overlay.querySelector('#tan-desc').value.trim();
+      if (!desc) { overlay.querySelector('#tan-desc').focus(); return; }
+
+      const args = { description: desc };
+      const proj = overlay.querySelector('#tan-project').value.trim();
+      if (proj) args.project = proj;
+      const pri = overlay.querySelector('#tan-priority').value;
+      if (pri) args.priority = pri;
+      const due = overlay.querySelector('#tan-due').value;
+      if (due) args.due = due;
+      const sched = overlay.querySelector('#tan-sched').value;
+      if (sched) args.scheduled = sched;
+      const wait = overlay.querySelector('#tan-wait').value;
+      if (wait) args.wait = wait;
+      const tagsRaw = overlay.querySelector('#tan-tags').value;
+      const tags = tagsRaw.split(',').map(s => s.trim()).filter(Boolean);
+      if (tags.length) args.tags = tags;
+
+      const submitBtn = overlay.querySelector('#tan-submit');
+      submitBtn.disabled = true; submitBtn.textContent = 'adding…';
+
+      try {
+        const r = await fetch('/action', { method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ action:'add', args }) });
+        const data = await r.json();
+        if (!data.ok) { toast(data.error||'add failed','error'); submitBtn.disabled=false; submitBtn.textContent='add task'; return; }
+
+        cachedTasks = data.tasks || cachedTasks;
+        const newTask = data.tasks?.find(t => t.uuid === data.new_uuid);
+        const newId = newTask?.id;
+
+        if (selectedStatus === 'active' && newId)
+          await fetch('/action', { method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ action:'task_start', id:newId }) }).catch(()=>{});
+
+        // Queue any remaining annotation text
+        const finalAnn = annTa.value.trim();
+        if (finalAnn) pendingItems.push({ type:'ann', label:'annotation', text: finalAnn });
+
+        // Submit all pending annotations
+        for (const it of pendingItems.filter(i => i.type === 'ann')) {
+          if (newId) await fetch('/action', { method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ action:'annotate', id:newId, args:{ note: it.text } }) }).catch(()=>{});
+        }
+
+        // Submit pending UDAs
+        for (const u of pendingUdas) {
+          if (newId) await fetch('/action', { method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ action:'task_modify', id:newId, args:{ [u.name]: u.value } }) }).catch(()=>{});
+        }
+
+        // Deps: blocked-by → set depends on new task
+        for (const uuid of pendingDeps.blockedBy) {
+          if (newId) await fetch('/action', { method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ action:'dep_add', id:String(newId), dep_uuid: uuid }) }).catch(()=>{});
+        }
+
+        // Deps: blocks → set depends on target tasks
+        for (const uuid of pendingDeps.blocks) {
+          const tgt = cachedTasks.find(x => x.uuid === uuid);
+          if (tgt) await fetch('/action', { method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ action:'dep_add', id:String(tgt.id), dep_uuid: data.new_uuid }) }).catch(()=>{});
+        }
+
+        // Journal note
+        const jnote = overlay.querySelector('#tan-journal-note').value.trim();
+        const jsel = overlay.querySelector('.resource-select');
+        if (jnote) {
+          await fetch('/action', { method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ action:'journal_annotate', args:{
+              date_slug: new Date().toISOString().slice(0,10),
+              text: `[task-entry:${desc}] ${jnote}${proj?' @project:'+proj:''}`,
+              journal: jsel?.value||'',
+            }}) }).catch(()=>{});
+        }
+
+        toast('task added');
+        closeNewTaskOverlay();
+        cachedTasks = [];
+        if (activeSection === 'tasks') await loadTasks();
+        if (ctxSidebarOpen) updateCtxSidebar();
+      } catch(e) { toast('error: '+e.message,'error'); submitBtn.disabled=false; submitBtn.textContent='add task'; }
+    });
+
+    overlay.querySelector('#tan-desc').addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); overlay.querySelector('#tan-project').focus(); }
+    });
+
+    overlay.querySelector('#tan-desc').focus();
+  }
+
+  function closeNewTaskOverlay() {
+    const overlay = document.getElementById('task-add-overlay');
+    if (!overlay) return;
+    if (overlay._onKey) document.removeEventListener('keydown', overlay._onKey);
+    overlay.remove();
+  }
+
+  function openExistingTaskOverlay(taskId) {
+    const task = cachedTasks.find(t => t.id === taskId);
+    if (!task) return;
+    document.getElementById('task-edit-overlay')?.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'task-edit-overlay';
+    overlay.className = 'task-add-overlay';
+    overlay.innerHTML = `
+      <div class="task-add-modal expanded" id="task-edit-modal" style="padding:16px 20px">
+        <div class="task-add-title-row">
+          <div class="task-add-modal-title" style="margin-bottom:0">#${task.id} · ${esc(task.description||'').slice(0,60)}</div>
+          <button class="task-add-cancel" id="teo-close" style="margin-left:12px">✕ close</button>
+        </div>
+        <div id="teo-body" style="margin-top:10px"></div>
+      </div>`;
+    document.body.appendChild(overlay);
+
+    renderInlineEditor(overlay.querySelector('#teo-body'), task);
+
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+    const onKey = e => { if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', onKey); } };
+    document.addEventListener('keydown', onKey);
+    overlay.querySelector('#teo-close').addEventListener('click', () => { overlay.remove(); document.removeEventListener('keydown', onKey); });
+  }
+
+  function toggleCtxSidebar() {
+    const sidebar = document.getElementById('ctx-sidebar');
+    const btn = document.getElementById('term-ctx-sidebar-toggle');
+    if (!sidebar) { toast('ctx-sidebar element not found', 'error'); return; }
+    ctxSidebarOpen = !ctxSidebarOpen;
+    sidebar.classList.toggle('hidden', !ctxSidebarOpen);
+    if (btn) btn.classList.toggle('active', ctxSidebarOpen);
+    if (ctxSidebarOpen) updateCtxSidebar();
+    else if (hintsText) hintsText.textContent = 'sidebar closed';
+  }
+  // Expose for inline onclick fallback
+  window.__wwToggleSidebar = toggleCtxSidebar;
+
+  // ── Journal write card ──────────────────────────────────────────────────
+
+  let jwcLastEntryIdx = -1;
+  let jwcOpen = false;
+
+  function openJournalWriteCard(mode) {
+    mode = mode || journalWriteMode;
+    const card = document.getElementById('journal-write-card');
+    const ta = document.getElementById('jwc-textarea');
+    const meta = document.getElementById('jwc-meta');
+    const hint = document.getElementById('jwc-hint');
+    const confirm = document.getElementById('jwc-meta-confirm');
+    if (!card || !ta) return;
+
+    // meta line
+    const jname = (profileResources && profileResources.active && profileResources.active.journal) ? profileResources.active.journal : 'journal';
+    const now = new Date();
+    const dateStr = now.toLocaleDateString([], {weekday:'short', month:'short', day:'numeric'});
+    if (meta) {
+      meta.innerHTML = `<span>${jname} &nbsp;·&nbsp; ${dateStr}</span><span class="jwc-back-hint">&#8592; last entry</span>`;
+      meta.classList.remove('hidden');
+    }
+    if (confirm) confirm.classList.add('hidden');
+
+    card.className = 'journal-write-card mode-' + mode;
+    card.classList.remove('hidden');
+    jwcOpen = true;
+
+    ta.value = '';
+    ta.style.height = '';
+    setTimeout(() => ta.focus(), 50);
+
+    // fade hint
+    if (hint) {
+      hint.classList.remove('faded');
+      setTimeout(() => hint.classList.add('faded'), 3000);
+    }
+
+    // auto-expand textarea
+    ta.oninput = () => {
+      ta.style.height = 'auto';
+      const lineH = 14 * 1.6;
+      ta.style.height = Math.max(ta.scrollHeight, 3 * lineH) + 'px';
+    };
+  }
+
+  function jwcShowConfirm() {
+    const meta = document.getElementById('jwc-meta');
+    const confirm = document.getElementById('jwc-meta-confirm');
+    if (meta) meta.classList.add('hidden');
+    if (confirm) confirm.classList.remove('hidden');
+  }
+
+  function jwcHideConfirm() {
+    const meta = document.getElementById('jwc-meta');
+    const confirm = document.getElementById('jwc-meta-confirm');
+    if (meta) meta.classList.remove('hidden');
+    if (confirm) confirm.classList.add('hidden');
+  }
+
+  async function jwcSave() {
+    const ta = document.getElementById('jwc-textarea');
+    const entry = (ta ? ta.value : '').trim();
+    if (!entry) { closeJournalWriteCard(); return; }
+    try {
+      const res = await fetch('/action', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'journal_add', args:{ entry } }) });
+      const data = await res.json();
+      if (data.ok !== false) {
+        toast('entry saved');
+        closeJournalWriteCard();
+        if (activeSection === 'journal') await loadJournal();
+      } else {
+        toast('error saving entry', 'error');
+      }
+    } catch(e) {
+      toast('error: ' + e.message, 'error');
+    }
+  }
+
+  function closeJournalWriteCard(goBack) {
+    const card = document.getElementById('journal-write-card');
+    if (card) card.classList.add('hidden');
+    jwcOpen = false;
+    jwcHideConfirm();
+    if (goBack && jwcLastEntryIdx >= 0) {
+      const target = document.querySelector(`.journal-entry[data-idx="${jwcLastEntryIdx}"]`);
+      if (target) { target.scrollIntoView({behavior:'smooth', block:'center'}); target.classList.add('journal-entry-highlight'); setTimeout(() => target.classList.remove('journal-entry-highlight'), 2000); }
+    }
+  }
+
+  function initJournalWrite() {
+    const meta = document.getElementById('jwc-meta');
+    const saveBtn = document.getElementById('jwc-save-btn');
+    const discardBtn = document.getElementById('jwc-discard-btn');
+    const cancelBtn = document.getElementById('jwc-cancel-btn');
+    const ta = document.getElementById('jwc-textarea');
+
+    const closeBtn = document.getElementById('jwc-close-btn');
+    if (closeBtn) closeBtn.addEventListener('click', () => {
+      const entry = ta ? ta.value.trim() : '';
+      if (entry) jwcShowConfirm(); else closeJournalWriteCard(true);
+    });
+    if (meta) meta.addEventListener('click', () => {
+      const entry = ta ? ta.value.trim() : '';
+      if (entry) jwcShowConfirm(); else closeJournalWriteCard(true);
+    });
+    if (saveBtn) saveBtn.addEventListener('click', () => jwcSave());
+    if (discardBtn) discardBtn.addEventListener('click', () => closeJournalWriteCard(true));
+    if (cancelBtn) cancelBtn.addEventListener('click', () => jwcHideConfirm());
+
+    if (ta) {
+      ta.addEventListener('keydown', e => {
+        if (e.key === 'Escape') {
+          const entry = ta.value.trim();
+          if (entry) jwcShowConfirm(); else closeJournalWriteCard(true);
+          e.stopPropagation();
+          return;
+        }
+        if ((e.ctrlKey && e.key === 'Enter') || (e.key === 'Enter' && ta.value.slice(-1) === '\n')) {
+          e.preventDefault();
+          jwcSave();
+        }
+      });
+    }
+
+    // Sidebar toggle/close use inline onclick in HTML — no addEventListener needed here
+
+    // wire expand toggle — hides/shows hints bar
+    const expandBtn = document.getElementById('term-expand-toggle');
+    const hintsBarEl = document.getElementById('hints-bar');
+    let termExpanded = localStorage.getItem('ww-term-expanded') !== 'false';
+    function applyExpandState() {
+      if (hintsBarEl) hintsBarEl.style.display = termExpanded ? '' : 'none';
+      if (expandBtn) expandBtn.textContent = termExpanded ? '▾' : '▴';
+      localStorage.setItem('ww-term-expanded', termExpanded);
+    }
+    applyExpandState();
+    if (expandBtn) expandBtn.addEventListener('click', () => { termExpanded = !termExpanded; applyExpandState(); });
+
+    // dot-ctx: show active section namespace
+    const dotCtx = document.getElementById('term-dot-ctx');
+    document.addEventListener('sectionChanged', e => {
+      if (dotCtx && e.detail && e.detail.name) {
+        const map = { journal:'.journal', tasks:'.task', ledger:'.ledger', time:'.time' };
+        const label = map[e.detail.name];
+        if (label) { dotCtx.textContent = label; dotCtx.classList.remove('hidden'); }
+        else dotCtx.classList.add('hidden');
+      }
+      renderHintsActions(e.detail && e.detail.name);
+      updateCtxSidebar();
+      // In focus mode, auto-open sidebar when navigating to a section
+      if (termPosition === 'focus' && !ctxSidebarOpen) toggleCtxSidebar();
+    });
+
+    // hints-bar action strip
+    renderHintsActions(activeSection);
+
+    // power buttons
+    document.getElementById('hints-hist-btn')?.addEventListener('click', () => {
+      const last = (cmdHistory || []).slice(0, 8).map((c, i) => `${i+1}  ${c}`).join('\n');
+      showOutput(last || '(no history)', false);
+    });
+    document.getElementById('hints-ai-btn')?.addEventListener('click', () => {
+      const btn = document.getElementById('hints-ai-btn');
+      if (!btn) return;
+      const isOn = btn.classList.toggle('active');
+      hintsText.textContent = isOn ? 'AI mode on — natural language accepted' : 'AI mode off';
+      if (typeof setAiMode === 'function') setAiMode(isOn);
+    });
+    document.getElementById('hints-help-btn')?.addEventListener('click', () => {
+      document.getElementById('btn-ww-help')?.click();
+    });
+  }
+
+  const HINTS_ACTIONS = {
+    tasks:   [['+ task','__task_new__'],['next','next'],['filter','__filter__'],['search','__search__'],['ctx','__ctx_toggle__']],
+    journal: [['+ entry','__jwrite__'],['top','j top'],['dates','__dates_toggle__'],['filter','__filter__'],['ctx','__ctx_toggle__']],
+    time:    [['track','time track'],['stop','timew stop'],['week','time week'],['ctx','__ctx_toggle__']],
+    ledger:  [['+ txn','ledger add'],['balance','ledger balance'],['filter','__filter__'],['ctx','__ctx_toggle__']],
+    lists:   [['+ item','__list_add__'],['filter','__filter__'],['ctx','__ctx_toggle__']],
+    warrior: [['urgency','warrior urgency'],['stats','warrior stats']],
+  };
+
+  function renderHintsActions(section) {
+    const el = document.getElementById('hints-actions');
+    if (!el) return;
+    const actions = HINTS_ACTIONS[section] || [];
+    el.innerHTML = actions.map(([label, cmd]) =>
+      `<button class="hints-action-btn" data-cmd="${cmd}">${label}</button>`
+      + (actions.indexOf(actions.find(a => a[0]===label)) < actions.length - 1 ? '<span class="hints-sep">·</span>' : '')
+    ).join('');
+    // Mark dates button active state
+    el.querySelectorAll('.hints-action-btn[data-cmd="__dates_toggle__"]').forEach(b => {
+      b.classList.toggle('active', journalShowDates);
+      b.textContent = journalShowDates ? 'dates' : 'no-dates';
+    });
+
+    el.querySelectorAll('.hints-action-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const cmd = btn.dataset.cmd;
+        if (cmd === '__filter__') { setTermMode('filter'); document.getElementById('term-input')?.focus(); return; }
+        if (cmd === '__search__') { setTermMode('search'); document.getElementById('term-input')?.focus(); return; }
+        if (cmd === '__task_new__') { openNewTaskOverlay(); return; }
+        if (cmd === '__jwrite__') { openJournalWriteCard(journalWriteMode); return; }
+        if (cmd === '__dates_toggle__') { toggleJournalDates(); renderHintsActions(activeSection); return; }
+        if (cmd === '__ctx_toggle__') { toggleCtxSidebar(); return; }
+        if (cmd === '__list_add__') {
+          const input = document.getElementById('term-input');
+          if (input) { input.value = 'list add '; input.focus(); } return;
+        }
+        const input = document.getElementById('term-input');
+        if (input) { input.value = cmd; input.dispatchEvent(new Event('input')); input.focus(); }
+      });
+    });
+  }
+
+  // ── Focus bar ──────────────────────────────────────────────────────────────
+
+  const FOCUS_CENTER_ACTIONS = {
+    tasks:   [['+ task','__task_new__'],['next','next'],['done','task done'],['filter','__filter__']],
+    journal: [['+ entry','__jwrite__'],['list','journal list'],['filter','__filter__']],
+    time:    [['track','time track'],['stop','timew stop'],['report','time week']],
+    ledger:  [['+ txn','ledger add'],['balance','ledger balance']],
+    lists:   [['+ item','__list_add__'],['filter','__filter__']],
+  };
+
+  function updateFocusBar(section) {
+    const bar = document.getElementById('focus-bar');
+    if (!bar || bar.classList.contains('hidden')) return;
+
+    // Profile pill already updated by setProfile()
+
+    // Center: section label + optional resource selector + quick actions
+    const center = document.getElementById('focus-bar-center');
+    if (center) {
+      const actions = FOCUS_CENTER_ACTIONS[section] || [];
+      const sec = section ? `<span class="focus-bar-section">${section}</span>` : '';
+
+      // Resource selector: section → resource kind mapping
+      const SECTION_RESOURCE = {
+        tasks:   { kind: 'tasklists', activeKey: 'tasklist' },
+        time:    { kind: 'timew',     activeKey: 'timew'    },
+        journal: { kind: 'journals',  activeKey: 'journal'  },
+        ledger:  { kind: 'ledgers',   activeKey: 'ledger'   },
+        lists:   { kind: 'lists',     activeKey: 'list'     },
+      };
+      let resourceSelHtml = '';
+      const resDef = SECTION_RESOURCE[section];
+      if (resDef && profileResources) {
+        const names = Object.keys(profileResources.resources?.[resDef.kind] || {});
+        const active = profileResources.active?.[resDef.activeKey] || '';
+        if (names.length > 0) {
+          const opts = names.map(n =>
+            `<option value="${n}"${n === active ? ' selected' : ''}>${n}</option>`
+          ).join('');
+          resourceSelHtml = `<select id="focus-resource-sel" class="focus-bar-resource-sel" data-kind="${resDef.kind}" data-active-key="${resDef.activeKey}">${opts}</select>`;
+        }
+      }
+
+      const btns = actions.map(([label, cmd]) =>
+        `<button class="focus-bar-action" data-cmd="${cmd}">${label}</button>`
+      ).join('');
+      const sep = btns ? '<span class="focus-bar-sep">·</span>' : '';
+      center.innerHTML = sec + resourceSelHtml + sep + btns;
+
+      // Wire resource selector (shared handler for all sections)
+      const rsel = center.querySelector('#focus-resource-sel');
+      if (rsel) {
+        rsel.addEventListener('change', async () => {
+          const chosen = rsel.value;
+          const kind = rsel.dataset.kind;
+          const activeKey = rsel.dataset.activeKey;
+          const r = await fetch('/resource', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ kind, name: chosen }),
+          });
+          const d = await r.json().catch(() => ({}));
+          if (d.ok && profileResources?.active) profileResources.active[activeKey] = chosen;
+          await loadSection(section);
+          if (ctxSidebarOpen) updateCtxSidebar();
+        });
+      }
+
+      center.querySelectorAll('.focus-bar-action').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const cmd = btn.dataset.cmd;
+          if (cmd === '__filter__') { setTermMode('filter'); termInput?.focus(); return; }
+          if (cmd === '__task_new__') { openNewTaskOverlay(); return; }
+          if (cmd === '__jwrite__') { openJournalWriteCard(journalWriteMode); return; }
+          if (cmd === '__list_add__') { if (termInput) { termInput.value = 'list add '; termInput.focus(); } return; }
+          if (termInput) { termInput.value = cmd; termInput.dispatchEvent(new Event('input')); termInput.focus(); }
+        });
+      });
+    }
+
+    // Right: tracking badge
+    const badge = document.getElementById('focus-track-badge');
+    if (badge) {
+      const isTracking = document.querySelector('.tracking-badge') !== null && !document.querySelector('.tracking-badge')?.closest('.hidden');
+      badge.classList.toggle('hidden', !isTracking);
+    }
+  }
+
+  function initFocusBar() {
+    const bar = document.getElementById('focus-bar');
+    const profBtn = document.getElementById('focus-profile-btn');
+    const profList = document.getElementById('focus-profile-list');
+    const exitBtn = document.getElementById('focus-btn-exit');
+
+    // Profile dropdown
+    if (profBtn && profList) {
+      profBtn.addEventListener('click', async e => {
+        e.stopPropagation();
+        if (!profList.classList.contains('hidden')) { profList.classList.add('hidden'); return; }
+        // Populate profile list
+        try {
+          const res = await fetch('/data/profiles');
+          const data = await res.json();
+          const current = data.active || profilePill?.textContent || '';
+          profList.innerHTML = (data.profiles || []).map(p =>
+            `<li class="${p === current ? 'active' : ''}" data-profile="${p}">${p}</li>`
+          ).join('');
+          profList.querySelectorAll('li').forEach(li => {
+            li.addEventListener('click', async () => {
+              profList.classList.add('hidden');
+              const pname = li.dataset.profile;
+              const r = await fetch('/profile', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ profile: pname }) });
+              const d = await r.json();
+              if (d.ok) {
+                setProfile(pname);
+                toast(`profile: ${pname}`);
+                await loadSection(activeSection);
+              } else toast(d.error || 'switch failed', 'error');
+            });
+          });
+        } catch(e) { profList.innerHTML = '<li>error loading</li>'; }
+        profList.classList.remove('hidden');
+      });
+      document.addEventListener('click', () => profList.classList.add('hidden'));
+    }
+
+    // Exit focus mode
+    if (exitBtn) exitBtn.addEventListener('click', () => applyTermPosition('bottom', true));
+
+    // Update on section changes
+    document.addEventListener('sectionChanged', e => updateFocusBar(e.detail?.name));
+  }
+
   // ── Init ───────────────────────────────────────────────────────────────────
   async function init() {
     initToasts();
@@ -7807,9 +9769,16 @@ CMD: "add task review and start tracking"
     initCommJournalMini();
     initProfilePill();
     initTerminal();
+    initJournalWrite();
+    initFocusBar();
     initDensity();
     initAddForms();
     connectSSE();
+    wireTaskDrawer();
+    wireJournalDrawer();
+    wireTimeDrawer();
+    wireLedgerDrawer();
+    wireSidebarFullscreen();
 
     updateStatDate();
     applyTermPosition(termPosition, false);
@@ -7819,6 +9788,13 @@ CMD: "add task review and start tracking"
       if (e.ctrlKey && e.shiftKey && e.key === 'T') {
         e.preventDefault();
         toggleTermPosition();
+      }
+    });
+
+    // "o" key: open hovered task as overlay
+    document.addEventListener('keydown', e => {
+      if (e.key === 'o' && hoveredTaskId && !isInputFocused() && !document.getElementById('task-add-overlay') && !document.getElementById('task-edit-overlay')) {
+        openExistingTaskOverlay(hoveredTaskId);
       }
     });
 
@@ -7854,6 +9830,11 @@ CMD: "add task review and start tracking"
       const res = await fetch('/health');
       const data = await res.json();
       if (data.profile) setProfile(data.profile);
+      if (data.cmd) {
+        instanceCmd = data.cmd;
+        const lbl = document.getElementById('focus-bar-cmd-label');
+        if (lbl) lbl.textContent = data.cmd;
+      }
     } catch (_) { }
 
     await loadProfileResources();

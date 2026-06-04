@@ -34,6 +34,7 @@ SHELL_CONFIG="${SHELL_CONFIG:-${SHELL_RC:-${HOME}/.bashrc}}"
 
 # Global workspace defaults
 WW_GLOBAL_BASE="${WW_GLOBAL_BASE:-${WW_BASE:-$HOME/ww}/global}"
+WW_CONFIG_HOME="${WW_CONFIG_HOME:-$HOME/.config/ww}"
 
 # Return all active shell rc files (bashrc and/or zshrc if they exist).
 # This is the single source of truth used by all functions that write to shell config.
@@ -532,6 +533,9 @@ use_task_profile() {
     export BUGWARRIORRC="$profile_base/.config/bugwarrior/bugwarriorrc"
   fi
   set_last_profile "$profile_name" >/dev/null 2>&1 || true
+  # Per-instance last-profile tracking for @instance activation
+  local _iid="${WW_ACTIVE_INSTANCE:-ww}"
+  printf '%s\n' "$profile_name" > "${WW_CONFIG_HOME:-$HOME/.config/ww}/last-profile-${_iid}" 2>/dev/null || true
 
   # Display confirmation message
   echo "  ✓ ${profile_name}  ·  ${profile_base}"
@@ -553,6 +557,47 @@ deactivate_task_profile() {
 }
 
 # Global journal function - operates on active profile's journal
+# ============================================================================
+# STREAM EMIT — silent no-op when stream is not installed
+# Appends one event to $WW_BASE/stream/stream.log.
+# Guards: directory must exist; fails silently on any error.
+# ============================================================================
+
+_stream_emit() {
+  local op="${1:-}" action="${2:-}" obj="${3:-}" c="${4:-}"
+  local log="${WW_BASE:-$HOME/ww}/stream/stream.log"
+  [[ -d "$(dirname "$log")" ]] || return 0
+  printf '%s %s %s %s %s\n' "$(date +%s)" "$op" "$action" "$obj" "$c" >> "$log" 2>/dev/null || true
+}
+
+_stream_timew_is_write() {
+  local first="${1:-}"
+  case "$first" in
+    start|stop|track|delete|modify|cancel|continue) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+_stream_jrnl_is_write() {
+  # Write if there are args that aren't read-only flags
+  local args=("$@")
+  [[ ${#args[@]} -eq 0 ]] && return 1
+  local first="${args[0]}"
+  case "$first" in
+    --list|-ls|--short|--diagnostic|--version|-v) return 1 ;;
+    *) return 0 ;;
+  esac
+}
+
+_stream_ledger_is_write() {
+  local first="${1:-}"
+  case "$first" in
+    add|import) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# ============================================================================
 # Checks WORKWARRIOR_BASE is set (profile must be active)
 # Parses arguments to detect journal name
 # If first arg is journal name, uses named journal
@@ -635,11 +680,21 @@ j() {
     
     # Write to named journal
     jrnl --config-file "$jrnl_config" "$journal_name" "${remaining[@]}"
-    return $?
+    local _j_exit=$?
+    if [[ $_j_exit -eq 0 ]] && _stream_jrnl_is_write "${remaining[@]:-}"; then
+      local _j_obj; _j_obj="$(printf '%s%s' "$(date +%s)" "$journal_name" | python3 -c "import sys,hashlib; print(hashlib.sha256(sys.stdin.read().encode()).hexdigest()[:12])" 2>/dev/null || echo "unknown")"
+      _stream_emit A write "$_j_obj" "{\"src\":\"jrnl\",\"prof\":\"${WW_SCOPE_PROFILE:-}\",\"proj\":\"${journal_name}\",\"tags\":[]}"
+    fi
+    return $_j_exit
   else
     # Write to default journal
     jrnl --config-file "$jrnl_config" "${args[@]}"
-    return $?
+    local _j_exit=$?
+    if [[ $_j_exit -eq 0 ]] && _stream_jrnl_is_write "${args[@]:-}"; then
+      local _j_obj; _j_obj="$(printf '%s' "$(date +%s)" | python3 -c "import sys,hashlib; print(hashlib.sha256(sys.stdin.read().encode()).hexdigest()[:12])" 2>/dev/null || echo "unknown")"
+      _stream_emit A write "$_j_obj" "{\"src\":\"jrnl\",\"prof\":\"${WW_SCOPE_PROFILE:-}\",\"proj\":\"\",\"tags\":[]}"
+    fi
+    return $_j_exit
   fi
 }
 
@@ -708,7 +763,13 @@ l() {
 
   # Execute hledger with default ledger
   hledger -f "$default_ledger" "${args[@]}"
-  return $?
+  local _l_exit=$?
+  if [[ $_l_exit -eq 0 ]] && _stream_ledger_is_write "${args[0]:-}"; then
+    local _l_obj; _l_obj="$(printf '%s%s' "$(date +%s)" "$default_ledger" | python3 -c "import sys,hashlib; print(hashlib.sha256(sys.stdin.read().encode()).hexdigest()[:12])" 2>/dev/null || echo "unknown")"
+    local _l_name; _l_name="$(basename "$default_ledger" .journal)"
+    _stream_emit T "${args[0]}" "$_l_obj" "{\"src\":\"ledger\",\"prof\":\"${WW_SCOPE_PROFILE:-}\",\"ledger\":\"${_l_name}\",\"tags\":[]}"
+  fi
+  return $_l_exit
 }
 
 # Global list function - operates on active or global scope
@@ -770,6 +831,15 @@ timew() {
 
   local base="$WW_SCOPE_BASE"
   TIMEWARRIORDB="$base/.timewarrior" command timew "${args[@]}"
+  local _tw_exit=$?
+  if [[ $_tw_exit -eq 0 ]] && _stream_timew_is_write "${args[0]:-}"; then
+    local _tw_action="${args[0]}"
+    local _tw_tags; _tw_tags="$(TIMEWARRIORDB="$base/.timewarrior" command timew get dom.active.tag.1 2>/dev/null || true)"
+    local _tw_obj; _tw_obj="$(printf '%s' "${args[*]}" | python3 -c "import sys,hashlib; print(hashlib.sha256(sys.stdin.read().encode()).hexdigest()[:12])" 2>/dev/null || echo "unknown")"
+    local _tw_c; _tw_c="{\"src\":\"timew\",\"prof\":\"${WW_SCOPE_PROFILE:-}\",\"tags\":[\"${_tw_tags:-}\"]}"
+    _stream_emit B "$_tw_action" "$_tw_obj" "$_tw_c"
+  fi
+  return $_tw_exit
 }
 
 # ============================================================================
@@ -1208,6 +1278,66 @@ EOF
   done
 
   return 0
+}
+
+# ============================================================================
+# INSTANCE FUNCTIONS — companion activators for non-registry installs
+# ============================================================================
+
+# Write last-profile for the current user/profile (stub — called by use_task_profile)
+set_last_profile() {
+  local profile_name="${1:-}"
+  [[ -z "$profile_name" ]] && return 0
+  local cfg_home="${WW_CONFIG_HOME:-$HOME/.config/ww}"
+  mkdir -p "$cfg_home" 2>/dev/null || true
+  printf '%s\n' "$profile_name" > "$cfg_home/last-profile" 2>/dev/null || true
+}
+
+# Generate companion shell functions for all registered instances so their
+# command name works as an activator (no args) or dispatcher (with args).
+_ww_create_instance_functions() {
+  local cfg_home="${WW_CONFIG_HOME:-$HOME/.config/ww}"
+  local reg_dir="$cfg_home/registry"
+  [[ -d "$reg_dir" ]] || return 0
+
+  local f
+  for f in "$reg_dir"/*.json; do
+    [[ -f "$f" ]] || continue
+    local iid install_path cmd_name
+    iid="$(python3 -c "import json,sys; d=json.load(open('$f')); print(d.get('id',''))" 2>/dev/null || true)"
+    install_path="$(python3 -c "import json,sys; d=json.load(open('$f')); print(d.get('install_path',''))" 2>/dev/null || true)"
+    cmd_name="$(python3 -c "import json,sys; d=json.load(open('$f')); print(d.get('command_name','ww'))" 2>/dev/null || true)"
+    [[ -z "$iid" || -z "$install_path" ]] && continue
+    # Define companion function only if a command with that name isn't already a real binary
+    # (i.e. if the user has a --cmd ww install, don't override the ww bootstrap function)
+    if [[ "$cmd_name" != "ww" ]]; then
+      eval "
+${cmd_name}() {
+  if [[ \$# -eq 0 ]]; then
+    export WW_BASE='${install_path}'
+    export WW_ACTIVE_INSTANCE='${iid}'
+    local _last
+    _last=\"\$(cat \"\${WW_CONFIG_HOME:-\$HOME/.config/ww}/last-profile-${iid}\" 2>/dev/null || echo 'default')\"
+    p-\"\$_last\" 2>/dev/null || true
+  else
+    env WW_BASE='${install_path}' '${install_path}/bin/ww' \"\$@\"
+  fi
+}
+"
+    fi
+  done
+}
+
+# Run at shell source time to activate registry-based instance companions
+_ww_create_instance_functions
+
+# instances — bare command exposing ww instance management (closes bare command gap)
+instances() {
+  if [[ $# -eq 0 ]]; then
+    ww instance list
+  else
+    ww instance "$@"
+  fi
 }
 
 # ============================================================================

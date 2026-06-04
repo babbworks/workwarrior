@@ -6,9 +6,11 @@
 |------|------|------|
 | `/Users/mp/Documents/Vaults/babb/repos/ww/` | **Repo** — where all development happens | yes |
 | `~/ww-dev/` | **Dev instance** — live testing against ww-development profile | no |
-| `~/ww/` | **Production instance** — the real install | yes |
+| `~/wwv02/` | **Production instance** — v0.2 multi install, anchor cmd `ww`, 23 profiles | no |
 
 `~/ww-dev/` is a deployed copy of the program files. It has its own profile data under `~/ww-dev/profiles/ww-development/` and its own installed extensions under `~/ww-dev/tools/`. It is **not** a git repo — it receives program files from the repo via the sync script.
+
+`~/wwv02/` is the live production install (migrated from legacy `~/ww`). Registry: `~/.config/ww/registry/main.json`. GitHub package snapshot: `~/wwv02-package/` (git-initialized, 245 files).
 
 Config for the dev instance:
 ```
@@ -31,7 +33,7 @@ bash system/scripts/dev-sync.sh
 bash system/scripts/dev-sync.sh --apply
 
 # Sync to production (use with care — only after testing in ww-dev)
-bash system/scripts/dev-sync.sh --apply --target ~/ww
+bash system/scripts/dev-sync.sh --apply --target ~/wwv02
 ```
 
 The script (`system/scripts/dev-sync.sh`) syncs only program files:
@@ -56,7 +58,7 @@ The script (`system/scripts/dev-sync.sh`) syncs only program files:
 2. Sync to ww-dev                bash system/scripts/dev-sync.sh --apply
 3. Live test via ww-dev          WW_BASE=~/ww-dev ww <command>
    or activate profile:          p-ww-development (if alias is set)
-4. When satisfied, sync to prod  bash system/scripts/dev-sync.sh --apply --target ~/ww
+4. When satisfied, sync to prod  bash system/scripts/dev-sync.sh --apply --target ~/wwv02
 ```
 
 ---
@@ -82,39 +84,20 @@ diff /Users/mp/Documents/Vaults/babb/repos/ww/services/browser/server.py ~/ww-de
 
 ---
 
-## Profile Rename / Add / Delete → Must Update zshrc
+## Profile Add / Delete → Update zshrc
 
-`~/.zshrc` is NOT auto-generated from profile directories. When any of the following happen, the zshrc ww block must be updated manually:
+`~/.zshrc` aliases are managed by `create_profile_aliases()` when `profile create` runs. For profiles copied manually (e.g. during migration), add the alias block by hand or re-run `profile create <name>` from within the active install.
 
-| Event | Required zshrc change |
-|-------|----------------------|
-| New profile created in `~/ww-dev/` | Add `p-<name>`, `<name>`, `j-<name>`, `l-<name>` aliases in ww-dev sections |
-| New profile created in `~/ww/` | Add `p-<name>`, `<name>`, `j-<name>`, `l-<name>` aliases in production sections |
-| Profile renamed in `~/ww-dev/` | Update or replace the old aliases; update `_p_wwd` calls; update `wwd()` if it was the default profile |
-| Profile renamed in `~/ww/` | Update or replace the old aliases |
-| Profile deleted | Remove its alias lines |
-
-**The `wwdev` → `ww-development` rename was the missed trigger** that left dead aliases and a broken `wwd()` function.
-
-### zshrc pattern reference
+### zshrc pattern reference (v0.2 unified — single WW_BASE=~/wwv02)
 
 ```zsh
-# Production profile (~/ww):
 alias p-<name>='use_task_profile <name>'
 alias <name>='use_task_profile <name>'
-alias j-<name>='jrnl --config-file /Users/mp/ww/profiles/<name>/jrnl.yaml'
-alias l-<name>='hledger -f /Users/mp/ww/profiles/<name>/ledgers/<name>.journal'
-
-# Dev-instance profile (~/ww-dev):
-alias p-<name>='_p_wwd <name>'
-alias <name>='_p_wwd <name>'
-alias j-<name>='jrnl --config-file /Users/mp/ww-dev/profiles/<name>/jrnl.yaml'
-alias l-<name>='hledger -f /Users/mp/ww-dev/profiles/<name>/ledgers/<name>.journal'
+alias j-<name>='jrnl --config-file /Users/mp/wwv02/profiles/<name>/jrnl.yaml'
+alias l-<name>='hledger -f /Users/mp/wwv02/profiles/<name>/ledgers/<name>.journal'
 ```
 
-The `_p_wwd` helper (defined in zshrc) overrides `PROFILES_DIR` so `use_task_profile` resolves against `~/ww-dev/profiles` instead of `~/ww/profiles` (WW_BASE is readonly after init).
-
-If `wwd()` has a default profile hardcoded (`--profile <name>`), update it too when the dev primary profile changes.
+The old `_p_wwd` helper and separate ww-dev alias sections are no longer needed — all profiles now live under `~/wwv02/`.
 
 ---
 

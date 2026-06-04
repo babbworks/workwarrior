@@ -6,7 +6,7 @@
 #   bash system/scripts/dev-sync.sh --apply      # apply: actually sync
 #   bash system/scripts/dev-sync.sh --apply --target ~/ww   # sync to production
 #
-# Default target: ~/ww-dev  (development instance)
+# Default target: ~/wwv02   (development instance)
 # Alt target:     ~/ww      (production instance — use with care)
 #
 # What is synced (program files only):
@@ -45,7 +45,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-TARGET="${HOME}/ww-dev"
+TARGET="${HOME}/wwv02"
 DRY_RUN=1
 
 for arg in "$@"; do

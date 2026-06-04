@@ -122,10 +122,17 @@ ALLOWED_SUBCOMMANDS = frozenset([
     "tui", "mcp", "issues", "custom", "shortcut",
     "export", "find", "extensions", "deps",
     "version", "help", "browser",
-    # task is a common alias people may use in tests
+    # task + time tracking
     "task",
+    "time", "timew",
+    # lists
+    "list", "lists",
     # weapons
     "gun", "next", "sword",
+    # ai agent
+    "warlock",
+    # direct jrnl passthrough
+    "jrnl",
     # services
     "sync", "q", "questions",
     "community",
@@ -962,6 +969,11 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                     os.path.join(self.STATIC_DIR, "style.css"),
                     "text/css",
                 )
+            elif self.path == "/assets/river.avif":
+                self._serve_static_file(
+                    os.path.join(self.STATIC_DIR, "assets", "river.avif"),
+                    "image/avif",
+                )
             elif self.path == "/data/tasks" or self.path.startswith("/data/tasks?"):
                 self._handle_data_tasks()
             elif self.path == "/data/time":
@@ -1057,6 +1069,7 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                 "status": "ok",
                 "profile": state.get_active_profile(),
                 "version": VERSION,
+                "cmd": os.environ.get("WW_CMD", "ww"),
             }
             self._send_json(200, body)
 
@@ -1169,6 +1182,19 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
             cmd_argv = [ww_bin] + tokens
             env = dict(os.environ)
             env["WW_BASE"] = state.ww_base
+            # Suppress ANSI color codes — output is displayed as plain text in browser
+            env["NO_COLOR"] = "1"
+            env["TERM"] = "dumb"
+            # Inject active profile so task/timew/journal commands hit the right data
+            profile = state.get_active_profile()
+            if profile:
+                paths = state.get_profile_paths()
+                profile_base = os.path.join(state.ww_base, "profiles", profile)
+                env["WARRIOR_PROFILE"] = profile
+                env["WORKWARRIOR_BASE"] = profile_base
+                if paths.get("taskrc"):      env["TASKRC"]       = paths["taskrc"]
+                if paths.get("taskdata"):    env["TASKDATA"]     = paths["taskdata"]
+                if paths.get("timewarriordb"): env["TIMEWARRIORDB"] = paths["timewarriordb"]
 
             try:
                 result = subprocess.run(
@@ -3912,8 +3938,8 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
 
             try:
                 TASK_MUTATING = {"done", "start", "stop", "add", "annotate", "task_modify", "bulk", "dep_add", "dep_remove", "task_delete"}
-                TIME_MUTATING = {"timew_start", "timew_stop", "timew_track", "timew_delete"}
-                JOURNAL_MUTATING = {"journal_add", "journal_delete", "journal_archive", "journal_restore"}
+                TIME_MUTATING = {"timew_start", "timew_stop", "timew_track", "timew_delete", "timew_retag"}
+                JOURNAL_MUTATING = {"journal_add", "journal_delete", "journal_archive", "journal_restore", "journal_update"}
                 LEDGER_MUTATING = {"ledger_delete"}
                 LIST_MUTATING = {"list_add", "list_finish", "list_edit", "list_remove"}
                 COMMUNITY_MUTATING = {
@@ -5180,6 +5206,46 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                         input="",
                     )
                     self._send_json(200, {"ok": r.returncode == 0, "error": (r.stderr or "").strip() or None})
+
+                elif action == "timew_retag":
+                    args_o = body.get("args") or {}
+                    timew_id = str(args_o.get("timew_id", "")).strip()
+                    tags_raw = str(args_o.get("tags", "")).strip()
+                    if not timew_id:
+                        self._send_json(400, {"ok": False, "error": "timew_id required"})
+                        return
+                    tag_list = [t.strip() for t in tags_raw.replace(',', ' ').split() if t.strip()]
+                    r = subprocess.run(
+                        ["timew", "retag", f"@{timew_id}"] + tag_list,
+                        capture_output=True, text=True, timeout=10, env=env,
+                    )
+                    self._send_json(200, {"ok": r.returncode == 0, "error": (r.stderr or "").strip() or None})
+
+                elif action == "journal_update":
+                    args_o = body.get("args") or {}
+                    date_slug = (args_o.get("date_slug") or "").strip()
+                    new_body  = args_o.get("body", None)
+                    if not date_slug:
+                        self._send_json(400, {"ok": False, "error": "date_slug required"})
+                        return
+                    paths = state.get_profile_paths()
+                    journal_file = (paths or {}).get("journal_file", "")
+                    if not journal_file or not os.path.isfile(journal_file):
+                        self._send_json(400, {"ok": False, "error": "journal file not found"})
+                        return
+                    import re as _jre3
+                    slug_parts = date_slug.split('_', 1)
+                    date_part = slug_parts[0]
+                    time_part = slug_parts[1].replace('-', ':', 1) if len(slug_parts) > 1 else '00:00'
+                    date_hdr = f"{date_part} {time_part}"
+                    content = open(journal_file, encoding='utf-8').read()
+                    pat = r'(\[' + _jre3.escape(date_hdr) + r'\][^\n]*\n)([^\[]*)'
+                    if new_body is not None:
+                        replacement = r'\g<1>' + new_body.replace('\\', '\\\\').rstrip('\n') + '\n'
+                        new_content = _jre3.sub(pat, replacement, content, count=1)
+                        with open(journal_file, 'w', encoding='utf-8') as f:
+                            f.write(new_content)
+                    self._send_json(200, {"ok": True})
 
                 else:
                     self._send_json(400, {"ok": False, "error": f"unknown action: {action}"})

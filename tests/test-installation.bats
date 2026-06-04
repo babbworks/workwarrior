@@ -73,52 +73,52 @@ teardown() {
 # ============================================================================
 
 @test "add_ww_to_shell_rc adds configuration block" {
-  run add_ww_to_shell_rc "$TEST_HOME/.bashrc"
+  run add_ww_to_shell_rc "$TEST_HOME/.bashrc" "ww"
   assert_success
 
-  # Verify section marker was added
-  run grep -F "# --- Workwarrior Installation ---" "$TEST_HOME/.bashrc"
+  # Verify command-specific section marker was added
+  run grep -F "# --- Workwarrior Installation (ww) ---" "$TEST_HOME/.bashrc"
   assert_success
 
   # Verify end marker was added
-  run grep -F "# --- End Workwarrior Installation ---" "$TEST_HOME/.bashrc"
+  run grep -F "# --- End Workwarrior Installation (ww) ---" "$TEST_HOME/.bashrc"
   assert_success
 }
 
 @test "add_ww_to_shell_rc is idempotent" {
   # Add twice
-  add_ww_to_shell_rc "$TEST_HOME/.bashrc"
-  add_ww_to_shell_rc "$TEST_HOME/.bashrc"
+  add_ww_to_shell_rc "$TEST_HOME/.bashrc" "ww"
+  add_ww_to_shell_rc "$TEST_HOME/.bashrc" "ww"
 
   # Count section markers - should only be 1
   local count
-  count=$(grep -c "# --- Workwarrior Installation ---" "$TEST_HOME/.bashrc" || echo "0")
+  count=$(grep -c "# --- Workwarrior Installation (ww) ---" "$TEST_HOME/.bashrc" || echo "0")
   assert_equal "$count" "1"
 }
 
 @test "remove_ww_from_shell_rc removes configuration" {
   # First add
-  add_ww_to_shell_rc "$TEST_HOME/.bashrc"
+  add_ww_to_shell_rc "$TEST_HOME/.bashrc" "ww"
 
   # Verify it was added
-  run grep -F "# --- Workwarrior Installation ---" "$TEST_HOME/.bashrc"
+  run grep -F "# --- Workwarrior Installation (ww) ---" "$TEST_HOME/.bashrc"
   assert_success
 
   # Now remove
-  run remove_ww_from_shell_rc "$TEST_HOME/.bashrc"
+  run remove_ww_from_shell_rc "$TEST_HOME/.bashrc" "ww"
   assert_success
 
   # Verify it was removed
-  run grep -F "# --- Workwarrior Installation ---" "$TEST_HOME/.bashrc"
+  run grep -F "# --- Workwarrior Installation (ww) ---" "$TEST_HOME/.bashrc"
   assert_failure
 }
 
 @test "remove_ww_from_shell_rc creates backup" {
   # Add config
-  add_ww_to_shell_rc "$TEST_HOME/.bashrc"
+  add_ww_to_shell_rc "$TEST_HOME/.bashrc" "ww"
 
   # Remove config
-  remove_ww_from_shell_rc "$TEST_HOME/.bashrc"
+  remove_ww_from_shell_rc "$TEST_HOME/.bashrc" "ww"
 
   # Check backup was created
   run ls "$TEST_HOME/.bashrc.ww-backup."* 2>/dev/null

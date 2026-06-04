@@ -130,6 +130,8 @@ _browser_export() {
 
   python3 - "$out_path" "$data" "$js" "$css" << 'PYEOF'
 import sys, json, html as _html
+from datetime import datetime
+
 out_path = sys.argv[1]
 data = json.loads(sys.argv[2])
 js = sys.argv[3]
@@ -143,12 +145,91 @@ balances = data.get("balances", [])
 
 def esc(s): return _html.escape(str(s or ""))
 
-task_rows = "".join(
-    f'<tr><td>{esc(t.get("id",""))}</td><td>{esc(t.get("description",""))}</td>'
-    f'<td>{esc(t.get("project",""))}</td><td>{esc(t.get("status",""))}</td>'
-    f'<td>{esc(",".join(t.get("tags") or []))}</td></tr>'
-    for t in tasks
-)
+def fmt_epoch(v):
+    if not v: return ""
+    try: return datetime.utcfromtimestamp(int(v)).strftime("%Y-%m-%d")
+    except: return str(v)
+
+# Fields that are part of the standard Taskwarrior schema (not UDAs)
+STANDARD_FIELDS = {
+    "id","uuid","description","status","project","tags","priority",
+    "due","entry","modified","start","end","scheduled","wait","until",
+    "recur","mask","imask","parent","urgency","depends","annotations",
+    "exported_at","type","profile",
+}
+
+def render_task_compact(t):
+    return (
+        f'<tr><td>{esc(t.get("id",""))}</td>'
+        f'<td>{esc(t.get("description",""))}</td>'
+        f'<td>{esc(t.get("project",""))}</td>'
+        f'<td>{esc(t.get("status",""))}</td>'
+        f'<td>{esc(",".join(t.get("tags") or []))}</td></tr>'
+    )
+
+def render_task_detail(t):
+    tid = esc(t.get("id",""))
+    desc = esc(t.get("description",""))
+    status = t.get("status","")
+    status_cls = {"pending":"s-pending","completed":"s-done","deleted":"s-deleted"}.get(status,"")
+
+    # Core fields
+    core_pairs = [
+        ("project", esc(t.get("project",""))),
+        ("status",  f'<span class="task-status {status_cls}">{esc(status)}</span>'),
+        ("priority",esc(t.get("priority",""))),
+        ("tags",    esc(", ".join(t.get("tags") or []))),
+        ("due",     esc(fmt_epoch(t.get("due","")))),
+        ("scheduled",esc(fmt_epoch(t.get("scheduled","")))),
+        ("wait",    esc(fmt_epoch(t.get("wait","")))),
+        ("entry",   esc(fmt_epoch(t.get("entry","")))),
+        ("modified",esc(fmt_epoch(t.get("modified","")))),
+        ("urgency", esc(str(round(t.get("urgency",0),2)) if t.get("urgency") else "")),
+        ("uuid",    f'<span class="uuid">{esc(t.get("uuid",""))}</span>'),
+    ]
+    core_html = "".join(
+        f'<div class="tf"><span class="tk">{k}</span><span class="tv">{v}</span></div>'
+        for k, v in core_pairs if v and v != '<span class="task-status "></span>'
+    )
+
+    # UDA fields
+    uda_fields = {k: v for k, v in t.items()
+                  if k not in STANDARD_FIELDS and not k.startswith("tag_") and v not in ("", None)}
+    uda_html = ""
+    if uda_fields:
+        rows = "".join(
+            f'<div class="tf uda-field"><span class="tk">{esc(k)}</span>'
+            f'<span class="tv">{esc(str(v))}</span></div>'
+            for k, v in sorted(uda_fields.items())
+        )
+        uda_html = f'<div class="uda-section">{rows}</div>'
+
+    # Annotations
+    ann_items = {k: v for k, v in t.items() if k.startswith("annotation_")}
+    ann_html = ""
+    if ann_items:
+        sorted_anns = sorted(ann_items.items(), key=lambda x: x[0])
+        rows = "".join(
+            f'<div class="ann-row"><span class="ann-ts">{esc(fmt_epoch(k.replace("annotation_","")))}</span>'
+            f'<span class="ann-body">{esc(str(v))}</span></div>'
+            for k, v in sorted_anns
+        )
+        ann_html = f'<div class="ann-section" data-annotations>{rows}</div>'
+
+    return (
+        f'<div class="task-card" data-status="{esc(status)}">'
+        f'<div class="task-card-header">'
+        f'<span class="task-id">#{tid}</span>'
+        f'<span class="task-desc">{desc}</span>'
+        f'</div>'
+        f'<div class="task-fields">{core_html}{uda_html}</div>'
+        f'{ann_html}'
+        f'</div>'
+    )
+
+task_rows_compact = "".join(render_task_compact(t) for t in tasks)
+task_cards_detail = "".join(render_task_detail(t) for t in tasks)
+
 journal_rows = "".join(
     f'<div class="je"><div class="jd">{esc(e.get("date",""))}</div>'
     f'<div class="jb">{esc(e.get("body",""))}</div></div>'
@@ -165,15 +246,41 @@ html = f"""<!DOCTYPE html>
 <title>ww export — {esc(profile)} — {esc(exported_at)}</title>
 <style>
 {css}
-.export-header{{padding:16px;border-bottom:1px solid var(--border);background:var(--surface);}}
+.export-header{{padding:16px;border-bottom:1px solid var(--border);background:var(--surface);display:flex;align-items:center;gap:8px;}}
+.export-header-right{{margin-left:auto;color:var(--muted);font-size:11px;}}
 .export-section{{padding:16px;margin-bottom:24px;}}
-h2{{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:6px;}}
+.section-header{{display:flex;align-items:center;gap:8px;margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:6px;}}
+.section-header h2{{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:0;flex:1;}}
+.toggle-btn{{font-size:11px;padding:2px 8px;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;border-radius:3px;}}
+.toggle-btn.active{{background:var(--accent,#4a9eff);color:#fff;border-color:var(--accent,#4a9eff);}}
 table{{width:100%;border-collapse:collapse;font-size:12px;}}
 th{{text-align:left;color:var(--muted);padding:4px 8px;border-bottom:1px solid var(--border);}}
 td{{padding:4px 8px;border-bottom:1px solid var(--border);}}
 .je{{padding:12px 0;border-bottom:1px solid var(--border);}}
 .jd{{font-size:11px;color:var(--muted);margin-bottom:4px;}}
 .jb{{font-size:13px;white-space:pre-wrap;}}
+/* task cards */
+.task-card{{border:1px solid var(--border);border-radius:4px;margin-bottom:8px;overflow:hidden;}}
+.task-card-header{{padding:8px 12px;background:var(--surface);display:flex;align-items:baseline;gap:8px;}}
+.task-id{{font-size:11px;color:var(--muted);min-width:28px;}}
+.task-desc{{font-size:13px;font-weight:500;flex:1;}}
+.task-fields{{padding:6px 12px 8px;display:flex;flex-wrap:wrap;gap:4px 16px;}}
+.tf{{display:flex;align-items:baseline;gap:4px;font-size:11px;}}
+.tk{{color:var(--muted);}}
+.tv{{color:var(--fg,inherit);}}
+.uuid{{font-family:monospace;font-size:10px;opacity:.6;}}
+.uda-section{{padding:4px 12px 6px;border-top:1px solid var(--border);display:flex;flex-wrap:wrap;gap:4px 16px;}}
+.uda-field .tk{{color:var(--accent,#4a9eff);opacity:.8;}}
+.ann-section{{padding:6px 12px 8px;border-top:1px solid var(--border);}}
+.ann-row{{display:flex;gap:8px;font-size:11px;padding:2px 0;}}
+.ann-ts{{color:var(--muted);min-width:80px;flex-shrink:0;}}
+.ann-body{{white-space:pre-wrap;}}
+.task-status{{font-size:10px;padding:1px 5px;border-radius:2px;}}
+.s-pending{{background:rgba(74,158,255,.15);color:#4a9eff;}}
+.s-done{{background:rgba(80,200,120,.15);color:#50c878;}}
+.s-deleted{{background:rgba(200,80,80,.15);color:#c85050;}}
+[data-annotations]{{display:none;}}
+.show-annotations [data-annotations]{{display:block;}}
 </style>
 </head>
 <body>
@@ -181,13 +288,20 @@ td{{padding:4px 8px;border-bottom:1px solid var(--border);}}
 <div class=\"export-header\">
   <span class=\"wordmark-ww\">ww</span>
   <span class=\"wordmark-full\">workwarrior export</span>
-  <span style=\"float:right;color:var(--muted);font-size:11px;\">{esc(profile)} &middot; {esc(exported_at)}</span>
+  <span class=\"export-header-right\">{esc(profile)} &middot; {esc(exported_at)}</span>
 </div>
 <div id=\"main\">
 <div class=\"export-section\">
-<h2>Tasks ({len(tasks)})</h2>
-<table><thead><tr><th>#</th><th>Description</th><th>Project</th><th>Status</th><th>Tags</th></tr></thead>
-<tbody>{task_rows}</tbody></table>
+  <div class=\"section-header\">
+    <h2>Tasks ({len(tasks)})</h2>
+    <button class=\"toggle-btn\" id=\"btn-detail\" onclick=\"toggleDetail()\">full detail</button>
+    <button class=\"toggle-btn\" id=\"btn-annotations\" onclick=\"toggleAnnotations()\" style=\"display:none\">annotations</button>
+  </div>
+  <div id=\"tasks-compact\">
+    <table><thead><tr><th>#</th><th>Description</th><th>Project</th><th>Status</th><th>Tags</th></tr></thead>
+    <tbody>{task_rows_compact}</tbody></table>
+  </div>
+  <div id=\"tasks-detail\" style=\"display:none\">{task_cards_detail}</div>
 </div>
 <div class=\"export-section\">
 <h2>Journal ({len(journal)} recent entries)</h2>
@@ -199,7 +313,26 @@ td{{padding:4px 8px;border-bottom:1px solid var(--border);}}
 <tbody>{balance_rows}</tbody></table>
 </div>
 </div></div>
-<script>/* exported snapshot — no live data */\nconst WW_DATA = {json.dumps(data)};</script>
+<script>
+const WW_DATA = {json.dumps(data)};
+let detailOn = false, annotationsOn = false;
+function toggleDetail() {{
+  detailOn = !detailOn;
+  document.getElementById('tasks-compact').style.display = detailOn ? 'none' : '';
+  document.getElementById('tasks-detail').style.display = detailOn ? '' : 'none';
+  document.getElementById('btn-detail').classList.toggle('active', detailOn);
+  document.getElementById('btn-annotations').style.display = detailOn ? '' : 'none';
+  if (!detailOn) {{ annotationsOn = false; applyAnnotations(); document.getElementById('btn-annotations').classList.remove('active'); }}
+}}
+function toggleAnnotations() {{
+  annotationsOn = !annotationsOn;
+  document.getElementById('btn-annotations').classList.toggle('active', annotationsOn);
+  applyAnnotations();
+}}
+function applyAnnotations() {{
+  document.getElementById('tasks-detail').classList.toggle('show-annotations', annotationsOn);
+}}
+</script>
 </body></html>"""
 
 with open(out_path, "w") as f:
@@ -248,6 +381,14 @@ _browser_stop() {
 
   rm -f "$(_browser_pid_file)" "$(_browser_port_file)"
   echo "browser server stopped"
+}
+
+_find_free_port() {
+  local port="${1:-$BROWSER_DEFAULT_PORT}"
+  while lsof -iTCP:"${port}" -sTCP:LISTEN -t &>/dev/null 2>&1; do
+    port=$(( port + 1 ))
+  done
+  echo "$port"
 }
 
 _browser_start() {
@@ -319,6 +460,7 @@ _browser_start() {
 main() {
   local subcommand=""
   local port="${BROWSER_DEFAULT_PORT}"
+  local port_explicit=0
   local no_open=0
   local export_path=""
 
@@ -335,10 +477,12 @@ main() {
           exit 1
         fi
         port="$2"
+        port_explicit=1
         shift 2
         ;;
       --port=*)
         port="${1#--port=}"
+        port_explicit=1
         shift
         ;;
       --no-open)
@@ -367,6 +511,11 @@ main() {
 
   # Default subcommand is start
   subcommand="${subcommand:-start}"
+
+  # Auto-assign a free port unless the user explicitly passed --port
+  if [[ "$subcommand" == "start" && "$port_explicit" -eq 0 ]]; then
+    port="$(_find_free_port "$port")"
+  fi
 
   case "$subcommand" in
     start)

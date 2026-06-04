@@ -75,3 +75,5 @@ devsystem/
 tools/warlock/source/
 tools/warlock/settings/
 resources/inventory/
+stream/stream.log
+stream/.cache/

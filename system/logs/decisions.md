@@ -5,6 +5,34 @@ Each entry: date, decision, context, and why — so future sessions don't re-lit
 
 ---
 
+## 2026-05-02 — Installer v0.2: multi-instance architecture, companion functions, 5 bug fixes
+
+**Decision:** Complete redesign of installer to support 6 presets, per-instance shell isolation, and `@instance` dispatch.
+
+**Key choices:**
+
+- **6-preset taxonomy** (`basic`, `direct`, `multi`, `hidden`, `isolated`, `hardened`): `basic` adds only a source block to rc; `direct` adds a launcher; `multi`/`hardened` write a full bootstrap with registry. `hidden` = `multi` but visibility hidden in `instance list`. `isolated` = launcher only, no registry. `plain` deprecated → `basic` with warning.
+
+- **Command-specific rc markers**: All installs previously used `# --- Workwarrior Installation ---`. With coexisting installs this caused idempotency false-positives (second install found first install's marker, skipped). Fixed: markers now include command name — `# --- Workwarrior Installation (basic1) ---`. Old generic markers still recognized by `remove_ww_from_shell_rc` for backward compat.
+
+- **Companion activation functions** (`write_instance_function()`): For standalone presets (basic/direct/isolated), a shell function is written to `~/.config/ww/instance-functions.sh`. The function is self-contained — no `use_task_profile` call (which uses stale `PROFILES_DIR`). Instead it exports `TASKRC`/`TASKDATA`/`TIMEWARRIORDB` directly from hardcoded install path. Sourced explicitly after `ww-init.sh` source line to bypass the `WW_INITIALIZED` guard.
+
+- **`ww()` no-args = activate last instance**: Previously called with no args showed help. Now reads `~/.config/ww/last-instance` and activates that instance (or `main` if not found). Instance id written to that file on every `ww @instance` activation.
+
+- **Prompt prefix uses registry check**: `_ww_prompt_prefix()` now: empty when no profile active; `ww|instance:profile` for registry-registered instances; `instance|profile` for standalone. Previously showed `ww|none` always.
+
+- **`_ww_apply_prompt_prefix()` uses regex detection**: Uses `=~ ^[a-z][a-z0-9_-]*\|` to detect and strip ww-style prefix on deactivation, instead of hardcoded `ww|*` glob (which would miss standalone instance prefixes like `basic1|`).
+
+- **Production migrated to `~/wwv02`**: Legacy `~/ww` eliminated. 23 profiles consolidated into new multi-instance install. Shell configs rewritten. GitHub package snapshot at `~/wwv02-package/`.
+
+- **Default profile renamed `main` → `default`**: `install.sh` `create_default_main_profile()` now creates `default` profile, not `main`.
+
+- **Multi-anchor registry isolation**: `WW_CONFIG_HOME` computed from `COMMAND_NAME` after arg parsing — `ww` anchor → `~/.config/ww/`, `hub` anchor → `~/.config/hub/`. Backward compatible.
+
+**Why not keep use_task_profile in companion functions:** `use_task_profile()` reads `PROFILES_DIR` which is set at ww-init.sh source time. When two installs coexist, the last-sourced ww-init.sh wins, so a standalone's companion function would use the anchor's profiles dir. Self-contained env var export sidesteps this entirely.
+
+---
+
 ## 2026-04-25 — Browser header restructure: resource slot unified, green bar removed, stat-context-bar removed
 
 **Decision:** Three persistent UI complaints resolved in one header pass.

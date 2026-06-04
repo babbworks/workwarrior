@@ -1,95 +1,82 @@
 # Commands
 
-Everything routes through `ww`, but shell functions provide shortcuts for the most common operations.
+## Core Command Model
 
-## Shell Functions
+`ww` is the control plane command in all modes.
 
-Available after profile activation (injected by `ww-init.sh`):
+- In `plain` mode, `ww` is a direct launcher for one install.
+- In `multi`/`hardened`, `ww` also manages instances, policies, and unlock flow.
 
-| Function | What it does |
-|----------|-------------|
-| `p-<name>` | Activate a profile |
-| `task [args]` | TaskWarrior with profile isolation |
-| `timew [args]` | TimeWarrior with profile isolation |
-| `j [journal] "entry"` | Write to journal |
-| `l [args]` | Hledger with profile ledger |
-| `i [args]` | Issue sync (bugwarrior + github-sync) |
-| `q [args]` | Questions service |
-| `list [args]` | List management |
-| `search [args]` | Cross-profile search |
+## Install/Runtime Management
 
-## The ww Command
-
-### Profile Management
 ```bash
-ww profile create/list/info/delete/backup/import/restore
-ww profile uda list/add/remove/group/perm
-ww profile urgency
-ww profile density
+ww version
+ww help
+ww enable-multi
+ww disable-multi
 ```
 
-### Data Services
+## Instance Commands
+
 ```bash
-ww journal add/list/remove/rename
-ww ledger add/list/remove/rename
-ww find <term>
-ww export
+ww instance list [--all]
+ww instance register <id> [install_path] [visible|hidden] [preset]
+ww instance hide <id>
+ww instance unhide <id>
+ww instance detach <id>
+ww instance where <id>
+ww instance aliases sync
+ww instance aliases clear
 ```
 
-### System Services
+## Instance Selection
+
 ```bash
-ww service list/info/help
-ww group list/create/show/add/remove/delete
-ww model list/providers/show/add-provider/set-default
-ww ctrl status/ai-on/ai-off/ai-status
-ww shortcut list/info/add/remove
-ww extensions taskwarrior list/search/info
-ww deps install/check
-ww q / ww questions
+ww use <instance>
+ww use <instance> <ww-subcommand...>
 ```
 
-### Weapons
+- `ww use <instance>` prints shell exports for session activation.
+- `ww use <instance> <cmd>` executes immediately in that instance context.
+
+Fast-path unlock trigger:
+- `ww <instance>` attempts instance lookup and unlock path when `<instance>` is not a normal ww subcommand.
+
+## Security Commands
+
 ```bash
-ww gun <args>                  # Bulk task series
-ww sword <id> -p <parts>      # Split task into subtasks
-ww next                        # Next-task recommendation
-ww schedule                    # Auto-scheduler
+ww security status
+ww security set-backend auto|keychain|libsecret|pass
+ww security set-secret <instance>
+ww unlock <instance>
+ww security lock <instance>
 ```
 
-### Issue Sync
+Behavior:
+- Non-hardened instances do not require unlock.
+- Hardened/lock-required instances enforce unlock using configured backend.
+
+## Runtime Policy Commands
+
 ```bash
-ww issues sync/push/pull/status/enable/disable/custom
+ww config show
+ww config set resume-last on|off
+ww config set allow-hidden-last on|off
 ```
 
-### Browser and Build
-```bash
-ww browser [--port N] [--no-open] [stop|status]
-ww compile-heuristics [--verbose] [--digest]
-ww remove <profile> [--keep|--all|--archive-all|--delete-all|--dry-run]
-```
+These settings are stored in `~/.config/ww/runtime.conf` and used by bootstrap resolution.
 
-## Scope Flags
-
-Some commands support targeting a profile without activating it:
+## Existing Service Commands (unchanged)
 
 ```bash
-j --profile work "Entry"       # Write to work's journal directly
-l --global balance             # Use global ledger
-task --profile work list       # List work's tasks
-```
-
-## Standalone Commands
-
-These work without the `ww` prefix:
-
-```bash
-extensions taskwarrior list
-models
-groups
-journals
-ledgers
-find
-services
-tasks
-times
+ww profile ...
+ww journal ...
+ww ledger ...
+ww group ...
+ww model ...
+ww service ...
+ww deps install|check
+ww browser ...
+ww issues ...
+ww find ...
 ```

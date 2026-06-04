@@ -4,7 +4,7 @@
 **Orchestrator is the only agent that updates status fields.**
 `pending/` is archive-only. Nothing new is written there.
 
-Last updated: 2026-04-27 (milestone scan: 8 new cards TASK-SITE-040–042, TASK-RES-001/002, TASK-TEST-003, TASK-AGENT-001, TASK-CI-001; TW task 15 closed — subjournals dropdown fixed)
+Last updated: 2026-05-02 (TASK-INSTALL-003 complete — installer v0.2: 6-preset taxonomy, @instance dispatch, companion functions, multi-anchor registry, pin/unpin, default profile rename; production migrated ~/ww → ~/wwv02)
 Current phase: Phase 2 active — browser UI polish, resource management, test hardening, stub service promotion
 
 ---
@@ -90,6 +90,7 @@ Spec status: architecture settled 2026-04-20. Cards pending Gate A (acceptance c
 | [TASK-QUAL-003](tasks/cards/TASK-QUAL-003.md) | complete | Audit and clean functions/ directory dead code |
 | TASK-INSTALL-001 | complete | Per-tool interactive installer (no separate card file — see Completed Tasks) |
 | [TASK-INSTALL-002](tasks/cards/TASK-INSTALL-002.md) | complete | Fix journals() function — grep matches all YAML keys, not just journal names under journals: section |
+| [TASK-INSTALL-003](tasks/cards/TASK-INSTALL-003.md) | complete | Installer v0.2 — 6-preset taxonomy, @instance dispatch, multi-anchor registry, companion functions, pin/unpin, default profile |
 | [TASK-SHELL-UX-001](tasks/cards/TASK-SHELL-UX-001.md) | complete | Shell integration overhaul — re-source safety, dual-rc writes, bare commands, profile creation output cleanup |
 | [TASK-TIMEW-001](tasks/cards/TASK-TIMEW-001.md) | complete | Per-profile TimeWarrior extensions (`ww timew extensions`, timew-billable preset) |
 | [TASK-DESIGN-001](tasks/cards/TASK-DESIGN-001.md) | complete | `service-overview.md` for 12 undeveloped service categories (+ `saves/`) |
@@ -157,6 +158,7 @@ Spec status: architecture settled 2026-04-20. Cards pending Gate A (acceptance c
 | TASK-SHELL-001 | set -euo pipefail sweep (sourced libs use defensive guards; flags in executed scripts only) |
 | TASK-INSTALL-001 | Per-tool interactive installer with version cards, platform detection, conflict neutralisation, uninstall |
 | TASK-INSTALL-002 | Fix journals() YAML grep bug — awk section-scoped reader |
+| TASK-INSTALL-003 | Installer v0.2: 6-preset taxonomy (basic/direct/multi/hidden/isolated/hardened); `@instance [profile] [cmd]` dispatch + companion activation functions; multi-anchor registry isolation (`~/.config/<cmd>/`); `ww pin`/`ww unpin`; `instances()` bare function; default profile renamed `main`→`default`; 3 runtime bug fixes; prompt silent when no profile active; production migrated `~/ww` → `~/wwv02` |
 | TASK-SHELL-UX-001 | Shell integration overhaul: re-source safety, dual-rc writes, bare commands, profile creation output cleanup |
 | TASK-SYNC-001 | Add BATS test coverage for GitHub sync engine (42 tests: state, detection, API) |
 | TASK-SYNC-002 | Fix 3 critical data-integrity bugs: mv error checks in state, JSON input validation in detector, two-phase commit in profile restore |

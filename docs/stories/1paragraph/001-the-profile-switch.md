@@ -1,0 +1,3 @@
+# The Profile Switch
+
+It's 6:02 PM. You close the last ticket and type two words: `p-personal`. That's it. TaskWarrior now shows your weekend project backlog — not the sprint board. TimeWarrior starts logging hours toward the home renovation budget. Your journal is the one where you actually write honestly. Your ledger tracks grocery runs, not software licenses. Nothing moved. Nothing restarted. No config files were touched. The shell sourced an alias, environment variables redirected, and every tool in your terminal quietly became a different version of itself — one that belongs to the other half of your life. Workwarrior doesn't help you balance work and life. It just makes sure the two never touch each other's data.

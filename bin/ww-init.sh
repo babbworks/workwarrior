@@ -37,6 +37,13 @@ if [[ -f "$WW_BASE/lib/shell-integration.sh" ]]; then
   source "$WW_BASE/lib/shell-integration.sh"
 fi
 
+# Source companion activation functions for non-registry installs
+_ww_cfg="${WW_CONFIG_HOME:-$HOME/.config/ww}"
+if [[ -f "${_ww_cfg}/instance-functions.sh" ]]; then
+  source "${_ww_cfg}/instance-functions.sh"
+fi
+unset _ww_cfg
+
 # ============================================================================
 # ALIASES
 # ============================================================================
@@ -75,6 +82,56 @@ fi
 
 # Startup status intentionally disabled to keep new terminals quiet.
 # _ww_startup_status
+
+# ============================================================================
+# PROMPT PREFIX
+# ============================================================================
+
+_ww_prompt_prefix() {
+  local profile="${WARRIOR_PROFILE:-}"
+  [[ -z "$profile" ]] && return 0
+  local instance="${WW_ACTIVE_INSTANCE:-}"
+  local pin_marker=""
+  [[ -n "${WW_PINNED_INSTANCE:-}" ]] && pin_marker="[pin]"
+  if [[ -z "$instance" || "$instance" == "main" ]]; then
+    printf 'ww|%s%s' "$profile" "$pin_marker"
+  elif [[ -f "${HOME}/.config/ww/registry/${instance}.json" ]]; then
+    printf 'ww|%s:%s%s' "$instance" "$profile" "$pin_marker"
+  else
+    printf '%s|%s%s' "$instance" "$profile" "$pin_marker"
+  fi
+}
+
+_ww_apply_prompt_prefix() {
+  local pfx
+  pfx="$(_ww_prompt_prefix)"
+  if [[ -n "${ZSH_VERSION:-}" ]]; then
+    if [[ -n "$pfx" ]]; then
+      [[ "$PROMPT" == "${pfx} "* ]] || PROMPT="${pfx} ${PROMPT}"
+    elif [[ -n "${_WW_LAST_PREFIX:-}" ]]; then
+      PROMPT="${PROMPT#${_WW_LAST_PREFIX} }"
+    fi
+  else
+    if [[ -n "$pfx" ]]; then
+      [[ "$PS1" == "${pfx} "* ]] || PS1="${pfx} ${PS1}"
+    elif [[ -n "${_WW_LAST_PREFIX:-}" ]]; then
+      PS1="${PS1#${_WW_LAST_PREFIX} }"
+    fi
+  fi
+  _WW_LAST_PREFIX="$pfx"
+}
+
+_ww_apply_prompt_prefix
+if [[ -n "${ZSH_VERSION:-}" ]]; then
+  autoload -U add-zsh-hook >/dev/null 2>&1 || true
+  add-zsh-hook precmd _ww_apply_prompt_prefix >/dev/null 2>&1 || true
+else
+  case "${PROMPT_COMMAND:-}" in
+    *_ww_apply_prompt_prefix*) ;;
+    "") PROMPT_COMMAND="_ww_apply_prompt_prefix" ;;
+    *) PROMPT_COMMAND="_ww_apply_prompt_prefix; $PROMPT_COMMAND" ;;
+  esac
+fi
 
 # ============================================================================
 # AI SENSING (lightweight — 1s timeout)

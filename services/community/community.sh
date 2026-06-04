@@ -34,6 +34,14 @@ _comm_require_name() {
   if [[ -z "$name" ]]; then log_error "${usage}"; return 1; fi
 }
 
+_comm_require_ww_base() {
+  if [[ -z "${COMM_WW_BASE:-}" ]]; then
+    log_error "WW_BASE not set — activate a profile or set WW_BASE before using community commands"
+    return 1
+  fi
+  return 0
+}
+
 _comm_print_error() {
   local json="${1:-}" fallback="${2:-failed}"
   local err
@@ -517,7 +525,7 @@ Examples:
   ww community add my-project journal 2026-04-22_14-30
 EOF
     else
-      shift 2>/dev/null || true
+      shift 2 2>/dev/null || true
       case "$kind" in
         task)    cmd_add_task "$comm" "${1:-}" ;;
         journal) cmd_add_journal "$comm" "${1:-}" ;;

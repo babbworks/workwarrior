@@ -1,6 +1,6 @@
 # Task Card Index
 
-Last updated: 2026-04-27 (milestone scan: +8 cards — TASK-SITE-040/041/042, TASK-RES-001/002, TASK-TEST-003, TASK-AGENT-001, TASK-CI-001)
+Last updated: 2026-05-02 (TASK-INSTALL-003 added — installer v0.2 multi-instance + 5 basic-install bug fixes)
 Total: 115 task cards in `tasks/cards/`. Card `Status:` field is authoritative; this file is a scannable index.
 
 ## Priority Queue
@@ -58,6 +58,11 @@ Total: 115 task cards in `tasks/cards/`. Card `Status:` field is authoritative; 
 - **TASK-SITE-001** — Deliver a locally-served, terminal-aesthetic web interface for Workwarrior
 - **TASK-SITE-006** — Complete the browser service with static export, a redesigned terminal
 - **TASK-SITE-035** — Lists service stabilization (save reliability, multi-list UX, inline controls)
+
+## Complete (added 2026-05-02)
+
+- **TASK-INSTALL-004** — Per-anchor bootstrap guard: `WW_BOOTSTRAP_LOADED` → `WW_BOOTSTRAP_LOADED_<CMD>` so multiple multi-anchors can coexist in one shell
+- **TASK-INSTALL-003** — Installer v0.2: multi-instance architecture (6 presets, @instance dispatch, companion activation functions, ww pin/unpin, main→default rename, 5 bug fixes for standalone installs)
 
 ## Complete (added 2026-04-25)
 

@@ -9,7 +9,8 @@ This file is tool-agnostic — it applies equally to Claude Code, Amazon Q, Code
 
 Workwarrior is a terminal-first, profile-based productivity system unifying TaskWarrior, TimeWarrior, JRNL, and Hledger under a single CLI (`ww`). Profiles are isolated workspaces — each has its own task data, time tracking, journals, ledgers, and config. Users activate profiles via shell aliases (`p-work`, `p-personal`) and all tool state follows automatically via env vars.
 
-**Install path:** `/Users/mp/ww`
+**Install path:** `/Users/mp/wwv02` (v0.2 multi-instance install, cmd anchor: `ww`)
+**Dev instance:** `~/ww-dev/` — receives program files via `dev-sync.sh`
 **Product name:** Workwarrior (never used in paths — path is always `ww`)
 
 ---
@@ -31,10 +32,10 @@ For fragility policy detail, also read `system/fragility-register.md`.
 
 ## Current State (update this section when phase changes)
 
-- **Phase:** Phase 2 active
-- **Active work:** Browser UI (15+ panels), heuristic engine (627 rules), AI integration (ollama), weapons (gun/sword), profile management (remove service)
-- **Recent completions:** Heuristic compilation spec (all tasks done), browser CMD with compound commands, CTRL service, models service, profile hygiene (gitignored profiles, sanitized docs, disabled CI)
-- **Known test baseline:** ~10 pre-existing failures (not regressions) in test-profile-management-properties.bats and test-profile-name-validation.bats. See tests/CLAUDE.md for the full list.
+- **Phase:** Phase 2 active — v0.2 release package assembled
+- **Active work:** Browser UI polish (journal cross-link fix TASK-SITE-040, archive view TASK-SITE-041, CMD log UI TASK-SITE-042), community annotation copy-back modal TASK-COMM-008, ledger row redesign TASK-LED-001, sword weapon TASK-EXT-SWORD-001
+- **Recent completions:** Installer v0.2 — 6-preset taxonomy, `@instance` dispatch, multi-anchor registry, companion functions, pin/unpin, bash 3.2 compat fixes (mapfile → while-loop, \${^^} → tr). Community service — `ww community add` shift bug fixed, `_comm_require_ww_base` added. Browser: 15+ panels, tags screen, deps, header. Release package at `~/wwv02-package`.
+- **Known test baseline:** ~10 pre-existing failures in test-profile-management-properties.bats and test-profile-name-validation.bats. See tests/CLAUDE.md.
 - **CI:** Disabled. Tests run locally via `bats tests/`. No GitHub Actions workflow active.
 
 ---
