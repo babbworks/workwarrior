@@ -455,12 +455,12 @@ get_upgrade_command() {
       ;;
     apt)
       case "$tool" in
-        task)    echo "sudo apt upgrade taskwarrior" ;;
-        timew)   echo "sudo apt upgrade timewarrior" ;;
-        hledger) echo "sudo apt upgrade hledger" ;;
+        task)    echo "sudo apt-get install --only-upgrade taskwarrior" ;;
+        timew)   echo "sudo apt-get install --only-upgrade timewarrior" ;;
+        hledger) echo "sudo apt-get install --only-upgrade hledger" ;;
         jrnl)    echo "pipx upgrade jrnl" ;;
-        python3) echo "sudo apt upgrade python3" ;;
-        pipx)    echo "sudo apt upgrade pipx" ;;
+        python3) echo "sudo apt-get install --only-upgrade python3" ;;
+        pipx)    echo "sudo apt-get install --only-upgrade pipx" ;;
       esac
       ;;
     dnf)
@@ -475,12 +475,12 @@ get_upgrade_command() {
       ;;
     pacman)
       case "$tool" in
-        task)    echo "sudo pacman -Syu task" ;;
-        timew)   echo "sudo pacman -Syu timew" ;;
-        hledger) echo "sudo pacman -Syu hledger" ;;
+        task)    echo "sudo pacman -S task" ;;
+        timew)   echo "sudo pacman -S timew" ;;
+        hledger) echo "sudo pacman -S hledger" ;;
         jrnl)    echo "pipx upgrade jrnl" ;;
-        python3) echo "sudo pacman -Syu python" ;;
-        pipx)    echo "sudo pacman -Syu python-pipx" ;;
+        python3) echo "sudo pacman -S python" ;;
+        pipx)    echo "sudo pacman -S python-pipx" ;;
       esac
       ;;
   esac
