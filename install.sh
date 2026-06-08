@@ -573,17 +573,11 @@ _ww_apply_prompt_prefix() {
   local pfx
   pfx="\$(_ww_prompt_prefix)"
   if [[ -n "\${ZSH_VERSION:-}" ]]; then
-    if [[ -n "\$pfx" ]]; then
-      [[ "\$PROMPT" == "\${pfx} "* ]] || PROMPT="\${pfx} \${PROMPT}"
-    elif [[ -n "\${_WW_LAST_PREFIX:-}" ]]; then
-      PROMPT="\${PROMPT#\${_WW_LAST_PREFIX} }"
-    fi
+    [[ -n "\${_WW_LAST_PREFIX:-}" ]] && PROMPT="\${PROMPT#\${_WW_LAST_PREFIX} }"
+    [[ -n "\$pfx" ]] && [[ "\$PROMPT" != "\${pfx} "* ]] && PROMPT="\${pfx} \${PROMPT}"
   else
-    if [[ -n "\$pfx" ]]; then
-      [[ "\$PS1" == "\${pfx} "* ]] || PS1="\${pfx} \${PS1}"
-    elif [[ -n "\${_WW_LAST_PREFIX:-}" ]]; then
-      PS1="\${PS1#\${_WW_LAST_PREFIX} }"
-    fi
+    [[ -n "\${_WW_LAST_PREFIX:-}" ]] && PS1="\${PS1#\${_WW_LAST_PREFIX} }"
+    [[ -n "\$pfx" ]] && [[ "\$PS1" != "\${pfx} "* ]] && PS1="\${pfx} \${PS1}"
   fi
   _WW_LAST_PREFIX="\$pfx"
 }
@@ -696,19 +690,32 @@ show_success_message() {
   echo "  2. Verify installation:"
   echo "     $COMMAND_NAME version"
   echo ""
-  echo "  3. Create your first profile (a 'default' profile was auto-created):"
-  echo "     profile create work"
+  echo "  3. Create your first profile:"
+  echo "     $COMMAND_NAME browser   (guided setup via browser UI)"
+  echo "     — or —"
+  echo "     $COMMAND_NAME profile create work && p-work"
   echo ""
-  echo "  4. Activate the profile:"
-  echo "     p-work"
-  echo ""
-  echo "  5. Get help:"
+  echo "  4. Get help:"
   echo "     $COMMAND_NAME help"
   echo ""
   if [[ "$INSTALL_PRESET" == "basic" || "$INSTALL_PRESET" == "direct" || "$INSTALL_PRESET" == "isolated" ]]; then
     echo ""
     echo "  Note: For cross-instance routing, install a 'multi' preset anchor (recommended"
     echo "  name: 'ww') and register this instance: ww instance register $COMMAND_NAME $WW_INSTALL_DIR"
+  fi
+}
+
+_offer_browser_launch() {
+  (( NON_INTERACTIVE == 1 )) && return 0
+  command -v python3 &>/dev/null || return 0
+  echo ""
+  read -rp "  Launch browser UI now to set up your first profile? [y/N] " _yn
+  if [[ "${_yn,,}" == "y" ]]; then
+    echo ""
+    WW_BASE="$WW_INSTALL_DIR" bash "$WW_INSTALL_DIR/services/browser/browser.sh"
+  else
+    echo ""
+    echo "  Run '$COMMAND_NAME browser' any time to launch the browser UI."
   fi
 }
 
@@ -974,10 +981,9 @@ main() {
     write_instance_function "$COMMAND_NAME" "$WW_INSTALL_DIR"
   fi
 
-  create_default_main_profile
-
   # Final summary
   show_success_message
+  _offer_browser_launch
 }
 
 main "$@"

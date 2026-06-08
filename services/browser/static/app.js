@@ -879,6 +879,109 @@
     }, duration);
   }
 
+  // ── Profile welcome modal (shown when no profile is active on startup) ────
+  async function showProfileWelcome() {
+    document.getElementById('ww-profile-welcome')?.remove();
+    let profiles = [];
+    try {
+      const res = await fetch('/data/profiles');
+      const data = await res.json();
+      profiles = data.profiles || [];
+    } catch (_) {}
+    const overlay = document.createElement('div');
+    overlay.id = 'ww-profile-welcome';
+    overlay.className = 'confirm-overlay';
+    const dialog = document.createElement('div');
+    dialog.className = 'confirm-dialog ww-welcome-dialog';
+    if (profiles.length === 0) {
+      buildOnboardingForm(dialog, overlay);
+    } else {
+      buildProfilePicker(dialog, overlay, profiles);
+    }
+    overlay.appendChild(dialog);
+    document.body.appendChild(overlay);
+    (dialog.querySelector('.ww-onboard-input') || dialog.querySelector('.ww-welcome-profile-btn'))?.focus();
+    dialog.querySelector('.ww-onboard-input')?.select();
+  }
+
+  function buildOnboardingForm(dialog, overlay) {
+    const titleEl = document.createElement('div');
+    titleEl.className = 'ww-welcome-title';
+    titleEl.textContent = 'Workwarrior';
+    const descEl = document.createElement('div');
+    descEl.className = 'ww-welcome-sub';
+    descEl.textContent = 'Tasks · Time · Journal · Ledger — in one place.';
+    const inputEl = document.createElement('input');
+    inputEl.className = 'ww-onboard-input';
+    inputEl.type = 'text';
+    inputEl.value = 'default';
+    inputEl.maxLength = 40;
+    inputEl.placeholder = 'profile name';
+    const btnEl = document.createElement('button');
+    btnEl.className = 'ww-welcome-profile-btn ww-onboard-start';
+    btnEl.textContent = 'Start';
+    const errorEl = document.createElement('div');
+    errorEl.className = 'ww-onboard-error';
+    const submit = async () => {
+      const name = inputEl.value.trim();
+      if (!name) return;
+      btnEl.disabled = true;
+      btnEl.textContent = 'Creating…';
+      try {
+        const res = await fetch('/action', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({action: 'profile_create', name}),
+        });
+        const data = await res.json();
+        if (data.ok) {
+          overlay.remove();
+          setProfile(data.profile);
+          await loadProfileResources();
+        } else {
+          errorEl.textContent = data.error || 'Failed to create profile';
+          btnEl.disabled = false;
+          btnEl.textContent = 'Start';
+        }
+      } catch (_) {
+        errorEl.textContent = 'Connection error';
+        btnEl.disabled = false;
+        btnEl.textContent = 'Start';
+      }
+    };
+    btnEl.addEventListener('click', submit);
+    inputEl.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+    dialog.appendChild(titleEl);
+    dialog.appendChild(descEl);
+    dialog.appendChild(inputEl);
+    dialog.appendChild(btnEl);
+    dialog.appendChild(errorEl);
+  }
+
+  function buildProfilePicker(dialog, overlay, profiles) {
+    const titleEl = document.createElement('div');
+    titleEl.className = 'ww-welcome-title';
+    titleEl.textContent = 'Workwarrior';
+    const subEl = document.createElement('div');
+    subEl.className = 'ww-welcome-sub';
+    subEl.textContent = 'Select a profile to get started';
+    const listEl = document.createElement('div');
+    listEl.className = 'ww-welcome-profiles';
+    profiles.forEach(p => {
+      const btn = document.createElement('button');
+      btn.className = 'ww-welcome-profile-btn';
+      btn.textContent = p;
+      btn.addEventListener('click', async () => {
+        overlay.remove();
+        await switchProfile(p);
+      });
+      listEl.appendChild(btn);
+    });
+    dialog.appendChild(titleEl);
+    dialog.appendChild(subEl);
+    dialog.appendChild(listEl);
+  }
+
   // ── Confirm modal ─────────────────────────────────────────────────────────
   function confirmAction(title, description, onConfirm) {
     document.getElementById('ww-confirm-modal')?.remove();
@@ -10807,7 +10910,11 @@ CMD: "add task review and start tracking"
     try {
       const res = await fetch('/health');
       const data = await res.json();
-      if (data.profile) setProfile(data.profile);
+      if (data.profile) {
+        setProfile(data.profile);
+      } else {
+        await showProfileWelcome();
+      }
       if (data.cmd) {
         instanceCmd = data.cmd;
         const lbl = document.getElementById('focus-bar-cmd-label');

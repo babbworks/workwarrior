@@ -1270,6 +1270,16 @@ body.term-focus-mode .ctx-sidebar { bottom: var(--term-h); top: 30px; max-height
 /* ── Confirm modal ────────────────────────────────────────────────────────── */
 .confirm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 9000; }
 .confirm-dialog { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 20px 24px; min-width: 300px; max-width: 420px; box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+.ww-welcome-dialog { text-align: center; width: fit-content; min-width: 260px; max-width: min(90vw, 800px); }
+.ww-welcome-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+.ww-welcome-sub { font-size: 12px; color: var(--muted); margin-bottom: 16px; }
+.ww-welcome-profiles { display: flex; flex-direction: column; flex-wrap: wrap; align-content: flex-start; max-height: 250px; gap: 8px; }
+.ww-welcome-profile-btn { background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 8px 16px; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 13px; transition: background 150ms; min-width: 120px; }
+.ww-welcome-profile-btn:hover { background: var(--accent); color: var(--bg); }
+.ww-onboard-input { width: 100%; padding: 8px 10px; margin-bottom: 8px; background: var(--bg); border: 1px solid var(--border); color: var(--text); font-family: inherit; font-size: 13px; border-radius: 4px; box-sizing: border-box; text-align: center; }
+.ww-onboard-input:focus { outline: none; border-color: var(--accent); }
+.ww-onboard-start { width: 100%; }
+.ww-onboard-error { font-size: 11px; color: var(--danger, #e06c75); margin-top: 6px; min-height: 16px; }
 .confirm-title { font-size: 13px; font-weight: 600; margin-bottom: 10px; color: var(--text); text-transform: capitalize; }
 .confirm-body { font-size: 12px; color: var(--muted); margin-bottom: 16px; line-height: 1.5; }
 .confirm-body strong { color: var(--text); }
@@ -2667,13 +2677,6 @@ body.river-mode .header-theme-select {
 .attr-template-count { font-size: 10px; color: var(--accent); }
 .attr-template-import-btn { font-size: 11px !important; padding: 3px 10px !important; }
 
-/* Welcome overlay */
-.ww-welcome-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; display: flex; align-items: center; justify-content: center; }
-.ww-welcome-overlay.hidden { display: none; }
-.ww-welcome-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 32px 40px; text-align: center; max-width: 360px; box-shadow: 0 12px 48px rgba(0,0,0,0.5); }
-.ww-welcome-title { font-size: 18px; color: var(--text); font-weight: bold; margin-bottom: 8px; }
-.ww-welcome-desc { font-size: 12px; color: var(--muted); margin-bottom: 20px; line-height: 1.6; }
-.ww-welcome-actions { display: flex; gap: 10px; justify-content: center; }
 
 /* Glow highlight for demo onboarding */
 .glow-highlight { animation: glowPulse 1.5s ease-in-out 2; }

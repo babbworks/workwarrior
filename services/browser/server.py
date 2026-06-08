@@ -3978,11 +3978,13 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                         f'<span class="uda-chip"><span class="uda-key">{esc(k)}</span> {esc(str(v))}</span>'
                         for k, v in udas.items()
                     )
+                    ann_block = ('<div class="ann-block">' + ann_html + '</div>') if ann_html else ''
+                    uda_block = ('<div class="uda-block">' + uda_html + '</div>') if uda_html else ''
                     task_rows += (
                         f'<tr class="task-detail hidden" data-uuid="{tid}">'
                         f'<td colspan="5"><div class="detail-inner">'
-                        f'{("<div class=\"ann-block\">" + ann_html + "</div>") if ann_html else ""}'
-                        f'{("<div class=\"uda-block\">" + uda_html + "</div>") if uda_html else ""}'
+                        f'{ann_block}'
+                        f'{uda_block}'
                         f'</div></td></tr>\n'
                     )
 
@@ -4402,6 +4404,24 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
             if body is None:
                 return
             action = body.get("action", "")
+
+            if action == "profile_create":
+                name = (body.get("name") or "").strip()
+                if not name or not re.match(r'^[a-zA-Z0-9][a-zA-Z0-9_-]*$', name):
+                    self._send_json(400, {"ok": False, "error": "invalid profile name"})
+                    return
+                result = subprocess.run(
+                    [ww_bin, "profile", "create", name, "--non-interactive"],
+                    capture_output=True, text=True, timeout=30,
+                    env={**os.environ, "WW_BASE": state.ww_base},
+                )
+                if result.returncode == 0:
+                    state.set_active_profile(name)
+                    self._send_json(200, {"ok": True, "profile": name})
+                else:
+                    self._send_json(500, {"ok": False, "error": result.stderr.strip() or "profile creation failed"})
+                return
+
             paths = state.get_profile_paths()
             if not paths:
                 self._send_json(400, {"ok": False, "error": "no active profile"})
@@ -5854,6 +5874,26 @@ def main() -> None:
 
     # Initialise shared state
     state = ServerState(ww_base=ww_base)
+
+    # Seed active profile: env var → last-profile file → sole profile
+    if not state.get_active_profile():
+        cfg_home = os.environ.get("WW_CONFIG_HOME", os.path.expanduser("~/.config/ww"))
+        seed = os.environ.get("WARRIOR_PROFILE", "").strip()
+        if not seed:
+            try:
+                seed = open(os.path.join(cfg_home, "last-profile")).read().strip()
+            except OSError:
+                pass
+        if not seed:
+            try:
+                candidates = [p for p in os.listdir(os.path.join(ww_base, "profiles"))
+                              if os.path.isdir(os.path.join(ww_base, "profiles", p))]
+                if len(candidates) == 1:
+                    seed = candidates[0]
+            except OSError:
+                pass
+        if seed:
+            state.set_active_profile(seed)
 
     # Initialise heuristic engine
     heuristic_engine = HeuristicEngine(ww_base)
