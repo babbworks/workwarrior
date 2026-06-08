@@ -140,6 +140,10 @@ ALLOWED_SUBCOMMANDS = frozenset([
     "remove",
     # warrior + cross-profile tools
     "warrior", "projects", "network", "saves",
+    # stream service
+    "stream",
+    # servers / TaskChampion sync
+    "server", "servers",
 ])
 
 
@@ -893,6 +897,106 @@ def _ping_thread(state: ServerState) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Dey sampling thread — emits periodic D events to stream.log
+# ---------------------------------------------------------------------------
+
+_DEY_INTERVAL = 60          # seconds between samples
+_DEY_WINDOW   = 600         # look-back window for source signals (10 min)
+
+def _ema(values: list, alpha: float) -> list:
+    if not values:
+        return []
+    out = [values[0]]
+    for v in values[1:]:
+        out.append(alpha * v + (1 - alpha) * out[-1])
+    return out
+
+def _clamp(v: float) -> float:
+    return max(0.0, min(1.0, v))
+
+def _compute_dey(events: list, now: int, window: int) -> dict:
+    """Compute intensity/stability/fragmentation from recent events."""
+    recent = [e for e in events if e["ts"] >= now - window]
+    if not recent:
+        return {"i": 0.0, "s": 1.0, "f": 0.0}
+
+    total   = len(recent)
+    max_rate = window  # 1 event/s = full intensity
+
+    # Intensity: event rate
+    i_raw = _clamp(total / max(max_rate / 10, 1))
+
+    # Stability: inverse op diversity (fewer distinct ops → higher stability)
+    ops = set(e["op"] for e in recent)
+    s_raw = _clamp(1.0 - (len(ops) - 1) * 0.2)
+
+    # Fragmentation: project entropy
+    from collections import Counter
+    projs = Counter(e.get("ctx", {}).get("proj", "") for e in recent)
+    n = sum(projs.values())
+    import math
+    entropy = -sum((c / n) * math.log2(c / n) for c in projs.values() if c > 0) if n else 0
+    f_raw = _clamp(entropy / max(math.log2(len(projs)), 1)) if len(projs) > 1 else 0.0
+
+    return {"i": round(i_raw, 4), "s": round(s_raw, 4), "f": round(f_raw, 4)}
+
+def _dey_thread(state: ServerState) -> None:
+    """
+    Daemon thread: every _DEY_INTERVAL seconds reads stream.log, computes
+    intensity/stability/fragmentation, and appends a D sample event.
+    """
+    # Stagger start so first sample has events to read
+    for _ in range(_DEY_INTERVAL * 10):
+        if state.shutdown_requested():
+            return
+        time.sleep(0.1)
+
+    while not state.shutdown_requested():
+        try:
+            stream_log = os.path.join(state.ww_base, "stream", "stream.log")
+            if os.path.isfile(stream_log):
+                now = int(time.time())
+                events = []
+                with open(stream_log, "r", errors="replace") as fh:
+                    for line in fh:
+                        parts = line.strip().split(" ", 4)
+                        if len(parts) < 4:
+                            continue
+                        try:
+                            ts = int(parts[0])
+                        except ValueError:
+                            continue
+                        ctx = {}
+                        if len(parts) == 5:
+                            try:
+                                ctx = json.loads(parts[4])
+                            except Exception:
+                                pass
+                        events.append({"ts": ts, "op": parts[1], "ctx": ctx})
+
+                sig = _compute_dey(events, now, _DEY_WINDOW)
+                import datetime
+                date_str = datetime.date.today().isoformat()
+                profile = state.get_active_profile() or ""
+                ctx_str = json.dumps({
+                    "intensity": sig["i"],
+                    "stability": sig["s"],
+                    "fragmentation": sig["f"],
+                    "prof": profile,
+                }, separators=(",", ":"))
+                line = f"{now} D sample session-{date_str} {ctx_str}\n"
+                with open(stream_log, "a") as fh:
+                    fh.write(line)
+        except Exception:
+            pass
+
+        for _ in range(_DEY_INTERVAL * 10):
+            if state.shutdown_requested():
+                return
+            time.sleep(0.1)
+
+
+# ---------------------------------------------------------------------------
 # Simple list tool (tools/list) + TimeWarrior timestamp helper
 # ---------------------------------------------------------------------------
 
@@ -974,6 +1078,16 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                     os.path.join(self.STATIC_DIR, "assets", "river.avif"),
                     "image/avif",
                 )
+            elif self.path == "/themes/twain.js":
+                self._serve_static_file(
+                    os.path.join(self.STATIC_DIR, "themes", "twain.js"),
+                    "application/javascript",
+                )
+            elif self.path == "/themes/feynman.js":
+                self._serve_static_file(
+                    os.path.join(self.STATIC_DIR, "themes", "feynman.js"),
+                    "application/javascript",
+                )
             elif self.path == "/data/tasks" or self.path.startswith("/data/tasks?"):
                 self._handle_data_tasks()
             elif self.path == "/data/time":
@@ -1025,10 +1139,14 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                 self._handle_data_task_meta()
             elif self.path == "/data/udas":
                 self._handle_data_udas()
+            elif self.path == "/data/stream/status":
+                self._handle_data_stream_status()
             elif self.path == "/data/stream" or self.path.startswith("/data/stream?"):
                 self._handle_data_stream()
             elif self.path == "/data/sync":
                 self._handle_data_sync()
+            elif self.path == "/data/servers":
+                self._handle_data_servers()
             elif self.path == "/data/models":
                 self._handle_data_models()
             elif self.path == "/data/questions":
@@ -1047,7 +1165,13 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                 self._send_json(404, {"error": "not found"})
 
         def do_POST(self) -> None:  # noqa: N802
-            if self.path == "/data/udas":
+            if self.path == "/data/stream/toggle":
+                self._handle_stream_toggle()
+            elif self.path == "/data/servers/sync":
+                self._handle_servers_sync()
+            elif self.path == "/data/servers/configure":
+                self._handle_servers_configure()
+            elif self.path == "/data/udas":
                 self._handle_udas_post()
             elif self.path == "/cmd":
                 self._handle_cmd()
@@ -2445,6 +2569,57 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                 "events": events,
             })
 
+        # -- GET /data/stream/status -----------------------------------------
+
+        def _handle_data_stream_status(self) -> None:
+            """Lightweight stream status — no events, just existence and flag state."""
+            stream_dir = os.path.join(state.ww_base, "stream")
+            stream_log = os.path.join(stream_dir, "stream.log")
+            flag_file = os.path.join(stream_dir, ".stream_active")
+            log_exists = os.path.isfile(stream_log)
+            active = os.path.isfile(flag_file)
+            event_count = 0
+            last_ts = None
+            if log_exists:
+                try:
+                    lines = open(stream_log).readlines()
+                    event_count = len(lines)
+                    if lines:
+                        parts = lines[-1].strip().split(" ", 1)
+                        if parts:
+                            try:
+                                import datetime
+                                last_ts = datetime.datetime.utcfromtimestamp(
+                                    int(parts[0])
+                                ).strftime("%Y-%m-%d %H:%M UTC")
+                            except Exception:
+                                pass
+                except Exception:
+                    pass
+            self._send_json(200, {
+                "ok": True,
+                "enabled": log_exists,
+                "active": active,
+                "event_count": event_count,
+                "last_ts": last_ts,
+            })
+
+        # -- POST /data/stream/toggle ----------------------------------------
+
+        def _handle_stream_toggle(self) -> None:
+            """Toggle the stream active flag file."""
+            stream_dir = os.path.join(state.ww_base, "stream")
+            flag_file = os.path.join(stream_dir, ".stream_active")
+            os.makedirs(stream_dir, exist_ok=True)
+            if os.path.isfile(flag_file):
+                os.remove(flag_file)
+                active = False
+            else:
+                open(flag_file, "w").close()
+                active = True
+            log_exists = os.path.isfile(os.path.join(stream_dir, "stream.log"))
+            self._send_json(200, {"ok": True, "active": active, "enabled": log_exists})
+
         # -- GET /data/sync --------------------------------------------------
 
         def _handle_data_sync(self) -> None:
@@ -2501,6 +2676,136 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                 "last_pull": last_pull,
                 "pending_push": pending_push,
             })
+
+        # -- GET /data/servers -----------------------------------------------
+
+        def _handle_data_servers(self) -> None:
+            """Return TaskChampion sync configuration and status for active profile."""
+            paths = state.get_profile_paths()
+            if not paths:
+                self._send_json(200, {"ok": True, "configured": False, "profile": None})
+                return
+            profile = state.get_active_profile() or "—"
+            taskrc = paths.get("taskrc", "")
+            # Read sync settings from .taskrc
+            server_url = None
+            client_id = None
+            has_secret = False
+            if os.path.isfile(taskrc):
+                try:
+                    with open(taskrc) as fh:
+                        for line in fh:
+                            line = line.strip()
+                            if line.startswith("sync.server.url="):
+                                server_url = line.split("=", 1)[1].strip()
+                            elif line.startswith("sync.server.client_id="):
+                                client_id = line.split("=", 1)[1].strip()
+                            elif line.startswith("sync.encryption_secret="):
+                                has_secret = bool(line.split("=", 1)[1].strip())
+                except Exception:
+                    pass
+            configured = bool(server_url and client_id)
+            # Check last sync time from taskwarrior backlog file
+            tw_data = paths.get("taskdata", "")
+            last_sync = None
+            backlog_count = 0
+            backlog_path = os.path.join(tw_data, "backlog.data") if tw_data else None
+            if backlog_path and os.path.isfile(backlog_path):
+                try:
+                    with open(backlog_path) as fh:
+                        lines = [l for l in fh.read().splitlines() if l.strip()]
+                    backlog_count = len(lines)
+                except Exception:
+                    pass
+            # Stat the completed.data for approximate last sync (task sync updates it)
+            completed = os.path.join(tw_data, "completed.data") if tw_data else None
+            if completed and os.path.isfile(completed):
+                try:
+                    last_sync = int(os.path.getmtime(completed))
+                except Exception:
+                    pass
+            self._send_json(200, {
+                "ok": True,
+                "profile": profile,
+                "configured": configured,
+                "server_url": server_url,
+                "client_id": client_id,
+                "has_secret": has_secret,
+                "backlog_count": backlog_count,
+                "last_sync": last_sync,
+            })
+
+        # -- POST /data/servers/sync -----------------------------------------
+
+        def _handle_servers_sync(self) -> None:
+            """Run task sync for the active profile and return output."""
+            paths = state.get_profile_paths()
+            if not paths:
+                self._send_json(200, {"ok": False, "error": "no active profile"})
+                return
+            taskrc = paths.get("taskrc", "")
+            if not taskrc or not os.path.isfile(taskrc):
+                self._send_json(200, {"ok": False, "error": "taskrc not found"})
+                return
+            try:
+                env = dict(os.environ)
+                env["TASKRC"] = taskrc
+                tw_data = paths.get("taskdata", "")
+                if tw_data:
+                    env["TASKDATA"] = tw_data
+                result = subprocess.run(
+                    ["task", "sync"],
+                    env=env,
+                    capture_output=True, text=True, timeout=30
+                )
+                output = (result.stdout + result.stderr).strip()
+                self._send_json(200, {"ok": result.returncode == 0, "output": output, "code": result.returncode})
+            except subprocess.TimeoutExpired:
+                self._send_json(200, {"ok": False, "error": "sync timed out after 30s"})
+            except Exception as exc:
+                self._send_json(200, {"ok": False, "error": str(exc)})
+
+        # -- POST /data/servers/configure ------------------------------------
+
+        def _handle_servers_configure(self) -> None:
+            """Write sync settings to the active profile's .taskrc."""
+            length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(length)
+            try:
+                data = json.loads(body)
+            except Exception:
+                self._send_json(400, {"ok": False, "error": "invalid JSON"})
+                return
+            paths = state.get_profile_paths()
+            if not paths:
+                self._send_json(200, {"ok": False, "error": "no active profile"})
+                return
+            taskrc = paths.get("taskrc", "")
+            if not taskrc or not os.path.isfile(taskrc):
+                self._send_json(200, {"ok": False, "error": "taskrc not found"})
+                return
+            server_url = (data.get("server_url") or "").strip()
+            client_id = (data.get("client_id") or "").strip()
+            secret = (data.get("encryption_secret") or "").strip()
+            if not server_url or not client_id:
+                self._send_json(400, {"ok": False, "error": "server_url and client_id required"})
+                return
+            try:
+                with open(taskrc) as fh:
+                    lines = fh.readlines()
+                # Remove existing sync settings
+                lines = [l for l in lines if not any(
+                    l.startswith(k) for k in ("sync.server.url=", "sync.server.client_id=", "sync.encryption_secret=")
+                )]
+                lines.append(f"sync.server.url={server_url}\n")
+                lines.append(f"sync.server.client_id={client_id}\n")
+                if secret:
+                    lines.append(f"sync.encryption_secret={secret}\n")
+                with open(taskrc, "w") as fh:
+                    fh.writelines(lines)
+                self._send_json(200, {"ok": True, "message": "sync configuration saved"})
+            except Exception as exc:
+                self._send_json(200, {"ok": False, "error": str(exc)})
 
         # -- GET /data/models ------------------------------------------------
 
@@ -3395,7 +3700,7 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
             """Return nav order: default merged with active profile or global nav.yaml override."""
             default_order = [
                 "projects", "groups", "questions", "next", "schedule",
-                "sync", "warlock", "models", "network", "bookbuilder", "export"
+                "sync", "models", "network", "bookbuilder", "export"
             ]
             order = list(default_order)
             try:
@@ -5587,6 +5892,10 @@ def main() -> None:
     # Start ping/profile-watch thread
     ping_thread = threading.Thread(target=_ping_thread, args=(state,), daemon=True)
     ping_thread.start()
+
+    # Start Dey sampling thread (emits D events to stream.log every 60s)
+    dey_thread = threading.Thread(target=_dey_thread, args=(state,), daemon=True)
+    dey_thread.start()
 
     try:
         server.serve_forever()

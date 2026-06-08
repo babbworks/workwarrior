@@ -12,6 +12,10 @@
       <div class="sidebar-header">
         <span class="wordmark-ww">ww</span>
         <span class="wordmark-full">workwarrior</span>
+        <div class="sidebar-header-controls">
+          <button class="bridge-icon" id="btn-bridge-icon" title="Works Bridge">⬡</button>
+        </div>
+        <button class="theme-btn" id="btn-theme" title="Theme">T</button>
       </div>
       <div class="profile-row">
         <div class="profile-pill" id="profile-pill">—</div>
@@ -41,10 +45,15 @@
         <button class="nav-item" data-section="attributes"><span class="nav-icon">⊕</span><span class="nav-label">Atts</span></button>
         <div class="nav-divider"></div>
         <button class="community-footer-btn" data-section="community"><span class="community-footer-icon">◎</span><span class="community-footer-label">Communities</span></button>
-        <div class="nav-group-label">services</div>
+        <div class="pinned-services-slot" id="pinned-services-slot"></div>
+        <div class="nav-group-label services-label" id="services-group-label">
+          <span class="services-label-text" id="btn-services-screen" title="Manage services">services</span>
+          <button class="services-collapse-btn" id="btn-services-collapse" title="Collapse services">−</button>
+        </div>
         <button class="nav-item" data-section="next"><span class="nav-icon">▶</span><span class="nav-label">Next</span></button>
         <button class="nav-item" data-section="schedule"><span class="nav-icon">⏱</span><span class="nav-label">Schedule</span></button>
         <button class="nav-item" data-section="sync"><span class="nav-icon">⇄</span><span class="nav-label">Sync</span></button>
+        <button class="nav-item" data-section="servers"><span class="nav-icon">⇡</span><span class="nav-label">Servers</span></button>
         <button class="nav-item" data-section="groups"><span class="nav-icon">⊞</span><span class="nav-label">Groups</span></button>
         <button class="nav-item" data-section="models"><span class="nav-icon">◈</span><span class="nav-label">Models</span></button>
         <button class="nav-item" data-section="network"><span class="nav-icon">⊕</span><span class="nav-label">Network</span></button>
@@ -78,7 +87,12 @@
         <div class="header-row1">
           <div class="header-title-group">
             <span id="section-title">Tasks</span>
+            <button class="fn-info-header-btn" id="btn-fn-info" title="About this function">ⓘ</button>
             <div id="header-resource-slot" class="header-resource-slot hidden"></div>
+            <div class="header-sync-controls" id="header-sync-controls" style="display:none">
+              <button class="header-sync-btn header-sync-highlight" id="btn-create-subprofile" title="Create sub-profile (task list + journal + time log + ledger + list)">⊞</button>
+              <button class="header-sync-btn header-sync-highlight" id="btn-sync-functions" title="Sync all functions to current sub-list">⟳</button>
+            </div>
           </div>
           <div class="header-stats">
             <div class="stream-topbar hidden" id="stream-topbar">
@@ -91,14 +105,9 @@
             <span id="stat-date" class="stat-item"></span>
             <span id="header-profile" class="stat-item stat-profile" title="Switch profile">—</span>
             <span class="conn-dot" id="conn-dot" title="disconnected"></span>
+            <select id="header-theme-select" class="header-theme-select" title="Theme"></select>
+            <select id="header-mode-select" class="header-theme-select" title="Theme mode" disabled><option value="">—</option></select>
             <button id="btn-sidebar-fullscreen" title="Expand view / collapse sidebar">⊞</button>
-            <select id="journal-theme-select" class="header-theme-select" title="Journal theme">
-              <option value="default">default</option>
-              <option value="twain">Twain ✦</option>
-            </select>
-            <select id="global-mode-select" class="header-theme-select" title="Theme mode" disabled>
-              <option value="">—</option>
-            </select>
           </div>
         </div>
       </header>
@@ -107,6 +116,427 @@
         <div id="search-overlay" class="hidden">
           <div id="search-results"></div>
         </div>
+
+        <!-- ── Function info panels ───────────────────────────────────────── -->
+        <div class="fn-info-panel hidden" id="fn-info-tasks">
+          <div class="fn-info-header">
+            <span class="fn-info-origin">Powered by <a href="https://taskwarrior.org" target="_blank">Taskwarrior</a> · <a href="https://github.com/GothenburgBitFactory/taskwarrior" target="_blank">GitHub</a> · MIT License</span>
+            <button class="fn-info-close" data-fn-info-close="tasks">✕</button>
+          </div>
+          <div class="fn-info-body">
+            <h3>Task Management</h3>
+            <p>Full-featured task tracking with <strong>urgency scoring</strong> that automatically prioritizes work based on due dates, priority, age, and custom weights.</p>
+            <ul>
+              <li><strong>UDAs</strong> — User Defined Attributes add custom fields (cost, client, sprint, timetracked, etc.)</li>
+              <li><strong>Projects &amp; Tags</strong> — Organize tasks hierarchically with projects and flexibly with tags</li>
+              <li><strong>Annotations</strong> — Attach timestamped notes to any task</li>
+              <li><strong>Dependencies</strong> — Define task relationships and blocking chains</li>
+              <li><strong>Bulk Operations</strong> — Multi-select tasks for batch edits, done, delete, or tag operations</li>
+            </ul>
+            <h3>Cross-Service Integration</h3>
+            <ul>
+              <li><strong>Time</strong> — Starting a task auto-starts time tracking via on-modify hook</li>
+              <li><strong>Stream</strong> — Task add/modify/done events auto-write T and F op codes to stream.log</li>
+              <li><strong>Journal</strong> — Cross-post task notes as journal entries</li>
+              <li><strong>Ledger</strong> — Track costs per task via UDA fields that feed Ledger reports</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="fn-info-panel hidden" id="fn-info-time">
+          <div class="fn-info-header">
+            <span class="fn-info-origin">Powered by <a href="https://timewarrior.net" target="_blank">Timewarrior</a> · <a href="https://github.com/GothenburgBitFactory/timewarrior" target="_blank">GitHub</a> · MIT License</span>
+            <button class="fn-info-close" data-fn-info-close="time">✕</button>
+          </div>
+          <div class="fn-info-body">
+            <h3>Time Tracking</h3>
+            <p>Track time with <strong>start/stop</strong> or <strong>manual duration entry</strong>. Every interval is tagged for flexible reporting.</p>
+            <ul>
+              <li><strong>Tags</strong> — Categorize time entries (dev, review, meeting, admin)</li>
+              <li><strong>Weekly Charts</strong> — Visual breakdown of time spent by day and tag</li>
+              <li><strong>Tag Summaries</strong> — Aggregate reports showing total time per tag</li>
+              <li><strong>Multiple Time Logs</strong> — Sub-profiles maintain separate time contexts</li>
+            </ul>
+            <h3>Cross-Service Integration</h3>
+            <ul>
+              <li><strong>Tasks</strong> — Starting a task auto-starts a Timewarrior interval via on-modify hook</li>
+              <li><strong>Stream</strong> — Timew start/stop events ingest as B (Bundy) op codes</li>
+              <li><strong>Ledger</strong> — Time data feeds into Ledger session postings via <code>ww ledger task</code></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="fn-info-panel hidden" id="fn-info-journal">
+          <div class="fn-info-header">
+            <span class="fn-info-origin">Powered by <a href="https://jrnl.sh" target="_blank">jrnl</a> · <a href="https://github.com/jrnl-org/jrnl" target="_blank">GitHub</a> · GPL License</span>
+            <button class="fn-info-close" data-fn-info-close="journal">✕</button>
+          </div>
+          <div class="fn-info-body">
+            <h3>Journaling</h3>
+            <p>Structured journaling with <strong>entries, tags, and search</strong>. Supports markdown rendering and sub-journals per context.</p>
+            <ul>
+              <li><strong>Sub-Journals</strong> — Separate journals: default, sessions, decisions, research</li>
+              <li><strong>Tags &amp; Sections</strong> — @-prefixed tags for categorization and filtering</li>
+              <li><strong>Markdown Rendering</strong> — Full markdown with live preview toggle</li>
+              <li><strong>Twain Theme</strong> — Focused writing mode with scratch pad and river mode</li>
+              <li><strong>Archiving</strong> — Archive old entries to keep the active journal clean</li>
+            </ul>
+            <h3>Cross-Service Integration</h3>
+            <ul>
+              <li><strong>Tasks</strong> — <code>ww journal task &lt;uuid&gt;</code> posts a hyperlinked task entry</li>
+              <li><strong>Stream</strong> — Journal entries ingest as A (Annotation) op codes</li>
+              <li><strong>Sessions</strong> — Session summaries write to the <code>sessions</code> sub-journal</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="fn-info-panel hidden" id="fn-info-ledger">
+          <div class="fn-info-header">
+            <span class="fn-info-origin">Powered by <a href="https://hledger.org" target="_blank">hledger</a> · <a href="https://github.com/simonmichael/hledger" target="_blank">GitHub</a> · GPL License</span>
+            <button class="fn-info-close" data-fn-info-close="ledger">✕</button>
+          </div>
+          <div class="fn-info-body">
+            <h3>Plain-Text Accounting</h3>
+            <p>Double-entry accounting in plain text. One ledger per profile — account namespace handles all separation.</p>
+            <ul>
+              <li><strong>Time Accounts</strong> — <code>time:&lt;profile&gt;:&lt;domain&gt;</code> accounts track work allocation</li>
+              <li><strong>Balance Reports</strong> — Live account balances and income statements</li>
+              <li><strong>Multiple Ledgers</strong> — Sub-profiles for separate accounting contexts</li>
+              <li><strong>Transaction Posting</strong> — <code>ww ledger task &lt;uuid&gt;</code> derives transactions from task data</li>
+            </ul>
+            <h3>Cross-Service Integration</h3>
+            <ul>
+              <li><strong>Tasks</strong> — Task timetracked UDA drives automatic ledger posting duration</li>
+              <li><strong>Stream</strong> — Ledger posts ingest as T (post) op codes in stream.log</li>
+              <li><strong>Time</strong> — Timewarrior session duration informs ledger postings</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="fn-info-panel hidden" id="fn-info-lists">
+          <div class="fn-info-header">
+            <span class="fn-info-origin">Workwarrior Lists — lightweight checklist service</span>
+            <button class="fn-info-close" data-fn-info-close="lists">✕</button>
+          </div>
+          <div class="fn-info-body">
+            <h3>Lists</h3>
+            <p>Lightweight checklists for quick capture — grocery lists, reading lists, reference items — separate from the task lifecycle.</p>
+            <ul>
+              <li><strong>Multiple Lists</strong> — Named lists per profile, switched via selector</li>
+              <li><strong>Checklist Items</strong> — Check/uncheck, add, delete, reorder items</li>
+              <li><strong>Archive</strong> — Archive completed lists without deleting them</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="fn-info-panel hidden" id="fn-info-tags">
+          <div class="fn-info-header">
+            <span class="fn-info-origin">Workwarrior Tags — cross-profile tag taxonomy</span>
+            <button class="fn-info-close" data-fn-info-close="tags">✕</button>
+          </div>
+          <div class="fn-info-body">
+            <h3>Tags</h3>
+            <p>A live view of all tags in use across the active profile's tasks, with counts and quick-filter access.</p>
+            <ul>
+              <li><strong>Tag Cloud</strong> — All tags with usage counts</li>
+              <li><strong>Quick Filter</strong> — Click a tag to filter the Tasks view</li>
+              <li><strong>Cross-Task</strong> — Tags span projects — use them for type, context, or status</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="fn-info-panel hidden" id="fn-info-attributes">
+          <div class="fn-info-header">
+            <span class="fn-info-origin">Powered by <a href="https://taskwarrior.org/docs/udas/" target="_blank">Taskwarrior UDAs</a> · MIT License</span>
+            <button class="fn-info-close" data-fn-info-close="attributes">✕</button>
+          </div>
+          <div class="fn-info-body">
+            <h3>User Defined Attributes</h3>
+            <p>Extend every task with custom fields. UDAs are defined per-profile in <code>.taskrc</code> and appear on every task.</p>
+            <ul>
+              <li><strong>Types</strong> — string, numeric, date, duration</li>
+              <li><strong>Urgency Coefficients</strong> — UDAs can influence urgency scoring</li>
+              <li><strong>Enum Values</strong> — Restrict a UDA to a defined set of allowed values</li>
+              <li><strong>Template Packs</strong> — Pre-built UDA sets: development, financial, time-tracking, GitHub integration</li>
+            </ul>
+            <h3>Standard UDAs in wwv02</h3>
+            <p>Every profile ships with 123+ UDAs covering: <code>schemachange</code>, <code>testcoverage</code>, <code>breakingchange</code>, <code>docimpact</code>, <code>changelognote</code>, <code>timetracked</code>, <code>agentid</code>, <code>agentmodel</code>, and more.</p>
+          </div>
+        </div>
+
+        <div class="fn-info-panel hidden" id="fn-info-stream">
+          <div class="fn-info-header">
+            <span class="fn-info-origin">Workwarrior Stream Service (WWSS) · Hollerith positional encoding · append-only</span>
+            <button class="fn-info-close" data-fn-info-close="stream">✕</button>
+          </div>
+          <div class="fn-info-body">
+            <h3>Stream</h3>
+            <p>An <strong>append-only event log</strong> — the constitutional layer of workwarrior. All state is derivable by replaying the log. Encoded in Hollerith positional format: <code>ts op action object ctx</code>.</p>
+            <ul>
+              <li><strong>Op Codes</strong> — T (task), F (frick/focus), B (bundy/time), D (dey/signal), A (annotation), S (system)</li>
+              <li><strong>Lenses</strong> — 8 projections: Burroughs (raw), Bundy (intervals), Felt (density), Dey (signal), Cooper (field), Hollerith (matrix), Pacioli (balance), Frick (transitions)</li>
+              <li><strong>Sessions</strong> — Detect work sessions by gap threshold analysis</li>
+              <li><strong>Dey Signal</strong> — Continuous intensity/stability/fragmentation time-series sampled every 60s</li>
+            </ul>
+            <h3>Ingest Sources</h3>
+            <p><code>ww stream ingest --source all</code> pulls from tasks, timew, jrnl, and ledger. On-modify hooks auto-capture future task events in real time.</p>
+          </div>
+        </div>
+
+        <div class="fn-info-panel hidden" id="fn-info-community">
+          <div class="fn-info-header">
+            <span class="fn-info-origin">Workwarrior Community — cross-profile collaboration</span>
+            <button class="fn-info-close" data-fn-info-close="community">✕</button>
+          </div>
+          <div class="fn-info-body">
+            <h3>Community</h3>
+            <p>Cross-profile sharing and collaboration. Post tasks, journal entries, and notes to shared community feeds.</p>
+          </div>
+        </div>
+
+        <div class="fn-info-panel hidden" id="fn-info-next">
+          <div class="fn-info-header">
+            <span class="fn-info-origin">Workwarrior Next — CFS-inspired task scheduler</span>
+            <button class="fn-info-close" data-fn-info-close="next">✕</button>
+          </div>
+          <div class="fn-info-body">
+            <h3>Next</h3>
+            <p>A <strong>Completely Fair Scheduler</strong>-inspired recommendation engine. Suggests the single most valuable task to work on right now, balancing urgency, time-already-spent, and project load.</p>
+            <ul>
+              <li><strong>Urgency Scoring</strong> — Taskwarrior urgency + time-deficit weighting</li>
+              <li><strong>Skip List</strong> — Skip a suggestion to defer it within the session</li>
+              <li><strong>Project Balance</strong> — Prevents one project from monopolizing focus</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="fn-info-panel hidden" id="fn-info-sync">
+          <div class="fn-info-header">
+            <span class="fn-info-origin">Workwarrior Sync — GitHub issues two-way sync</span>
+            <button class="fn-info-close" data-fn-info-close="sync">✕</button>
+          </div>
+          <div class="fn-info-body">
+            <h3>Sync</h3>
+            <p>Two-way sync between Taskwarrior tasks and GitHub issues. Uses <strong>last-write-wins</strong> conflict resolution with per-field state tracking.</p>
+            <ul>
+              <li><strong>Field Mapping</strong> — title, body, labels, assignees, milestone → task fields</li>
+              <li><strong>Annotations ↔ Comments</strong> — Task annotations sync to GitHub issue comments</li>
+              <li><strong>State Persistence</strong> — Per-task JSON state files track last-known sync state</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="fn-info-panel hidden" id="fn-info-export">
+          <div class="fn-info-header">
+            <span class="fn-info-origin">Workwarrior Export — multi-format data export</span>
+            <button class="fn-info-close" data-fn-info-close="export">✕</button>
+          </div>
+          <div class="fn-info-body">
+            <h3>Export</h3>
+            <p>Export workwarrior data in multiple formats for archiving, analysis, or handoff.</p>
+            <ul>
+              <li><strong>HTML Snapshot</strong> — Full task list as a standalone HTML file (summary or full with UDAs/annotations)</li>
+              <li><strong>JSON</strong> — Raw task data via <code>task export</code></li>
+              <li><strong>Stream Log</strong> — Download raw <code>stream.log</code></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="fn-info-panel hidden" id="fn-info-projects">
+          <div class="fn-info-header">
+            <span class="fn-info-origin">Workwarrior Projects — cross-function project view</span>
+            <button class="fn-info-close" data-fn-info-close="projects">✕</button>
+          </div>
+          <div class="fn-info-body">
+            <h3>Projects</h3>
+            <p>A consolidated view of all projects across the active profile — task counts, completion rates, active timers, and recent journal activity per project.</p>
+          </div>
+        </div>
+
+        <div class="fn-info-panel hidden" id="fn-info-groups">
+          <div class="fn-info-header">
+            <span class="fn-info-origin">Workwarrior Groups — profile group management</span>
+            <button class="fn-info-close" data-fn-info-close="groups">✕</button>
+          </div>
+          <div class="fn-info-body">
+            <h3>Groups</h3>
+            <p>Manage collections of profiles as groups. Groups enable bulk operations and cross-profile reporting across a named set of profiles.</p>
+          </div>
+        </div>
+
+        <div class="fn-info-panel hidden" id="fn-info-questions">
+          <div class="fn-info-header">
+            <span class="fn-info-origin">Workwarrior Questions — template-based capture</span>
+            <button class="fn-info-close" data-fn-info-close="questions">✕</button>
+          </div>
+          <div class="fn-info-body">
+            <h3>Questions</h3>
+            <p>Template-driven structured capture. Fill in a question template to create tasks, journal entries, or ledger postings with consistent fields every time.</p>
+          </div>
+        </div>
+
+        <div class="fn-info-panel hidden" id="fn-info-warlock">
+          <div class="fn-info-header">
+            <span class="fn-info-origin">Workwarrior Warlock — AI agent integration</span>
+            <button class="fn-info-close" data-fn-info-close="warlock">✕</button>
+          </div>
+          <div class="fn-info-body">
+            <h3>Warlock</h3>
+            <p>AI-powered natural language interface. Warlock translates free-form instructions into workwarrior commands using a 627-rule heuristic engine with AI fallback.</p>
+            <ul>
+              <li><strong>Heuristics First</strong> — 19 command domains, 6 phrasings each, confidence-scored</li>
+              <li><strong>AI Fallback</strong> — Routes to configured LLM when heuristics don't match</li>
+              <li><strong>Self-Improvement</strong> — Successful AI translations compile into new heuristic rules</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="fn-info-panel hidden" id="fn-info-servers">
+          <div class="fn-info-header">
+            <span class="fn-info-origin">Workwarrior Servers · <a href="https://gothenburgbitfactory.github.io/taskchampion/" target="_blank">TaskChampion</a> sync protocol · built into TaskWarrior 3.x</span>
+            <button class="fn-info-close" data-fn-info-close="servers">✕</button>
+          </div>
+          <div class="fn-info-body">
+            <h3>Servers</h3>
+            <p>Multi-device synchronization for Workwarrior using the TaskChampion sync protocol built into TaskWarrior 3.x. No external sync tool required — configure a server URL and client ID in your profile's <code>.taskrc</code> and run <code>ww server sync</code>.</p>
+            <h3>How it works</h3>
+            <p>TaskChampion stores all task data locally in a SQLite-backed replica. When a sync server is configured, changes are pushed as operations to the server and pulled back to other devices sharing the same <code>client_id</code>. Each Workwarrior profile has its own isolated <code>client_id</code> — profiles never share sync state.</p>
+            <ul>
+              <li><strong>sync.server.url</strong> — Server endpoint (e.g. <code>https://sync.taskchampion.net/v1</code>)</li>
+              <li><strong>sync.server.client_id</strong> — UUID identifying this profile's replica set</li>
+              <li><strong>sync.encryption_secret</strong> — Optional end-to-end encryption key for the replica</li>
+            </ul>
+            <h3>CLI commands</h3>
+            <ul>
+              <li><code>ww server status</code> — Show configuration and pending backlog for active profile</li>
+              <li><code>ww server setup</code> — Interactive setup wizard (writes keys to .taskrc)</li>
+              <li><code>ww server setup --url &lt;url&gt; --id &lt;uuid&gt;</code> — Non-interactive configure</li>
+              <li><code>ww server sync</code> — Run <code>task sync</code> with the profile's TASKRC</li>
+              <li><code>ww server enable [secs]</code> — Install periodic auto-sync via launchd (macOS) or cron hint</li>
+              <li><code>ww server disable</code> — Remove the auto-sync agent</li>
+            </ul>
+            <h3>Self-hosted options</h3>
+            <p>Run your own TaskChampion sync server for full data sovereignty. The reference implementation is <a href="https://github.com/GothenburgBitFactory/taskchampion-sync-server" target="_blank">taskchampion-sync-server</a>. The protocol is open — any compatible server works.</p>
+            <h3>Backlog</h3>
+            <p>The <code>backlog.data</code> file in the task data directory holds pending operations not yet synced. A non-zero backlog count means unsynced local changes. Run <code>ww server sync</code> to flush them.</p>
+          </div>
+        </div>
+
+        <div class="fn-info-panel hidden" id="fn-info-network">
+          <div class="fn-info-header">
+            <span class="fn-info-origin">Workwarrior Network — connectivity diagnostics</span>
+            <button class="fn-info-close" data-fn-info-close="network">✕</button>
+          </div>
+          <div class="fn-info-body">
+            <h3>Network</h3>
+            <p>Real-time connectivity checks run server-side when you open this panel. Checks include internet reachability, GitHub API, local Ollama instance, hostname resolution, and DNS latency.</p>
+            <ul>
+              <li><strong>Internet</strong> — External IP and latency via httpbin.org</li>
+              <li><strong>GitHub</strong> — API reachability (needed for issues sync)</li>
+              <li><strong>Ollama</strong> — Local AI runtime at <code>localhost:11434</code></li>
+              <li><strong>DNS</strong> — Resolution speed for github.com</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="fn-info-panel hidden" id="fn-info-models">
+          <div class="fn-info-header">
+            <span class="fn-info-origin">Workwarrior Models — AI model configuration</span>
+            <button class="fn-info-close" data-fn-info-close="models">✕</button>
+          </div>
+          <div class="fn-info-body">
+            <h3>Models</h3>
+            <p>Configure which AI models are available to Warlock and other AI-powered features. Supports both local Ollama models and remote providers (Anthropic, OpenAI).</p>
+            <ul>
+              <li><strong>Local models</strong> — Detected from running Ollama instance</li>
+              <li><strong>Remote providers</strong> — Configured via <code>config/ai.yaml</code></li>
+              <li><strong>Active model</strong> — The default model used by Warlock</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="fn-info-panel hidden" id="fn-info-ctrl">
+          <div class="fn-info-header">
+            <span class="fn-info-origin">Workwarrior CTRL — global settings and AI configuration</span>
+            <button class="fn-info-close" data-fn-info-close="ctrl">✕</button>
+          </div>
+          <div class="fn-info-body">
+            <h3>CTRL</h3>
+            <p>Global configuration panel for Workwarrior's runtime settings. Controls AI access points, theme, keyboard shortcuts, and browser server behavior.</p>
+            <ul>
+              <li><strong>AI mode</strong> — local-only, remote-only, or hybrid</li>
+              <li><strong>Access points</strong> — Enable/disable cmd_ai, browser_ai, warlock</li>
+              <li><strong>Config files</strong> — <code>config/ai.yaml</code>, <code>config/ctrl.yaml</code></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="fn-info-panel hidden" id="fn-info-profile">
+          <div class="fn-info-header">
+            <span class="fn-info-origin">Workwarrior Profile — per-profile configuration and resources</span>
+            <button class="fn-info-close" data-fn-info-close="profile">✕</button>
+          </div>
+          <div class="fn-info-body">
+            <h3>Profile</h3>
+            <p>Each profile is an isolated Workwarrior environment with its own task list, journal, ledger, and time tracking. Profiles can be switched instantly without affecting other profiles.</p>
+            <ul>
+              <li><strong>Resources</strong> — Named journals, ledgers, task lists per profile</li>
+              <li><strong>Hooks</strong> — Per-profile TaskWarrior hooks (e.g. stream-emit)</li>
+              <li><strong>UDAs</strong> — Profile-local custom attributes</li>
+              <li><code>ww profile list</code> — Show all profiles</li>
+              <li><code>p-&lt;name&gt;</code> — Switch active profile in shell</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="fn-info-panel hidden" id="fn-info-warrior">
+          <div class="fn-info-header">
+            <span class="fn-info-origin">Workwarrior Warrior — cross-profile aggregation</span>
+            <button class="fn-info-close" data-fn-info-close="warrior">✕</button>
+          </div>
+          <div class="fn-info-body">
+            <h3>Warrior</h3>
+            <p>Global overview aggregating tasks and time across all profiles. Warrior reads each profile's task database directly to give a unified summary without switching profiles.</p>
+            <ul>
+              <li><code>ww warrior summary</code> — Aggregate pending tasks across profiles</li>
+              <li><code>ww warrior hooks</code> — Manage cross-profile hook installation</li>
+              <li><code>ww warrior report</code> — Time and task report across all profiles</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="fn-info-panel hidden" id="fn-info-saves">
+          <div class="fn-info-header">
+            <span class="fn-info-origin">Workwarrior Saves — knowledge base and bookmarks</span>
+            <button class="fn-info-close" data-fn-info-close="saves">✕</button>
+          </div>
+          <div class="fn-info-body">
+            <h3>Saves</h3>
+            <p>A lightweight knowledge base built on the bookbuilder service. Save URLs, notes, and references with tags — searchable and cross-linked.</p>
+            <ul>
+              <li><code>ww saves add &lt;url&gt;</code> — Save a URL with optional title and tags</li>
+              <li><code>ww saves search &lt;query&gt;</code> — Full-text search saved items</li>
+              <li><code>ww saves list</code> — List recent saves</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="fn-info-panel hidden" id="fn-info-schedule">
+          <div class="fn-info-header">
+            <span class="fn-info-origin">Workwarrior Schedule — time-aware task planning</span>
+            <button class="fn-info-close" data-fn-info-close="schedule">✕</button>
+          </div>
+          <div class="fn-info-body">
+            <h3>Schedule</h3>
+            <p>Shows tasks with due, scheduled, and wait dates in a time-ordered view. Integrates with Timewarrior to correlate planned work with recorded time.</p>
+            <ul>
+              <li><strong>Due</strong> — Hard deadline: task becomes urgent as due date approaches</li>
+              <li><strong>Scheduled</strong> — Soft planned start date (deferred from task list until then)</li>
+              <li><strong>Wait</strong> — Hidden from task list until this date</li>
+            </ul>
+          </div>
+        </div>
+
         <!-- Tasks -->
         <section class="section" id="section-tasks">
           <form class="add-form-inline" id="add-task-form">
@@ -361,7 +791,7 @@
         <!-- Sync -->
         <section class="section hidden" id="section-sync">
           <div class="service-panel" id="sync-panel">
-            <div class="service-panel-header">Sync · GitHub Integration</div>
+            <div class="service-panel-header"><span>Sync · GitHub Integration</span><button class="fn-info-btn" data-fn-info="sync" title="About Sync">ⓘ</button></div>
             <div class="service-panel-body" id="sync-body"><div class="skeleton-msg">Loading…</div></div>
             <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
               <button class="btn-inline-alt" id="btn-sync-status">status</button>
@@ -372,10 +802,25 @@
             <div class="cmd-unified-output hidden" id="sync-output"></div>
           </div>
         </section>
+        <!-- Servers -->
+        <section class="section hidden" id="section-servers">
+          <div class="service-panel" id="servers-panel">
+            <div class="service-panel-header"><span>Servers · TaskChampion Sync</span><button class="fn-info-btn" data-fn-info="servers" title="About Servers">ⓘ</button></div>
+            <div class="service-panel-body" id="servers-body"><div class="skeleton-msg">Loading…</div></div>
+            <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+              <button class="btn-inline-alt" id="btn-servers-status">status</button>
+              <button class="btn-inline-alt" id="btn-servers-sync">sync now</button>
+              <button class="btn-inline-alt" id="btn-servers-setup">setup</button>
+              <button class="btn-inline-alt" id="btn-servers-enable">enable auto</button>
+              <button class="btn-inline-alt" id="btn-servers-disable">disable auto</button>
+            </div>
+            <div class="cmd-unified-output hidden" id="servers-output"></div>
+          </div>
+        </section>
         <!-- Groups -->
         <section class="section hidden" id="section-groups">
           <div class="service-panel" id="groups-panel">
-            <div class="service-panel-header">Groups</div>
+            <div class="service-panel-header"><span>Groups</span><button class="fn-info-btn" data-fn-info="groups" title="About Groups">ⓘ</button></div>
             <form class="add-form-inline" id="group-create-form">
               <input type="text" name="name" placeholder="group name" autocomplete="off" style="width:140px" />
               <input type="text" name="profiles" placeholder="profiles (comma-separated)" autocomplete="off" style="flex:1;min-width:160px" />
@@ -387,7 +832,7 @@
         <!-- Models -->
         <section class="section hidden" id="section-models">
           <div class="service-panel" id="models-panel">
-            <div class="service-panel-header">Models</div>
+            <div class="service-panel-header"><span>Models</span><button class="fn-info-btn" data-fn-info="models" title="About Models">ⓘ</button></div>
             <div class="service-panel-body" id="models-body"><div class="skeleton-msg">Loading…</div></div>
             <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
               <button class="btn-inline-alt" id="btn-model-list">list</button>
@@ -401,14 +846,14 @@
         <!-- Network -->
         <section class="section hidden" id="section-network">
           <div class="service-panel" id="network-panel">
-            <div class="service-panel-header">Network</div>
+            <div class="service-panel-header"><span>Network</span><button class="fn-info-btn" data-fn-info="network" title="About Network">ⓘ</button></div>
             <div class="service-panel-body" id="network-body"><div class="skeleton-msg">Checking…</div></div>
           </div>
         </section>
         <!-- Export -->
         <section class="section hidden" id="section-export">
           <div class="service-panel" id="export-panel">
-            <div class="service-panel-header">Export</div>
+            <div class="service-panel-header"><span>Export</span><button class="fn-info-btn" data-fn-info="export" title="About Export">ⓘ</button></div>
             <div class="service-panel-body" id="export-body">
               <p style="color:var(--muted);font-size:12px;margin-bottom:8px">Export profile data as JSON, CSV, or Markdown.</p>
               <div class="export-actions">
@@ -428,7 +873,7 @@
         <!-- Warlock -->
         <section class="section hidden" id="section-warlock">
           <div class="service-panel" id="warlock-panel">
-            <div class="service-panel-header">Warlock · task-warlock web UI</div>
+            <div class="service-panel-header"><span>Warlock · task-warlock web UI</span><button class="fn-info-btn" data-fn-info="warlock" title="About Warlock">ⓘ</button></div>
             <div class="service-panel-body" id="warlock-body"><div class="skeleton-msg">Loading…</div></div>
             <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
               <button class="btn-inline-submit" id="btn-warlock-install">install</button>
@@ -438,6 +883,18 @@
             </div>
             <div class="cmd-unified-output hidden" id="warlock-output"></div>
             <div class="warlock-credit">task-warlock by <a href="https://github.com/jonestristand/task-warlock" target="_blank" rel="noopener">jonestristand</a> (MIT)</div>
+          </div>
+        </section>
+        <!-- ── Services Management ────────────────────────────── -->
+        <section class="section hidden" id="section-services">
+          <div class="service-panel">
+            <div class="service-panel-header">
+              <span class="service-panel-title">Services</span>
+              <span class="service-panel-desc">Manage which services are visible, pinned, or removed from the sidebar.</span>
+            </div>
+            <div class="service-panel-body" id="services-mgmt-body">
+              <div class="skeleton-msg">Loading…</div>
+            </div>
           </div>
         </section>
         <!-- Stream -->
@@ -571,7 +1028,7 @@
           <div class="community-split-layout">
           <div class="community-main-col">
           <div class="service-panel" id="community-panel">
-            <div class="service-panel-header">Communities</div>
+            <div class="service-panel-header"><span>Communities</span><button class="fn-info-btn" data-fn-info="community" title="About Community">ⓘ</button></div>
             <p class="community-hint">Choose a <strong>collection</strong>, then pick a <strong>journal line</strong> or <strong>task</strong> from this profile. This bar stays visible while you scroll entries.</p>
             <div class="community-controls-sticky">
               <div class="community-toolbar">
@@ -657,7 +1114,12 @@
         <!-- Questions -->
         <section class="section hidden" id="section-questions">
           <div class="service-panel" id="questions-panel">
-            <div class="service-panel-header">Questions</div>
+            <div class="service-panel-header"><span>Questions</span><button class="fn-info-btn" data-fn-info="questions" title="About Questions">ⓘ</button></div>
+            <div class="questions-filter-bar">
+              <input type="text" id="q-search" class="q-search-input" placeholder="search templates…" autocomplete="off" />
+              <button class="btn-inline-alt q-sort-btn" id="btn-q-sort-project" title="Sort by service">service</button>
+              <button class="btn-inline-alt q-sort-btn" id="btn-q-sort-name" title="Sort by name">name</button>
+            </div>
             <div class="service-panel-body" id="questions-body"><div class="skeleton-msg">Loading…</div></div>
             <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
               <button class="btn-inline-alt" id="btn-q-list">list templates</button>
@@ -678,7 +1140,7 @@
         <!-- Saves -->
         <section class="section hidden" id="section-saves">
           <div class="service-panel" id="saves-panel">
-            <div class="service-panel-header">Saves <span style="font-size:10px;color:var(--muted)">peers8862-bookbuilder</span></div>
+            <div class="service-panel-header"><span>Saves <span style="font-size:10px;color:var(--muted)">peers8862-bookbuilder</span></span><button class="fn-info-btn" data-fn-info="saves" title="About Saves">ⓘ</button></div>
             <div class="service-panel-body" id="saves-body">
               <p style="color:var(--muted);font-size:12px;margin-bottom:8px">Knowledge base from saved content — bookmarks, articles, documents.</p>
               <form class="add-form-inline" id="bb-add-form">
@@ -783,7 +1245,7 @@
         <!-- CTRL -->
         <section class="section hidden" id="section-ctrl">
           <div class="service-panel" id="ctrl-panel">
-            <div class="service-panel-header">CTRL — Settings</div>
+            <div class="service-panel-header"><span>CTRL — Settings</span><button class="fn-info-btn" data-fn-info="ctrl" title="About CTRL">ⓘ</button></div>
             <div class="service-panel-body" id="ctrl-body">
               <p style="color:var(--muted);font-size:12px;margin-bottom:8px">Global and profile settings.</p>
               <div style="margin-bottom:10px;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:4px">
@@ -817,14 +1279,14 @@
         <!-- Profile -->
         <section class="section hidden" id="section-profile">
           <div class="service-panel" id="profile-panel">
-            <div class="service-panel-header">Profile</div>
+            <div class="service-panel-header"><span>Profile</span><button class="fn-info-btn" data-fn-info="profile" title="About Profile">ⓘ</button></div>
             <div class="service-panel-body" id="profile-body"><div class="skeleton-msg">Loading…</div></div>
           </div>
         </section>
         <!-- Warrior -->
         <section class="section hidden" id="section-warrior">
           <div class="service-panel" id="warrior-panel">
-            <div class="service-panel-header">✱ Warrior — Global Overview</div>
+            <div class="service-panel-header"><span>✱ Warrior — Global Overview</span><button class="fn-info-btn" data-fn-info="warrior" title="About Warrior">ⓘ</button></div>
             <div class="service-panel-body" id="warrior-body">
               <div class="warrior-tabs">
                 <button class="warrior-tab active" data-tab="summary">Summary</button>
@@ -894,6 +1356,8 @@
     </div>
   </div>
   <script src="/app.js"></script>
+  <script src="/themes/twain.js"></script>
+  <script src="/themes/feynman.js"></script>
 
   <!-- Context sidebar panel -->
   <div id="ctx-sidebar" class="ctx-sidebar hidden">

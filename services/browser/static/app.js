@@ -21,6 +21,198 @@
     ui: { show_active_model: true },
   };
 
+  // ── Theme Registry ─────────────────────────────────────────────────────────
+  /**
+   * Global theme registry. Themes self-register on script load.
+   * @type {Map<string, ThemeManifest>}
+   */
+  const ThemeRegistry = new Map();
+
+  /**
+   * @typedef {Object} ThemeManifest
+   * @property {string} id          - Unique identifier (kebab-case)
+   * @property {string} label       - Display name for popover
+   * @property {string} cssClass    - Body class applied when active (e.g. 'feynman-active')
+   * @property {Array<{value:string, label:string}>} modes - Mode options (empty = no modes)
+   * @property {function(string):void} activate    - Called with activeSection
+   * @property {function():void} deactivate        - Restores default state
+   * @property {function(string):void} [onModeChange] - Called with mode value
+   * @property {function(string):void} [onSectionChange] - Called when user navigates sections
+   * @property {string[]} [affectedSections]       - Which sections this theme transforms
+   */
+
+  function registerTheme(manifest) {
+    const required = ['id', 'label', 'cssClass', 'modes', 'activate', 'deactivate'];
+    for (const field of required) {
+      if (!(field in manifest)) {
+        console.warn(`[ThemeRegistry] Rejected: missing field '${field}' in manifest`);
+        return false;
+      }
+    }
+    if (ThemeRegistry.has(manifest.id)) {
+      console.warn(`[ThemeRegistry] Rejected: duplicate id '${manifest.id}'`);
+      return false;
+    }
+    ThemeRegistry.set(manifest.id, manifest);
+    return true;
+  }
+
+  // Expose for external theme scripts (themes/*.js)
+  window.registerTheme = registerTheme;
+  window.ThemeRegistry = ThemeRegistry;
+
+  // ── Theme Engine ───────────────────────────────────────────────────────────
+  const ThemeEngine = {
+    activeThemeId: 'default',
+    activeMode: '',
+
+    init() {
+      const saved = localStorage.getItem('ww_active_theme') || 'default';
+      this.populateHeaderThemeSelect();
+      this.activate(saved, false);
+    },
+
+    populateHeaderThemeSelect() {
+      const sel = document.getElementById('header-theme-select');
+      if (!sel) return;
+      sel.innerHTML = '<option value="default">default</option>';
+      for (const [id, manifest] of ThemeRegistry) {
+        const opt = document.createElement('option');
+        opt.value = id;
+        opt.textContent = manifest.label;
+        sel.appendChild(opt);
+      }
+      sel.addEventListener('change', () => ThemeEngine.activate(sel.value));
+      const modeSel = document.getElementById('header-mode-select');
+      if (modeSel) modeSel.addEventListener('change', () => ThemeEngine.setMode(modeSel.value));
+    },
+
+    activate(themeId, persist = true) {
+      // Deactivate current
+      if (this.activeThemeId !== 'default') {
+        const current = ThemeRegistry.get(this.activeThemeId);
+        if (current) {
+          document.body.classList.remove(current.cssClass);
+          try { current.deactivate(); } catch (e) { console.error('[ThemeEngine] deactivate error:', e); }
+        }
+      }
+      // Activate new
+      this.activeThemeId = themeId;
+      if (themeId !== 'default') {
+        const next = ThemeRegistry.get(themeId);
+        if (next) {
+          document.body.classList.add(next.cssClass);
+          try { next.activate(activeSection); } catch (e) {
+            console.error('[ThemeEngine] activate error:', e);
+            // Fallback to default on error
+            document.body.classList.remove(next.cssClass);
+            this.activeThemeId = 'default';
+            themeId = 'default';
+          }
+          this.restoreMode(themeId);
+        }
+      }
+      if (persist) localStorage.setItem('ww_active_theme', themeId);
+      this.updateModeSelector();
+      this.updateThemeButton();
+    },
+
+    setMode(modeValue) {
+      this.activeMode = modeValue;
+      const theme = ThemeRegistry.get(this.activeThemeId);
+      if (theme?.onModeChange) theme.onModeChange(modeValue);
+      localStorage.setItem(`ww_theme_mode_${this.activeThemeId}`, modeValue);
+    },
+
+    restoreMode(themeId) {
+      const saved = localStorage.getItem(`ww_theme_mode_${themeId}`) || '';
+      this.activeMode = saved;
+      if (saved) {
+        const theme = ThemeRegistry.get(themeId);
+        if (theme?.onModeChange) theme.onModeChange(saved);
+      }
+    },
+
+    onSectionChange(section) {
+      const theme = ThemeRegistry.get(this.activeThemeId);
+      if (theme?.onSectionChange) theme.onSectionChange(section);
+    },
+
+    updateModeSelector() {
+      // Update the popover mode selector if the popover is open
+      const popover = document.getElementById('theme-popover');
+      if (popover && !popover.classList.contains('hidden')) {
+        renderThemePopover();
+      }
+      // Update header mode select
+      const modeSel = document.getElementById('header-mode-select');
+      if (!modeSel) return;
+      const activeTheme = ThemeRegistry.get(this.activeThemeId);
+      if (activeTheme?.modes?.length > 0) {
+        modeSel.innerHTML = activeTheme.modes.map(m =>
+          `<option value="${m.value}"${m.value === this.activeMode ? ' selected' : ''}>${m.label}</option>`
+        ).join('');
+        modeSel.disabled = false;
+      } else {
+        modeSel.innerHTML = '<option value="">—</option>';
+        modeSel.disabled = true;
+      }
+    },
+
+    updateThemeButton() {
+      const btn = document.getElementById('btn-theme');
+      if (!btn) return;
+      btn.classList.toggle('theme-btn-active', this.activeThemeId !== 'default');
+      // Sync header theme select value
+      const sel = document.getElementById('header-theme-select');
+      if (sel) sel.value = this.activeThemeId;
+    }
+  };
+
+  // Expose for external theme scripts
+  window.ThemeEngine = ThemeEngine;
+
+  // ── Theme Popover ─────────────────────────────────────────────────────────
+  function renderThemePopover() {
+    let popover = document.getElementById('theme-popover');
+    if (!popover) {
+      popover = document.createElement('div');
+      popover.id = 'theme-popover';
+      popover.className = 'theme-popover hidden';
+      document.getElementById('btn-theme')?.parentElement?.appendChild(popover);
+    }
+    const items = [{ id: 'default', label: 'Default' }];
+    for (const [id, manifest] of ThemeRegistry) {
+      items.push({ id, label: manifest.label });
+    }
+    const activeId = ThemeEngine.activeThemeId;
+    let html = items.map(item =>
+      `<button class="theme-popover-item${item.id === activeId ? ' active' : ''}" data-theme-id="${item.id}">${item.label}</button>`
+    ).join('');
+
+    // Mode selector section (only if active theme has modes)
+    const activeTheme = ThemeRegistry.get(activeId);
+    if (activeTheme && activeTheme.modes && activeTheme.modes.length > 0) {
+      html += `<div class="theme-popover-mode"><select id="popover-mode-select">${
+        activeTheme.modes.map(m => `<option value="${m.value}"${m.value === ThemeEngine.activeMode ? ' selected' : ''}>${m.label}</option>`).join('')
+      }</select></div>`;
+    }
+
+    popover.innerHTML = html;
+  }
+
+  function toggleThemePopover() {
+    let popover = document.getElementById('theme-popover');
+    if (!popover) { renderThemePopover(); popover = document.getElementById('theme-popover'); }
+    const isHidden = popover.classList.contains('hidden');
+    if (isHidden) {
+      renderThemePopover();
+      popover.classList.remove('hidden');
+    } else {
+      popover.classList.add('hidden');
+    }
+  }
+
   // ── Journal / Twain state ──────────────────────────────────────────────────
   let journalTheme          = localStorage.getItem('ww_journal_theme') || 'default';
   let twainRecentSections   = [];
@@ -28,31 +220,6 @@
   let twainHiddenSections   = new Set();
   let twainSectionsCollapsed = false;
   let twainTagsCollapsed     = false;
-
-  const THEME_MODES = {
-    twain: [{ value: '', label: '—' }, { value: 'river', label: '〰 river' }],
-  };
-
-  function updateThemeModeSelect(theme, resetValue = true) {
-    const sel = document.getElementById('global-mode-select');
-    if (!sel) return;
-    const modes = THEME_MODES[theme];
-    if (!modes) {
-      sel.innerHTML = '<option value="">—</option>';
-      sel.disabled = true;
-      sel.value = '';
-      return;
-    }
-    sel.disabled = false;
-    sel.innerHTML = modes.map(m => `<option value="${m.value}">${m.label}</option>`).join('');
-    if (resetValue) sel.value = '';
-  }
-
-  function syncThemeModeSelectToRiver() {
-    const sel = document.getElementById('global-mode-select');
-    if (!sel) return;
-    sel.value = document.body.classList.contains('river-mode') ? 'river' : '';
-  }
 
   function activateJournalTheme(theme) {
     journalTheme = theme;
@@ -96,6 +263,10 @@
       if (ta) ta.placeholder = 'New journal entry… (Enter to submit, Shift+Enter for newline)';
     }
   }
+
+  // Expose Twain activation for themes/twain.js manifest
+  window._twainActivate = function(section) { activateJournalTheme('twain'); };
+  window._twainDeactivate = function() { activateJournalTheme('default'); };
 
   function updateTwainDatetime() {
     const el = document.getElementById('twain-datetime');
@@ -1316,7 +1487,6 @@ CMD: "add task review and start tracking"
     if (typeof termMode !== 'undefined' && termMode === 'filter') setTermMode('execute');
     document.dispatchEvent(new CustomEvent('sectionChanged', { detail: { name } }));
     document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
-    if (name !== 'stream') showStreamTopbar(false);
     const el = document.getElementById('section-' + name);
     if (el) el.classList.remove('hidden');
     document.querySelectorAll('.nav-item').forEach(b => {
@@ -1331,19 +1501,15 @@ CMD: "add task review and start tracking"
     const titleMap = {
       tasks:'Tasks', time:'Times', journal:'Journals', ledger:'Ledgers', lists:'Lists',
       next:'Next', schedule:'Schedule', gun:'Gun', cmd:'CMD', ctrl:'CTRL',
-      sync:'Sync', groups:'Groups', models:'Models', network:'Network',
+      sync:'Sync', servers:'Servers', groups:'Groups', models:'Models', network:'Network',
       export:'Export', questions:'Questions', saves:'Saves',
       profile:'Profile', warrior:'Warrior', projects:'Projects', sword:'Sword',
-      community:'Communities', warlock:'Warlock', tags:'Tags',
+      community:'Communities', warlock:'Warlock', tags:'Tags', services:'Services',
       stream:'Stream', attributes:'Atts'
     };
     sectionTitle.textContent = titleMap[name] || name;
-    // Twain journal mode needs content-area overflow change when journal is visible
-    if (name === 'journal' && journalTheme === 'twain') {
-      contentArea?.classList.add('twain-journal-active');
-    } else {
-      contentArea?.classList.remove('twain-journal-active');
-    }
+    // Notify ThemeEngine of section change (handles Twain journal-active and Feynman view switching)
+    ThemeEngine.onSectionChange(name);
     // header-resource-slot visibility is handled by refreshResourceSelectors
     await loadSection(name);
     // Restore scroll position after content loads
@@ -1358,7 +1524,7 @@ CMD: "add task review and start tracking"
   const KB_SECTIONS = {
     t: 'tasks',   T: 'time',    j: 'journal', l: 'ledger', L: 'lists',
     n: 'next',    s: 'schedule',c: 'cmd',     C: 'ctrl',
-    S: 'sync',    G: 'groups',  m: 'models',  N: 'network',
+    S: 'sync',    V: 'servers', G: 'groups',  m: 'models',  N: 'network',
     e: 'export',  q: 'questions',p: 'profile',w: 'warrior',
     u: 'gun',     x: 'sword',   o: 'community', W: 'warlock',
   };
@@ -1384,7 +1550,7 @@ CMD: "add task review and start tracking"
     'journal': 'journal', 'j': 'journal',
     'ledger': 'ledger',   'l': 'ledger',
     'lists': 'lists',
-    'next': 'next',        'schedule': 'schedule', 'sync': 'sync',
+    'next': 'next',        'schedule': 'schedule', 'sync': 'sync', 'servers': 'servers', 'server': 'servers',
     'groups': 'groups',    'models': 'models',     'network': 'network',
     'export': 'export',    'questions': 'questions', 'saves': 'saves',
     'projects': 'projects','cmd': 'cmd',            'ctrl': 'ctrl',
@@ -1635,14 +1801,8 @@ CMD: "add task review and start tracking"
     document.getElementById('btn-profile-last')?.addEventListener('click', async (e) => {
       e.stopPropagation();
       const lastProf = localStorage.getItem('ww_last_profile');
-      if (!lastProf) return;
-      try {
-        const r = await fetch('/resource', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ kind: 'profiles', name: lastProf }) });
-        const d = await r.json();
-        if (d.ok) { setProfile(lastProf); toast(`↩ ${lastProf}`); await loadSection(activeSection); }
-        else toast(d.error || 'switch failed', 'error');
-      } catch (err) { toast('switch failed', 'error'); }
+      if (!lastProf) { toast('No previous profile', 'warning'); return; }
+      await switchProfile(lastProf);
     });
     document.addEventListener('click', () => profileList.classList.add('hidden'));
   }
@@ -2080,16 +2240,37 @@ CMD: "add task review and start tracking"
       }
     }
 
-    // "+" button always shown
+    const ADD_LABELS = { tasklists: '+ list', timew: '+ log', journals: '+ journal', ledgers: '+ ledger', lists: '+ list' };
     const addBtn = document.createElement('button');
     addBtn.className = 'resource-add-btn';
-    addBtn.textContent = '+';
+    addBtn.textContent = ADD_LABELS[kind] || '+';
     addBtn.title = 'Create new ' + kind.replace(/s$/, '');
     addBtn.addEventListener('click', () => showResourceCreateForm(container, kind, sel, onSelect));
     wrap.appendChild(addBtn);
 
+    const DELETABLE = new Set(['tasklists', 'timew', 'lists']);
+    if (DELETABLE.has(kind) && sel) {
+      const delBtn = document.createElement('button');
+      delBtn.className = 'resource-add-btn resource-del-btn';
+      delBtn.textContent = '✗';
+      delBtn.title = 'Remove this ' + kind.replace(/s$/, '');
+      delBtn.addEventListener('click', async () => {
+        const name = sel?.value;
+        if (!name || name === 'main' || name === 'default') { toast('Cannot remove default resource', 'warning'); return; }
+        if (!confirm(`Remove "${name}"? This cannot be undone.`)) return;
+        await fetch('/resource/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind, name, action: 'delete' }) }).catch(() => {});
+        profileResources = null;
+        await loadProfileResources();
+        await refreshResourceSelectors(activeSection);
+      });
+      wrap.appendChild(delBtn);
+    }
+
     container.appendChild(wrap);
     container.classList.remove('hidden');
+
+    const syncControls = document.getElementById('header-sync-controls');
+    if (syncControls) syncControls.style.display = '';
   }
 
   function showResourceCreateForm(container, kind, sel, onSelect) {
@@ -2160,7 +2341,10 @@ CMD: "add task review and start tracking"
   async function refreshResourceSelectors(section) {
     const slot = document.getElementById('header-resource-slot');
     const RESOURCE_SECTIONS = new Set(['tasks','time','journal','ledger','lists']);
-    if (slot) slot.classList.toggle('hidden', !RESOURCE_SECTIONS.has(section));
+    const inResourceSection = RESOURCE_SECTIONS.has(section);
+    if (slot) slot.classList.toggle('hidden', !inResourceSection);
+    const syncControls = document.getElementById('header-sync-controls');
+    if (syncControls && !inResourceSection) syncControls.style.display = 'none';
     if (!profileResources) return;
     const active = profileResources.active;
     if (section === 'tasks') {
@@ -2189,6 +2373,7 @@ CMD: "add task review and start tracking"
     else if (name === 'gun') updateContextBar('gun', null);
     else if (name === 'cmd') { await refreshCtrlState(); updateContextBar('cmd', null); await loadCmdLog(); }
     else if (name === 'sync') { updateContextBar('sync', null); await loadSync(); }
+    else if (name === 'servers') { updateContextBar('servers', null); await loadServers(); }
     else if (name === 'groups') { updateContextBar('groups', null); await loadGroups(); }
     else if (name === 'models') { updateContextBar('models', null); await loadModels(); }
     else if (name === 'network') { updateContextBar('network', null); await loadNetwork(); }
@@ -2201,8 +2386,9 @@ CMD: "add task review and start tracking"
     else if (name === 'profile') { updateContextBar('profile', null); await loadProfileScreen(); }
     else if (name === 'warrior') { updateContextBar('warrior', null); await loadWarrior(); }
     else if (name === 'warlock') { updateContextBar('warlock', null); await loadWarlock(); }
+    else if (name === 'services') { updateContextBar('services', null); await loadServices(); }
     else if (name === 'tags') { updateContextBar('tags', null); await loadTags(); }
-    else if (name === 'stream') { updateContextBar('stream', null); showStreamTopbar(true); await loadStream(); }
+    else if (name === 'stream') { updateContextBar('stream', null); await updateStreamUI(); await loadStream(); }
     else if (name === 'attributes') { updateContextBar('attributes', null); await loadAttributes(); }
     else updateContextBar(name, null);
     await refreshResourceSelectors(name);
@@ -2618,23 +2804,42 @@ CMD: "add task review and start tracking"
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         const row = btn.closest('.task-row');
+        const existing = row.parentNode.querySelector(`.task-quick-jrnl-row[data-id="${btn.dataset.id}"]`);
+        if (existing) { existing.remove(); return; }
         const uuid = row?.dataset.uuid || '';
         const desc = row?.dataset.desc || btn.dataset.desc || '';
         const proj = row?.dataset.project || '';
         const tags = (row?.dataset.tags || '').split(',').filter(Boolean);
         const pri  = row?.dataset.priority || '';
-        const meta = [
-          proj ? `project:${proj}` : '',
-          pri  ? `priority:${pri}` : '',
-          ...tags.map(tg => `tag:${tg}`),
-        ].filter(Boolean).join(' ');
+        const meta = [proj ? `project:${proj}` : '', pri ? `priority:${pri}` : '', ...tags.map(t => `tag:${t}`)].filter(Boolean).join(' ');
         const entry = `[task-entry:${uuid}|${desc}|${meta}|]`;
-        btn.disabled = true; btn.textContent = '…';
-        const r = await fetch('/action', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'journal_add', args: { entry } }) });
-        const d = await r.json();
-        if (d.ok) { toast('✓ journal entry created'); btn.disabled = false; btn.textContent = '→ journal'; }
-        else { toast(d.error || 'failed', 'error'); btn.disabled = false; btn.textContent = '→ journal'; }
+        // Build inline journal-selector row
+        const wrap = document.createElement('div');
+        wrap.className = 'task-quick-input task-quick-jrnl-row';
+        wrap.dataset.id = btn.dataset.id;
+        wrap.innerHTML = `<select class="task-quick-jrnl-sel resource-select"><option value="">loading…</option></select><button class="btn-inline-submit task-quick-jrnl-save">add</button><button class="btn-inline-alt task-quick-jrnl-cancel">✕</button>`;
+        row.after(wrap);
+        const sel = wrap.querySelector('.task-quick-jrnl-sel');
+        // Populate journal list
+        try {
+          const pr = await fetch('/data/profile-resources');
+          const pd = await pr.json();
+          const journals = Object.keys(pd?.resources?.journals || {});
+          sel.innerHTML = journals.length ? journals.map(j => `<option value="${esc(j)}">${esc(j)}</option>`).join('') : '<option value="main">main</option>';
+        } catch (_) { sel.innerHTML = '<option value="main">main</option>'; }
+        const submit = async () => {
+          const journal = sel.value || 'main';
+          wrap.querySelector('.task-quick-jrnl-save').disabled = true;
+          const r = await fetch('/action', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'journal_add', args: { entry, journal } }) });
+          const d = await r.json();
+          if (d.ok) { toast('✓ journal entry created'); wrap.remove(); }
+          else { toast(d.error || 'failed', 'error'); wrap.querySelector('.task-quick-jrnl-save').disabled = false; }
+        };
+        sel.addEventListener('keydown', (e2) => { if (e2.key === 'Enter') submit(); if (e2.key === 'Escape') wrap.remove(); });
+        wrap.querySelector('.task-quick-jrnl-save').addEventListener('click', submit);
+        wrap.querySelector('.task-quick-jrnl-cancel').addEventListener('click', () => wrap.remove());
+        sel.focus();
       });
     });
 
@@ -4294,14 +4499,8 @@ CMD: "add task review and start tracking"
           row.innerHTML = '<div class="empty-state" style="font-size:12px">No collections yet. Open the <strong>Communities</strong> tab and create one, or run <code>ww community create …</code> in the terminal.</div>';
           return;
         }
-        row.innerHTML = `<div class="task-detail-input jcomm-row"><label class="community-select-wrap" style="flex:1;min-width:0;margin:0"><span class="community-toolbar-label">collection</span><select class="resource-select jcomm-sel" style="width:100%"></select></label><button type="button" class="btn-inline-submit jcomm-btn">add</button></div>`;
+        row.innerHTML = `<div class="task-detail-input jcomm-row"><select class="resource-select jcomm-sel" style="flex:1;height:28px;box-sizing:border-box">${names.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('')}</select><button type="button" class="btn-inline-submit jcomm-btn">add</button></div>`;
         const sel = row.querySelector('.jcomm-sel');
-        names.forEach(n => {
-          const o = document.createElement('option');
-          o.value = n;
-          o.textContent = n;
-          sel.appendChild(o);
-        });
         const submit = async () => {
           const comm = sel.value;
           if (!comm) return;
@@ -5567,6 +5766,64 @@ CMD: "add task review and start tracking"
     } catch (e) { renderError(body, `Sync: ${e.message}`, loadSync); }
   }
 
+  function _hideFnInfo(name) {
+    document.getElementById(`fn-info-${name}`)?.classList.add('hidden');
+  }
+
+  function _toggleFnInfo(name) {
+    const panel = document.getElementById(`fn-info-${name}`);
+    if (!panel) return;
+    const wasHidden = panel.classList.contains('hidden');
+    // hide all fn-info panels first
+    document.querySelectorAll('.fn-info-panel').forEach(p => p.classList.add('hidden'));
+    if (wasHidden) {
+      panel.classList.remove('hidden');
+      panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }
+
+  async function loadServers() {
+    const body = document.getElementById('servers-body');
+    body.innerHTML = '<div class="skeleton-msg">Loading…</div>';
+    try {
+      const res = await fetch('/data/servers');
+      const d = await res.json();
+      if (!d.ok) {
+        body.innerHTML = `<div class="error-state"><span class="error-msg">⚠ ${d.error || 'Servers error'}</span></div>`;
+        return;
+      }
+      const cfgBadge = d.configured
+        ? `<span class="sync-badge sync-badge-enabled">configured</span>`
+        : `<span class="sync-badge sync-badge-disabled">not configured</span>`;
+      const backlogColor = (d.backlog_count || 0) > 0 ? 'var(--accent)' : '';
+      body.innerHTML = `
+        <div class="sync-dashboard">
+          <div class="sync-row"><span class="sync-label">profile</span><span class="sync-val">${d.profile || '—'}</span></div>
+          <div class="sync-row"><span class="sync-label">status</span>${cfgBadge}</div>
+          ${d.server_url ? `<div class="sync-row"><span class="sync-label">server url</span><span class="sync-val">${d.server_url}</span></div>` : ''}
+          ${d.client_id  ? `<div class="sync-row"><span class="sync-label">client id</span><span class="sync-val" style="font-family:var(--mono,monospace);font-size:11px">${d.client_id}</span></div>` : ''}
+          ${d.configured ? `<div class="sync-row"><span class="sync-label">encryption</span><span class="sync-val">${d.has_secret ? 'secret set' : 'none'}</span></div>` : ''}
+          <div class="sync-row"><span class="sync-label">backlog</span><span class="sync-val" style="color:${backlogColor}">${(d.backlog_count||0)} pending operation(s)</span></div>
+          ${d.last_sync ? `<div class="sync-row"><span class="sync-label">last sync</span><span class="sync-val">${relTime(d.last_sync)}</span></div>` : ''}
+          ${!d.configured ? `<div class="sync-row" style="margin-top:8px"><span class="sync-label" style="color:var(--muted)">hint</span><span class="sync-val" style="color:var(--muted)">run: ww server setup</span></div>` : ''}
+        </div>`;
+    } catch (e) { renderError(body, `Servers: ${e.message}`, loadServers); }
+  }
+
+  function _serversCmd(cmd) {
+    const out = document.getElementById('servers-output');
+    if (!out) return;
+    out.classList.remove('hidden');
+    out.textContent = 'Running…';
+    fetch('/cmd', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cmd }) })
+      .then(r => r.json())
+      .then(d => {
+        out.textContent = d.output || d.error || '(no output)';
+        loadServers();
+      })
+      .catch(e => { out.textContent = `Error: ${e.message}`; });
+  }
+
   async function loadGroups() {
     const body = document.getElementById('groups-body');
     try {
@@ -5768,6 +6025,96 @@ CMD: "add task review and start tracking"
     } catch (e) { renderError(body, `Models: ${e.message}`, loadModels); }
   }
 
+  const ALL_SERVICES = [
+    { id: 'next',      label: 'Next',      icon: '▶', desc: 'Single best task recommendation' },
+    { id: 'schedule',  label: 'Schedule',  icon: '⏱', desc: 'Scheduled recurring commands' },
+    { id: 'sync',      label: 'Sync',      icon: '⇄', desc: 'GitHub bidirectional task sync' },
+    { id: 'servers',   label: 'Servers',   icon: '⇡', desc: 'TaskChampion sync server config' },
+    { id: 'groups',    label: 'Groups',    icon: '⊞', desc: 'Task grouping and bulk operations' },
+    { id: 'models',    label: 'Models',    icon: '◈', desc: 'AI model configuration' },
+    { id: 'network',   label: 'Network',   icon: '⊕', desc: 'Network and connectivity status' },
+    { id: 'export',    label: 'Export',    icon: '⤓', desc: 'Export tasks/journal to file formats' },
+    { id: 'warlock',   label: 'Warlock',   icon: '⚔', desc: 'AI agent overlay (external install)' },
+    { id: 'questions', label: 'Questions', icon: '？', desc: 'Structured question templates' },
+    { id: 'saves',     label: 'Saves',     icon: '📖', desc: 'Bookbuilder — save and collect entries' },
+    { id: 'projects',  label: 'Projects',  icon: '◆', desc: 'Project overview and stats' },
+    { id: 'stream',    label: 'Stream',    icon: '≋', desc: 'Append-only event log' },
+  ];
+
+  const DATA_SERVICES = new Set(['stream', 'warlock', 'schedule', 'sync']);
+
+  async function loadServices() {
+    const body = document.getElementById('services-mgmt-body');
+    if (!body) return;
+    const svcState = _getServiceState();
+    const rows = ALL_SERVICES.map(svc => {
+      const isHidden = svcState.hidden?.[svc.id];
+      const isPinned = svcState.pinned?.[svc.id];
+      return `<tr data-svc="${svc.id}">
+        <td><span class="svc-row-name">${svc.icon} ${svc.label}</span><div style="font-size:10px;color:var(--muted);margin-top:2px">${svc.desc}</div></td>
+        <td>
+          <button class="svc-toggle-btn svc-vis-btn ${isHidden ? '' : 'svc-vis-active'}" data-svc="${svc.id}" title="${isHidden ? 'Show in sidebar' : 'Hide from sidebar'}">${isHidden ? 'hidden' : 'visible'}</button>
+        </td>
+        <td>
+          <button class="svc-toggle-btn svc-pin-btn ${isPinned ? 'svc-pin-active' : ''}" data-svc="${svc.id}" title="${isPinned ? 'Unpin' : 'Pin above services'}">${isPinned ? 'pinned' : 'pin'}</button>
+        </td>
+        <td>
+          ${DATA_SERVICES.has(svc.id)
+            ? `<button class="svc-remove-btn svc-rm-btn" data-svc="${svc.id}" title="Hide and clear data for this service">remove</button>`
+            : `<button class="svc-remove-btn svc-rm-btn" data-svc="${svc.id}" title="Hide this service">remove</button>`
+          }
+        </td>
+      </tr>`;
+    }).join('');
+    body.innerHTML = `<table class="services-mgmt-table">
+      <thead><tr><th>Service</th><th>Visibility</th><th>Pinned</th><th>Remove</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+
+    body.querySelectorAll('.svc-vis-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.svc;
+        const s = _getServiceState();
+        if (!s.hidden) s.hidden = {};
+        s.hidden[id] = !s.hidden[id];
+        if (!s.hidden[id]) delete s.hidden[id];
+        _saveServiceState(s);
+        applyServiceState();
+        loadServices();
+      });
+    });
+    body.querySelectorAll('.svc-pin-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.svc;
+        const s = _getServiceState();
+        if (!s.pinned) s.pinned = {};
+        s.pinned[id] = !s.pinned[id];
+        if (!s.pinned[id]) delete s.pinned[id];
+        _saveServiceState(s);
+        applyServiceState();
+        loadServices();
+      });
+    });
+    body.querySelectorAll('.svc-rm-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.svc;
+        const hasData = DATA_SERVICES.has(id);
+        const msg = hasData
+          ? `Hide "${id}" and clear its associated data? This cannot be undone.`
+          : `Hide "${id}" from the sidebar?`;
+        if (!confirm(msg)) return;
+        const s = _getServiceState();
+        if (!s.hidden) s.hidden = {};
+        s.hidden[id] = true;
+        if (s.pinned?.[id]) delete s.pinned[id];
+        _saveServiceState(s);
+        applyServiceState();
+        loadServices();
+        toast(`"${id}" removed from sidebar`);
+      });
+    });
+  }
+
   async function loadWarlock() {
     const body = document.getElementById('warlock-body');
     body.innerHTML = '<div class="skeleton-msg">Loading warlock status…</div>';
@@ -5810,23 +6157,21 @@ CMD: "add task review and start tracking"
   }
 
   // ── Stream state ────────────────────────────────────────────────────────────
-  let _streamFilter = {};
   let _streamCustomFrom = null;
   let _streamCustomTo = null;
-  let _streamAscii = false;
 
   async function loadStream() {
     try {
-      const res = await fetch('/data/stream');
+      const res = await fetch('/data/stream/status');
       const d = await res.json();
       if (!d.ok) return;
       const evEl = document.getElementById('stream-metric-events');
       const szEl = document.getElementById('stream-metric-size');
       const sessEl = document.getElementById('stream-metric-session');
-      if (evEl) evEl.textContent = d.total.toLocaleString();
-      if (szEl) szEl.textContent = d.log_exists ? 'active' : 'no log';
+      if (evEl) evEl.textContent = (d.event_count || 0).toLocaleString();
+      if (szEl) szEl.textContent = d.enabled ? 'active' : 'no log';
       if (sessEl) sessEl.textContent = d.last_ts || '—';
-      _updateStreamTopbarStatus(d);
+      updateStreamUI();
     } catch (_) {}
     await loadStreamLens();
   }
@@ -5840,39 +6185,26 @@ CMD: "add task review and start tracking"
     if (lensLabel) lensLabel.textContent = lens;
     container.innerHTML = '<div class="skeleton-msg">Computing…</div>';
 
-    const now = Math.floor(Date.now() / 1000);
-    let fromTs = 0;
-    if (range === 'session') fromTs = now - 3600;
-    else if (range === 'today') fromTs = now - 86400;
-    else if (range === 'week') fromTs = now - 604800;
-    else if (range === 'custom' && _streamCustomFrom) fromTs = _streamCustomFrom;
-
-    const proj = _streamFilter.proj || '';
-    const op = _streamFilter.op || '';
+    let cmd = `stream view --lens ${lens}`;
+    const now = new Date();
+    let fromDate = null;
+    if (range === 'today') fromDate = now.toISOString().slice(0, 10);
+    else if (range === 'week') fromDate = new Date(now - 7 * 86400000).toISOString().slice(0, 10);
+    else if (range === 'custom' && _streamCustomFrom) fromDate = _streamCustomFrom;
+    if (fromDate) cmd += ` --from ${fromDate}`;
 
     try {
-      const res = await fetch('/data/stream?limit=200');
-      const d = await res.json();
-      if (!d.ok) { container.innerHTML = `<div class="empty-state">No stream data</div>`; return; }
-      let events = d.events.filter(ev => {
-        if (fromTs && ev.ts < fromTs) return false;
-        if (op && ev.op !== op) return false;
-        if (proj && (ev.ctx.proj || '') !== proj) return false;
-        return true;
+      const res = await fetch('/cmd', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cmd }),
       });
-      if (!events.length) { container.innerHTML = '<div class="empty-state">No events for this range/filter</div>'; return; }
-      const rows = events.slice().reverse().map(ev => {
-        const dt = new Date(ev.ts * 1000).toISOString().slice(0, 16).replace('T', ' ');
-        const opCls = { T: 'op-t', F: 'op-f', B: 'op-b', A: 'op-a', S: 'op-s' }[ev.op] || '';
-        const obj = ev.obj.length > 14 ? ev.obj.slice(0, 14) + '…' : ev.obj;
-        return `<tr><td class="stream-ts">${dt}</td><td class="stream-op ${opCls}">${esc(ev.op)}</td><td>${esc(ev.action)}</td><td class="stream-obj" title="${esc(ev.obj)}">${esc(obj)}</td><td>${esc(ev.ctx.src || '')}</td><td>${esc(ev.ctx.proj || '')}</td></tr>`;
-      }).join('');
-      container.innerHTML = `<table class="stream-event-table">
-        <thead><tr><th>time</th><th>op</th><th>action</th><th>object</th><th>src</th><th>project</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-      <div style="color:var(--muted);font-size:10px;margin-top:4px">${events.length} events · lens: ${esc(lens)}</div>`;
-    } catch (e) { container.innerHTML = `<div class="empty-state" style="color:var(--error)">Error: ${esc(e.message)}</div>`; }
+      const d = await res.json();
+      const text = d.output || d.error || '(no output)';
+      container.innerHTML = `<pre class="stream-cli-out">${esc(text)}</pre>`;
+    } catch (e) {
+      container.innerHTML = `<div class="empty-state" style="color:var(--error)">Error: ${esc(e.message)}</div>`;
+    }
   }
 
   // ── Attributes (Atts) state ────────────────────────────────────────────────
@@ -6637,35 +6969,60 @@ CMD: "add task review and start tracking"
     });
   }
 
+  let _qSearch = '';
+  let _qSortMode = '';
+
   async function loadQuestions() {
     const body = document.getElementById('questions-body');
+    if (!body) return;
     try {
       const res = await fetch('/data/questions');
       const d = await res.json();
-      if (!d.ok || !d.templates.length) {
-        body.innerHTML = `<div class="empty-state">No templates. Use 'ww q new' in the terminal to create one.</div>`;
+      let templates = d.ok ? (d.templates || []) : [];
+
+      // Filter
+      if (_qSearch) {
+        const q = _qSearch.toLowerCase();
+        templates = templates.filter(t => t.name.toLowerCase().includes(q) || (t.description || '').toLowerCase().includes(q));
+      }
+      // Sort
+      if (_qSortMode === 'project') {
+        templates = [...templates].sort((a, b) => (a.service || '').localeCompare(b.service || ''));
+      } else if (_qSortMode === 'tags') {
+        templates = [...templates].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      }
+
+      if (!templates.length) {
+        body.innerHTML = `<div class="empty-state">No templates${_qSearch ? ' matching search' : ''}. Use <code>ww q new</code> in the terminal to create one.</div>`;
         return;
       }
-      body.innerHTML = d.templates.map((t, ti) => `
-        <div class="q-card" id="qcard-${ti}">
+
+      body.innerHTML = templates.map((t, ti) => `
+        <div class="q-card" id="qcard-${ti}" data-ti="${ti}">
           <div class="q-card-header">
             <div class="q-card-title">
-              <span class="q-svc-badge">${t.service}</span>
-              <span class="q-name">${t.name}</span>
+              <span class="q-svc-badge">${esc(t.service || 'journal')}</span>
+              <span class="q-name">${esc(t.name)}</span>
+              <span class="q-field-count">${(t.questions || []).length} fields</span>
             </div>
-            ${t.description ? `<div class="q-desc">${t.description}</div>` : ''}
+            ${t.description ? `<div class="q-desc">${esc(t.description)}</div>` : ''}
           </div>
-          <button class="btn-inline-alt q-run-btn" data-ti="${ti}">run</button>
+          <button class="btn-inline-alt q-run-btn" data-ti="${ti}">▶ run</button>
           <div class="q-form hidden" id="qform-${ti}">
             <div class="q-inputs" id="qinputs-${ti}">
-              ${t.questions.map((q, qi) => `
+              ${(t.questions || []).map((q, qi) => `
                 <div class="q-input-row">
-                  <label class="q-label">${q.text}${q.required ? ' *' : ''}</label>
-                  <input type="text" class="q-answer" data-qi="${qi}" placeholder="answer…" />
+                  <label class="q-label">${esc(q.text)}${q.required ? ' <span style="color:var(--error)">*</span>' : ''}</label>
+                  ${q.type === 'textarea'
+                    ? `<textarea class="q-answer q-answer-ta" data-qi="${qi}" placeholder="answer…" rows="3"></textarea>`
+                    : q.type === 'select' && q.options
+                    ? `<select class="q-answer resource-select" data-qi="${qi}">${(q.options||[]).map(o=>`<option value="${esc(o)}">${esc(o)}</option>`).join('')}</select>`
+                    : `<input type="${q.type === 'integer' || q.type === 'decimal' ? 'number' : q.type === 'date' ? 'date' : 'text'}" class="q-answer" data-qi="${qi}" placeholder="answer…" />`
+                  }
                 </div>`).join('')}
             </div>
             <div class="q-form-actions">
-              <button class="btn-inline-submit q-submit-btn" data-ti="${ti}">submit</button>
+              <button class="btn-inline-submit q-submit-journal-btn" data-ti="${ti}" title="Save to journal">→ journal</button>
               <button class="btn-inline-alt q-cancel-btn" data-ti="${ti}">cancel</button>
             </div>
           </div>
@@ -6674,9 +7031,11 @@ CMD: "add task review and start tracking"
       body.querySelectorAll('.q-run-btn').forEach(btn => {
         btn.addEventListener('click', () => {
           const ti = btn.dataset.ti;
-          document.getElementById(`qform-${ti}`).classList.toggle('hidden');
-          const firstInput = document.querySelector(`#qinputs-${ti} .q-answer`);
-          firstInput?.focus();
+          const form = document.getElementById(`qform-${ti}`);
+          form.classList.toggle('hidden');
+          if (!form.classList.contains('hidden')) {
+            form.querySelector('.q-answer')?.focus();
+          }
         });
       });
       body.querySelectorAll('.q-cancel-btn').forEach(btn => {
@@ -6686,49 +7045,101 @@ CMD: "add task review and start tracking"
           document.querySelectorAll(`#qinputs-${ti} .q-answer`).forEach(inp => { inp.value = ''; });
         });
       });
-      body.querySelectorAll('.q-submit-btn').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const ti = parseInt(btn.dataset.ti, 10);
-          const tmpl = d.templates[ti];
-          const answers = [...document.querySelectorAll(`#qinputs-${ti} .q-answer`)].map(inp => inp.value.trim());
-          const date = new Date().toISOString().slice(0, 10);
-          const lines = [`[q:${tmpl.file}] ${date}`];
-          tmpl.questions.forEach((q, qi) => {
-            lines.push(`Q: ${q.text}`);
-            lines.push(`A: ${answers[qi] || '—'}`);
-          });
-          const entry = lines.join('\n');
-          btn.textContent = '…'; btn.disabled = true;
+
+      const submitQ = async (ti, dest) => {
+        const tmpl = templates[ti];
+        const answers = [...document.querySelectorAll(`#qinputs-${ti} .q-answer`)].map(inp => inp.value.trim());
+        const required = (tmpl.questions || []).filter((q, i) => q.required && !answers[i]);
+        if (required.length) { toast(`Required: ${required.map(q => q.text).join(', ')}`, 'warning'); return; }
+        const date = new Date().toISOString().slice(0, 10);
+        const lines = [`[q:${esc(tmpl.file || tmpl.name)}] ${date}`];
+        (tmpl.questions || []).forEach((q, qi) => {
+          lines.push(`Q: ${q.text}`);
+          lines.push(`A: ${answers[qi] || '—'}`);
+        });
+        const entry = lines.join('\n');
+        const saveBtn = document.querySelector(`#qform-${ti} .q-submit-journal-btn`);
+        if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '…'; }
+        try {
           const r = await fetch('/action', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'journal_add', body: entry }) });
+            body: JSON.stringify({ action: 'journal_add', args: { entry } }) });
           const rd = await r.json();
           if (rd.ok) {
-            toast(`✓ ${tmpl.name} recorded`);
+            toast(`✓ ${tmpl.name} recorded to journal`);
             document.getElementById(`qform-${ti}`).classList.add('hidden');
             document.querySelectorAll(`#qinputs-${ti} .q-answer`).forEach(inp => { inp.value = ''; });
-          } else {
-            toast('submit failed', 'error');
-          }
-          btn.textContent = 'submit'; btn.disabled = false;
-        });
+          } else { toast(rd.error || 'submit failed', 'error'); }
+        } catch (err) { toast('submit failed', 'error'); }
+        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '→ journal'; }
+      };
+
+      body.querySelectorAll('.q-submit-journal-btn').forEach(btn => {
+        btn.addEventListener('click', () => submitQ(parseInt(btn.dataset.ti), 'journal'));
       });
     } catch (e) { renderError(body, `Questions: ${e.message}`, loadQuestions); }
   }
 
+  // ── Service visibility / pin state ────────────────────────────────────────
+  function _getServiceState() {
+    try { return JSON.parse(localStorage.getItem('ww_service_state') || '{}'); } catch { return {}; }
+  }
+  function _saveServiceState(s) { localStorage.setItem('ww_service_state', JSON.stringify(s)); }
+
+  function applyServiceState() {
+    const state = _getServiceState();
+    const navEl = document.getElementById('sidebar-nav');
+    if (!navEl) return;
+    const pinnedSlot = document.getElementById('pinned-services-slot');
+    const servicesLabel = document.getElementById('services-group-label');
+    if (!servicesLabel) return;
+    // Collect all service nav buttons
+    const allBtns = {};
+    navEl.querySelectorAll('.nav-item[data-section]').forEach(btn => {
+      // Only service buttons (those after the services label)
+      allBtns[btn.dataset.section] = btn;
+    });
+    const FUNCTION_SECTIONS = new Set(['tasks','time','journal','ledger','lists','tags','attributes']);
+    const serviceBtns = {};
+    navEl.querySelectorAll('.nav-item[data-section]').forEach(btn => {
+      if (!FUNCTION_SECTIONS.has(btn.dataset.section)) serviceBtns[btn.dataset.section] = btn;
+    });
+    // Apply pin state
+    if (pinnedSlot) {
+      pinnedSlot.innerHTML = '';
+      Object.entries(serviceBtns).forEach(([section, btn]) => {
+        btn.classList.remove('pinned-service');
+        if (state.pinned?.[section]) {
+          btn.classList.add('pinned-service');
+          const clone = btn.cloneNode(true);
+          clone.addEventListener('click', () => { btn.click(); });
+          pinnedSlot.appendChild(clone);
+        }
+      });
+    }
+    // Apply visibility
+    Object.entries(serviceBtns).forEach(([section, btn]) => {
+      const hidden = state.hidden?.[section];
+      btn.classList.toggle('service-hidden', !!hidden);
+    });
+    // Apply collapse
+    const collapsed = state.servicesCollapsed;
+    const collapseBtn = document.getElementById('btn-services-collapse');
+    Object.values(serviceBtns).forEach(btn => {
+      if (collapsed) btn.style.display = 'none';
+      else btn.style.removeProperty('display');
+    });
+    if (collapseBtn) collapseBtn.textContent = collapsed ? '+' : '−';
+  }
+
   async function applyNavOrder() {
-    // Reorder sidebar service buttons according to /data/nav-config (nav.yaml).
     try {
       const r = await fetch('/data/nav-config');
       const cfg = await r.json();
       if (!cfg.ok || !Array.isArray(cfg.services)) return;
       const navEl = document.getElementById('sidebar-nav');
       if (!navEl) return;
-      // Find the services group label
-      const labels = Array.from(navEl.querySelectorAll('.nav-group-label'));
-      const servicesLabel = labels.find(l => l.textContent.trim() === 'services');
+      const servicesLabel = document.getElementById('services-group-label');
       if (!servicesLabel) return;
-      // Collect all nav-item buttons in the services section
-      // (everything after the services label until end or a non-nav-item sibling)
       const allServiceBtns = {};
       let node = servicesLabel.nextElementSibling;
       while (node) {
@@ -6737,7 +7148,6 @@ CMD: "add task review and start tracking"
         }
         node = node.nextElementSibling;
       }
-      // Reorder: apply config order first, then any unlisted items after
       const orderedSections = cfg.services;
       const listed = new Set(orderedSections);
       const extra = Object.keys(allServiceBtns).filter(k => !listed.has(k));
@@ -6750,6 +7160,7 @@ CMD: "add task review and start tracking"
         insertAfter = btn;
       });
     } catch (_) {}
+    applyServiceState();
   }
 
   async function loadProjects() {
@@ -7920,19 +8331,34 @@ CMD: "add task review and start tracking"
       } else { toast('journal failed', 'error'); }
     });
 
-    // ── Twain theme wiring ────────────────────────────────────────────────
-    document.getElementById('journal-theme-select')?.addEventListener('change', (e) => {
-      const theme = e.target.value;
-      activateJournalTheme(theme);
-      updateThemeModeSelect(theme);
-      if (theme !== 'twain' && document.body.classList.contains('river-mode')) {
-        document.body.classList.remove('river-mode');
-      }
-      if (theme === 'twain') loadJournal();
+    // ── Theme popover wiring ─────────────────────────────────────────────
+    document.getElementById('btn-theme')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleThemePopover();
     });
 
-    document.getElementById('global-mode-select')?.addEventListener('change', (e) => {
-      document.body.classList.toggle('river-mode', e.target.value === 'river');
+    // Delegate clicks in popover
+    document.addEventListener('click', (e) => {
+      const popover = document.getElementById('theme-popover');
+      if (!popover) return;
+      // Close popover on outside click
+      if (!popover.contains(e.target) && e.target.id !== 'btn-theme') {
+        popover.classList.add('hidden');
+        return;
+      }
+      // Theme selection
+      const item = e.target.closest('[data-theme-id]');
+      if (item) {
+        ThemeEngine.activate(item.dataset.themeId);
+        popover.classList.add('hidden');
+      }
+    });
+
+    // Mode change in popover
+    document.addEventListener('change', (e) => {
+      if (e.target.id === 'popover-mode-select') {
+        ThemeEngine.setMode(e.target.value);
+      }
     });
 
     document.getElementById('btn-twain-save')?.addEventListener('click', () => {
@@ -8126,7 +8552,7 @@ CMD: "add task review and start tracking"
     // River mode button
     document.getElementById('btn-twain-river')?.addEventListener('click', () => {
       document.body.classList.toggle('river-mode');
-      syncThemeModeSelectToRiver();
+      ThemeEngine.setMode(document.body.classList.contains('river-mode') ? 'river' : '');
     });
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && document.body.classList.contains('river-mode')) {
@@ -8135,13 +8561,7 @@ CMD: "add task review and start tracking"
       }
     }, true);
 
-    // Apply persisted theme on load
-    if (journalTheme === 'twain') {
-      activateJournalTheme('twain');
-      updateThemeModeSelect('twain', false);
-    } else {
-      updateThemeModeSelect('default');
-    }
+    // Theme initialization handled by ThemeEngine.init()
 
     // ── Lists (list.py) ─────────────────────────────────────────────────────
     const addListForm = document.getElementById('add-list-form');
@@ -8403,6 +8823,68 @@ CMD: "add task review and start tracking"
     document.getElementById('btn-sync-push')?.addEventListener('click', () => syncCmd('issues push'));
     document.getElementById('btn-sync-install')?.addEventListener('click', () => syncCmd('issues install'));
 
+    // ── Servers buttons ───────────────────────────────────────────────────
+    document.getElementById('btn-servers-status')?.addEventListener('click', () => _serversCmd('server status'));
+    document.getElementById('btn-servers-sync')?.addEventListener('click', () => _serversCmd('server sync'));
+    document.getElementById('btn-servers-setup')?.addEventListener('click', () => _serversCmd('server setup --url https://sync.taskchampion.net/v1'));
+    document.getElementById('btn-servers-enable')?.addEventListener('click', () => _serversCmd('server enable'));
+    document.getElementById('btn-servers-disable')?.addEventListener('click', () => _serversCmd('server disable'));
+
+    // ── Bridge button ─────────────────────────────────────────────────────
+    document.getElementById('btn-bridge-icon')?.addEventListener('click', () => {
+      toast('Works Bridge not available in this build', 'warning');
+    });
+
+    // ── Sub-profile / sync function buttons ───────────────────────────────
+    document.getElementById('btn-create-subprofile')?.addEventListener('click', async () => {
+      const name = prompt('Sub-profile name (creates task list + journal + time log + ledger):');
+      if (!name?.trim()) return;
+      const clean = name.trim().toLowerCase().replace(/\s+/g, '_');
+      const kinds = ['tasklists', 'journals', 'timew', 'ledgers'];
+      for (const k of kinds) {
+        await fetch('/resource/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: k, name: clean }) }).catch(() => {});
+      }
+      profileResources = null;
+      await loadProfileResources();
+      await refreshResourceSelectors(activeSection);
+      toast(`Sub-profile "${clean}" created`);
+    });
+
+    document.getElementById('btn-sync-functions')?.addEventListener('click', async () => {
+      if (!profileResources?.active) return;
+      const active = profileResources.active;
+      let currentName = active.tasklist;
+      if (activeSection === 'time') currentName = active.timew;
+      else if (activeSection === 'journal') currentName = active.journal;
+      else if (activeSection === 'ledger') currentName = active.ledger;
+      else if (activeSection === 'lists') currentName = active.list;
+      if (!currentName || currentName === 'main' || currentName === 'default') {
+        toast('Switch to a named sub-list first', 'warning'); return;
+      }
+      const kinds = ['tasklists', 'timew', 'journals'];
+      for (const k of kinds) {
+        await fetch('/resource', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: k, name: currentName }) }).catch(() => {});
+      }
+      profileResources.active.tasklist = currentName;
+      profileResources.active.timew = currentName;
+      profileResources.active.journal = currentName;
+      toast(`All functions synced to "${currentName}"`);
+      await refreshResourceSelectors(activeSection);
+    });
+
+    // ── fn-info panel toggle ──────────────────────────────────────────────
+    // Global header ⓘ button: show panel for active section
+    document.getElementById('btn-fn-info')?.addEventListener('click', () => {
+      _toggleFnInfo(activeSection);
+    });
+    // Inline ⓘ buttons inside service-panel-headers
+    document.addEventListener('click', e => {
+      const btn = e.target.closest('[data-fn-info]');
+      if (btn) { e.stopPropagation(); _toggleFnInfo(btn.dataset.fnInfo); return; }
+      const close = e.target.closest('[data-fn-info-close]');
+      if (close) { _hideFnInfo(close.dataset.fnInfoClose); }
+    });
+
     // ── Schedule buttons ───────────────────────────────────────────────────
     const schedOut = () => document.getElementById('schedule-output');
     const schedCmd = async (cmd) => {
@@ -8546,24 +9028,28 @@ CMD: "add task review and start tracking"
       out.textContent = '';
     });
 
-    // Stream topbar helper
+    // Stream topbar helper — visibility now driven by updateStreamUI(); this is a manual override
     function showStreamTopbar(visible) {
       const bar = document.getElementById('stream-topbar');
       if (!bar) return;
       bar.classList.toggle('hidden', !visible);
-      const ingestBtn = document.getElementById('btn-stream-ingest-top');
-      if (ingestBtn) ingestBtn.classList.toggle('hidden', !visible);
     }
-    document.getElementById('btn-stream-toggle-top')?.addEventListener('click', () => {
-      showSection('stream');
+    document.getElementById('stream-topbar-status')?.addEventListener('click', () => {
+      switchSection('stream');
+    });
+    document.getElementById('btn-stream-toggle-top')?.addEventListener('click', async () => {
+      try {
+        await fetch('/data/stream/toggle', { method: 'POST' });
+        await updateStreamUI();
+      } catch (_) {}
+      if (activeSection !== 'stream') switchSection('stream');
     });
     document.getElementById('btn-stream-ingest-top')?.addEventListener('click', async () => {
       const st = document.getElementById('stream-topbar-status');
       if (st) st.textContent = 'ingesting…';
       try {
         await fetch('/cmd', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cmd: 'stream ingest --source all' }) });
-        const res = await fetch('/data/stream'); const d = await res.json();
-        _updateStreamTopbarStatus(d.ok ? d : null);
+        await updateStreamUI();
         if (activeSection === 'stream') await loadStream();
       } catch (_) { if (st) st.textContent = 'error'; }
     });
@@ -8583,12 +9069,14 @@ CMD: "add task review and start tracking"
     document.getElementById('btn-stream-ingest')?.addEventListener('click', () => streamCmd('ingest --source all', 'ingest all'));
     document.getElementById('btn-stream-sessions')?.addEventListener('click', async () => {
       const gap = document.getElementById('cfg-gap-threshold')?.value || '300';
-      streamCmd(`sessions --gap ${gap}`, 'sessions');
-    });
-    document.getElementById('btn-stream-ascii')?.addEventListener('click', () => {
-      _streamAscii = !_streamAscii;
-      document.getElementById('btn-stream-ascii')?.classList.toggle('active', _streamAscii);
-      loadStreamLens();
+      const container = document.getElementById('stream-lens-view');
+      if (!container) return;
+      container.innerHTML = '<div class="skeleton-msg">Detecting sessions…</div>';
+      try {
+        const res = await fetch('/cmd', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cmd: `stream sessions --gap ${gap}` }) });
+        const d = await res.json();
+        container.innerHTML = `<pre class="stream-cli-out">${esc(d.output || d.error || '(no output)')}</pre>`;
+      } catch (e) { container.innerHTML = `<div class="empty-state" style="color:var(--error)">Error: ${esc(e.message)}</div>`; }
     });
     document.getElementById('btn-stream-export')?.addEventListener('click', async () => {
       const out = streamOut();
@@ -8609,15 +9097,8 @@ CMD: "add task review and start tracking"
     document.getElementById('btn-stream-config')?.addEventListener('click', () => {
       document.getElementById('stream-config-panel')?.classList.toggle('hidden');
     });
-    document.getElementById('btn-stream-filter-apply')?.addEventListener('click', () => {
-      _streamFilter = {
-        op: document.getElementById('stream-filter-service')?.value || '',
-        proj: document.getElementById('stream-filter-project')?.value?.trim() || '',
-      };
-      loadStreamLens();
-    });
+    document.getElementById('btn-stream-filter-apply')?.addEventListener('click', loadStreamLens);
     document.getElementById('btn-stream-filter-clear')?.addEventListener('click', () => {
-      _streamFilter = {};
       const svc = document.getElementById('stream-filter-service'); if (svc) svc.value = '';
       const prj = document.getElementById('stream-filter-project'); if (prj) prj.value = '';
       loadStreamLens();
@@ -8629,20 +9110,17 @@ CMD: "add task review and start tracking"
       if (val !== 'custom') loadStreamLens();
     });
     document.getElementById('btn-stream-custom-apply')?.addEventListener('click', () => {
-      const from = document.getElementById('stream-date-from')?.value;
-      const to = document.getElementById('stream-date-to')?.value;
-      _streamCustomFrom = from ? Math.floor(new Date(from).getTime() / 1000) : null;
-      _streamCustomTo = to ? Math.floor(new Date(to + 'T23:59:59').getTime() / 1000) : null;
+      _streamCustomFrom = document.getElementById('stream-date-from')?.value || null;
+      _streamCustomTo = document.getElementById('stream-date-to')?.value || null;
       loadStreamLens();
     });
     document.getElementById('btn-stream-verify')?.addEventListener('click', async () => {
       const resEl = document.getElementById('stream-verify-result');
       if (resEl) resEl.textContent = 'checking…';
       try {
-        const res = await fetch('/data/stream?limit=100000');
+        const res = await fetch('/data/stream/status');
         const d = await res.json();
-        const bad = (d.events || []).filter((ev, i, arr) => i > 0 && ev.ts < arr[i-1].ts).length;
-        if (resEl) resEl.textContent = bad === 0 ? `✓ ${d.total} events, no ordering issues` : `⚠ ${bad} out-of-order events`;
+        if (resEl) resEl.textContent = d.enabled ? `✓ ${d.event_count} events · last: ${d.last_ts || '—'}` : 'no stream.log found';
       } catch (e) { if (resEl) resEl.textContent = 'error: ' + e.message; }
     });
     document.getElementById('btn-stream-backup')?.addEventListener('click', () => document.getElementById('btn-stream-export')?.click());
@@ -10234,6 +10712,27 @@ CMD: "add task review and start tracking"
     st.style.color = d.log_exists ? 'var(--accent)' : 'var(--muted)';
   }
 
+  async function updateStreamUI() {
+    try {
+      const res = await fetch('/data/stream/status');
+      const status = await res.json();
+      const topbar = document.getElementById('stream-topbar');
+      const toggleBtn = document.getElementById('btn-stream-toggle-top');
+      const st = document.getElementById('stream-topbar-status');
+      if (topbar) topbar.classList.toggle('hidden', !status.enabled);
+      if (toggleBtn) toggleBtn.classList.toggle('active', status.active);
+      if (st) {
+        if (!status.enabled) {
+          st.textContent = 'no log';
+          st.style.color = 'var(--muted)';
+        } else {
+          st.textContent = `${(status.event_count || 0).toLocaleString()} events`;
+          st.style.color = status.active ? 'var(--accent)' : '';
+        }
+      }
+    } catch (_) {}
+  }
+
   // ── Init ───────────────────────────────────────────────────────────────────
   async function init() {
     initToasts();
@@ -10256,6 +10755,8 @@ CMD: "add task review and start tracking"
     wireTimeDrawer();
     wireLedgerDrawer();
     wireSidebarFullscreen();
+
+    ThemeEngine.init();
 
     updateStatDate();
     applyTermPosition(termPosition, false);
@@ -10319,6 +10820,39 @@ CMD: "add task review and start tracking"
     await loadTimewTags();
     applyAiMeta();
     applyNavOrder();
+
+    // Services collapse toggle
+    document.getElementById('btn-services-collapse')?.addEventListener('click', () => {
+      const s = _getServiceState();
+      s.servicesCollapsed = !s.servicesCollapsed;
+      _saveServiceState(s);
+      applyServiceState();
+    });
+
+    // Services screen link
+    document.getElementById('btn-services-screen')?.addEventListener('click', () => {
+      switchSection('services');
+    });
+
+    // Questions filter bar
+    document.getElementById('q-search')?.addEventListener('input', () => {
+      _qSearch = document.getElementById('q-search').value.trim();
+      if (activeSection === 'questions') loadQuestions();
+    });
+    document.getElementById('btn-q-sort-project')?.addEventListener('click', () => {
+      _qSortMode = _qSortMode === 'project' ? '' : 'project';
+      document.getElementById('btn-q-sort-project')?.classList.toggle('active', _qSortMode === 'project');
+      document.getElementById('btn-q-sort-name')?.classList.remove('active');
+      if (activeSection === 'questions') loadQuestions();
+    });
+    document.getElementById('btn-q-sort-name')?.addEventListener('click', () => {
+      _qSortMode = _qSortMode === 'tags' ? '' : 'tags';
+      document.getElementById('btn-q-sort-name')?.classList.toggle('active', _qSortMode === 'tags');
+      document.getElementById('btn-q-sort-project')?.classList.remove('active');
+      if (activeSection === 'questions') loadQuestions();
+    });
+
+    updateStreamUI();
     await loadSection(activeSection);
 
     // 30s polling fallback for active section (paused when tab hidden)

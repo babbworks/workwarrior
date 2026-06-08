@@ -6,10 +6,9 @@ Use this workflow for all implementation tasks after Phase 1 is complete. Every 
 
 ## Pre-Conditions
 
-- Phase 1 is complete (all exit criteria satisfied)
-- `CLAUDE.md`, `services/CLAUDE.md`, `lib/CLAUDE.md`, `tests/CLAUDE.md` are deployed
 - Task card exists in TASKS.md with status `pending`
 - Gate A is satisfied (acceptance criteria authored by Orchestrator)
+- Session init complete: `eval "$(ww agent init)"` — see `system/context/session-init.md`
 
 ---
 
@@ -140,20 +139,9 @@ If the task revealed new risk information (fragility, edge cases, test gaps): sa
 
 ---
 
-## Step 7 (Release only): Release Gate — Checklist → Save → Tag
+## Release
 
-This step applies only when the Orchestrator is preparing a versioned release tag.
-
-```
-[ ] Complete system/gates/release-checklist.md — every criterion checked, evidence recorded
-[ ] Save signed checklist to system/reports/releases/vX.Y.Z-checklist.md
-[ ] Confirm the saved file exists before running git tag
-[ ] Tag the release: git tag -a vX.Y.Z -m "Release vX.Y.Z"
-```
-
-No tag may be applied without the signed checklist saved to `system/reports/releases/`.
-Criteria source: `system/reports/production-readiness-rubric.md`
-Gate reference: Gate D in `system/gates/all-gates.md`
+Release is not part of feature delivery. See `system/workflows/release.md`.
 
 ---
 

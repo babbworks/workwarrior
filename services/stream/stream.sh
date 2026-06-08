@@ -423,7 +423,7 @@ _write_hook_onmodify() {
   cat > "$1" <<'HOOK'
 #!/usr/bin/env bash
 set -euo pipefail
-old=$(head -1)
+IFS= read -r old
 new=$(cat)
 ts=$(date +%s)
 uuid=$(echo "$new" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('uuid',''))" 2>/dev/null || true)

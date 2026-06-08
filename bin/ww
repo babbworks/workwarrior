@@ -84,6 +84,7 @@ Commands:
   warrior     Cross-profile task aggregation (summary, hooks, report)
   projects    Cross-resource project views (list, show, describe)
   network     Connectivity checks (internet, GitHub, Ollama)
+  server      TaskChampion sync management (status, setup, sync, enable, disable)
   stream      Append-only event log with lens projections (emit, ingest, view, sessions)
   viz         Terminal visualization pipeline (dashboard, grid, field, timeline, renderers)
   saves       Knowledge base builder — saves content, search, pipeline
@@ -5940,12 +5941,17 @@ cmd_at() {
 
     # Verify profile exists
     if [[ ! -d "$base/profiles/$last_profile" ]]; then
-      log_warning "No profile found for '${iid}'."
-      echo "  Create one with:  ww @${iid} profile create <name>"
+      log_warning "No profile found for '${iid}'." >&2
+      echo "  Create one with:  ww @${iid} profile create <name>" >&2
       exit 0
     fi
 
     # Print eval-compatible exports
+    echo "typeset +r WW_BASE 2>/dev/null || true"
+    echo "typeset +r WORKWARRIOR_BASE 2>/dev/null || true"
+    echo "typeset +r TASKRC 2>/dev/null || true"
+    echo "typeset +r TASKDATA 2>/dev/null || true"
+    echo "typeset +r TIMEWARRIORDB 2>/dev/null || true"
     echo "export WW_BASE=\"$base\""
     echo "export WW_ACTIVE_INSTANCE=\"$iid\""
     echo "export WARRIOR_PROFILE=\"$last_profile\""
@@ -6300,6 +6306,13 @@ main() {
         bash "$WW_BASE/services/warrior/warrior.sh" "$@"
       else
         log_error "warrior service not found"; exit 1
+      fi
+      ;;
+    server|servers)
+      if [[ -f "$WW_BASE/services/servers/servers.sh" ]]; then
+        bash "$WW_BASE/services/servers/servers.sh" "$@"
+      else
+        log_error "servers service not found"; exit 1
       fi
       ;;
     stream)

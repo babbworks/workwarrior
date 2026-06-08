@@ -1,12 +1,12 @@
 # CLAUDE.md — Workwarrior
 
-This file is the primary context document for all Claude agent sessions working on this project. Read it fully before touching any file. It tells you what this project is, what you can and cannot do, how to run tests, and where your task is.
+This file is the primary context document for all agent sessions working on this project. Read it fully before touching any file.
 
 ---
 
 ## Project
 
-Workwarrior is a terminal-first, profile-based productivity system that unifies TaskWarrior, TimeWarrior, JRNL, and Hledger under a single CLI (`ww`). Profiles are isolated workspaces — each has its own task data, time tracking, journals, ledgers, and config. The service architecture is extensible and self-documenting. Users activate profiles via shell aliases (`p-work`, `p-personal`) and all tool state follows automatically.
+Workwarrior is a terminal-first, profile-based productivity system that unifies TaskWarrior, TimeWarrior, JRNL, and Hledger under a single CLI (`ww`). Profiles are isolated workspaces — each has its own task data, time tracking, journals, ledgers, and config. The system supports multiple independent instances, each registered in `~/.config/ww/registry/`. Users activate profiles via shell aliases (`p-work`, `p-personal`) and all tool state follows automatically.
 
 ---
 
@@ -14,22 +14,35 @@ Workwarrior is a terminal-first, profile-based productivity system that unifies 
 
 | Directory/File | Purpose | Touch? |
 |---|---|---|
-| `bin/ww` | Main CLI dispatcher (709 lines). Routes commands to services. | Serialized — one writer at a time |
-| `lib/` | Core bash libraries (24 files). Read `lib/CLAUDE.md` before any change. | High-risk — see fragility section |
+| `bin/ww` | Main CLI dispatcher. Routes commands to services. | Serialized — one writer at a time |
+| `lib/` | Core bash libraries. Read `lib/CLAUDE.md` before any change. | High-risk — see fragility section |
 | `services/` | Service registry (25+ categories). Read `services/CLAUDE.md`. | Safe to add; risky to change existing |
 | `profiles/` | User workspaces with task/time/journal data. Gitignored. | Never modify profile data directly |
 | `functions/` | Shell helper functions sourced at shell init. | Low risk |
+| `global/` | Global shared state and cross-instance config. | Low risk |
 | `config/` | Global YAML config (ai, models, groups, shortcuts, ctrl, heuristics). | Low risk |
 | `resources/` | Default templates and config files for new profiles. | Low risk |
 | `docs/` | User-facing documentation. Docs agent owns updates here. | Write after merge only |
 | `tests/` | BATS unit suites and integration test runners. | Always update when changing behavior |
-| `system/` | Dev system documentation and planning. Not shipped. | Orchestrator only |
-| `TASKS.md` | **Canonical task board.** Single source of truth for all open work. | Orchestrator only |
-| `pending/` | Archive. Nothing new is written here. | Read-only |
-| `scripts/` | Build scripts: compile-heuristics.py, scan-taskwarrior-extensions.py | Low risk |
 | `weapons/` | Weapon extensions (gun, sword). | Low risk |
+| `stream/` | Stream service and adapters. | Low risk |
+| `system/` | Dev control plane. Not shipped. | Orchestrator only |
+| `system/TASKS.md` | **Canonical task board.** Single source of truth for all open work. | Orchestrator only |
 
-**Never create files in:** `profiles/*/`, `bin/`, or root unless explicitly required by a task card.
+**Never create files in:** `profiles/*/`, `bin/`, or repo root unless explicitly required by a task card.
+
+---
+
+## Session Init
+
+**Every agent session starts with:**
+
+```bash
+eval "$(ww agent init --instance ~/wwv02 --profile ww-development)"
+wwctl status
+```
+
+See `system/context/session-init.md` for full protocol including sync-check and alternate flags.
 
 ---
 
@@ -40,11 +53,11 @@ Four always-active roles. Two conditional roles deployed by the Orchestrator as 
 | Role | When Active | Core Constraint |
 |---|---|---|
 | **Orchestrator** | Always | Owns backlog, contracts, merge decisions. Never writes production code. Never self-approves. |
-| **Builder** | Always (for implementation tasks) | Works within explicit write scope. Produces risk brief before touching any file. |
-| **Verifier** | Always (after every implementation) | Adversarial test execution. Produces signed checklist. Never implements. |
-| **Docs** | Always (task closure) | Updates CLAUDE.md files, docs/, help strings. Runs after merge. |
-| **Explorer** | Audit phases and high-risk cross-cutting analysis | Read-only. Produces risk briefs or audit outputs. For routine tasks, absorbed into Builder pre-flight paragraph. |
-| **Simplifier** | Large diffs or high-risk edits | Embedded in Verifier's checklist. Escalates to standalone agent for large/complex diffs. |
+| **Builder** | Implementation tasks | Works within explicit write scope. Produces risk brief before touching any file. |
+| **Verifier** | After every implementation | Adversarial test execution. Produces signed checklist. Never implements. |
+| **Docs** | Task closure | Updates CLAUDE.md files, docs/, help strings. Runs after merge. |
+| **Explorer** | Cross-cutting audits and HIGH FRAGILITY pre-flight only | Read-only. For routine tasks, absorbed into Builder pre-flight paragraph — do not spawn as standalone. |
+| **Simplifier** | Large diffs or high-risk edits | Embedded in Verifier's checklist. Escalates to standalone for diffs >200 lines. |
 
 **No agent self-approves. Orchestrator never writes production code. Verifier never writes production code.**
 
@@ -54,19 +67,19 @@ Handoff sequence: Orchestrator (contract) → Builder (implement) → Verifier (
 
 ## Shell Scripting Standards
 
-Every script in this project must follow these rules. Violations are Gate B failures.
+Every script must follow these rules. Violations are Gate B failures.
 
 ```bash
 #!/usr/bin/env bash
 set -euo pipefail
 ```
 
-- **Bash, not sh.** `#!/usr/bin/env bash` on every script.
-- **`set -euo pipefail`** is the second line. No exceptions.
+- **Bash, not sh.** `#!/usr/bin/env bash` on every executed script.
+- **`set -euo pipefail`** in executed scripts (`bin/`, `services/`). **Never** in sourced `lib/` files — use `${var:-}` defensive guards instead.
 - **Error propagation via return codes**, not exit traps or `exit 1` in lib functions.
-- **Logging via `lib/logging.sh`** functions. Never use raw `echo` for user-facing messages in `lib/` or `services/`.
+- **Logging via `lib/logging.sh`** — never raw `echo` for user-facing messages in `lib/` or `services/`.
 - **Absolute paths always.** Use `$WORKWARRIOR_BASE/...`, never relative paths.
-- **Quote all variable expansions:** `"$var"` not `$var`. `"${array[@]}"` not `${array[@]}`.
+- **Quote all variable expansions:** `"$var"` not `$var`.
 - **Functions in snake_case.** All local variables declared with `local`.
 - **No `cd` in lib functions.** Use full paths.
 - **Exit codes:** 0 = success, 1 = user error, 2 = system/internal error.
@@ -75,15 +88,18 @@ set -euo pipefail
 
 ## Environment Variables
 
-These are always set when a profile is active. Safe to reference in any service or lib file.
+Set when a profile is active. All exported by `ww agent init`. Safe to reference in any service or lib file.
 
 | Variable | Value |
 |---|---|
-| `WARRIOR_PROFILE` | Active profile name (e.g., `work`) |
-| `WORKWARRIOR_BASE` | Profile base directory (e.g., `~/ww/profiles/work`) |
-| `TASKRC` | TaskWarrior config path |
-| `TASKDATA` | TaskWarrior data directory path |
-| `TIMEWARRIORDB` | TimeWarrior database path |
+| `WARRIOR_PROFILE` | Active profile name (e.g., `ww-development`) |
+| `WORKWARRIOR_BASE` | Instance install path (e.g., `~/wwv02`) |
+| `TASKRC` | Profile `.taskrc` path |
+| `TASKDATA` | Profile `.task/` directory path |
+| `TIMEWARRIORDB` | Profile `.timewarrior/` path |
+| `JRNL_CFG` | Profile `jrnl.yaml` path |
+| `LEDGER_F` | Profile ledger file path |
+| `WW_AGENT_SESSION_ID` | Session ID registered at session init |
 
 ---
 
@@ -132,7 +148,6 @@ __pycache__/
 *.sqlite3
 config/cmd-heuristics.yaml
 config/cmd-heuristics-corpus.yaml
-devsystem/
 services/bookbuilder/
 ```
 
@@ -140,25 +155,28 @@ services/bookbuilder/
 
 ## Testing Requirements
 
-### Run before any merge
+### Sequence: smoke → targeted → full
 
 ```bash
-bats tests/
+bats tests/test-smoke.bats          # always first (~5 seconds)
+bash system/scripts/select-tests.sh <type> --run   # targeted by change type
+bats tests/                         # full suite before any merge
 ```
 
 ### By change type
 
 | Change type | Required test suite |
 |---|---|
-| Any `lib/` change | `bats tests/` — full suite |
-| Any `services/` change | `bats tests/test-service-discovery.sh` + `bats tests/` |
-| Profile behavior change | `bats tests/test-foundation.sh` + `bats tests/` |
-| `bin/ww` change | `bats tests/` + manual smoke: `ww help` |
-| GitHub sync change | `./tests/run-integration-tests.sh` (requires GitHub CLI + test profile auth) |
+| Any `lib/` change | smoke + `bats tests/` |
+| Any `services/` change | `bats tests/test-service-discovery.bats` + `bash tests/test-service-discovery.sh` + `bats tests/` |
+| Profile behavior change | `bats tests/test-directory-structure.bats` + `bash tests/test-scripts-integration.sh` + `bats tests/` |
+| `bin/ww` change | smoke + `bats tests/` + manual: `ww help`, `ww profile list` |
+| GitHub sync change | `bash tests/run-integration-tests.sh` + `bats tests/test-github-sync.bats` + `bats tests/` |
 
-**Note:** Test baseline will be updated after Explorer B output (Task 1.3b). Check TASKS.md for current status.
+See `tests/CLAUDE.md` for full matrix, known baseline failures (~29), and known pitfalls.
 
 ### New behavior rule
+
 Every change that adds or modifies behavior requires a new or updated BATS test. No exceptions. This is Gate B.
 
 ---
@@ -172,7 +190,7 @@ These are merge blockers. Not advisory. Not optional.
 | **A** | No implementation starts without Orchestrator-authored acceptance criteria on the task card |
 | **B** | No merge with failing required tests or unresolved high-severity Verifier findings |
 | **C** | No task marked "complete" unless docs and CLI help strings match the implementation |
-| **D** | No release claim without a fully signed release checklist |
+| **D** | No release claim without a fully signed release checklist saved to `system/reports/releases/` |
 | **E** | No untracked TODO or placeholder in any production code path — every deferred item has a TASKS.md card |
 
 ---
@@ -189,9 +207,8 @@ These are merge blockers. Not advisory. Not optional.
 
 ## Canonical Task Source
 
-**`system/TASKS.md` is the only source of truth for open work.** `system/tasks/INDEX.md` is the scannable manifest of task cards (see `tasks/cards/`; ~99 cards).
+**`system/TASKS.md` is the only source of truth for open work.** `system/tasks/INDEX.md` is the scannable manifest of all task cards (`tasks/cards/`).
 
 - Orchestrator is the only agent that updates status fields
-- `pending/` is archive — nothing new is written there
 - Every deferred TODO in production code must have a corresponding TASKS.md card (Gate E)
 - New tasks are only added by the Orchestrator after Gate A is satisfied

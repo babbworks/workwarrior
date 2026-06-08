@@ -29,11 +29,11 @@ Set in `.claude/ww/config`.
 # Dry-run — show what would change
 bash system/scripts/dev-sync.sh
 
-# Apply
+# Apply to default target (~/wwv02)
 bash system/scripts/dev-sync.sh --apply
 
-# Sync to production (use with care — only after testing in ww-dev)
-bash system/scripts/dev-sync.sh --apply --target ~/wwv02
+# Sync to ww-dev explicitly
+bash system/scripts/dev-sync.sh --apply --target ~/ww-dev
 ```
 
 The script (`system/scripts/dev-sync.sh`) syncs only program files:
@@ -54,11 +54,13 @@ The script (`system/scripts/dev-sync.sh`) syncs only program files:
 ## Dev Routine (per session)
 
 ```
-1. Run tests in repo             bats tests/test-smoke.bats && bats tests/
-2. Sync to ww-dev                bash system/scripts/dev-sync.sh --apply
-3. Live test via ww-dev          WW_BASE=~/ww-dev ww <command>
+1. Session init                  eval "$(ww agent init --instance ~/wwv02 --profile ww-development)"
+2. Check sync state              bash system/scripts/dev-sync.sh
+3. Run tests in repo             bats tests/test-smoke.bats && bats tests/
+4. Sync to wwv02                 bash system/scripts/dev-sync.sh --apply
+5. Live test                     WORKWARRIOR_BASE=~/wwv02 ww <command>
    or activate profile:          p-ww-development (if alias is set)
-4. When satisfied, sync to prod  bash system/scripts/dev-sync.sh --apply --target ~/wwv02
+6. Sync to ww-dev if needed      bash system/scripts/dev-sync.sh --apply --target ~/ww-dev
 ```
 
 ---
@@ -103,6 +105,8 @@ The old `_p_wwd` helper and separate ww-dev alias sections are no longer needed 
 
 ## Agent Instructions
 
-At session start, always ask: **has the dev instance been synced?** If recent changes in the repo haven't been applied to `~/ww-dev/`, any live test will be running against stale code.
+At session start:
+1. Run `eval "$(ww agent init --instance ~/wwv02 --profile ww-development)"` — confirms instance, exports all env vars
+2. Run `bash system/scripts/dev-sync.sh` — dry-run to check sync state before live testing
 
-If a command like `ww browser warlock` fails because `services/warlock/warlock.sh` is missing from `~/ww-dev/`, the fix is always the sync script — not manually copying individual files.
+If recent changes in the repo haven't been applied to the target instance, any live test will be running against stale code. The fix is always the sync script — not manually copying individual files.

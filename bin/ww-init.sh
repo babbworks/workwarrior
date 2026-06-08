@@ -106,16 +106,18 @@ _ww_apply_prompt_prefix() {
   local pfx
   pfx="$(_ww_prompt_prefix)"
   if [[ -n "${ZSH_VERSION:-}" ]]; then
-    if [[ -n "$pfx" ]]; then
-      [[ "$PROMPT" == "${pfx} "* ]] || PROMPT="${pfx} ${PROMPT}"
-    elif [[ -n "${_WW_LAST_PREFIX:-}" ]]; then
+    if [[ -n "${_WW_LAST_PREFIX:-}" ]]; then
       PROMPT="${PROMPT#${_WW_LAST_PREFIX} }"
     fi
-  else
     if [[ -n "$pfx" ]]; then
-      [[ "$PS1" == "${pfx} "* ]] || PS1="${pfx} ${PS1}"
-    elif [[ -n "${_WW_LAST_PREFIX:-}" ]]; then
+      PROMPT="${pfx} ${PROMPT}"
+    fi
+  else
+    if [[ -n "${_WW_LAST_PREFIX:-}" ]]; then
       PS1="${PS1#${_WW_LAST_PREFIX} }"
+    fi
+    if [[ -n "$pfx" ]]; then
+      PS1="${pfx} ${PS1}"
     fi
   fi
   _WW_LAST_PREFIX="$pfx"
