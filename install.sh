@@ -712,7 +712,7 @@ _offer_browser_launch() {
   read -rp "  Launch browser UI now to set up your first profile? [y/N] " _yn
   if [[ "${_yn,,}" == "y" ]]; then
     echo ""
-    WW_BASE="$WW_INSTALL_DIR" bash "$WW_INSTALL_DIR/services/browser/browser.sh"
+    env WW_BASE="$WW_INSTALL_DIR" bash "$WW_INSTALL_DIR/services/browser/browser.sh"
   else
     echo ""
     echo "  Run '$COMMAND_NAME browser' any time to launch the browser UI."
@@ -970,7 +970,7 @@ main() {
     [[ "$INSTALL_PRESET" == "hidden" ]] && vis="hidden"
     write_instance_manifest "main" "$vis" "$COMMAND_NAME"
     if (( ENABLE_INSTANCE_ALIASES == 1 )); then
-      WW_BASE="$WW_INSTALL_DIR" "$WW_INSTALL_DIR/bin/ww" instance aliases sync >/dev/null 2>&1 || true
+      env WW_BASE="$WW_INSTALL_DIR" "$WW_INSTALL_DIR/bin/ww" instance aliases sync >/dev/null 2>&1 || true
     fi
   elif [[ "$INSTALL_PRESET" == "isolated" ]]; then
     log_info "Isolated preset: not registering instance (use 'ww instance register' later)"
