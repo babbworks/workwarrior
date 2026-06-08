@@ -981,6 +981,14 @@ main() {
     write_instance_function "$COMMAND_NAME" "$WW_INSTALL_DIR"
   fi
 
+  # Auto-designate as anchor if none exists yet — silent, no prompt needed.
+  local _anchor_file; _anchor_file="$(_ww_global_anchor_file 2>/dev/null || echo "$HOME/.config/workwarrior/anchor")"
+  if [[ ! -f "$_anchor_file" ]]; then
+    mkdir -p "$(dirname "$_anchor_file")"
+    printf '%s\n' "$COMMAND_NAME" > "$_anchor_file"
+    log_info "Anchor instance: $COMMAND_NAME"
+  fi
+
   # Final summary
   show_success_message
   _offer_browser_launch

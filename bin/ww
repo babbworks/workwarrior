@@ -1859,6 +1859,26 @@ cmd_instance() {
           ;;
       esac
       ;;
+    anchor)
+      local anchor_file="$HOME/.config/workwarrior/anchor"
+      if [[ -f "$anchor_file" ]]; then
+        echo "$(cat "$anchor_file")"
+      else
+        echo "(none — run: ww instance set-anchor)"
+      fi
+      ;;
+    set-anchor)
+      local target="${1:-$COMMAND_NAME}"
+      local anchor_file="$HOME/.config/workwarrior/anchor"
+      mkdir -p "$(dirname "$anchor_file")"
+      printf '%s\n' "$target" > "$anchor_file"
+      log_success "Anchor set to '$target'"
+      echo ""
+      echo "  Shell config reflects this on next install of each instance."
+      echo "  For now, ensure the '$target' block in your shell rc has the"
+      echo "  'export WW_BASE=...' and 'source ww-init.sh' lines, and that"
+      echo "  other instance blocks do not."
+      ;;
     *)
       log_error "Unknown instance action: $action"
       exit 1

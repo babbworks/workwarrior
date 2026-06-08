@@ -152,6 +152,28 @@ get_shell_rc_files() {
   printf '%s\n' "${rc_files[@]}"
 }
 
+# ============================================================================
+# ANCHOR HELPERS
+# The anchor is the primary WW instance. It owns WW_BASE in the shell rc.
+# Secondary installs only add their activation function — they don't override
+# WW_BASE or source ww-init.sh, so the anchor always controls shell startup.
+# ============================================================================
+
+_ww_global_anchor_file() { echo "$HOME/.config/workwarrior/anchor"; }
+
+_ww_get_anchor() {
+  local f; f="$(_ww_global_anchor_file)"
+  [[ -f "$f" ]] && cat "$f" 2>/dev/null | tr -d '[:space:]' || echo ""
+}
+
+_ww_set_anchor() {
+  local name="$1"
+  local f; f="$(_ww_global_anchor_file)"
+  mkdir -p "$(dirname "$f")"
+  printf '%s\n' "$name" > "$f"
+}
+
+# ============================================================================
 # Add workwarrior configuration to a shell RC file
 # Idempotent - safe to run multiple times
 # Usage: add_ww_to_shell_rc "/path/to/.bashrc" [cmd_name]
@@ -179,10 +201,34 @@ add_ww_to_shell_rc() {
     return 0
   fi
 
-  # For standalone presets (basic/direct/isolated), source instance-functions.sh
-  # explicitly — ww-init.sh's WW_INITIALIZED guard would skip it on re-source.
-  local instance_fn_block=""
+  # Anchor detection: only the anchor owns WW_BASE + ww-init.sh in the shell rc.
+  # Secondary installs register only their activation function so they never
+  # override the anchor's environment at shell startup.
+  local existing_anchor; existing_anchor="$(_ww_get_anchor)"
+  local is_anchor=1
+  if [[ -n "$existing_anchor" && "$existing_anchor" != "$cmd_name" ]]; then
+    is_anchor=0
+  fi
+
   local preset="${INSTALL_PRESET:-multi}"
+
+  if (( is_anchor == 0 )); then
+    # Secondary install: only source the activation function, no WW_BASE override.
+    cat >> "$rc_file" << EOF
+
+${section_start}
+# Workwarrior instance: ${cmd_name} (anchor: ${existing_anchor})
+if [[ -f "${WW_CONFIG_HOME}/instance-functions.sh" ]]; then
+  source "${WW_CONFIG_HOME}/instance-functions.sh"
+fi
+${section_end}
+EOF
+    log_success "Added workwarrior instance (${cmd_name}) to $(basename "$rc_file")"
+    return 0
+  fi
+
+  # Anchor install: export WW_BASE, source ww-init.sh, and load instance functions.
+  local instance_fn_block=""
   if [[ "$preset" != "multi" && "$preset" != "hidden" && "$preset" != "hardened" ]]; then
     instance_fn_block="
 # Load ${cmd_name} activation function (always, even if ww-init.sh already ran)
