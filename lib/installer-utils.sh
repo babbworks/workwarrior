@@ -426,6 +426,7 @@ ${cmd_name}() {
     local _base="${install_path}"
     local _cfg="\$HOME/.config/${cmd_name}"
     export WW_BASE="\$_base"
+    export PROFILES_DIR="\${_base}/profiles"
     export WW_ACTIVE_INSTANCE="${cmd_name}"
     local _last
     _last="\$(cat "\${_cfg}/last-profile-${cmd_name}" 2>/dev/null || echo "default")"

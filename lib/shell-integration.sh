@@ -1235,6 +1235,11 @@ EOF
   return $?
 }
 
+# Issues — named alias for i(), consistent with tasks/times/profiles pattern
+issues() {
+  i "$@"
+}
+
 # Ensure ww-init.sh is sourced in the user's shell config.
 # All functions live in shell-integration.sh (sourced by ww-init.sh) — there is
 # no need to inject per-function stubs into the rc file. A single source line
@@ -1315,6 +1320,7 @@ _ww_create_instance_functions() {
 ${cmd_name}() {
   if [[ \$# -eq 0 ]]; then
     export WW_BASE='${install_path}'
+    export PROFILES_DIR='${install_path}/profiles'
     export WW_ACTIVE_INSTANCE='${iid}'
     local _last
     _last=\"\$(cat \"\${WW_CONFIG_HOME:-\$HOME/.config/ww}/last-profile-${iid}\" 2>/dev/null || echo 'default')\"
