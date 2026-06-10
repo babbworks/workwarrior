@@ -2079,8 +2079,16 @@ cmd_enable_multi() {
   cat > "$bs" << 'EOF'
 #!/usr/bin/env bash
 [[ -n "${WW_BOOTSTRAP_LOADED:-}" ]] && return 0
-export WW_BOOTSTRAP_LOADED=1
-ww() { "${WW_BASE:-$HOME/ww}/bin/ww" "$@"; }
+WW_BOOTSTRAP_LOADED=1
+ww() {
+  if [[ $# -eq 0 ]]; then
+    eval "$("${WW_BASE:-$HOME/ww}/bin/ww" @ww)"
+  elif [[ "${1:-}" == @* ]]; then
+    eval "$("${WW_BASE:-$HOME/ww}/bin/ww" "$@")"
+  else
+    "${WW_BASE:-$HOME/ww}/bin/ww" "$@"
+  fi
+}
 task() { "${WW_BASE:-$HOME/ww}/bin/ww" task "$@"; }
 timew() { "${WW_BASE:-$HOME/ww}/bin/ww" timew "$@"; }
 EOF
@@ -4090,10 +4098,10 @@ cmd_sync() {
       if cp -r "$sync_source/$d/"* "$sync_target/$d/" 2>/dev/null; then
         chmod +x "$sync_target/bin/"* 2>/dev/null || true
         log_success "Copied $d/"
-        (( copied++ ))
+        (( ++copied ))
       else
         log_warning "Skipped $d/ (empty or error)"
-        (( skipped++ ))
+        (( ++skipped ))
       fi
     fi
   done
@@ -5967,12 +5975,14 @@ cmd_at() {
     fi
 
     # Print eval-compatible exports
-    echo "typeset +r WW_BASE 2>/dev/null || true"
-    echo "typeset +r WORKWARRIOR_BASE 2>/dev/null || true"
-    echo "typeset +r TASKRC 2>/dev/null || true"
-    echo "typeset +r TASKDATA 2>/dev/null || true"
-    echo "typeset +r TIMEWARRIORDB 2>/dev/null || true"
+    # typeset -g ensures ZSH operates on the global scope, not a function-local scope
+    echo "typeset -g +r WW_BASE 2>/dev/null || true"
+    echo "typeset -g +r WORKWARRIOR_BASE 2>/dev/null || true"
+    echo "typeset -g +r TASKRC 2>/dev/null || true"
+    echo "typeset -g +r TASKDATA 2>/dev/null || true"
+    echo "typeset -g +r TIMEWARRIORDB 2>/dev/null || true"
     echo "export WW_BASE=\"$base\""
+    echo "export PROFILES_DIR=\"$base/profiles\""
     echo "export WW_ACTIVE_INSTANCE=\"$iid\""
     echo "export WARRIOR_PROFILE=\"$last_profile\""
     local profile_base="$base/profiles/$last_profile"

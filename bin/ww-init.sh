@@ -10,10 +10,7 @@
 # ENVIRONMENT
 # ============================================================================
 
-# Set base directory only if not already set (may have been exported externally)
-if [[ -z "${WW_BASE:-}" ]]; then
-  export WW_BASE="$HOME/ww"
-fi
+export WW_BASE="$HOME/ww"
 
 # Add ww bin to PATH
 if [[ ":$PATH:" != *":$WW_BASE/bin:"* ]]; then
@@ -144,4 +141,4 @@ _ww_sense_ollama() {
 # DONE
 # ============================================================================
 
-export WW_INITIALIZED=1
+WW_INITIALIZED=1

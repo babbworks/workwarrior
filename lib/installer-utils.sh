@@ -442,6 +442,8 @@ ${cmd_name}() {
     export TIMEWARRIORDB="\${_pb}/.timewarrior"
     printf '%s\n' "\$_last" > "\${_cfg}/last-profile-${cmd_name}" 2>/dev/null || true
     echo "  ✓ ${cmd_name}:\${_last}  ·  \${_pb}"
+  elif [[ "\${1:-}" == @* ]]; then
+    eval "\$("${install_path}/bin/ww" "\$@")"
   else
     env WW_BASE="${install_path}" "${install_path}/bin/ww" "\$@"
   fi

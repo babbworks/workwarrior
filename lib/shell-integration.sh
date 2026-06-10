@@ -1305,10 +1305,9 @@ _ww_create_instance_functions() {
   local reg_dir="$cfg_home/registry"
   [[ -d "$reg_dir" ]] || return 0
 
-  local f
+  local f iid install_path cmd_name
   for f in "$reg_dir"/*.json; do
     [[ -f "$f" ]] || continue
-    local iid install_path cmd_name
     iid="$(python3 -c "import json,sys; d=json.load(open('$f')); print(d.get('id',''))" 2>/dev/null || true)"
     install_path="$(python3 -c "import json,sys; d=json.load(open('$f')); print(d.get('install_path',''))" 2>/dev/null || true)"
     cmd_name="$(python3 -c "import json,sys; d=json.load(open('$f')); print(d.get('command_name','ww'))" 2>/dev/null || true)"
