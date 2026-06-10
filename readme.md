@@ -4,6 +4,34 @@ Workwarrior wraps five open-source tools — TaskWarrior, TimeWarrior, JRNL, Hle
 
 The system runs from the terminal, from a locally-served browser UI, or both at once. A natural language command layer translates plain English into tool commands using 627 compiled heuristic rules before optionally falling back to a local LLM.
 
+---
+
+## What is it?
+
+Workwarrior is a profile-based productivity system for the terminal. It wraps TaskWarrior, TimeWarrior, JRNL, Hledger, and Bugwarrior into a single unified shell — each profile an isolated workspace with its own tasks, time tracking, journals, and double-entry ledgers. Switch contexts instantly. A browser UI, natural language command layer, and GitHub integration are built in.
+
+## The Problem
+
+Productivity tools force you into one paradigm. Task managers don't track time. Time trackers don't do accounting. Journals live in a separate app. And none of them understand that you might have three completely different work contexts that should never touch each other. Power users who want the full stack end up wiring together five tools manually and re-doing it every time they switch machines or add a context.
+
+## How it Works
+
+`ww` is a bash dispatcher that routes all commands to service scripts. `p-work` activates a profile by setting environment variables that all five tools read — no symlinks, no config switching. A 627-rule heuristic engine translates natural language input into tool commands without requiring AI. The browser UI (`ww browser`) serves a Python 3 HTTP server with 15+ panels, real-time SSE updates, and a unified command input.
+
+## Current Status
+
+Active development. Profile system, browser UI, natural language engine, GitHub two-way sync, and UDA management all working. Weapons (Gun, Sword, Next, Schedule) operational. Questions, export, and group batch operations functional. Documentation covers full architecture and all service domains.
+
+## The Vision
+
+A productivity operating system for people who live in the terminal — one that understands that tasks, time, money, and notes are not separate concerns but different views of the same working life. The long-term goal is a system that knows your projects, tracks their economics, and can answer questions like "what did I spend time on last month and what did it earn?"
+
+## Industry Context
+
+TaskWarrior, TimeWarrior, JRNL, and Hledger each have dedicated user bases but are rarely used together. No existing tool provides profile isolation, unified commands, and a browser UI across all four. Workwarrior targets developers, consultants, and operators who manage multiple clients or contexts from the terminal and need their productivity stack to be as rigorous as their code.
+
+---
+
 ```
 p-work
 task add "Ship the API" project:backend priority:H due:friday +release
