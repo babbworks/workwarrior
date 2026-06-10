@@ -773,3 +773,26 @@ direct ww command passthrough.
 **Heuristic files gitignored:** `config/cmd-heuristics.yaml` and `config/cmd-heuristics-corpus.yaml` are generated output from `ww compile-heuristics`. Each install regenerates its own based on the user's command surface. No reason to commit them.
 
 **Profile data gitignored:** `profiles/` contains all user-specific task, journal, ledger, and time data. Never belongs in the repo. Existing tracked profile files will need `git rm -r --cached profiles/` before commit.
+
+## 2026-06-10: Telemetry ingestion & compression stack — standard codecs on the hot path, BitPads as scoped edge codec
+
+**Decision:** The telemetry pipeline (commercialization plan, Part 4) uses industry-standard transports and codecs on the hot path. The babbworks pioneered standards (BitPads/BitLedger) are adopted in two deliberately scoped roles only — optional edge codec for byte-metered links, and semantic model for telemetry→ledger mapping — and are explicitly NOT the canonical wire or storage format.
+
+**Analysis basis:** Studied `babbworks/bitpads-standard` (Protocol v2, Enhancement Sub-Protocol v2, BitLedger v3, Universal Domain, Compound Mode design note), `babbworks/bitpads` + `babbworks/Bitpads-CLI` (assembly encoder, Node decoder/inspector), `babbworks/workpads-standard` (bitpad-v1, pads-v1 encodings), and the in-repo protocol comparison (`How Bitpads Compare - Fin Standards.md`).
+
+**Stack chosen, by layer:**
+1. **Transport/framing:** MQTT + Sparkplug B, OPC UA subscriptions, Modbus polling, HTTP NDJSON batches (as already carded in TEL-004..008). Sparkplug B's metric-alias mechanism is adopted as-is — it is the standardized expression of the BitPads shared-codebook idea.
+2. **Wire/batch compression:** zstd with per-source trained dictionaries (new TASK-TEL-011). Telemetry is thousands of near-identical small records — the best case for dictionary training; expected 2–5× over plain zstd on small messages. LZ4 permitted where adapter CPU is constrained. CBOR available as optional compact envelope; NDJSON remains the canonical, human-legible spool/stream format.
+3. **At-rest numeric history:** Gorilla-style delta-of-delta + XOR compression is the recognized telemetry standard (~1.37 bytes/point in published systems). v1 does not reinvent it: stream.log stays a replayable buffer with zstd-compressed segments; heavy analytical history exports to Parquet+zstd or the customer's TSDB/historian.
+
+**Why BitPads is not the hot path (structural, not just maturity):**
+- It optimizes per-frame density; telemetry compressibility lives in correlation BETWEEN consecutive samples (delta-of-delta), which frame-at-a-time bit-packing cannot exploit. Gorilla+zstd beats it on real sensor streams despite its excellent single-frame numbers.
+- Shared-codebook coupling requires control of both endpoints; our obscure-feed differentiator is precisely senders we do not control.
+- Tooling state (per its own docs): encoder-only, macOS-only assembly, no decoder, no formal test vectors, unresolved 22-vs-28-byte spec discrepancy. Disqualifying for a commercial ingestion path today.
+- Binary-first conflicts with the human-legible telemetry positioning.
+
+**Where the pioneered standards ARE adopted:**
+- **TASK-TEL-012 (new):** BitPads as an optional adapter-SDK codec for constrained/byte-metered uplinks (satellite, LoRa, metered cellular) — encode before the expensive hop, decode at ingest. Gated on external prerequisites: decoder parity, Linux port, published test vectors in Bitpads-CLI. This converts "we pioneered a standard" into a defensible premium niche instead of a hot-path liability.
+- **TASK-TEL-003 (amended):** the telemetry→ledger mapping rules adopt BitLedger Universal Domain semantics — conserved scalars (energy, mass, material) as double-entry account pairs, with a 16-entry account-pair codebook concept in telemetry-rules.yaml. The accounting model is borrowed; the wire format is not.
+
+**Revisit trigger:** If Bitpads-CLI reaches decoder parity + cross-platform CI + test vectors AND a customer engagement involves byte-metered links, promote TEL-012 in priority. Otherwise this decision stands for v1.

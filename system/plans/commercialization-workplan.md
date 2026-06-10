@@ -1028,6 +1028,95 @@ Medium: app.js is already ~6,700 lines — follow TASK-SITE conventions; conside
 
 Panel behind feature flag.
 
+### Chunk 4.4 — Compression & encoding (decision logged 2026-06-10 in decisions.md)
+
+> Amendment to **TASK-TEL-003**: ledger-mapping rules adopt **BitLedger Universal Domain semantics** — conserved scalars (energy, mass, material) map as double-entry account pairs, with a 16-entry account-pair codebook concept in `telemetry-rules.yaml`. The accounting model is borrowed from the pioneered standard; the wire format is not. Orchestrator to amend the card's Goal and add one acceptance criterion: an energy-delta event produces a balanced two-leg hledger entry using a codebook account pair.
+
+---
+id: TASK-TEL-011
+title: zstd compression with per-source trained dictionaries — wire and at-rest
+status: pending
+priority: M
+area: tel
+created: 2026-06-10
+tw_uuid:
+depends: TASK-TEL-002, TASK-TEL-004
+---
+
+## Goal
+
+Telemetry streams are thousands of near-identical small NDJSON records — the worst case for generic compression and the best case for dictionary training. Adopt zstd as the standard compression at two boundaries: (1) HTTP ingest accepts `Content-Encoding: zstd` (and gzip for compatibility) on batch POSTs; (2) consumed spool archives (`.spool/<source>/done/`) and rotated stream.log segments are zstd-compressed with a per-source trained dictionary. Add `ww ingest train-dict <source>` (wraps `zstd --train` on a sample of that source's events; dictionary stored under `.spool/<source>/dict/`, versioned, embedded dict-ID in frames so old archives stay readable).
+
+## Context
+
+Decision record 2026-06-10: industry codecs on the hot path. NDJSON stays the canonical uncompressed format in live spools — compression applies on the wire and at rest, never to the format agents and humans read. Gorilla-style delta-of-delta numeric compression is explicitly out of scope for v1: analytical history exports to Parquet+zstd or the customer's TSDB (export card territory), we do not reinvent a time-series engine.
+
+## Acceptance Criteria
+
+- [ ] HTTP `/ingest` accepts zstd- and gzip-encoded batches; rejects malformed frames with 400 and a reason
+- [ ] `ww ingest train-dict <source>` produces a dictionary; benchmark in tests shows ≥2× improvement over dictionary-less zstd on a corpus of ≥10k small events (fixture corpus shipped)
+- [ ] Archived spool files and rotated stream segments compressed transparently; `ww stream replay` and `ww stream view` decompress without user action
+- [ ] Dictionary versioning: re-training creates v(n+1); archives compressed with v(n) still decode (dict-ID embedded per zstd frame standard)
+- [ ] Dependency policy decided and documented: system `zstd` binary required for telemetry feature set (checked by dependency-installer), core ww unaffected when absent
+- [ ] Soak test from TEL-002 re-run with compression enabled — no loss, no corruption
+
+## Write Scope
+
+`services/ingest/`, `services/browser/server.py` (Content-Encoding on `/ingest`), `lib/dependency-installer.sh`, `services/stream/` (decompress-on-read), tests
+
+## Risk
+
+Low-medium: compression bugs can silently corrupt archives — mitigated by checksum-after-compress verification in the archive step and the dict-ID versioning rule. Live spools stay uncompressed, so the blast radius is archives only.
+
+## Rollback
+
+Config switch `compression: off`; existing archives remain readable (decompress-on-read is unconditional).
+
+---
+id: TASK-TEL-012
+title: BitPads edge codec — optional adapter codec for byte-metered links
+status: pending
+priority: L
+area: tel
+created: 2026-06-10
+tw_uuid:
+depends: TASK-TEL-009
+---
+
+## Goal
+
+Offer the pioneered BitPads/BitLedger encoding as an **optional** adapter-SDK codec for constrained uplinks where every byte is billed (satellite, LoRa, metered cellular): the edge adapter encodes canonical events into BitPads frames before the expensive hop; an ingest-side decoder shim expands them back to canonical NDJSON into the spool. The spine never sees BitPads — this is strictly a link codec behind the adapter contract.
+
+## Context
+
+Decision record 2026-06-10. BitPads is structurally wrong for the hot path (per-frame packing vs. inter-sample correlation; shared-codebook coupling; binary-first vs. human-legible positioning) but genuinely defensible for byte-metered links — the niche BitLedger was designed for. This card is the commercial story for "we pioneered a standard": a premium edge capability, not a default.
+
+**External prerequisites (hard gate — do not dispatch until all three exist in babbworks/Bitpads-CLI or bitpads-standard):**
+1. Decoder at parity with the encoder (round-trip proven)
+2. Linux build in CI
+3. Published formal test vectors (which also resolves the 22-vs-28-byte spec discrepancy noted in the standard's own docs)
+
+## Acceptance Criteria
+
+- [ ] Prerequisite gate verified and linked in the card before dispatch (Orchestrator checks Bitpads-CLI state)
+- [ ] Adapter SDK codec interface: `codec: bitpads` in adapter config; scaffold (`ww ingest scaffold`) can generate a bitpads-codec adapter skeleton
+- [ ] Round-trip property test: canonical event → BitPads frame → decoded event is field-identical for the schema's required fields; lossy mappings (e.g., freeform ctx) documented explicitly
+- [ ] Wire benchmark in docs: bytes-per-event for BitPads vs zstd-dict NDJSON on the fixture corpus — published honestly, whichever way it lands, with the byte-metered-link breakeven worked out
+- [ ] Decode failures land as `quality: bad` events with raw frame preserved in ctx (never silent loss)
+- [ ] CRC-15 verification on every frame; failures counted in `ww ingest status`
+
+## Write Scope
+
+`services/ingest/adapters/` (codec layer), `resources/adapter-templates/`, docs, tests. No spine changes.
+
+## Risk
+
+Low to the product (isolated, optional, off by default). Schedule risk lives in the external prerequisites — that work happens in the Bitpads repos, not here, and this card must not block any other telemetry card.
+
+## Rollback
+
+Codec unused → no behavior change anywhere.
+
 ### Part 4 journal entries
 
 [2026-06-10 13:00] Telemetry architecture locked: spool + single-writer daemon. @project:commercialization @tags:telemetry,architecture,decision @priority:H
@@ -1035,6 +1124,9 @@ Decision: adapters are isolated processes writing canonical NDJSON to disk spool
 
 [2026-06-10 13:20] Protocol coverage strategy: ship four doors, sell the locksmith service. @project:commercialization @tags:telemetry,commercial,decision @priority:H
 In-tree adapters: HTTP (universal), MQTT+Sparkplug (modern plants), OPC UA (automation standard), Modbus + file-drop + serial (the legacy long tail that actually exists on floors). Everything else — PROFINET, EtherNet/IP, BACnet, CAN, S7, MELSEC, FINS, DNP3, MTConnect, FOCAS, bespoke CSV dialects — goes through the published adapter contract + scaffold + conformance test. The commercial offering sells exactly what open source can't: building and supporting the obscure adapter for YOUR 1987 press brake. The cookbook docs are deliberately part of the product.
+
+[2026-06-10 15:50] Compression decided: standard codecs hot, pioneered standard edge. @project:commercialization @tags:telemetry,compression,bitpads,decision @priority:H
+Studied bitpads-standard, bitpads/Bitpads-CLI, workpads-standard, bitledger-standard. Verdict logged in decisions.md: zstd with per-source trained dictionaries on the wire and at rest (TEL-011), Gorilla/TSDB territory delegated to export rather than reinvented, Sparkplug B's metric aliases adopted as the standardized form of the BitPads shared-codebook idea. BitPads itself is structurally wrong for the hot path — it packs single frames tightly while telemetry's compressibility lives between consecutive samples, it requires codebook control of both endpoints (our differentiator is senders we don't control), and its tooling is encoder-only/macOS-only with no test vectors. But it earns two scoped roles: optional edge codec for byte-metered links (TEL-012, gated on decoder parity + Linux CI + test vectors in the Bitpads repos) and BitLedger Universal Domain account-pair semantics as the model for telemetry→ledger mapping (TEL-003 amendment). Not supposing our standards were best paid off: the analysis found the boundary where they genuinely are.
 
 [2026-06-10 13:35] Mapper is the differentiator; dedupe is its hard problem. @project:commercialization @tags:telemetry,design @priority:M
 A fault signal must become ONE task, not a task per scan cycle — dedupe windows keyed on source+code, with suppression counts annotated onto the surviving task so volume information isn't lost. Mapper never blocks the raw append (append-first, map-after). Attribution rides Part 3: artifacts created by machines are queryable by machine principal, same as agent work. One attribution model across humans, agents, machines was the right call.
@@ -1204,12 +1296,13 @@ LIC-001 ─► LIC-002                 PORT-001    PORT-002    AGENT-004   SEC-0
                      └─► TEL-002 (needs TEL-001) ─► TEL-003 (needs AGENT-002)
                               ├─► TEL-004 (needs AUTH-003)
                               ├─► TEL-005, TEL-006, TEL-007, TEL-008  (parallel-safe)
-                              ├─► TEL-009 (after TEL-005 proves the contract)
-                              └─► TEL-010 (needs TEL-003, TEL-004)
+                              ├─► TEL-009 (after TEL-005 proves the contract) ─► TEL-012 (ext. gate: Bitpads-CLI decoder+Linux+vectors)
+                              ├─► TEL-010 (needs TEL-003, TEL-004)
+                              └─► TEL-011 (needs TEL-002, TEL-004)
 REL-002 (needs AUTH-003 + TEL-002)        BIZ-001 (needs LIC-001)
-Existing cards amended, not duplicated: TASK-CI-001 (raise to HIGH, add Linux+macOS matrix), TASK-TEST-003 (unchanged, still gates CI).
+Existing cards amended, not duplicated: TASK-CI-001 (raise to HIGH, add Linux+macOS matrix), TASK-TEST-003 (unchanged, still gates CI), TASK-TEL-003 (BitLedger account-pair semantics for ledger mapping — see Chunk 4.4).
 ```
 
 **First dispatch wave (all write-disjoint, parallel-safe):** LIC-001, PORT-001, LOCK-001, AGENT-004, SEC-001.
 
-*End of plan. 24 new cards, 2 amendments, 8 journal entries. Orchestrator ratifies Gate A criteria card-by-card before any Builder dispatch.*
+*End of plan. 26 new cards, 3 amendments, 9 journal entries. Compression/encoding decision record: `system/logs/decisions.md` 2026-06-10. Orchestrator ratifies Gate A criteria card-by-card before any Builder dispatch.*
