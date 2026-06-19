@@ -1305,12 +1305,22 @@ _ww_create_instance_functions() {
   local reg_dir="$cfg_home/registry"
   [[ -d "$reg_dir" ]] || return 0
 
-  local f iid install_path cmd_name
-  for f in "$reg_dir"/*.json; do
-    [[ -f "$f" ]] || continue
-    iid="$(python3 -c "import json,sys; d=json.load(open('$f')); print(d.get('id',''))" 2>/dev/null || true)"
-    install_path="$(python3 -c "import json,sys; d=json.load(open('$f')); print(d.get('install_path',''))" 2>/dev/null || true)"
-    cmd_name="$(python3 -c "import json,sys; d=json.load(open('$f')); print(d.get('command_name','ww'))" 2>/dev/null || true)"
+  # Parse all registry JSON files in a single python3 call to avoid repeated
+  # cold-start overhead (~0.7s per invocation). Emits tab-separated lines:
+  #   id\tinstall_path\tcommand_name
+  local entries
+  entries="$(python3 -c "
+import json, glob, os
+for f in sorted(glob.glob(os.path.join('$reg_dir', '*.json'))):
+    try:
+        d = json.load(open(f))
+        print(d.get('id','') + '\t' + d.get('install_path','') + '\t' + d.get('command_name','ww'))
+    except Exception:
+        pass
+" 2>/dev/null)" || return 0
+
+  local iid install_path cmd_name
+  while IFS=$'\t' read -r iid install_path cmd_name; do
     [[ -z "$iid" || -z "$install_path" ]] && continue
     # Define companion function only if a command with that name isn't already a real binary
     # (i.e. if the user has a --cmd ww install, don't override the ww bootstrap function)
@@ -1330,7 +1340,7 @@ ${cmd_name}() {
 }
 "
     fi
-  done
+  done <<< "$entries"
 }
 
 # Run at shell source time to activate registry-based instance companions

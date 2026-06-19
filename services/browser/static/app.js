@@ -1908,6 +1908,10 @@ CMD: "add task review and start tracking"
       await switchProfile(lastProf);
     });
     document.addEventListener('click', () => profileList.classList.add('hidden'));
+    // Close custom resource dropdowns on outside click
+    document.addEventListener('click', () => {
+      document.querySelectorAll('.resource-dropdown.open').forEach(dd => dd.classList.remove('open'));
+    });
   }
 
   // ── SSE ────────────────────────────────────────────────────────────────────
@@ -2314,32 +2318,55 @@ CMD: "add task review and start tracking"
       const options = profileResources.resources[kind] || {};
       const names = Object.keys(options);
       if (names.length > 0) {
-        sel = document.createElement('select');
-        sel.className = 'resource-select';
+        // Custom dropdown (always opens downward)
+        const dd = document.createElement('div');
+        dd.className = 'resource-dropdown';
+        const trigger = document.createElement('div');
+        trigger.className = 'resource-dropdown-trigger';
+        trigger.textContent = activeKey || names[0];
+        const menu = document.createElement('div');
+        menu.className = 'resource-dropdown-menu';
+        // Expose .value for compatibility (used by delete btn etc.)
+        sel = dd;
+        sel.value = activeKey || names[0];
         names.forEach(n => {
-          const opt = document.createElement('option');
-          opt.value = n;
-          opt.textContent = n;
-          if (n === activeKey) opt.selected = true;
-          sel.appendChild(opt);
-        });
-        if (names.length === 1) sel.disabled = true;
-        sel.addEventListener('change', async () => {
-          const chosen = sel.value;
-          const r = await fetch('/resource', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ kind, name: chosen }),
+          const item = document.createElement('div');
+          item.className = 'resource-dropdown-item' + (n === (activeKey || names[0]) ? ' active' : '');
+          item.textContent = n;
+          item.dataset.value = n;
+          item.addEventListener('click', async () => {
+            sel.value = n;
+            trigger.textContent = n;
+            menu.querySelectorAll('.resource-dropdown-item').forEach(el => el.classList.remove('active'));
+            item.classList.add('active');
+            dd.classList.remove('open');
+            const r = await fetch('/resource', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ kind, name: n }),
+            });
+            const d = await r.json().catch(() => ({}));
+            if (d.ok && profileResources?.active) {
+              const keyMap = { journals: 'journal', ledgers: 'ledger', tasklists: 'tasklist', timew: 'timew', lists: 'list' };
+              const ak = keyMap[kind];
+              if (ak) profileResources.active[ak] = n;
+            }
+            await onSelect(n);
           });
-          const d = await r.json().catch(() => ({}));
-          if (d.ok && profileResources?.active) {
-            const keyMap = { journals: 'journal', ledgers: 'ledger', tasklists: 'tasklist', timew: 'timew', lists: 'list' };
-            const ak = keyMap[kind];
-            if (ak) profileResources.active[ak] = chosen;
-          }
-          await onSelect(chosen);
+          menu.appendChild(item);
         });
-        wrap.appendChild(sel);
+        dd.appendChild(trigger);
+        dd.appendChild(menu);
+        if (names.length <= 1) { trigger.style.pointerEvents = 'none'; trigger.style.opacity = '0.5'; }
+        else {
+          trigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            // Close any other open dropdowns first
+            document.querySelectorAll('.resource-dropdown.open').forEach(d2 => { if (d2 !== dd) d2.classList.remove('open'); });
+            dd.classList.toggle('open');
+          });
+        }
+        wrap.appendChild(dd);
       }
     }
 
@@ -2351,8 +2378,33 @@ CMD: "add task review and start tracking"
     addBtn.addEventListener('click', () => showResourceCreateForm(container, kind, sel, onSelect));
     wrap.appendChild(addBtn);
 
-    const DELETABLE = new Set(['tasklists', 'timew', 'lists']);
-    if (DELETABLE.has(kind) && sel) {
+    if (sel) {
+      // Rename button
+      const renBtn = document.createElement('button');
+      renBtn.className = 'resource-add-btn';
+      renBtn.textContent = '✎';
+      renBtn.title = 'Rename this ' + kind.replace(/s$/, '');
+      renBtn.addEventListener('click', async () => {
+        const oldName = sel?.value;
+        if (!oldName || oldName === 'main' || oldName === 'default') { toast('Cannot rename default resource', 'warning'); return; }
+        const newName = prompt(`Rename "${oldName}" to:`, oldName);
+        if (!newName || newName.trim() === oldName) return;
+        const cleaned = newName.trim();
+        if (!/^[a-zA-Z0-9_-]+$/.test(cleaned)) { toast('Letters, numbers, hyphens, underscores only', 'error'); return; }
+        try {
+          const r = await fetch('/resource/create', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ kind, name: oldName, new_name: cleaned, action: 'rename' }) });
+          const d = await r.json();
+          if (d.ok) { toast(`Renamed "${oldName}" → "${cleaned}"`); } else { toast(d.error || 'rename failed', 'error'); return; }
+        } catch (_) { toast('rename failed', 'error'); return; }
+        profileResources = null;
+        await loadProfileResources();
+        await refreshResourceSelectors(activeSection);
+        await onSelect(cleaned);
+      });
+      wrap.appendChild(renBtn);
+
+      // Delete button
       const delBtn = document.createElement('button');
       delBtn.className = 'resource-add-btn resource-del-btn';
       delBtn.textContent = '✗';
@@ -2360,8 +2412,13 @@ CMD: "add task review and start tracking"
       delBtn.addEventListener('click', async () => {
         const name = sel?.value;
         if (!name || name === 'main' || name === 'default') { toast('Cannot remove default resource', 'warning'); return; }
-        if (!confirm(`Remove "${name}"? This cannot be undone.`)) return;
-        await fetch('/resource/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind, name, action: 'delete' }) }).catch(() => {});
+        if (!confirm(`Remove "${name}"? The data files will be kept but the entry will be removed.`)) return;
+        try {
+          const r = await fetch('/resource/create', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ kind, name, action: 'delete' }) });
+          const d = await r.json();
+          if (d.ok) { toast(`Removed "${name}"`); } else { toast(d.error || 'delete failed', 'error'); return; }
+        } catch (_) { toast('delete failed', 'error'); return; }
         profileResources = null;
         await loadProfileResources();
         await refreshResourceSelectors(activeSection);
@@ -7335,6 +7392,9 @@ CMD: "add task review and start tracking"
             <span class="proj-name">${esc(name)}</span>
             ${activeIndicator}
             ${masterBadge}
+            <button class="proj-view-btn btn-inline-alt" data-project="${esc(name)}" data-desc="${esc(p.description || '')}">view</button>
+            <button class="proj-edit-btn btn-inline-alt" data-project="${esc(name)}" data-desc="${esc(p.description || '')}">edit</button>
+            <button class="proj-delete-btn btn-inline-alt" data-project="${esc(name)}" title="Delete project">✕</button>
             <span class="proj-expand-chevron">›</span>
           </div>
           ${p.description ? `<div class="proj-desc">${esc(p.description)}</div>` : ''}
@@ -7398,6 +7458,42 @@ CMD: "add task review and start tracking"
           const d = await r.json();
           if (d.ok) { toast(`master task created for ${pname}`); await loadProjects(); }
           else { toast(d.error || 'failed', 'error'); btn.disabled = false; btn.textContent = '+ master task'; }
+        });
+      });
+
+      // View project (side panel — command center)
+      body.querySelectorAll('.proj-view-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          _showProjectPanel(btn.dataset.project, btn.dataset.desc || '', 'view');
+        });
+      });
+      // Edit project (side panel — edit mode)
+      body.querySelectorAll('.proj-edit-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          _showProjectPanel(btn.dataset.project, btn.dataset.desc || '', 'edit');
+        });
+      });
+      // Project name click opens view panel
+      body.querySelectorAll('.proj-name').forEach(nameEl => {
+        nameEl.style.cursor = 'pointer';
+        nameEl.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const card = nameEl.closest('.proj-card');
+          if (!card) return;
+          const pname = card.dataset.project;
+          const desc = card.querySelector('.proj-desc')?.textContent || '';
+          _showProjectPanel(pname, desc, 'view');
+        });
+      });
+
+      // Delete project
+      body.querySelectorAll('.proj-delete-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const pname = btn.dataset.project;
+          _showProjectDeleteModal(pname);
         });
       });
 
@@ -7475,6 +7571,611 @@ CMD: "add task review and start tracking"
       });
 
     } catch (e) { renderError(body, `Projects: ${e.message}`, loadProjects); }
+  }
+
+  function _showProjectPanel(projectName, currentDesc, mode) {
+    document.querySelector('.proj-panel-overlay')?.remove();
+
+    const overlay = document.createElement('div');
+    overlay.className = 'proj-panel-overlay';
+    const initMode = mode === 'details' ? 'details' : mode;
+    overlay.innerHTML = `
+      <div class="proj-panel">
+        <div class="proj-panel-header">
+          <span class="proj-panel-title">${esc(projectName)}</span>
+          <span class="proj-panel-divider"></span>
+          <button class="proj-panel-mode-btn ${initMode === 'details' ? 'active' : ''}" data-mode="details">Description + Details</button>
+          <div class="proj-panel-header-right">
+            <button class="proj-panel-mode-btn ${initMode === 'view' ? 'active' : ''}" data-mode="view">command</button>
+            <button class="proj-panel-mode-btn ${initMode === 'edit' ? 'active' : ''}" data-mode="edit">rename</button>
+            <button class="proj-panel-close">✕</button>
+          </div>
+        </div>
+        <div class="proj-panel-body">
+          <div class="proj-panel-view" style="display:${initMode === 'view' ? 'flex' : 'none'}">
+            <div class="proj-panel-loading">loading project data…</div>
+          </div>
+          <div class="proj-panel-details" style="display:${initMode === 'details' ? 'flex' : 'none'}">
+            <div class="proj-panel-loading">loading…</div>
+          </div>
+          <div class="proj-panel-edit" style="display:${initMode === 'edit' ? 'flex' : 'none'}">
+            <label class="proj-edit-label">Name</label>
+            <input type="text" class="proj-edit-name" value="${esc(projectName)}" spellcheck="false" />
+            <div class="proj-edit-info">Renaming updates all tasks and journal entries across this profile.</div>
+            <div class="proj-panel-edit-actions">
+              <button class="btn-inline-submit proj-edit-save">save changes</button>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+
+    const panel = overlay.querySelector('.proj-panel');
+    const viewPane = overlay.querySelector('.proj-panel-view');
+    const detailsPane = overlay.querySelector('.proj-panel-details');
+    const editPane = overlay.querySelector('.proj-panel-edit');
+    let detailsLoaded = false;
+    const close = () => { overlay.remove(); loadProjects(); };
+
+    overlay.querySelector('.proj-panel-close').addEventListener('click', close);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+
+    // Mode toggle
+    overlay.querySelectorAll('.proj-panel-mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        overlay.querySelectorAll('.proj-panel-mode-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const m = btn.dataset.mode;
+        viewPane.style.display = m === 'view' ? 'flex' : 'none';
+        detailsPane.style.display = m === 'details' ? 'flex' : 'none';
+        editPane.style.display = m === 'edit' ? 'flex' : 'none';
+        if (m === 'edit') {
+          const ni = overlay.querySelector('.proj-edit-name');
+          ni.focus(); ni.select();
+        }
+        if (m === 'details' && !detailsLoaded) {
+          _loadProjectDetailsPane(projectName, detailsPane, overlay);
+          detailsLoaded = true;
+        }
+      });
+    });
+
+    // Edit save
+    overlay.querySelector('.proj-edit-save').addEventListener('click', async () => {
+      const newName = overlay.querySelector('.proj-edit-name').value.trim();
+      const newDesc = overlay.querySelector('.proj-edit-desc').value.trim();
+      if (!newName) { toast('Name is required', 'warning'); return; }
+      if (!/^[a-zA-Z0-9_.-]+$/.test(newName)) {
+        toast('Name: letters, numbers, hyphens, underscores, dots only', 'error'); return;
+      }
+      const saveBtn = overlay.querySelector('.proj-edit-save');
+      saveBtn.disabled = true; saveBtn.textContent = 'saving…';
+      try {
+        const r = await fetch('/action', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'project_edit', args: { old_name: projectName, new_name: newName, description: newDesc } }),
+        });
+        const d = await r.json();
+        if (d.ok) {
+          const res = d.results || {};
+          const parts = [];
+          if (newName !== projectName) parts.push(`renamed → ${newName}`);
+          if (res.tasks) parts.push(`${res.tasks} tasks updated`);
+          if (res.journals) parts.push(`${res.journals} journal entries`);
+          parts.push('saved');
+          toast(parts.join(', '));
+          // Update panel state if renamed
+          if (newName !== projectName) {
+            projectName = newName;
+            overlay.querySelector('.proj-panel-title').textContent = newName;
+          }
+          currentDesc = newDesc;
+          saveBtn.disabled = false; saveBtn.textContent = 'save changes';
+          // Reload view pane data
+          _loadProjectPanelData(projectName, viewPane, overlay);
+        } else {
+          toast(d.error || 'save failed', 'error');
+          saveBtn.disabled = false; saveBtn.textContent = 'save changes';
+        }
+      } catch (_) { toast('save failed', 'error'); saveBtn.disabled = false; saveBtn.textContent = 'save changes'; }
+    });
+
+    // Enter in name triggers save
+    overlay.querySelector('.proj-edit-name').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); overlay.querySelector('.proj-edit-save').click(); }
+    });
+
+    // Load data for active pane
+    _loadProjectPanelData(projectName, viewPane, overlay);
+    if (initMode === 'details') {
+      _loadProjectDetailsPane(projectName, detailsPane, overlay);
+      detailsLoaded = true;
+    }
+    if (initMode === 'edit') { const ni = overlay.querySelector('.proj-edit-name'); ni.focus(); ni.select(); }
+  }
+
+  async function _loadProjectPanelData(projectName, viewPane, overlay) {
+    viewPane.innerHTML = '<div class="proj-panel-loading">loading…</div>';
+    try {
+      const res = await fetch(`/data/project/${encodeURIComponent(projectName)}`);
+      const d = await res.json();
+      if (!d.ok) { viewPane.innerHTML = `<div class="proj-panel-loading">${esc(d.error || 'failed')}</div>`; return; }
+
+      const tasks = d.tasks || {};
+      const journal = d.journal || {};
+      const ledger = d.ledger || {};
+      const timew = d.timew || {};
+      const fmtH = s => s >= 3600 ? `${(s/3600).toFixed(1)}h` : s >= 60 ? `${Math.floor(s/60)}m` : `${s}s`;
+      const allPending = [...(tasks.active || []), ...(tasks.pending || [])];
+      const totalPending = (tasks.pending_total || 0) + (tasks.active || []).length;
+      const done = tasks.done || 0;
+      const total = totalPending + done;
+      const pct = total ? Math.round((done / total) * 100) : 0;
+      const timewSec = (timew.total_seconds || 0) + (tasks.pending_time_sec || 0) + (tasks.done_time_sec || 0);
+      const tagMap = {};
+      allPending.forEach(t => (t.tags || []).forEach(tag => { tagMap[tag] = (tagMap[tag] || 0) + 1; }));
+      const topTags = Object.entries(tagMap).sort((a, b) => b[1] - a[1]).slice(0, 12);
+
+      let html = '';
+
+      // ── Stats bar ──
+      html += `<div class="pp-stats-bar">
+        <div class="pp-stat"><span class="pp-stat-val">${totalPending}</span><span class="pp-stat-label">pending</span></div>
+        <div class="pp-stat"><span class="pp-stat-val">${done}</span><span class="pp-stat-label">done</span></div>
+        <div class="pp-stat"><span class="pp-stat-val">${journal.total || 0}</span><span class="pp-stat-label">entries</span></div>
+        <div class="pp-stat"><span class="pp-stat-val">${ledger.total || 0}</span><span class="pp-stat-label">ledger</span></div>
+        <div class="pp-stat"><span class="pp-stat-val">${timewSec > 0 ? fmtH(timewSec) : '—'}</span><span class="pp-stat-label">tracked</span></div>
+      </div>`;
+      if (total > 0) {
+        html += `<div class="pp-progress-wrap"><div class="pp-progress-bar" style="width:${pct}%"></div><span class="pp-progress-label">${pct}% complete</span></div>`;
+      }
+
+      // ── Tags cloud ──
+      if (topTags.length) {
+        html += `<div class="pp-tags">${topTags.map(([t, c]) => `<span class="pp-tag">${esc(t)} <small>${c}</small></span>`).join('')}</div>`;
+      }
+
+      // ── Quick Add ──
+      html += `<div class="pp-quick-add">
+        <div class="pp-section-title">Quick Add</div>
+        <div class="pp-qa-tabs">
+          <button class="pp-qa-tab active" data-qa="task">task</button>
+          <button class="pp-qa-tab" data-qa="journal">journal</button>
+          <button class="pp-qa-tab" data-qa="ledger">ledger</button>
+        </div>
+        <div class="pp-qa-form pp-qa-task">
+          <input type="text" class="pp-qa-input" id="pp-qa-task-desc" placeholder="task description…" autocomplete="off" />
+          <div class="pp-qa-row">
+            <select class="pp-qa-select" id="pp-qa-task-pri"><option value="">pri</option><option value="H">H</option><option value="M">M</option><option value="L">L</option></select>
+            <input type="text" class="pp-qa-input pp-qa-small" id="pp-qa-task-tags" placeholder="tags" autocomplete="off" />
+            <button class="btn-inline-submit pp-qa-submit" id="pp-qa-task-btn">add task</button>
+          </div>
+        </div>
+        <div class="pp-qa-form pp-qa-journal" style="display:none">
+          <textarea class="pp-qa-textarea" id="pp-qa-jrnl-text" placeholder="journal entry…" rows="3"></textarea>
+          <div class="pp-qa-row">
+            <select class="pp-qa-select" id="pp-qa-jrnl-pri"><option value="">pri</option><option value="H">H</option><option value="M">M</option><option value="L">L</option></select>
+            <input type="text" class="pp-qa-input pp-qa-small" id="pp-qa-jrnl-tags" placeholder="tags" autocomplete="off" />
+            <button class="btn-inline-submit pp-qa-submit" id="pp-qa-jrnl-btn">add entry</button>
+          </div>
+        </div>
+        <div class="pp-qa-form pp-qa-ledger" style="display:none">
+          <input type="text" class="pp-qa-input" id="pp-qa-ldg-desc" placeholder="description…" autocomplete="off" />
+          <div class="pp-qa-row">
+            <input type="text" class="pp-qa-input pp-qa-small" id="pp-qa-ldg-account" placeholder="account" value="expenses:misc" autocomplete="off" />
+            <input type="text" class="pp-qa-input pp-qa-small" id="pp-qa-ldg-amount" placeholder="amount" autocomplete="off" />
+            <button class="btn-inline-submit pp-qa-submit" id="pp-qa-ldg-btn">add tx</button>
+          </div>
+        </div>
+      </div>`;
+
+      // ── Pending Tasks ──
+      html += `<div class="pp-section">
+        <div class="pp-section-title">Pending Tasks <span class="pp-section-count">${totalPending}</span></div>
+        <div class="pp-section-list pp-task-list">`;
+      if (tasks.master) {
+        html += `<div class="pp-row pp-row-master" data-uuid="${esc(tasks.master.uuid||'')}">
+          <span class="pp-row-icon">⬡</span><span class="pp-row-text">${esc(tasks.master.description)}</span>
+          <span class="pp-row-meta">master</span></div>`;
+      }
+      allPending.forEach(t => {
+        const icon = t.status === 'active' ? '<span class="pp-active-dot">●</span>' : '·';
+        html += `<div class="pp-row" data-uuid="${esc(t.uuid||'')}">
+          <span class="pp-row-icon">${icon}</span><span class="pp-row-text">${esc(t.description)}</span>
+          <span class="pp-row-meta">${t.urgency > 0 ? t.urgency : ''}</span></div>`;
+      });
+      const pendingMore = (tasks.pending_total || 0) - (tasks.pending || []).length;
+      if (pendingMore > 0) html += `<div class="pp-row-more">+ ${pendingMore} more</div>`;
+      if (!allPending.length && !tasks.master) html += `<div class="pp-row-empty">no pending tasks</div>`;
+      html += `</div></div>`;
+
+      // ── Done Tasks (collapsed) ──
+      const doneList = tasks.done_list || [];
+      if (done > 0) {
+        html += `<div class="pp-section pp-collapsible">
+          <div class="pp-section-title pp-collapse-toggle" data-target="pp-done-list">
+            <span class="pp-collapse-chevron">›</span> Done <span class="pp-section-count">${done}</span></div>
+          <div class="pp-section-list pp-collapse-body" id="pp-done-list" style="display:none">`;
+        doneList.forEach(t => {
+          html += `<div class="pp-row pp-row-done"><span class="pp-row-icon">✓</span><span class="pp-row-text">${esc(t.description)}</span></div>`;
+        });
+        if (done > doneList.length) html += `<div class="pp-row-more">+ ${done - doneList.length} more completed</div>`;
+        html += `</div></div>`;
+      }
+
+      // ── Journal Entries ──
+      html += `<div class="pp-section">
+        <div class="pp-section-title">Journal <span class="pp-section-count">${journal.total || 0}</span></div>
+        <div class="pp-section-list">`;
+      (journal.entries || []).forEach(e => {
+        html += `<div class="pp-row" data-slug="${esc(e.date_slug||'')}">
+          <span class="pp-row-date">${(e.date||'').split(' ')[0]}</span>
+          <span class="pp-row-text">${esc(e.preview)}</span></div>`;
+      });
+      const jMore = (journal.total || 0) - (journal.entries || []).length;
+      if (jMore > 0) html += `<div class="pp-row-more">+ ${jMore} more entries</div>`;
+      if (!journal.total) html += `<div class="pp-row-empty">no journal entries</div>`;
+      html += `</div></div>`;
+
+      // ── Ledger ──
+      html += `<div class="pp-section">
+        <div class="pp-section-title">Ledger <span class="pp-section-count">${ledger.total || 0}</span></div>
+        <div class="pp-section-list">`;
+      (ledger.transactions || []).forEach(tx => {
+        const postings = (tx.postings || []).map(p => `${p.amount}`).join(' · ');
+        html += `<div class="pp-row">
+          <span class="pp-row-date">${tx.date}</span>
+          <span class="pp-row-text">${esc(tx.description)}</span>
+          <span class="pp-row-meta">${esc(postings)}</span></div>`;
+      });
+      if (!ledger.total) html += `<div class="pp-row-empty">no ledger transactions</div>`;
+      html += `</div></div>`;
+
+      // ── Time tracked (collapsed) ──
+      const totalTimeSec = timewSec;
+      if (totalTimeSec > 0 || (timew.intervals || []).length) {
+        html += `<div class="pp-section pp-collapsible">
+          <div class="pp-section-title pp-collapse-toggle" data-target="pp-time-list">
+            <span class="pp-collapse-chevron">›</span> Time Tracked <span class="pp-section-count">${fmtH(totalTimeSec)}</span></div>
+          <div class="pp-section-list pp-collapse-body" id="pp-time-list" style="display:none">`;
+        (timew.intervals || []).forEach(iv => {
+          const dateStr = iv.date ? `${iv.date.slice(0,4)}-${iv.date.slice(4,6)}-${iv.date.slice(6,8)}` : '';
+          const durH = (iv.duration_sec / 3600).toFixed(2);
+          html += `<div class="pp-row">
+            <span class="pp-row-date">${dateStr}</span>
+            <span class="pp-row-text">${(iv.tags||[]).filter(t=>t!==projectName).join(', ')||'—'}</span>
+            <span class="pp-row-meta">${durH}h${iv.running ? ' ●' : ''}</span></div>`;
+        });
+        html += `</div></div>`;
+      }
+
+      viewPane.innerHTML = html;
+
+      // ── Wire Quick Add tabs ──
+      viewPane.querySelectorAll('.pp-qa-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          viewPane.querySelectorAll('.pp-qa-tab').forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+          viewPane.querySelectorAll('.pp-qa-form').forEach(f => f.style.display = 'none');
+          viewPane.querySelector(`.pp-qa-${tab.dataset.qa}`).style.display = '';
+        });
+      });
+
+      // ── Wire Quick Add: Task ──
+      viewPane.querySelector('#pp-qa-task-btn')?.addEventListener('click', async () => {
+        const desc = viewPane.querySelector('#pp-qa-task-desc')?.value.trim();
+        if (!desc) { toast('Task description required', 'warning'); return; }
+        const pri = viewPane.querySelector('#pp-qa-task-pri')?.value || '';
+        const tags = viewPane.querySelector('#pp-qa-task-tags')?.value.trim() || '';
+        let cmd = `task add ${desc} project:${projectName}`;
+        if (pri) cmd += ` priority:${pri}`;
+        if (tags) tags.split(/[,\s]+/).forEach(t => { if (t) cmd += ` +${t.replace(/^\+/, '')}`; });
+        const btn = viewPane.querySelector('#pp-qa-task-btn');
+        btn.disabled = true; btn.textContent = '…';
+        try {
+          const r = await fetch('/cmd', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cmd }) });
+          const dd = await r.json();
+          if (dd.ok !== false) {
+            toast('Task added'); viewPane.querySelector('#pp-qa-task-desc').value = '';
+            viewPane.querySelector('#pp-qa-task-tags').value = '';
+            _loadProjectPanelData(projectName, viewPane, overlay);
+          } else { toast(dd.error || 'failed', 'error'); }
+        } catch (_) { toast('failed', 'error'); }
+        btn.disabled = false; btn.textContent = 'add task';
+      });
+
+      // ── Wire Quick Add: Journal ──
+      viewPane.querySelector('#pp-qa-jrnl-btn')?.addEventListener('click', async () => {
+        const text = viewPane.querySelector('#pp-qa-jrnl-text')?.value.trim();
+        if (!text) { toast('Entry text required', 'warning'); return; }
+        const pri = viewPane.querySelector('#pp-qa-jrnl-pri')?.value || '';
+        const tags = viewPane.querySelector('#pp-qa-jrnl-tags')?.value.trim() || '';
+        const btn = viewPane.querySelector('#pp-qa-jrnl-btn');
+        btn.disabled = true; btn.textContent = '…';
+        try {
+          const r = await fetch('/action', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'journal_add', args: { entry: text, project: projectName, priority: pri, tags } }) });
+          const dd = await r.json();
+          if (dd.ok) {
+            toast('Journal entry added'); viewPane.querySelector('#pp-qa-jrnl-text').value = '';
+            viewPane.querySelector('#pp-qa-jrnl-tags').value = '';
+            _loadProjectPanelData(projectName, viewPane, overlay);
+          } else { toast(dd.error || 'failed', 'error'); }
+        } catch (_) { toast('failed', 'error'); }
+        btn.disabled = false; btn.textContent = 'add entry';
+      });
+
+      // ── Wire Quick Add: Ledger ──
+      viewPane.querySelector('#pp-qa-ldg-btn')?.addEventListener('click', async () => {
+        const desc = viewPane.querySelector('#pp-qa-ldg-desc')?.value.trim();
+        const account = viewPane.querySelector('#pp-qa-ldg-account')?.value.trim() || 'expenses:misc';
+        const amount = viewPane.querySelector('#pp-qa-ldg-amount')?.value.trim();
+        if (!desc) { toast('Description required', 'warning'); return; }
+        if (!amount) { toast('Amount required', 'warning'); return; }
+        const btn = viewPane.querySelector('#pp-qa-ldg-btn');
+        btn.disabled = true; btn.textContent = '…';
+        try {
+          const r = await fetch('/action', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'ledger_add', args: { description: desc, account, amount, comment: `project:${projectName}` } }) });
+          const dd = await r.json();
+          if (dd.ok) {
+            toast('Transaction added'); viewPane.querySelector('#pp-qa-ldg-desc').value = '';
+            viewPane.querySelector('#pp-qa-ldg-amount').value = '';
+            _loadProjectPanelData(projectName, viewPane, overlay);
+          } else { toast(dd.error || 'failed', 'error'); }
+        } catch (_) { toast('failed', 'error'); }
+        btn.disabled = false; btn.textContent = 'add tx';
+      });
+
+      // ── Wire collapse toggles ──
+      viewPane.querySelectorAll('.pp-collapse-toggle').forEach(tog => {
+        tog.addEventListener('click', () => {
+          const target = document.getElementById(tog.dataset.target);
+          if (!target) return;
+          const show = target.style.display === 'none';
+          target.style.display = show ? '' : 'none';
+          const chev = tog.querySelector('.pp-collapse-chevron');
+          if (chev) chev.style.transform = show ? 'rotate(90deg)' : '';
+        });
+      });
+
+      // ── Wire task row clicks → navigate to task detail ──
+      viewPane.querySelectorAll('.pp-task-list .pp-row[data-uuid]').forEach(row => {
+        row.style.cursor = 'pointer';
+        row.addEventListener('click', () => {
+          const uuid = row.dataset.uuid;
+          if (uuid && window.__navigateTask) { overlay.remove(); window.__navigateTask(uuid); }
+        });
+      });
+
+      // ── Enter key in quick-add inputs ──
+      viewPane.querySelector('#pp-qa-task-desc')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); viewPane.querySelector('#pp-qa-task-btn')?.click(); }
+      });
+
+    } catch (e) {
+      viewPane.innerHTML = `<div class="proj-panel-loading">Error: ${esc(e.message)}</div>`;
+    }
+  }
+
+  async function _loadProjectDetailsPane(projectName, pane, overlay) {
+    pane.innerHTML = '<div class="proj-panel-loading">loading details…</div>';
+    try {
+      const res = await fetch(`/data/project/${encodeURIComponent(projectName)}`);
+      const d = await res.json();
+      const det = d.details || {};
+
+      // Field definitions: [key, label, type, placeholder/options]
+      const fieldDefs = [
+        { section: 'Overview' },
+        { key: 'description', label: 'Description', type: 'textarea', ph: 'What is this project about?' },
+        { key: 'goals', label: 'Goals', type: 'textarea', ph: 'What are the desired outcomes?' },
+        { key: 'success_criteria', label: 'Success Criteria', type: 'textarea', ph: 'How do we know it\'s done?' },
+        { row: true },
+        { key: 'status', label: 'Status', type: 'select', ph: ['', 'active', 'paused', 'on-hold', 'blocked', 'completed', 'cancelled'] },
+        { key: 'priority', label: 'Priority', type: 'select', ph: ['', 'H', 'M', 'L'] },
+        { row: false },
+        { section: 'Timeline' },
+        { row: true },
+        { key: 'start_date', label: 'Start Date', type: 'date', ph: '' },
+        { key: 'target_date', label: 'Target Date', type: 'date', ph: '' },
+        { row: false },
+        { key: 'deadlines', label: 'Key Deadlines', type: 'textarea', ph: 'Milestone dates and deliverables' },
+        { section: 'People & Resources' },
+        { key: 'participants', label: 'Participants & Roles', type: 'textarea', ph: 'Who is involved and what are their roles?' },
+        { key: 'budget', label: 'Budget', type: 'text', ph: 'Financial target or allocation' },
+        { section: 'Risk & Planning' },
+        { key: 'risks', label: 'Risks & Blockers', type: 'textarea', ph: 'Current obstacles and contingencies' },
+        { key: 'notes', label: 'Notes', type: 'textarea', ph: 'Freeform notes, links, context…' },
+      ];
+
+      const statusColors = { active: 'var(--accent)', paused: '#d29922', 'on-hold': '#d29922', blocked: '#f85149', completed: '#3fb950', cancelled: 'var(--muted)' };
+
+      // ── READ VIEW ──
+      function renderReadView() {
+        let html = '<div class="pp-details-read">';
+        html += '<div class="pp-details-read-header"><button class="btn-inline-alt pp-details-edit-btn">edit details</button></div>';
+
+        for (const fd of fieldDefs) {
+          if (fd.section) { html += `<div class="pp-details-section-title">${fd.section}</div>`; continue; }
+          if (fd.row === true) { html += '<div class="pp-details-row">'; continue; }
+          if (fd.row === false) { html += '</div>'; continue; }
+
+          const val = det[fd.key] || '';
+          if (fd.key === 'status' && val) {
+            const col = statusColors[val] || 'var(--text)';
+            html += `<div class="pp-read-field"><span class="pp-detail-label">${fd.label}</span><span class="pp-read-value pp-read-badge" style="color:${col};border-color:${col}">${esc(val)}</span></div>`;
+          } else if (fd.key === 'priority' && val) {
+            html += `<div class="pp-read-field"><span class="pp-detail-label">${fd.label}</span><span class="pp-read-value pp-read-badge">${val}</span></div>`;
+          } else if (fd.type === 'textarea') {
+            html += `<div class="pp-read-field pp-read-field-block"><span class="pp-detail-label">${fd.label}</span>`;
+            html += val ? `<div class="pp-read-text">${esc(val).replace(/\n/g, '<br>')}</div>` : `<div class="pp-read-empty">${fd.ph}</div>`;
+            html += '</div>';
+          } else if (fd.type === 'date') {
+            html += `<div class="pp-read-field"><span class="pp-detail-label">${fd.label}</span><span class="pp-read-value">${val || '—'}</span></div>`;
+          } else {
+            html += `<div class="pp-read-field"><span class="pp-detail-label">${fd.label}</span><span class="pp-read-value">${val ? esc(val) : '—'}</span></div>`;
+          }
+        }
+        html += '</div>';
+        return html;
+      }
+
+      // ── EDIT VIEW ──
+      function renderEditView() {
+        let html = '<div class="pp-details-form">';
+        for (const fd of fieldDefs) {
+          if (fd.section) { html += `<div class="pp-details-section-title">${fd.section}</div>`; continue; }
+          if (fd.row === true) { html += '<div class="pp-details-row">'; continue; }
+          if (fd.row === false) { html += '</div>'; continue; }
+          const val = det[fd.key] || '';
+          if (fd.type === 'textarea') {
+            html += `<div class="pp-detail-field"><label class="pp-detail-label">${fd.label}</label><textarea class="pp-detail-input pp-detail-textarea" data-key="${fd.key}" placeholder="${fd.ph || ''}" rows="3">${esc(val)}</textarea></div>`;
+          } else if (fd.type === 'select') {
+            html += `<div class="pp-detail-field"><label class="pp-detail-label">${fd.label}</label><select class="pp-detail-input pp-detail-select" data-key="${fd.key}">${fd.ph.map(o => `<option value="${o}" ${val === o ? 'selected' : ''}>${o || '—'}</option>`).join('')}</select></div>`;
+          } else {
+            html += `<div class="pp-detail-field"><label class="pp-detail-label">${fd.label}</label><input type="${fd.type}" class="pp-detail-input" data-key="${fd.key}" value="${esc(val)}" placeholder="${fd.ph || ''}" /></div>`;
+          }
+        }
+        html += '<div class="pp-details-actions"><button class="btn-inline-submit pp-details-save">save details</button><button class="btn-inline-alt pp-details-cancel">cancel</button><span class="pp-details-saved-msg"></span></div>';
+        html += '</div>';
+        return html;
+      }
+
+      function showRead() {
+        pane.innerHTML = renderReadView();
+        pane.querySelector('.pp-details-edit-btn')?.addEventListener('click', showEdit);
+      }
+
+      function showEdit() {
+        pane.innerHTML = renderEditView();
+        // Save handler
+        pane.querySelector('.pp-details-save')?.addEventListener('click', async () => {
+          const args = { old_name: projectName, new_name: projectName };
+          pane.querySelectorAll('.pp-detail-input').forEach(inp => {
+            args[inp.dataset.key] = inp.value || '';
+          });
+          const btn = pane.querySelector('.pp-details-save');
+          btn.disabled = true; btn.textContent = 'saving…';
+          try {
+            const r = await fetch('/action', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'project_edit', args }) });
+            const dd = await r.json();
+            if (dd.ok) {
+              // Update local det with saved values
+              pane.querySelectorAll('.pp-detail-input').forEach(inp => { det[inp.dataset.key] = inp.value || ''; });
+              toast('Details saved');
+              showRead();
+            } else { toast(dd.error || 'save failed', 'error'); btn.disabled = false; btn.textContent = 'save details'; }
+          } catch (_) { toast('save failed', 'error'); btn.disabled = false; btn.textContent = 'save details'; }
+        });
+        // Cancel → back to read
+        pane.querySelector('.pp-details-cancel')?.addEventListener('click', showRead);
+      }
+
+      showRead();
+
+    } catch (e) {
+      pane.innerHTML = `<div class="proj-panel-loading">Error: ${esc(e.message)}</div>`;
+    }
+  }
+
+  function _showProjectDeleteModal(projectName) {
+    // Get other project names for reassign dropdown
+    const otherProjects = Array.from(document.querySelectorAll('.proj-card'))
+      .map(c => c.dataset.project)
+      .filter(n => n && n !== projectName);
+    const reassignOpts = otherProjects.length
+      ? otherProjects.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('')
+      : '<option value="" disabled>no other projects</option>';
+
+    const overlay = document.createElement('div');
+    overlay.className = 'proj-delete-overlay';
+    overlay.innerHTML = `
+      <div class="proj-delete-modal">
+        <div class="proj-delete-title">Delete project: <strong>${esc(projectName)}</strong></div>
+        <div class="proj-delete-options">
+          <label class="proj-delete-opt">
+            <input type="radio" name="proj-del-mode" value="clear" checked />
+            <span><strong>Clear</strong> — remove project tag from all tasks &amp; journal entries</span>
+          </label>
+          <label class="proj-delete-opt">
+            <input type="radio" name="proj-del-mode" value="reassign" />
+            <span><strong>Reassign</strong> — move all items to another project</span>
+          </label>
+          <div class="proj-delete-reassign-row" style="display:none">
+            <select class="proj-delete-reassign-sel resource-select">${reassignOpts}</select>
+          </div>
+          <label class="proj-delete-opt">
+            <input type="radio" name="proj-del-mode" value="archive" />
+            <span><strong>Archive</strong> — complete all pending tasks, keep journals as-is</span>
+          </label>
+          <label class="proj-delete-opt">
+            <input type="radio" name="proj-del-mode" value="delete_tasks" />
+            <span><strong>Delete tasks</strong> — delete pending tasks, keep completed &amp; journals</span>
+          </label>
+          <label class="proj-delete-opt">
+            <input type="radio" name="proj-del-mode" value="definition" />
+            <span><strong>Definition only</strong> — remove yaml entry, leave all items untouched</span>
+          </label>
+        </div>
+        <div class="proj-delete-actions">
+          <button class="btn-inline-alt proj-delete-cancel">cancel</button>
+          <button class="btn-inline-submit proj-delete-confirm">delete project</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+
+    // Show/hide reassign dropdown
+    overlay.querySelectorAll('input[name="proj-del-mode"]').forEach(radio => {
+      radio.addEventListener('change', () => {
+        const row = overlay.querySelector('.proj-delete-reassign-row');
+        row.style.display = radio.value === 'reassign' && radio.checked ? 'block' : 'none';
+      });
+    });
+
+    overlay.querySelector('.proj-delete-cancel').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+
+    overlay.querySelector('.proj-delete-confirm').addEventListener('click', async () => {
+      const mode = overlay.querySelector('input[name="proj-del-mode"]:checked')?.value || 'definition';
+      const reassignTo = overlay.querySelector('.proj-delete-reassign-sel')?.value || '';
+      if (mode === 'reassign' && !reassignTo) {
+        toast('Select a project to reassign to', 'warning');
+        return;
+      }
+      const confirmBtn = overlay.querySelector('.proj-delete-confirm');
+      confirmBtn.disabled = true;
+      confirmBtn.textContent = 'deleting…';
+      try {
+        const r = await fetch('/action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'project_delete', args: { name: projectName, mode, reassign_to: reassignTo } }),
+        });
+        const d = await r.json();
+        if (d.ok) {
+          const res = d.results || {};
+          const parts = [];
+          if (res.tasks_modified) parts.push(`${res.tasks_modified} tasks modified`);
+          if (res.tasks_completed) parts.push(`${res.tasks_completed} tasks completed`);
+          if (res.tasks_deleted) parts.push(`${res.tasks_deleted} tasks deleted`);
+          if (res.journals) parts.push(`${res.journals} journal entries updated`);
+          if (res.yaml_removed) parts.push('definition removed');
+          toast(`Project "${projectName}" deleted` + (parts.length ? ` (${parts.join(', ')})` : ''));
+          overlay.remove();
+          await loadProjects();
+        } else {
+          toast(d.error || 'delete failed', 'error');
+          confirmBtn.disabled = false;
+          confirmBtn.textContent = 'delete project';
+        }
+      } catch (_) {
+        toast('delete failed', 'error');
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = 'delete project';
+      }
+    });
   }
 
   async function loadTags() {
@@ -7784,7 +8485,7 @@ CMD: "add task review and start tracking"
           <div id="create-profile-out" style="font-size:11px;margin-top:4px;color:var(--muted)"></div>
         </div>
         <div class="profile-create-section" id="profile-bulk-delete-section">
-          <div style="font-size:11px;color:var(--muted);margin-bottom:6px;padding-top:12px;border-top:1px solid var(--border)">delete profiles</div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px;padding-top:12px;border-top:1px solid var(--border)">manage profiles</div>
           <div id="profile-bulk-checklist">
             ${profiles.filter(p => p !== active).map(p =>
               `<label style="display:flex;gap:6px;align-items:center;font-size:12px;padding:2px 0;cursor:pointer">
@@ -7793,11 +8494,43 @@ CMD: "add task review and start tracking"
             ).join('') || '<span style="font-size:11px;color:var(--muted)">no other profiles</span>'}
           </div>
           <div style="margin-top:6px;display:flex;gap:6px">
+            <button class="btn-inline-alt" id="btn-profile-bulk-archive" style="font-size:11px">archive selected</button>
             <button class="btn-inline-danger" id="btn-profile-bulk-delete" style="font-size:11px">delete selected</button>
           </div>
           <div id="bulk-delete-out" style="font-size:11px;margin-top:4px;color:var(--muted)"></div>
+        </div>
+        <div class="profile-create-section" id="profile-archived-section">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px;padding-top:12px;border-top:1px solid var(--border)">archived profiles</div>
+          <div id="profile-archived-list" style="font-size:12px;color:var(--muted)">loading…</div>
         </div>`;
       body.innerHTML = html;
+
+      // Load archived profiles
+      (async () => {
+        try {
+          const r = await fetch('/cmd', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cmd: 'profile archived' }) });
+          const rd = await r.json();
+          const box = document.getElementById('profile-archived-list');
+          if (!box) return;
+          const lines = (rd.output || '').split('\n').filter(l => l.trim() && l.trim() !== 'No archived profiles');
+          if (!lines.length) { box.textContent = 'none'; return; }
+          box.innerHTML = lines.map(name => `<div style="display:flex;align-items:center;gap:8px;padding:3px 0">
+            <span>${name}</span>
+            <button class="btn-inline-alt profile-unarchive-btn" data-name="${name}" style="font-size:10px">restore</button>
+          </div>`).join('');
+          box.querySelectorAll('.profile-unarchive-btn').forEach(btn => {
+            btn.addEventListener('click', async (ev) => {
+              const pName = ev.target.dataset.name;
+              const r2 = await fetch('/cmd', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cmd: `profile unarchive ${pName}` }) });
+              const rd2 = await r2.json();
+              if (rd2.ok) { toast(`restored ${pName}`); await loadProfileScreen(); }
+              else { toast(rd2.output || 'restore failed', 'error'); }
+            });
+          });
+        } catch (_) {}
+      })();
 
       const loadDetail = async (name) => {
         const content = document.getElementById('profile-detail-content');
@@ -7850,7 +8583,7 @@ CMD: "add task review and start tracking"
               ${ledgerRows}
             </div>
             <div class="profile-delete-row">
-              ${!isActive ? `<button class="btn-inline-danger profile-delete-btn" data-name="${d.name}">delete profile</button>` : ''}
+              ${!isActive ? `<button class="btn-inline-alt profile-archive-btn" data-name="${d.name}">archive profile</button> <button class="btn-inline-danger profile-delete-btn" data-name="${d.name}">delete profile</button>` : ''}
             </div>`;
           // Switch profile
           content.querySelector('.profile-switch-btn')?.addEventListener('click', async (ev) => {
@@ -7861,6 +8594,15 @@ CMD: "add task review and start tracking"
             if (rd.ok) { toast(`switched to ${pName}`); location.reload(); }
             else { toast(rd.error || 'switch failed', 'error'); }
           });
+          // Archive profile
+          content.querySelector('.profile-archive-btn')?.addEventListener('click', async (ev) => {
+            const pName = ev.target.dataset.name;
+            const r = await fetch('/cmd', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ cmd: `profile archive ${pName}` }) });
+            const rd = await r.json();
+            if (rd.ok) { toast(`archived ${pName}`); await loadProfileScreen(); }
+            else { toast(rd.output || 'archive failed', 'error'); }
+          });
           // Delete with inline confirmation
           content.querySelector('.profile-delete-btn')?.addEventListener('click', (ev) => {
             const pName = ev.target.dataset.name;
@@ -7868,7 +8610,7 @@ CMD: "add task review and start tracking"
             content.querySelector('.profile-delete-cancel')?.addEventListener('click', () => loadDetail(name));
             content.querySelector('.profile-delete-confirm')?.addEventListener('click', async (ev2) => {
               const r = await fetch('/cmd', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ cmd: `profile remove ${pName} --yes` }) });
+                body: JSON.stringify({ cmd: `profile delete ${pName} --yes` }) });
               const rd = await r.json();
               if (rd.ok) { toast(`deleted ${pName}`); await loadProfileScreen(); }
               else { toast(rd.output || 'delete failed', 'error'); }
@@ -7893,6 +8635,24 @@ CMD: "add task review and start tracking"
       });
       document.getElementById('new-profile-name')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); document.getElementById('btn-create-profile')?.click(); } });
 
+      // Bulk archive
+      document.getElementById('btn-profile-bulk-archive')?.addEventListener('click', async () => {
+        const checked = [...document.querySelectorAll('.profile-bulk-cb:checked')].map(cb => cb.value);
+        if (!checked.length) { toast('no profiles selected', 'info'); return; }
+        let errors = [];
+        for (const pName of checked) {
+          try {
+            const r = await fetch('/cmd', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ cmd: `profile archive ${pName}` }) });
+            const rd = await r.json();
+            if (!rd.ok) errors.push(`${pName}: ${rd.output || 'failed'}`);
+          } catch (e) { errors.push(`${pName}: ${e.message}`); }
+        }
+        if (errors.length) { toast('some archives failed', 'error'); }
+        else { toast(`archived ${checked.length} profile(s)`); }
+        await loadProfileScreen();
+      });
+
       // Bulk delete
       document.getElementById('btn-profile-bulk-delete')?.addEventListener('click', async () => {
         const checked = [...document.querySelectorAll('.profile-bulk-cb:checked')].map(cb => cb.value);
@@ -7903,7 +8663,7 @@ CMD: "add task review and start tracking"
         for (const pName of checked) {
           try {
             const r = await fetch('/cmd', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ cmd: `profile remove ${pName} --yes` }) });
+              body: JSON.stringify({ cmd: `profile delete ${pName} --yes` }) });
             const rd = await r.json();
             if (!rd.ok) errors.push(`${pName}: ${rd.output || 'failed'}`);
           } catch (e) { errors.push(`${pName}: ${e.message}`); }
@@ -8380,6 +9140,39 @@ CMD: "add task review and start tracking"
       form.querySelector('input[name="duration"]').value = '';
     });
 
+    // ── Journal expand toggle ───────────────────────────────────────────
+    const jrnlExpandBtn = document.getElementById('jrnl-expand-btn');
+    if (jrnlExpandBtn) {
+      jrnlExpandBtn.addEventListener('click', () => {
+        const on = document.body.classList.toggle('jrnl-expand');
+        jrnlExpandBtn.textContent = on ? '⛶' : '⛶';
+        jrnlExpandBtn.title = on ? 'Collapse editor' : 'Expand editor';
+        if (on) {
+          const ta = document.querySelector('#add-journal-form textarea');
+          if (ta) ta.focus();
+        }
+      });
+    }
+
+    // ── Journal markdown palette ────────────────────────────────────────
+    document.getElementById('jrnl-md-palette')?.addEventListener('click', (e) => {
+      const btn = e.target.closest('.jrnl-md-btn');
+      if (!btn) return;
+      const ta = document.getElementById('journal-entry-textarea');
+      if (!ta) return;
+      const md = btn.dataset.md;
+      const offset = parseInt(btn.dataset.offset || '0', 10);
+      const start = ta.selectionStart;
+      const end = ta.selectionEnd;
+      ta.focus();
+      // Use execCommand for undo support, fall back to manual splice
+      if (!document.execCommand('insertText', false, md)) {
+        ta.value = ta.value.slice(0, start) + md + ta.value.slice(end);
+      }
+      const pos = start + md.length + offset;
+      ta.selectionStart = ta.selectionEnd = pos;
+    });
+
     // ── Journal ────────────────────────────────────────────────────────────
     const journalTextarea = document.querySelector('#add-journal-form textarea');
     if (journalTextarea) {
@@ -8390,8 +9183,8 @@ CMD: "add task review and start tracking"
           document.getElementById('add-journal-form')?.requestSubmit();
           return;
         }
-        // In Twain mode Enter never submits
-        if (journalTheme === 'twain') return;
+        // In Twain mode or expand mode, Enter never submits
+        if (journalTheme === 'twain' || document.body.classList.contains('jrnl-expand')) return;
         const toggle = document.getElementById('jrnl-enter-toggle');
         const enterSubmits = !toggle || toggle.checked;
         if (e.key === 'Enter' && !e.shiftKey && enterSubmits) {
@@ -8422,6 +9215,7 @@ CMD: "add task review and start tracking"
       const data = await res.json();
       if (data.ok) {
         toast('✓ journal entry added');
+        document.body.classList.remove('jrnl-expand');
         await loadJournal();
         e.target.reset();
         if (journalTheme === 'twain') {

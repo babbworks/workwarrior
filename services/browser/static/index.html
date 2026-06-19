@@ -622,11 +622,22 @@
                 <option value="M">medium</option>
                 <option value="L">low</option>
               </select>
+              <button type="button" class="btn-inline-alt" id="jrnl-expand-btn" title="Expand editor">⛶</button>
               <label class="jrnl-enter-label" title="Enter key submits entry">
                 <input type="checkbox" id="jrnl-enter-toggle" checked style="display:none" />
                 <span class="jrnl-enter-indicator" id="jrnl-enter-indicator">↵</span>
               </label>
               <button type="submit" class="btn-inline-submit jrnl-add-btn">add</button>
+            </div>
+            <div class="jrnl-md-palette" id="jrnl-md-palette">
+              <button type="button" class="jrnl-md-btn" data-md="# ">H1</button>
+              <button type="button" class="jrnl-md-btn" data-md="## ">H2</button>
+              <button type="button" class="jrnl-md-btn" data-md="### ">H3</button>
+              <button type="button" class="jrnl-md-btn" data-md="#### ">H4</button>
+              <button type="button" class="jrnl-md-btn" data-md="---&#10;">——</button>
+              <button type="button" class="jrnl-md-btn" data-md="&gt; ">&gt;</button>
+              <button type="button" class="jrnl-md-btn" data-md="- ">—·</button>
+              <button type="button" class="jrnl-md-btn" data-md="```&#10;&#10;```" data-offset="-4">``</button>
             </div>
           </form>
           <input type="text" id="journal-search" class="inline-filter" placeholder="search entries…" style="margin-bottom:8px;width:100%" />

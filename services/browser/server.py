@@ -1004,9 +1004,17 @@ def _list_py_script(ww_base: str) -> str:
     return os.path.join(ww_base, "tools", "list", "list.py")
 
 
+def _python_bin() -> str:
+    """Return a working python3 path (sys.executable can be a broken symlink on Homebrew)."""
+    if os.path.isfile(sys.executable):
+        return sys.executable
+    import shutil
+    return shutil.which("python3") or shutil.which("python") or sys.executable
+
+
 def _run_list_py(ww_base: str, list_dir: str, list_basename: str, extra: list) -> subprocess.CompletedProcess:
     """Invoke bundled list.py with -t and -l (basename). extra are additional argv tokens."""
-    cmd = [sys.executable, _list_py_script(ww_base), "-t", list_dir, "-l", list_basename] + list(extra)
+    cmd = [_python_bin(), _list_py_script(ww_base), "-t", list_dir, "-l", list_basename] + list(extra)
     return subprocess.run(cmd, capture_output=True, text=True, timeout=25, env={**os.environ})
 
 
@@ -3334,22 +3342,22 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                 except Exception:
                     pass
 
-            # 2. Load yaml definitions (description overrides only)
+            # 2. Load yaml definitions (all fields)
             yaml_defs: dict = {}
             projects_yaml = os.path.join(state.ww_base, "config", "projects.yaml")
             if os.path.isfile(projects_yaml):
                 try:
                     current = ""
                     for line in open(projects_yaml).read().splitlines():
-                        m = _re_p.match(r'^  ([\w-]+):\s*$', line)
+                        m = _re_p.match(r'^  ([\w._-]+):\s*$', line)
                         if m:
                             current = m.group(1)
-                            yaml_defs.setdefault(current, {"description": ""})
+                            yaml_defs.setdefault(current, {})
                             continue
                         if current:
-                            km = _re_p.match(r'^\s+description:\s*(.*)', line)
-                            if km and km.group(1).strip():
-                                yaml_defs[current]["description"] = km.group(1).strip()
+                            km = _re_p.match(r'^\s+([\w_]+):\s*(.*)', line)
+                            if km:
+                                yaml_defs[current][km.group(1)] = km.group(2).strip()
                 except Exception:
                     pass
 
@@ -3468,8 +3476,9 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
             # 5. Build response
             projects: dict = {}
             for name in all_names:
+                yd = yaml_defs.get(name, {})
                 projects[name] = {
-                    "description": yaml_defs.get(name, {}).get("description", ""),
+                    **yd,
                     "from_yaml": name in yaml_defs,
                     "tasks": task_stats(name),
                     "journal": journal_stats(name),
@@ -3686,8 +3695,28 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
             except Exception:
                 pass
 
+            # Load yaml details for this project
+            yaml_details: dict = {}
+            projects_yaml = os.path.join(state.ww_base, "config", "projects.yaml")
+            if os.path.isfile(projects_yaml):
+                try:
+                    import re as _re_yd
+                    current = ""
+                    for line in open(projects_yaml).read().splitlines():
+                        m = _re_yd.match(r'^  ([\w._-]+):\s*$', line)
+                        if m:
+                            current = m.group(1)
+                            continue
+                        if current == name:
+                            km = _re_yd.match(r'^\s+([\w_]+):\s*(.*)', line)
+                            if km:
+                                yaml_details[km.group(1)] = km.group(2).strip()
+                except Exception:
+                    pass
+
             self._send_json(200, {
                 "ok": True, "name": name,
+                "details": yaml_details,
                 "tasks": tasks_out,
                 "journal": journal_out,
                 "ledger": ledger_out,
@@ -4203,24 +4232,129 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                 self._send_json(400, {"ok": False, "error": "no active profile"})
                 return
             profile_base = os.path.join(state.ww_base, "profiles", profile)
+            action = body.get("action", "create")
 
             try:
-                if kind == "journals":
-                    self._create_journal_resource(profile_base, name, _re)
-                elif kind == "ledgers":
-                    self._create_ledger_resource(profile_base, name, _re)
-                elif kind == "tasklists":
-                    self._create_tasklist_resource(profile_base, name, _re)
-                elif kind == "timew":
-                    self._create_timew_resource(profile_base, name, _re)
-                elif kind == "lists":
-                    self._create_list_resource(profile_base, name, _re)
+                if action == "delete":
+                    self._delete_resource(profile_base, kind, name, _re)
+                elif action == "rename":
+                    new_name = body.get("new_name", "").strip()
+                    if not new_name:
+                        self._send_json(400, {"ok": False, "error": "new_name required"})
+                        return
+                    if not _re.fullmatch(r'[a-zA-Z0-9_-]+', new_name):
+                        self._send_json(400, {"ok": False, "error": "new name: letters, numbers, hyphens, underscores only"})
+                        return
+                    self._rename_resource(profile_base, kind, name, new_name, _re)
+                else:
+                    if kind == "journals":
+                        self._create_journal_resource(profile_base, name, _re)
+                    elif kind == "ledgers":
+                        self._create_ledger_resource(profile_base, name, _re)
+                    elif kind == "tasklists":
+                        self._create_tasklist_resource(profile_base, name, _re)
+                    elif kind == "timew":
+                        self._create_timew_resource(profile_base, name, _re)
+                    elif kind == "lists":
+                        self._create_list_resource(profile_base, name, _re)
             except _ResourceConflict as exc:
                 self._send_json(409, {"ok": False, "error": str(exc)})
             except _ResourceBadRequest as exc:
                 self._send_json(400, {"ok": False, "error": str(exc)})
             except Exception as exc:
                 self._send_json(500, {"ok": False, "error": str(exc)})
+
+        def _resource_config_path(self, profile_base, kind):
+            """Return the config yaml path for a resource kind."""
+            config_map = {
+                "journals": "jrnl.yaml",
+                "ledgers": "ledgers.yaml",
+                "tasklists": "tasklists.yaml",
+                "timew": "timew.yaml",
+                "lists": "lists.yaml",
+            }
+            return os.path.join(profile_base, config_map.get(kind, f"{kind}.yaml"))
+
+        def _delete_resource(self, profile_base, kind, name, _re):
+            """Remove a named resource entry from its config yaml. Does NOT delete backing files."""
+            if name in ("main", "default"):
+                raise _ResourceBadRequest("Cannot delete default resource")
+            config_path = self._resource_config_path(profile_base, kind)
+            if not os.path.isfile(config_path):
+                raise _ResourceBadRequest(f"config not found: {os.path.basename(config_path)}")
+            with open(config_path, "r") as fh:
+                lines = fh.readlines()
+            new_lines = []
+            removed = False
+            for line in lines:
+                if _re.match(rf'^  {_re.escape(name)}:', line):
+                    removed = True
+                    continue
+                new_lines.append(line)
+            if not removed:
+                raise _ResourceBadRequest(f"resource '{name}' not found")
+            with open(config_path, "w") as fh:
+                fh.writelines(new_lines)
+            # Switch active to default/main if we deleted the active one
+            active_map = {"journals": "_active_journal", "ledgers": "_active_ledger",
+                          "tasklists": "_active_tasklist", "timew": "_active_timew", "lists": "_active_list"}
+            attr = active_map.get(kind)
+            if attr and getattr(state, attr, None) == name:
+                setattr(state, attr, "default" if kind != "tasklists" else "main")
+            resources = state.get_profile_resources()
+            self._send_json(200, {"ok": True, "action": "delete", "kind": kind, "name": name, "resources": resources})
+
+        def _rename_resource(self, profile_base, kind, old_name, new_name, _re):
+            """Rename a resource entry in its config yaml and rename backing file if it exists."""
+            if old_name in ("main", "default"):
+                raise _ResourceBadRequest("Cannot rename default resource")
+            config_path = self._resource_config_path(profile_base, kind)
+            if not os.path.isfile(config_path):
+                raise _ResourceBadRequest(f"config not found: {os.path.basename(config_path)}")
+            with open(config_path, "r") as fh:
+                content = fh.read()
+            if _re.search(rf'^  {_re.escape(new_name)}:', content, _re.MULTILINE):
+                raise _ResourceConflict(f"resource '{new_name}' already exists")
+            # Replace the entry key and update file path references
+            new_lines = []
+            renamed = False
+            old_file = None
+            new_file = None
+            for line in content.splitlines():
+                m = _re.match(rf'^  {_re.escape(old_name)}:\s*(.*)', line)
+                if m:
+                    renamed = True
+                    path_val = m.group(1).strip()
+                    if path_val:
+                        old_file = path_val
+                        # Replace old name in file path with new name
+                        new_file = path_val.replace(old_name, new_name)
+                        new_lines.append(f"  {new_name}: {new_file}")
+                    else:
+                        new_lines.append(f"  {new_name}:")
+                else:
+                    new_lines.append(line)
+            if not renamed:
+                raise _ResourceBadRequest(f"resource '{old_name}' not found")
+            with open(config_path, "w") as fh:
+                fh.write("\n".join(new_lines) + "\n")
+            # Rename backing file on disk if applicable
+            if old_file and new_file and os.path.isfile(old_file) and not os.path.exists(new_file):
+                os.rename(old_file, new_file)
+            # For tasklists: rename .taskrc and .task dir
+            if kind == "tasklists" and old_file is None:
+                # Tasklists use a yaml structure with nested taskrc/taskdata keys
+                # Re-read and do key-based replacement
+                pass
+            # Update active selection if it was the renamed resource
+            active_map = {"journals": "_active_journal", "ledgers": "_active_ledger",
+                          "tasklists": "_active_tasklist", "timew": "_active_timew", "lists": "_active_list"}
+            attr = active_map.get(kind)
+            if attr and getattr(state, attr, None) == old_name:
+                setattr(state, attr, new_name)
+            resources = state.get_profile_resources()
+            self._send_json(200, {"ok": True, "action": "rename", "kind": kind,
+                                  "old_name": old_name, "new_name": new_name, "resources": resources})
 
         def _yaml_insert(self, config_path, section_key, entry_line, name, _re):
             """Read a YAML config, check for duplicate, insert entry after section header."""
@@ -5116,6 +5250,267 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                         self._send_json(201, {"ok": True, "uuid": new_uuid, "project": pname})
                     except Exception as exc:
                         self._send_json(500, {"ok": False, "error": str(exc)})
+
+                elif action == "project_edit":
+                    # Unified edit: rename + all detail fields
+                    args_obj = body.get("args", {})
+                    old_name = (args_obj.get("old_name") or "").strip()
+                    new_name = (args_obj.get("new_name") or "").strip() or old_name
+                    description = args_obj.get("description")  # None means don't change
+                    # All detail fields (None = don't change)
+                    _detail_keys = ["goals", "participants", "roles", "deadlines",
+                                    "status", "priority", "start_date", "target_date",
+                                    "success_criteria", "risks", "budget", "notes"]
+                    detail_fields = {}
+                    for dk in _detail_keys:
+                        v = args_obj.get(dk)
+                        if v is not None:
+                            detail_fields[dk] = v
+                    if not old_name:
+                        self._send_json(400, {"ok": False, "error": "old_name required"})
+                        return
+                    if not re.match(r'^[a-zA-Z0-9_.-]+$', new_name):
+                        self._send_json(400, {"ok": False, "error": "name: letters, numbers, hyphens, underscores, dots only"})
+                        return
+                    if not paths:
+                        self._send_json(400, {"ok": False, "error": "no active profile"})
+                        return
+                    renamed = old_name != new_name
+                    results = {"tasks": 0, "journals": 0, "yaml_updated": False}
+                    env_r = {**os.environ,
+                             "TASKRC": paths["taskrc"],
+                             "TASKDATA": paths["taskdata"]}
+                    # 1. Rename project on tasks (only if name changed)
+                    if renamed:
+                        for status_filter in [[], ["status:completed"]]:
+                            try:
+                                cmd = ["task", "rc.confirmation=no", "rc.bulk=0",
+                                       f"project:{old_name}"] + status_filter + ["modify", f"project:{new_name}"]
+                                r = subprocess.run(cmd, capture_output=True, text=True, timeout=15, env=env_r)
+                                import re as _re_rn
+                                m = _re_rn.search(r'Modified (\d+) task', r.stdout + r.stderr)
+                                if m:
+                                    results["tasks"] += int(m.group(1))
+                            except Exception:
+                                pass
+                    # 2. Rename @project: in journal files (only if name changed)
+                    if renamed:
+                        try:
+                            profile_name = state.get_active_profile() or ""
+                            profile_dir = os.path.join(state.ww_base, "profiles", profile_name) if profile_name else ""
+                            journal_files: list[str] = []
+                            if profile_dir:
+                                jrnl_yaml = os.path.join(profile_dir, "jrnl.yaml")
+                                if os.path.isfile(jrnl_yaml):
+                                    import re as _re_jy
+                                    for line in open(jrnl_yaml):
+                                        m = _re_jy.match(r'^\s+\w+:\s*(.+\.txt)', line)
+                                        if m and os.path.isfile(m.group(1).strip()):
+                                            journal_files.append(m.group(1).strip())
+                                if not journal_files:
+                                    jdir = os.path.join(profile_dir, "journals")
+                                    if os.path.isdir(jdir):
+                                        journal_files = [os.path.join(jdir, f)
+                                                         for f in os.listdir(jdir) if f.endswith(".txt")]
+                            for jf in journal_files:
+                                with open(jf, "r", encoding="utf-8", errors="replace") as fh:
+                                    content = fh.read()
+                                if f"@project:{old_name}" in content:
+                                    count = content.count(f"@project:{old_name}")
+                                    updated = content.replace(f"@project:{old_name}", f"@project:{new_name}")
+                                    with open(jf, "w", encoding="utf-8") as fh:
+                                        fh.write(updated)
+                                    results["journals"] += count
+                        except Exception:
+                            pass
+                    # 3. Update projects.yaml (rename + all fields)
+                    projects_yaml = os.path.join(state.ww_base, "config", "projects.yaml")
+                    try:
+                        if not os.path.isfile(projects_yaml):
+                            with open(projects_yaml, "w") as fh:
+                                fh.write("projects:\n")
+                        with open(projects_yaml, "r") as fh:
+                            lines = fh.readlines()
+                        import re as _re_ye
+                        # Parse existing fields for this project
+                        existing_fields: dict = {}
+                        found = False
+                        new_lines = []
+                        i = 0
+                        while i < len(lines):
+                            if _re_ye.match(rf'^  {_re_ye.escape(old_name)}:\s*$', lines[i]):
+                                found = True
+                                i += 1
+                                while i < len(lines) and _re_ye.match(r'^\s{4,}\S', lines[i]):
+                                    km = _re_ye.match(r'^\s+([\w_]+):\s*(.*)', lines[i])
+                                    if km:
+                                        existing_fields[km.group(1)] = km.group(2).strip()
+                                    i += 1
+                                # Merge: existing fields + updates
+                                if description is not None:
+                                    existing_fields["description"] = description
+                                for dk, dv in detail_fields.items():
+                                    existing_fields[dk] = dv
+                                # Write merged entry
+                                new_lines.append(f"  {new_name}:\n")
+                                for fk, fv in existing_fields.items():
+                                    if fv:  # skip empty fields
+                                        new_lines.append(f"    {fk}: {fv}\n")
+                            else:
+                                new_lines.append(lines[i])
+                                i += 1
+                        if not found:
+                            new_lines.append(f"  {new_name}:\n")
+                            if description is not None and description:
+                                new_lines.append(f"    description: {description}\n")
+                            for dk, dv in detail_fields.items():
+                                if dv:
+                                    new_lines.append(f"    {dk}: {dv}\n")
+                        with open(projects_yaml, "w") as fh:
+                            fh.writelines(new_lines)
+                        results["yaml_updated"] = True
+                    except Exception:
+                        pass
+                    self._send_json(200, {"ok": True, "results": results,
+                                         "old_name": old_name, "new_name": new_name})
+
+                elif action == "project_delete":
+                    args_obj = body.get("args", {})
+                    project_name = (args_obj.get("name") or "").strip()
+                    mode = (args_obj.get("mode") or "definition").strip()
+                    reassign_to = (args_obj.get("reassign_to") or "").strip()
+                    if not project_name:
+                        self._send_json(400, {"ok": False, "error": "project name required"})
+                        return
+                    if mode == "reassign" and not reassign_to:
+                        self._send_json(400, {"ok": False, "error": "reassign_to required for reassign mode"})
+                        return
+                    if not paths:
+                        self._send_json(400, {"ok": False, "error": "no active profile"})
+                        return
+                    results = {"tasks_modified": 0, "tasks_deleted": 0, "tasks_completed": 0, "journals": 0, "yaml_removed": False}
+                    env_d = {**os.environ,
+                             "TASKRC": paths["taskrc"],
+                             "TASKDATA": paths["taskdata"]}
+
+                    # --- Task handling per mode ---
+                    if mode == "clear":
+                        # Remove project field from all tasks
+                        for status_filter in [[], ["status:completed"]]:
+                            try:
+                                cmd = ["task", "rc.confirmation=no", "rc.bulk=0",
+                                       f"project:{project_name}"] + status_filter + ["modify", "project:"]
+                                r = subprocess.run(cmd, capture_output=True, text=True, timeout=15, env=env_d)
+                                import re as _re_pd
+                                m = _re_pd.search(r'Modified (\d+) task', r.stdout + r.stderr)
+                                if m:
+                                    results["tasks_modified"] += int(m.group(1))
+                            except Exception:
+                                pass
+                    elif mode == "reassign":
+                        # Move all tasks to a different project
+                        for status_filter in [[], ["status:completed"]]:
+                            try:
+                                cmd = ["task", "rc.confirmation=no", "rc.bulk=0",
+                                       f"project:{project_name}"] + status_filter + ["modify", f"project:{reassign_to}"]
+                                r = subprocess.run(cmd, capture_output=True, text=True, timeout=15, env=env_d)
+                                import re as _re_pd2
+                                m = _re_pd2.search(r'Modified (\d+) task', r.stdout + r.stderr)
+                                if m:
+                                    results["tasks_modified"] += int(m.group(1))
+                            except Exception:
+                                pass
+                    elif mode == "archive":
+                        # Complete all pending tasks
+                        try:
+                            r = subprocess.run(
+                                ["task", "rc.confirmation=no", "rc.bulk=0",
+                                 f"project:{project_name}", "status:pending", "done"],
+                                capture_output=True, text=True, timeout=15, env=env_d)
+                            import re as _re_pd3
+                            m = _re_pd3.search(r'Completed (\d+) task', r.stdout + r.stderr)
+                            if m:
+                                results["tasks_completed"] = int(m.group(1))
+                        except Exception:
+                            pass
+                    elif mode == "delete_tasks":
+                        # Delete all pending tasks
+                        try:
+                            r = subprocess.run(
+                                ["task", "rc.confirmation=no", "rc.bulk=0",
+                                 f"project:{project_name}", "status:pending", "delete"],
+                                capture_output=True, text=True, timeout=15, env=env_d)
+                            import re as _re_pd4
+                            m = _re_pd4.search(r'Delet(?:ed|ing) (\d+) task', r.stdout + r.stderr)
+                            if m:
+                                results["tasks_deleted"] = int(m.group(1))
+                        except Exception:
+                            pass
+                    # mode == "definition" — no task changes
+
+                    # --- Journal handling (clear / reassign only) ---
+                    if mode in ("clear", "reassign"):
+                        try:
+                            profile_name = state.get_active_profile() or ""
+                            profile_dir = os.path.join(state.ww_base, "profiles", profile_name) if profile_name else ""
+                            journal_files: list[str] = []
+                            if profile_dir:
+                                jrnl_yaml = os.path.join(profile_dir, "jrnl.yaml")
+                                if os.path.isfile(jrnl_yaml):
+                                    import re as _re_jy2
+                                    for line in open(jrnl_yaml):
+                                        m = _re_jy2.match(r'^\s+\w+:\s*(.+\.txt)', line)
+                                        if m and os.path.isfile(m.group(1).strip()):
+                                            journal_files.append(m.group(1).strip())
+                                if not journal_files:
+                                    jdir = os.path.join(profile_dir, "journals")
+                                    if os.path.isdir(jdir):
+                                        journal_files = [os.path.join(jdir, f)
+                                                         for f in os.listdir(jdir) if f.endswith(".txt")]
+                            replacement = f"@project:{reassign_to}" if mode == "reassign" else ""
+                            for jf in journal_files:
+                                with open(jf, "r", encoding="utf-8", errors="replace") as fh:
+                                    content = fh.read()
+                                needle = f"@project:{project_name}"
+                                if needle in content:
+                                    count = content.count(needle)
+                                    if replacement:
+                                        updated = content.replace(needle, replacement)
+                                    else:
+                                        # Strip tag and any leading/trailing extra space
+                                        updated = content.replace(f" {needle}", "").replace(needle, "")
+                                    with open(jf, "w", encoding="utf-8") as fh:
+                                        fh.write(updated)
+                                    results["journals"] += count
+                        except Exception:
+                            pass
+
+                    # --- Remove from projects.yaml ---
+                    projects_yaml = os.path.join(state.ww_base, "config", "projects.yaml")
+                    if os.path.isfile(projects_yaml):
+                        try:
+                            with open(projects_yaml, "r") as fh:
+                                lines = fh.readlines()
+                            import re as _re_pd5
+                            new_lines = []
+                            skip = False
+                            for line in lines:
+                                if _re_pd5.match(rf'^  {_re_pd5.escape(project_name)}:\s*$', line):
+                                    skip = True
+                                    results["yaml_removed"] = True
+                                    continue
+                                if skip:
+                                    if _re_pd5.match(r'^\s{4,}\S', line):
+                                        continue  # indented child of removed project
+                                    skip = False
+                                new_lines.append(line)
+                            if results["yaml_removed"]:
+                                with open(projects_yaml, "w") as fh:
+                                    fh.writelines(new_lines)
+                        except Exception:
+                            pass
+
+                    self._send_json(200, {"ok": True, "results": results, "project": project_name, "mode": mode})
 
                 elif action == "community_add":
                     mod = _load_community_store()

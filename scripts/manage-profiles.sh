@@ -28,6 +28,9 @@ Manage Workwarrior profiles - list, delete, backup, import, and restore profiles
 Commands:
   list                           List all existing profiles (sorted)
   delete <profile-name>          Delete a profile and all its data
+  archive <profile-name>         Move a profile to .archive (hidden, restorable)
+  unarchive <profile-name>       Restore a profile from .archive to active
+  archived                       List archived profiles
   info <profile-name>            Display profile information (location, disk usage, counts)
   backup <profile-name> [dest]   Create a backup archive of a profile
   import <archive> [new-name]    Create a new profile from a backup archive
@@ -94,7 +97,10 @@ cmd_list() {
 
 cmd_delete() {
   local profile_name="$1"
-  
+  local skip_confirm=0
+  shift 2>/dev/null || true
+  for arg in "$@"; do [[ "$arg" == "--yes" || "$arg" == "--force" ]] && skip_confirm=1; done
+
   # Validate profile name
   if [[ -z "$profile_name" ]]; then
     log_error "Profile name is required"
@@ -117,15 +123,16 @@ cmd_delete() {
   local profile_base="$PROFILES_DIR/$profile_name"
   
   # Confirm deletion
-  echo ""
-  log_warning "This will permanently delete the profile '$profile_name' and all its data!"
-  log_info "Profile location: $profile_base"
-  echo ""
-  read -p "Are you sure you want to delete this profile? (yes/no): " confirm
-  
-  if [[ "$confirm" != "yes" ]]; then
-    log_info "Deletion cancelled"
-    return 0
+  if (( ! skip_confirm )); then
+    echo ""
+    log_warning "This will permanently delete the profile '$profile_name' and all its data!"
+    log_info "Profile location: $profile_base"
+    echo ""
+    read -p "Are you sure you want to delete this profile? (yes/no): " confirm
+    if [[ "$confirm" != "yes" ]]; then
+      log_info "Deletion cancelled"
+      return 0
+    fi
   fi
   
   echo ""
@@ -151,6 +158,85 @@ cmd_delete() {
   echo ""
   
   return 0
+}
+
+# ============================================================================
+# ARCHIVE / UNARCHIVE PROFILE COMMANDS
+# ============================================================================
+
+cmd_archive() {
+  local profile_name="$1"
+
+  if [[ -z "$profile_name" ]]; then
+    log_error "Profile name required"
+    echo "Usage: manage-profiles.sh archive <name>"
+    return 1
+  fi
+
+  local profile_base="$PROFILES_DIR/$profile_name"
+  local archive_dir="$PROFILES_DIR/.archive"
+  local archive_dest="$archive_dir/$profile_name"
+
+  if [[ ! -d "$profile_base" ]]; then
+    log_error "Profile '$profile_name' does not exist"
+    return 1
+  fi
+
+  # Refuse to archive the active profile
+  if [[ "$profile_name" == "${WARRIOR_PROFILE:-}" ]]; then
+    log_error "Cannot archive the active profile — switch to another first"
+    return 1
+  fi
+
+  if [[ -d "$archive_dest" ]]; then
+    log_error "An archived profile named '$profile_name' already exists"
+    return 1
+  fi
+
+  mkdir -p "$archive_dir"
+  mv "$profile_base" "$archive_dest"
+  log_success "Archived profile '$profile_name'"
+  log_info "Restore with: ww profile unarchive $profile_name"
+}
+
+cmd_unarchive() {
+  local profile_name="$1"
+
+  if [[ -z "$profile_name" ]]; then
+    log_error "Profile name required"
+    echo "Usage: manage-profiles.sh unarchive <name>"
+    return 1
+  fi
+
+  local archive_dir="$PROFILES_DIR/.archive"
+  local archive_src="$archive_dir/$profile_name"
+  local profile_dest="$PROFILES_DIR/$profile_name"
+
+  if [[ ! -d "$archive_src" ]]; then
+    log_error "No archived profile named '$profile_name'"
+    log_info "Archived profiles:"
+    cmd_archived
+    return 1
+  fi
+
+  if [[ -d "$profile_dest" ]]; then
+    log_error "An active profile named '$profile_name' already exists"
+    return 1
+  fi
+
+  mv "$archive_src" "$profile_dest"
+  log_success "Restored profile '$profile_name' from archive"
+}
+
+cmd_archived() {
+  local archive_dir="$PROFILES_DIR/.archive"
+  if [[ ! -d "$archive_dir" ]] || [[ -z "$(ls -A "$archive_dir" 2>/dev/null)" ]]; then
+    echo "No archived profiles"
+    return 0
+  fi
+  for dir in "$archive_dir"/*/; do
+    [[ -d "$dir" ]] && basename "$dir"
+  done | sort
 }
 
 # ============================================================================
@@ -443,6 +529,20 @@ main() {
     backup)
       shift
       cmd_backup "$@"
+      exit $?
+      ;;
+    archive)
+      shift
+      cmd_archive "$@"
+      exit $?
+      ;;
+    unarchive)
+      shift
+      cmd_unarchive "$@"
+      exit $?
+      ;;
+    archived)
+      cmd_archived
       exit $?
       ;;
     import)

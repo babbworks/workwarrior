@@ -1298,6 +1298,25 @@ cmd_profile() {
       fi
       "$WW_BASE/scripts/manage-profiles.sh" delete "$@"
       ;;
+    archive)
+      if [[ -z "$1" ]]; then
+        log_error "Profile name required"
+        echo "Usage: ww profile archive <name>"
+        exit 1
+      fi
+      "$WW_BASE/scripts/manage-profiles.sh" archive "$@"
+      ;;
+    unarchive)
+      if [[ -z "$1" ]]; then
+        log_error "Profile name required"
+        echo "Usage: ww profile unarchive <name>"
+        exit 1
+      fi
+      "$WW_BASE/scripts/manage-profiles.sh" unarchive "$@"
+      ;;
+    archived)
+      "$WW_BASE/scripts/manage-profiles.sh" archived
+      ;;
     backup)
       if [[ -z "$1" ]]; then
         log_error "Profile name required"
@@ -4095,7 +4114,8 @@ cmd_sync() {
     if (( dry_run )); then
       log_info "[dry-run] would copy $d/"
     else
-      if cp -r "$sync_source/$d/"* "$sync_target/$d/" 2>/dev/null; then
+      mkdir -p "$sync_target/$d"
+      if rsync -a --exclude='.venv' --exclude='node_modules' --exclude='__pycache__' --exclude='.git' "$sync_source/$d/" "$sync_target/$d/" 2>/dev/null; then
         chmod +x "$sync_target/bin/"* 2>/dev/null || true
         log_success "Copied $d/"
         (( ++copied ))
