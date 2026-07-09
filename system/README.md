@@ -40,14 +40,6 @@ system/
 │   ├── test-baseline.yaml  ← Required tests by change type
 │   └── serialization-paths.txt
 │
-├── context/
-│   ├── session-init.md         ← Session startup protocol (ww agent init)
-│   ├── task-conventions.md     ← UUID rule, lifecycle, annotations, UDAs, parallel work
-│   ├── journal-ledger-conventions.md  ← Sub-journal model, ledger taxonomy, posting
-│   ├── instance-registry.md    ← Registry location, ww instance commands, agent rules
-│   ├── working-conventions.md  ← Operator preferences, response style, multi-agent norms
-│   └── reference/              ← Supporting reference material
-│
 ├── scripts/
 │   ├── dev-sync.sh         ← Sync program files: repo → ww-dev or wwv02
 │   ├── select-tests.sh     ← Test matrix by change type
@@ -74,3 +66,7 @@ system/
 ├── specs/                  ← Feature specs and design documents
 └── archive/                ← Phase 1 artifacts and historical docs
 ```
+
+> Session-init protocol, task lifecycle (UUID rule), UDA/ledger references, and parallel
+> sub-agent conventions live in `.claude/ww/ww-agent-guidance.md` (working reference until
+> TASK-AGENT-001 promotes it to `resources/agent-templates/`).

@@ -22,7 +22,7 @@ eval "$(ww agent init --instance ~/wwv02 --profile ww-development)"
 wwctl status
 ```
 
-Confirm the printed header shows the correct instance and profile. See `system/context/session-init.md` for full protocol.
+Confirm the printed header shows the correct instance and profile. See `.claude/ww/ww-agent-guidance.md` for the full session-init protocol.
 
 ---
 
@@ -32,13 +32,13 @@ Confirm the printed header shows the correct instance and profile. See `system/c
 |---|---|
 | `system/CLAUDE.md` | Directory map, agent model, scripting standards, fragility markers, testing, hard gates |
 | `system/TASKS.md` | Current task board: what's done, pending, in-progress |
-| `system/context/working-conventions.md` | Operator preferences, response style, multi-agent norms |
+| `system/roles/*.md` | Per-role constraints and multi-agent working norms (Orchestrator/Builder/Verifier/Docs) |
 | `system/dev-instance.md` | Three-directory model: repo / ww-dev / wwv02, sync workflow |
 | `system/logs/decisions.md` | Every non-obvious architectural decision — read before touching `lib/` or sync files |
 
 For service work: also read `system/services-CLAUDE.md`.
 For fragility detail: also read `system/fragility-register.md`.
-For task and time tracking conventions: read `system/context/task-conventions.md`.
+For task and time tracking conventions (UUID rule, lifecycle, annotations, UDAs, parallel sub-agents): read `.claude/ww/ww-agent-guidance.md`.
 
 ---
 

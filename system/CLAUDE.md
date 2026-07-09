@@ -42,7 +42,7 @@ eval "$(ww agent init --instance ~/wwv02 --profile ww-development)"
 wwctl status
 ```
 
-See `system/context/session-init.md` for full protocol including sync-check and alternate flags.
+See `.claude/ww/ww-agent-guidance.md` for the full session-init protocol and env-var derivation.
 
 ---
 
