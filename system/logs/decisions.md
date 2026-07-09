@@ -5,6 +5,27 @@ Each entry: date, decision, context, and why — so future sessions don't re-lit
 
 ---
 
+## 2026-07-09 — Workflow execution is inline-by-default; subagents are the exception
+
+**Decision:** The Orchestrator → Builder → Verifier → Docs sequence is enforced as **hats +
+gates within a single session by default.** Cold subagents are spawned only for (a) HIGH
+FRAGILITY independent verification, (b) diffs > 200 lines (standalone Simplifier), or
+(c) genuinely disjoint parallel work.
+
+**Why:** Each cold subagent re-derives full context (ONBOARDING/CLAUDE/TASKS/decisions +
+repo ripple), which is redundant with a session that already holds it — the naive "one
+fresh agent per role per task" reading multiplies that cost with no governance benefit.
+`feature-delivery.md` already expects Steps 2–6 in one session (Cycle Time Target) and
+already treats standalone agents as the exception (Simplifier escalation at >200 lines).
+No-self-approval is satisfied by the Verifier being a **distinct adversarial step with a
+real PASS/FAIL**, not by agent identity.
+
+**Encoded in:** `feature-delivery.md` → "Agent Execution Model (token-efficient default)".
+Surfaced during the product-vs-meta restructure design
+(`system/specs/2026-07-09-product-meta-restructure-design.md`).
+
+---
+
 ## 2026-05-02 — Installer v0.2: multi-instance architecture, companion functions, 5 bug fixes
 
 **Decision:** Complete redesign of installer to support 6 presets, per-instance shell isolation, and `@instance` dispatch.

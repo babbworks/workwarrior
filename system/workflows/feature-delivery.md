@@ -8,7 +8,7 @@ Use this workflow for all implementation tasks after Phase 1 is complete. Every 
 
 - Task card exists in TASKS.md with status `pending`
 - Gate A is satisfied (acceptance criteria authored by Orchestrator)
-- Session init complete: `eval "$(ww agent init)"` — see `system/context/session-init.md`
+- Session init complete: `eval "$(ww agent init)"` — see `.claude/ww/ww-agent-guidance.md`
 
 ---
 
@@ -142,6 +142,33 @@ If the task revealed new risk information (fragility, edge cases, test gaps): sa
 ## Release
 
 Release is not part of feature delivery. See `system/workflows/release.md`.
+
+---
+
+## Agent Execution Model (token-efficient default)
+
+The handoff sequence is a set of **roles (hats) and gates** — not a mandate to spawn a
+separate cold agent per role. Every spawned agent re-derives context (ONBOARDING, CLAUDE,
+TASKS, decisions, plus repo reconnaissance) from a cold start. Doing that once per role,
+per task, is expensive and redundant when one session already holds the context.
+
+**Default: inline.** The active session wears each hat in sequence and completes
+Steps 2–6 in one session (see Cycle Time Target). No-self-approval and the gates are
+enforced by running the **Verifier checklist as a distinct, adversarial step with a real
+PASS/FAIL** — not by the *identity* of the agent.
+
+**Spawn a fresh, independent agent only when independence is required or clearly adds value:**
+- HIGH FRAGILITY files in scope → independent sync/integration verification, **or**
+- diff > 200 lines → standalone Simplifier (already required by Step 4), **or**
+- write sets are disjoint and parallelism saves wall-clock (see Parallel Execution).
+
+**When you do spawn:** give a scoped prompt (the diff + exact test commands + the card's
+acceptance criteria), **cite the design spec rather than restating it**, and continue the
+same agent via follow-up messages instead of re-spawning cold.
+
+**Orchestrator authoring:** batch-author related cards in one pass; each card **cites its
+spec section** rather than duplicating it. Prefer `wwctl new-task` (template-generated) to
+keep cards lean.
 
 ---
 
