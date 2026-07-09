@@ -17,6 +17,19 @@ Current phase: Phase 2 active — browser UI polish, resource management, test h
 
 ---
 
+## Restructure: product-vs-meta (design 2026-07-09)
+
+Spec: `specs/2026-07-09-product-meta-restructure-design.md`. Parts 1–3 (docs/ dedup = Part 4, separate spec). Execute in dependency order; 1B runs SOLO.
+
+| Order | ID | Status | Goal | Depends On | Notes |
+|---|---|---|---|---|---|
+| 1 | [TASK-STRUCT-1A](tasks/cards/TASK-STRUCT-1A.md) | pending | Decouple 5 runtime YAMLs system/config → config/ | — | ⚠️ HIGH FRAGILITY (field-mapper.sh); approval granted on card |
+| 2 | [TASK-STRUCT-1B](tasks/cards/TASK-STRUCT-1B.md) | pending | Rename system/ → dev/, tests/ → dev/tests/, stop shipping dev/ | 1A | Large coordinated diff → solo + independent Verifier |
+| 3 | [TASK-STRUCT-2](tasks/cards/TASK-STRUCT-2.md) | pending | Consolidate 4 entry docs → canonical set | 1B | Low risk; GitBook fix deferred to Part 4 |
+| 4 | [TASK-STRUCT-3](tasks/cards/TASK-STRUCT-3.md) | pending | Relocate 9 empty service stubs → dev/specs/service-designs/ | 1B | scripts/ + cmd/ held out |
+
+---
+
 ## Dispatch Queue (Priority Order)
 
 | Priority | ID | Goal |
