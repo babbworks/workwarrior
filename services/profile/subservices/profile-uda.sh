@@ -23,9 +23,9 @@ source "${_WW_BASE}/lib/core-utils.sh"
 # shellcheck source=../../../lib/sync-permissions.sh
 source "${_WW_BASE}/lib/sync-permissions.sh"
 
-REGISTRY="${_WW_BASE}/system/config/service-uda-registry.yaml"
-INDICATOR_MAP="${_WW_BASE}/system/config/uda-indicator-map.yaml"
-COLOR_MAP="${_WW_BASE}/system/config/uda-color-map.yaml"
+REGISTRY="${_WW_BASE}/config/service-uda-registry.yaml"
+INDICATOR_MAP="${_WW_BASE}/config/uda-indicator-map.yaml"
+COLOR_MAP="${_WW_BASE}/config/uda-color-map.yaml"
 
 # ── Resolve profile ────────────────────────────────────────────────────────────
 

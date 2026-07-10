@@ -7,8 +7,8 @@ SYSTEM_TAGS="ACTIVE READY PENDING COMPLETED DELETED WAITING RECURRING PARENT CHI
 
 # Resolve config file locations relative to this library (overridable via env for tests)
 _FM_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LABEL_UDA_MAP="${LABEL_UDA_MAP:-${_FM_DIR}/../system/config/label-uda-map.yaml}"
-BODY_UDA_MAP="${BODY_UDA_MAP:-${_FM_DIR}/../system/config/body-uda-map.yaml}"
+LABEL_UDA_MAP="${LABEL_UDA_MAP:-${_FM_DIR}/../config/label-uda-map.yaml}"
+BODY_UDA_MAP="${BODY_UDA_MAP:-${_FM_DIR}/../config/body-uda-map.yaml}"
 
 # Map TaskWarrior status to GitHub state
 # Input: status (pending|started|waiting|completed|deleted|recurring)
