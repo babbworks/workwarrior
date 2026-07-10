@@ -54,5 +54,16 @@ Risk notes:           (Orchestrator) field-mapper.sh reads via `${_FM_DIR}/../sy
                       Verify path resolution in BOTH repo layout and an installed layout.
                       (Builder) fill pre-flight brief before touching field-mapper.sh.
 
-Status:               pending
-Taskwarrior:          (assign live TW id on dispatch) status:pending
+Resolution:
+  Implemented on branch agent/builder/struct-1a (commit 9154879). git mv (R100) the 5
+  runtime YAMLs system/config/ -> config/; repointed lib/field-mapper.sh (2 lines) and
+  services/profile/subservices/profile-uda.sh (3 lines).
+  Verified: full bats suite 605/60 IDENTICAL to master (byte-identical failing-test set,
+  zero new failures); field-mapper + profile-uda unit coverage passes via new path; write
+  scope clean; Gate E clean. Sign-off: system/reports/verifier-TASK-STRUCT-1A.md.
+  PRE-MERGE CONDITIONS (do not merge to master until cleared):
+    N1 — run-integration-tests.sh in an installed env (active profile + gh auth).
+    N2 — 8 doc-prose system/config/ references (docs/) reconciled by Part 4.
+
+Status:               verified — impl + local verify complete; N1/N2 pending before merge
+Taskwarrior:          (assign live TW id on dispatch) status:in-review
