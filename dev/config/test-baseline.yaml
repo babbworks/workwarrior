@@ -1,0 +1,60 @@
+change_type:
+  lib:
+    required:
+      - "bats dev/tests/"
+    notes:
+      - "Full BATS suite. Every lib change can have cascading effects on sourcing scripts."
+      - "Add or update focused tests for the modified lib behavior."
+
+  service:
+    required:
+      - "bats dev/tests/test-service-discovery.bats"
+      - "bash dev/tests/test-service-discovery.sh"
+      - "bats dev/tests/"
+    notes:
+      - "Service discovery and help/dispatch behavior must be validated."
+      - "Verify --help responds correctly for any changed service."
+
+  profile:
+    required:
+      - "bats dev/tests/test-directory-structure.bats"
+      - "bats dev/tests/test-backup-portability.bats"
+      - "bash dev/tests/test-scripts-integration.sh"
+      - "bats dev/tests/"
+    notes:
+      - "Verify profile directory structure and config file creation."
+      - "Verify data directories remain isolated across profiles."
+
+  shell_integration:
+    required:
+      - "bats dev/tests/test-shell-functions.bats"
+      - "bats dev/tests/test-alias-creation.bats"
+      - "bats dev/tests/"
+    notes:
+      - "shell-integration.sh is SERIALIZED — confirm no parallel task touches it."
+      - "Test alias and function dispatch after any change."
+
+  bin_ww:
+    required:
+      - "bats dev/tests/"
+      - "manual: ww help"
+      - "manual: ww profile list"
+    notes:
+      - "Smoke test all major command categories after any bin/ww change."
+      - "bin/ww is SERIALIZED — confirm no parallel task touches it."
+
+  github_sync:
+    required:
+      - "bash dev/tests/run-integration-tests.sh"
+      - "bats dev/tests/"
+    subtests:
+      - "24.1: Full Push Cycle"
+      - "24.2: Full Pull Cycle"
+      - "24.3: Conflict Resolution"
+      - "24.4: Error Handling"
+      - "24.5: Batch Operations"
+    notes:
+      - "HIGH FRAGILITY — run integration suite on test profile, not work profile."
+      - "Requires GitHub CLI authenticated to test account."
+      - "Run baseline BEFORE the change to confirm pre-existing green state."
+      - "Verifier must produce explicit sync behavior sign-off."

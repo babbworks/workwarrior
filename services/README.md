@@ -360,7 +360,7 @@ fi
 
 ### Testing
 
-- Write tests for your services in `tests/`
+- Write tests for your services in `dev/tests/`
 - Use bats for bash script testing
 - Test both success and failure cases
 - Verify service works with and without active profile

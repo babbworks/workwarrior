@@ -4,7 +4,7 @@
 
 ## Purpose
 
-Structured help beyond one-line `ww help` strings: topic pages, flag compatibility matrices, and deep links into `docs/` and `system/config/command-syntax.yaml` (CSSOT).
+Structured help beyond one-line `ww help` strings: topic pages, flag compatibility matrices, and deep links into `docs/` and `dev/config/command-syntax.yaml` (CSSOT).
 
 ## Target user
 
@@ -18,7 +18,7 @@ End users learning ww; Docs agent for cross-checking Gate C.
 
 ## Data / integrations
 
-- Reads: `docs/`, `system/config/command-syntax.yaml`, per-service `--help` where available.
+- Reads: `docs/`, `dev/config/command-syntax.yaml`, per-service `--help` where available.
 - Writes: none (generation stays in docs pipeline unless explicitly scoped).
 
 ## Open questions

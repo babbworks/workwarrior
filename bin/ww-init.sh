@@ -17,9 +17,10 @@ if [[ ":$PATH:" != *":$WW_BASE/bin:"* ]]; then
   export PATH="$WW_BASE/bin:$PATH"
 fi
 
-# Add ww system/bin to PATH (wwctl and other dev tools)
-if [[ ":$PATH:" != *":$WW_BASE/system/bin:"* ]]; then
-  export PATH="$WW_BASE/system/bin:$PATH"
+# Add ww dev/bin to PATH (wwctl and other dev tools). dev/ ships only in
+# repo/dev checkouts, not product installs — guard on existence.
+if [[ -d "$WW_BASE/dev/bin" && ":$PATH:" != *":$WW_BASE/dev/bin:"* ]]; then
+  export PATH="$WW_BASE/dev/bin:$PATH"
 fi
 
 # ============================================================================

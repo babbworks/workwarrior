@@ -121,15 +121,15 @@ Changes to any node propagate risk upward. When modifying a leaf, check all call
 Any change to `lib/` requires the full BATS suite:
 
 ```bash
-bats tests/
+bats dev/tests/
 ```
 
 GitHub sync changes additionally require:
 
 ```bash
-bats tests/test-github-sync.bats
-bats tests/test-sync-state.bats
-bash tests/run-integration-tests.sh   # requires gh auth + test profile
+bats dev/tests/test-github-sync.bats
+bats dev/tests/test-sync-state.bats
+bash dev/tests/run-integration-tests.sh   # requires gh auth + test profile
 ```
 
-See `tests/CLAUDE.md` for full test matrix.
+See `dev/tests/CLAUDE.md` for full test matrix.

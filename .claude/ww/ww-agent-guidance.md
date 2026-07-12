@@ -62,7 +62,7 @@ Substantive work **starts and ends with a task card** (the unit of commitment). 
 
 - **Journal (jrnl)** — always: capture what changed, why, and links to the active `TASK-<id>` context.
 - **Ledger (hledger)** — always: post the session’s economic / bookkeeping shape per `ledger-accounts.md`.
-- **Taskwarrior** — the **primary narrative** for AI work: `annotate`, `modify`, UDAs, and **new quick tasks** when a distinct thread deserves its own row. Prefer this depth over scattering one-line “chore” cards through `system/TASKS.md` or the main orchestration routines.
+- **Taskwarrior** — the **primary narrative** for AI work: `annotate`, `modify`, UDAs, and **new quick tasks** when a distinct thread deserves its own row. Prefer this depth over scattering one-line “chore” cards through `dev/TASKS.md` or the main orchestration routines.
 
 Orchestrator-owned **system** task cards stay for real board-level work; let WW hold the fuller trace of agent actions and small spin-offs.
 
@@ -161,7 +161,7 @@ cd /Users/mp/Documents/Vaults/babb/repos/ww
 WW_INSTALL_DIR=~/ww-dev ./install.sh --force
 ```
 
-This copies `bin/`, `lib/`, `scripts/`, `services/`, `resources/`, `config/`, `functions/`, `tools/`, `system/` — **never touches `profiles/`**. The browser picks up changes on next page reload.
+This copies `bin/`, `lib/`, `scripts/`, `services/`, `resources/`, `config/`, `functions/`, `tools/`, `dev/` — **never touches `profiles/`**. The browser picks up changes on next page reload.
 
 ---
 

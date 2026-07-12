@@ -17,7 +17,7 @@ Orchestrator and Builder agents; advanced users who reason about ww’s director
 
 ## Data / integrations
 
-- Reads: `$WW_BASE/resources/`, active `WORKWARRIOR_BASE` tree, `system/config` where relevant.
+- Reads: `$WW_BASE/resources/`, active `WORKWARRIOR_BASE` tree, `dev/config` where relevant.
 - Writes: none in read-only modes; guarded writes only with `--apply` and backup hook (future).
 
 ## Open questions

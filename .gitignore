@@ -61,14 +61,14 @@ functions/journals/CONFIG/
 functions/journals/private/
 
 # Profile-specific context docs (contain profile names)
-system/context/
+dev/context/
 
 # Profile-specific question templates
 services/questions/babb-*
 services/questions/bin/babb-*
 services/bookbuilder
 
-# Legacy devsystem (superseded by system/)
+# Legacy devsystem (superseded by dev/)
 devsystem/
 
 # Warlock: task-warlock install dirs (runtime, ~200MB+)

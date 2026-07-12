@@ -20,7 +20,7 @@ ww gun create ML_Course -p 10 -u Lecture --offset 2d --interval 1d
 
 - Project names with spaces are split by TaskWarrior — use underscores
 - No --dry-run (not implemented upstream)
-- See system/audits/gun-limitations.md for full analysis
+- See dev/audits/gun-limitations.md for full analysis
 
 ## Task Card
 

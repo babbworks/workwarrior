@@ -325,7 +325,7 @@ profiles/                    User profiles (created at runtime, gitignored)
 ## Testing
 
 ```bash
-bats tests/                          # Run all BATS test suites
-bats tests/test-models-service.bats  # Run a specific suite
+bats dev/tests/                          # Run all BATS test suites
+bats dev/tests/test-models-service.bats  # Run a specific suite
 python3 -m pytest services/browser/  # Browser and heuristic engine tests
 ```

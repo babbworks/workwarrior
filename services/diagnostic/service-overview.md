@@ -23,6 +23,6 @@ Builders during integration; users after migrations or sync incidents.
 
 ## Open questions
 
-- Merge vs differentiate from `system/scripts/health.sh` and `wwctl health`.
+- Merge vs differentiate from `dev/scripts/health.sh` and `wwctl health`.
 - Policy for network checks (opt-in only vs profile metadata flag).
-- Whether diagnostics should emit remediation task IDs referencing `system/TASKS.md`.
+- Whether diagnostics should emit remediation task IDs referencing `dev/TASKS.md`.
