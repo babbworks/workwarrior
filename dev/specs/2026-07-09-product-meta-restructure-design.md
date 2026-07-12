@@ -81,24 +81,24 @@ runtime files move; the dev config rides along in the rename (4b).
 - `services/profile/subservices/profile-uda.sh:26-28` → point at `config/`.
 
 **Why first:** these 5 files are the *only* runtime coupling to the dev control
-plane. Once relocated, `dev/ → dev/` is a pure move/text operation with no
+plane. Once relocated, `system/ → dev/` is a pure move/text operation with no
 behavioral change. The gate verifies field-mapper reads the same YAML from a new
 path — small, verifiable blast radius.
 
-### 4b. Rename `dev/ → dev/`
+### 4b. Rename `system/ → dev/`
 
 - `git mv system dev` (history preserved).
 - `git mv tests dev/tests` — tests are dev-only (zero installer/sync references).
   Update: `dev/scripts/select-tests.sh`, `.claude/settings.local.json`,
   `dev/tests/CLAUDE.md`, `dev/tests/TESTING-QUICK-START.md`, and the
   `test-baseline.yaml` path map.
-- `bin/ww-init.sh:20-22` — PATH inject `dev/bin → dev/bin`; keep the
+- `bin/ww-init.sh:20-22` — PATH inject `system/bin → dev/bin`; keep the
   `[[ -d ]]` guard so absence in product installs is harmless.
 - `install.sh:340` — **remove the `cp -r dev/*` step.** With runtime config
   decoupled (4a), `dev/` no longer needs to ship. Product installs get lighter and
   stop receiving dev scaffolding. (Update the install summary text at
   `install.sh:750` accordingly.)
-- **External reference rewrite (29 files outside `dev/`)** `dev/ → dev/`:
+- **External reference rewrite (29 files outside `system/`)** `system/ → dev/`:
   root `CLAUDE.md`, `.gitignore`, `.claude/ww/ww-agent-guidance.md`,
   `lib/CLAUDE.md`, `weapons/gun/README.md`, the 4 service-overview stubs
   (`base`, `diagnostic`, `help`, `verify`), and doc references. (docs/ references

@@ -1,16 +1,16 @@
 # Task Card Index
 
-Last updated: 2026-07-09 (TASK-STRUCT-1A/1B/2/3 added — product-vs-meta restructure, Parts 1–3)
+Last updated: 2026-07-12 (TASK-STRUCT-1A/1B verified; 2/3 unblocked and dispatchable)
 Total: 119 task cards in `tasks/cards/`. Card `Status:` field is authoritative; this file is a scannable index.
 
 ## Priority Queue
 
 | Priority | Card | Goal |
 |----------|------|------|
-| HIGH | TASK-STRUCT-1A | Decouple runtime config dev/config → config/ (⚠️ HIGH FRAG) |
-| HIGH | TASK-STRUCT-1B | Rename dev/ → dev/, dev/tests/ → dev/tests/ (depends 1A, solo) |
-| MEDIUM | TASK-STRUCT-2 | Consolidate 4 entry docs → canonical set (depends 1B) |
-| MEDIUM | TASK-STRUCT-3 | Relocate 9 empty service stubs → dev/specs/ (depends 1B) |
+| ~~HIGH~~ verified* | TASK-STRUCT-1A | Decouple runtime config system/config → config/ (⚠️ HIGH FRAG) — done, pre-merge N1/N2 |
+| ~~HIGH~~ verified* | TASK-STRUCT-1B | Rename system/ → dev/, tests/ → dev/tests/ — done, pre-merge N1/N2 |
+| HIGH | TASK-STRUCT-2 | Consolidate 4 entry docs → canonical set (1B satisfied — dispatchable) |
+| HIGH | TASK-STRUCT-3 | Relocate 9 empty service stubs → dev/specs/ (1B satisfied — dispatchable) |
 | HIGH | TASK-SITE-040 | Journal cross-journal entry link fix |
 | HIGH | TASK-SITE-041 | Archive view button — browse/restore archived entries |
 | MEDIUM | TASK-SITE-039 | Journal markdown rendering with toggle (browser UI) |
