@@ -1,0 +1,283 @@
+hledger under test: hledger 1.52.1, linux-x86_64
+
+============================================================
+TEST 1   Arbitrary units are native (kg + Wh tracked side by side)
+
+============================================================
+$ /tmp/claude-1000/-home-morgen-github-workwarrior/857963d4-a02a-4487-9412-49b661be98d1/scratchpad/bin/hledger -f /tmp/tmp.HSnBwmSn0t/units.journal balance --no-total
+
+            -50.0 kg  Inventory:SteelBillet
+             1200 Wh  Machine:PressA
+              1.8 kg  Process:Scrap
+             48.2 kg  Process:Stamped
+            -1200 Wh  Utility:Grid
+
+[exit 0]
+
+============================================================
+TEST 2   Unit EQUIVALENCE via P price directive (hledger's answer to ledger's 'C')
+
+============================================================
+-- raw (kWh) --
+$ /tmp/claude-1000/-home-morgen-github-workwarrior/857963d4-a02a-4487-9412-49b661be98d1/scratchpad/bin/hledger -f /tmp/tmp.HSnBwmSn0t/equiv.journal balance Machine --no-total
+
+               3 kWh  Machine:PressA
+
+[exit 0]
+-- converted -X Wh --
+$ /tmp/claude-1000/-home-morgen-github-workwarrior/857963d4-a02a-4487-9412-49b661be98d1/scratchpad/bin/hledger -f /tmp/tmp.HSnBwmSn0t/equiv.journal balance Machine -X Wh --no-total
+
+             3000 Wh  Machine:PressA
+
+[exit 0]
+
+============================================================
+TEST 3   Cost notation @ + report at cost (-B) and infer prices
+
+============================================================
+-- default --
+$ /tmp/claude-1000/-home-morgen-github-workwarrior/857963d4-a02a-4487-9412-49b661be98d1/scratchpad/bin/hledger -f /tmp/tmp.HSnBwmSn0t/cost.journal balance Assets --no-total
+
+          -30.00 USD  Assets:Cash
+             100 kWh  Assets:EnergyStore
+
+[exit 0]
+-- at cost -B --
+$ /tmp/claude-1000/-home-morgen-github-workwarrior/857963d4-a02a-4487-9412-49b661be98d1/scratchpad/bin/hledger -f /tmp/tmp.HSnBwmSn0t/cost.journal balance Assets -B --no-total
+
+          -30.00 USD  Assets:Cash
+           30.00 USD  Assets:EnergyStore
+
+[exit 0]
+
+============================================================
+TEST 4   Time-aware valuation: --value=then vs end vs a specific date
+
+============================================================
+-- -X USD --value=then --
+$ /tmp/claude-1000/-home-morgen-github-workwarrior/857963d4-a02a-4487-9412-49b661be98d1/scratchpad/bin/hledger -f /tmp/tmp.HSnBwmSn0t/val.journal -X USD --value=then balance Assets:Widgets --no-total
+
+          100.00 USD  Assets:Widgets
+
+[exit 0]
+-- -X USD --value=2026-06-15 --
+$ /tmp/claude-1000/-home-morgen-github-workwarrior/857963d4-a02a-4487-9412-49b661be98d1/scratchpad/bin/hledger -f /tmp/tmp.HSnBwmSn0t/val.journal -X USD --value=2026-06-15 balance Assets:Widgets --no-total
+
+          150.00 USD  Assets:Widgets
+
+[exit 0]
+-- -X USD --value=now --
+$ /tmp/claude-1000/-home-morgen-github-workwarrior/857963d4-a02a-4487-9412-49b661be98d1/scratchpad/bin/hledger -f /tmp/tmp.HSnBwmSn0t/val.journal -X USD --value=now balance Assets:Widgets --no-total
+
+          150.00 USD  Assets:Widgets
+
+[exit 0]
+
+============================================================
+TEST 5   Computed postings: auto-rule (--auto) with a dimensionless multiplier
+
+============================================================
+-- without --auto (literal) --
+$ /tmp/claude-1000/-home-morgen-github-workwarrior/857963d4-a02a-4487-9412-49b661be98d1/scratchpad/bin/hledger -f /tmp/tmp.HSnBwmSn0t/auto.journal print
+
+2026-07-01 * buy steel
+    expenses:materials          100 kg
+    assets:inventory
+
+
+[exit 0]
+-- with --auto (10 kg derived) --
+$ /tmp/claude-1000/-home-morgen-github-workwarrior/857963d4-a02a-4487-9412-49b661be98d1/scratchpad/bin/hledger -f /tmp/tmp.HSnBwmSn0t/auto.journal print --auto
+
+2026-07-01 * buy steel
+    expenses:materials           100 kg
+    (overhead:handling)           10 kg
+    assets:inventory
+
+
+[exit 0]
+
+============================================================
+TEST 6   Periodic transactions + --forecast (projecting future flows)
+
+============================================================
+$ /tmp/claude-1000/-home-morgen-github-workwarrior/857963d4-a02a-4487-9412-49b661be98d1/scratchpad/bin/hledger -f /tmp/tmp.HSnBwmSn0t/fc.journal register --forecast=2026-07-01..2026-10-01
+
+2026-07-01 planned maintenan..  Maintenance:Parts           5 unit        5 unit
+                                Inventory:Parts            -5 unit             0
+2026-07-15 actual               Maintenance:Parts           5 unit        5 unit
+                                Inventory:Parts            -5 unit             0
+2026-08-01 planned maintenan..  Maintenance:Parts           5 unit        5 unit
+                                Inventory:Parts            -5 unit             0
+2026-09-01 planned maintenan..  Maintenance:Parts           5 unit        5 unit
+                                Inventory:Parts            -5 unit             0
+
+[exit 0]
+
+============================================================
+TEST 7   Conservation guard: balance assertion == (sole-commodity), PASS case
+
+============================================================
+$ /tmp/claude-1000/-home-morgen-github-workwarrior/857963d4-a02a-4487-9412-49b661be98d1/scratchpad/bin/hledger -f /tmp/tmp.HSnBwmSn0t/assert_ok.journal balance Tank --no-total
+
+                30 L  Tank:Water
+
+[exit 0]
+assertion should HOLD:
+  => OK (exit 0, as expected)
+
+============================================================
+TEST 8   Conservation guard: same file but WRONG asserted balance -> must be caught
+
+============================================================
+assertion should FAIL (30 L != 999 L):
+  => OK (correctly rejected, nonzero exit)
+-- the error hledger emits --
+$ /tmp/claude-1000/-home-morgen-github-workwarrior/857963d4-a02a-4487-9412-49b661be98d1/scratchpad/bin/hledger -f /tmp/tmp.HSnBwmSn0t/assert_bad.journal check
+
+hledger: Error: /tmp/tmp.HSnBwmSn0t/assert_bad.journal:8:24:
+  | 2026-07-02 * checkpoint
+8 |     Tank:Water             0 L == 999 L
+  |                                ^^^^^^^^
+  |     Sink:Drain             0 L
+
+Balance assertion failed in Tank:Water
+Across all commodities at this point, excluding subaccounts, ignoring costs,
+the asserted balance is:        999 L
+but the calculated balance is:   30 L
+(difference: 969 L)
+To troubleshoot, check this account's running balance with assertions disabled, eg:
+hledger reg -I 'Tank:Water$'
+
+[exit 1]
+
+============================================================
+TEST 9   Transaction that does NOT balance (Sigma != 0) -> rejected
+
+============================================================
+unbalanced 48 vs 50 kg should FAIL:
+  => OK (correctly rejected, nonzero exit)
+
+============================================================
+TEST 10  hledger check suite (accounts, commodities, ordereddates, assertions)
+
+============================================================
+$ /tmp/claude-1000/-home-morgen-github-workwarrior/857963d4-a02a-4487-9412-49b661be98d1/scratchpad/bin/hledger -f /tmp/tmp.HSnBwmSn0t/strict.journal check accounts commodities ordereddates assertions
+
+hledger: Error: /tmp/tmp.HSnBwmSn0t/strict.journal:5:
+  | 2026-07-01 * ok
+  |     Assets:Cash       10.00 USD
+5 |     Equity:Open      -10.00 USD
+  |     ^^^^^^^^^^^
+
+Strict account checking is enabled, and
+account "Equity:Open" has not been declared.
+Consider adding an account directive. Examples:
+
+account Equity:Open
+
+[exit 1]
+
+============================================================
+TEST 11  Multi-period report with totals (-T) and averages (-A)
+
+============================================================
+$ /tmp/claude-1000/-home-morgen-github-workwarrior/857963d4-a02a-4487-9412-49b661be98d1/scratchpad/bin/hledger -f /tmp/tmp.HSnBwmSn0t/val.journal balance -M -T -A --no-total
+
+Balance changes in 2026-03:
+
+                ||      Mar     Total   Average 
+================++==============================
+ Assets:Widgets ||  100 WGT   100 WGT   100 WGT 
+ Equity:Opening || -100 WGT  -100 WGT  -100 WGT 
+
+[exit 0]
+
+============================================================
+TEST 12  Budget report (--budget) from periodic rule vs actuals
+
+============================================================
+$ /tmp/claude-1000/-home-morgen-github-workwarrior/857963d4-a02a-4487-9412-49b661be98d1/scratchpad/bin/hledger -f /tmp/tmp.HSnBwmSn0t/fc.journal balance --budget -M
+
+Budget performance in 2026-07:
+
+                   ||                       Jul 
+===================++===========================
+ Inventory:Parts   || -5 unit [100% of -5 unit] 
+ Maintenance:Parts ||  5 unit [100% of  5 unit] 
+-------------------++---------------------------
+                   ||       0 [              0] 
+
+[exit 0]
+
+============================================================
+TEST 13  Query language: amt: numeric, cur:, tag: filters
+
+============================================================
+-- amt:>100 --
+$ /tmp/claude-1000/-home-morgen-github-workwarrior/857963d4-a02a-4487-9412-49b661be98d1/scratchpad/bin/hledger -f /tmp/tmp.HSnBwmSn0t/query.journal register amt:>100
+
+2026-07-01 big                  Machine:PressA             1500 Wh       1500 Wh
+                                Utility:Grid              -1500 Wh             0
+
+[exit 0]
+-- tag:unit=lathe --
+$ /tmp/claude-1000/-home-morgen-github-workwarrior/857963d4-a02a-4487-9412-49b661be98d1/scratchpad/bin/hledger -f /tmp/tmp.HSnBwmSn0t/query.journal register tag:unit=lathe
+
+2026-07-02 small                Machine:LatheB               40 Wh         40 Wh
+                                Utility:Grid                -40 Wh             0
+
+[exit 0]
+
+============================================================
+TEST 14  Machine-output contract: which formats does 'print' now support?
+
+============================================================
+  txt       : supported
+  csv       : supported
+  tsv       : supported
+  json      : supported
+  sql       : supported
+  beancount : NOT supported
+  fods      : supported
+-- sample beancount output --
+$ /tmp/claude-1000/-home-morgen-github-workwarrior/857963d4-a02a-4487-9412-49b661be98d1/scratchpad/bin/hledger -f /tmp/tmp.HSnBwmSn0t/units.journal print -O beancount
+
+hledger: Error: bad top-level account: Inventory
+in beancount account name:           Inventory:SteelBillet
+converted from hledger account name: Inventory:SteelBillet
+For Beancount, top-level accounts must be (or be --alias'ed to)
+one of Assets, Liabilities, Equity, Income, Expenses.
+
+[exit 1]
+
+============================================================
+TEST 15  roi command (rate of return over a flow) — generic efficiency metric
+
+============================================================
+$ /tmp/claude-1000/-home-morgen-github-workwarrior/857963d4-a02a-4487-9412-49b661be98d1/scratchpad/bin/hledger -f /tmp/tmp.HSnBwmSn0t/roi.journal roi --investment Assets:Fund --profit-loss Equity:Unrealized -Y
+
++---++------------+------------++---------------+----------+-------------+---------++--------++------------+----------+
+|   ||      Begin |        End || Value (begin) | Cashflow | Value (end) |     PnL ||    IRR || TWR/period | TWR/year |
++===++============+============++===============+==========+=============+=========++========++============+==========+
+| 1 || 2026-01-01 | 2026-12-31 ||             0 | 1000 USD |    1100 USD | 100 USD || 10.00% ||     10.00% |   10.00% |
++---++------------+------------++---------------+----------+-------------+---------++--------++------------+----------+
+
+
+[exit 0]
+
+============================================================
+TEST 16  timedot format: effort/time logged as a quantity, read as a journal
+
+============================================================
+$ /tmp/claude-1000/-home-morgen-github-workwarrior/857963d4-a02a-4487-9412-49b661be98d1/scratchpad/bin/hledger -f timedot:/tmp/tmp.HSnBwmSn0t/effort.timedot balance --no-total
+
+                0.50  maint.latheB
+                1.00  maint.pressA
+
+[exit 0]
+
+============================================================
+SUMMARY: 3 assertions passed, 0 failed
+
+============================================================
