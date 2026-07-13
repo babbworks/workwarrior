@@ -43,8 +43,9 @@ fi
 if [[ -f "$WW_BASE/lib/security-backends.sh" ]]; then
   source "$WW_BASE/lib/security-backends.sh"
 fi
-# Owns the hledger version floor + the runtime guard (TASK-LED-013). Absent-safe:
-# without it, hledger_require_floor is a no-op and behaviour is unchanged.
+# Toolchain floors (config/dependencies.yaml) + the runtime guard, which reads the
+# state stamp and forks nothing on the hot path (TASK-LED-013). Absent-safe: without
+# these, the guard is a no-op and behaviour is unchanged.
 if [[ -f "$WW_BASE/lib/hledger-version.sh" ]]; then
   source "$WW_BASE/lib/hledger-version.sh"
 else
@@ -1780,21 +1781,40 @@ cmd_deps() {
     check)
       check_all_dependencies
       display_dependency_status
+      # TASK-LED-013: this is the `apt update` moment. Probe the real binaries once,
+      # here, and write the toolchain stamp. The runtime floor guard then reads that
+      # stamp and forks NOTHING on the hot path.
+      if [[ -f "$WW_BASE/lib/deps-state.sh" ]]; then
+        source "$WW_BASE/lib/deps-state.sh"
+        if deps_state_refresh; then
+          log_success "Toolchain stamp refreshed: $(deps_state_path)"
+        else
+          log_warning "Could not write the toolchain stamp"
+        fi
+      fi
       ;;
     install)
-      # TASK-LED-013: `ww deps install hledger` is an EXPLICIT, named request, so
-      # performing the install here does not violate the no-auto-install-on-Linux
-      # policy — that policy governs the unattended bulk installer below. hledger is
-      # special-cased because no Linux package manager can reach its version floor.
-      if [[ "${1:-}" == "hledger" ]]; then
-        if [[ -f "$WW_BASE/lib/hledger-version.sh" ]]; then
-          source "$WW_BASE/lib/hledger-version.sh"
+      # `ww deps install <tool>` is an EXPLICIT, named request, so performing the
+      # install here does not violate the no-auto-install-on-Linux policy — that
+      # policy governs the unattended bulk installer below. Tools whose manifest
+      # `strategy` is `static` are installed directly, because no package manager can
+      # reach their floor.
+      local dep_tool="${1:-}"
+      if [[ -n "$dep_tool" ]]; then
+        if [[ -f "$WW_BASE/lib/deps-state.sh" ]]; then
+          source "$WW_BASE/lib/deps-state.sh"
         else
-          log_error "lib/hledger-version.sh not found"
+          log_error "lib/deps-state.sh not found"
           exit 2
         fi
-        hledger_install_static
-        exit $?
+        if [[ "$(deps_strategy "$dep_tool" 2>/dev/null)" != "static" ]]; then
+          log_error "'$dep_tool' is not a static-install tool. Run 'ww deps install' (no args)."
+          exit 1
+        fi
+        deps_install_static "$dep_tool"
+        local dep_rc=$?
+        [[ $dep_rc -eq 0 ]] && deps_state_refresh >/dev/null 2>&1
+        exit $dep_rc
       fi
       run_dependency_installer
       ;;

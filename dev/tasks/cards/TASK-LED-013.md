@@ -104,5 +104,66 @@ Resolution:
   NOT DONE (criterion 6): no schema in dev/schemas/ depends on the floor yet. LED-017
   (attention queue) will be the first; fold it in there.
 
-Status:               implemented — awaiting Verifier
+Verifier round 1 (dev/reports/verifier-TASK-LED-013.md): FAIL, 5 findings.
+  F1 HIGH  — installer 404s on Linux ARM (fabricated URL for an asset upstream does not
+             build) and serves x86 to every Apple Silicon Mac (Darwin:* swallowed arm64).
+  F2 MED-HI— no checksum on a downloaded executable.
+  F3 MED   — criterion 4 unmet: WW_HLEDGER_FLOOR_OK cannot cross sibling processes, so
+             every `ww hledger` forked `hledger --version`.
+  F4 LOW   — curl assumed, never checked.
+  F5 LOW   — dead `run` line in a test; a fallback floor literal = second source of truth.
+
+Round 2 — ALL FIVE CLOSED, structurally rather than by patching:
+
+  The root cause of F1 and F2 was that the platform/asset matrix lived as STRING LITERALS
+  BURIED IN SHELL. A 23/23 suite missed both, because the tests verified the logic the
+  author was thinking about and not the URLs he was not. So the fix is to make those facts
+  DATA:
+
+  NEW config/dependencies.yaml  — the toolchain manifest. Floors, pins, per-platform assets,
+      SHA-256s, enforcement (hard|advisory), and which package managers are `unsupported`
+      for a tool. F1 and F2 are now UNREPRESENTABLE, not merely fixed: an unsupported
+      platform CANNOT produce a URL (asserted), and every asset MUST carry a 64-hex digest
+      (asserted).
+  NEW lib/deps-manifest.sh      — the SINGLE owner of that file (the ledgers.yaml
+      five-parser rule). Real asset names verified against the upstream release API.
+  NEW lib/deps-state.sh         — the toolchain stamp. THE `apt update` MODEL: `ww deps
+      check` probes the binaries once and writes the stamp; the runtime guard READS the
+      stamp and forks NOTHING. Closes F3 properly instead of amending the criterion away.
+      Self-heals with exactly one probe if the stamp is absent, and is invalidated when the
+      manifest changes (a raised floor must never be stamped `ok` against the old one).
+  lib/hledger-version.sh        — reduced to a thin shim over the above, so the two already-
+      wired call sites keep a stable name.
+  lib/dependency-installer.sh   — floor now DERIVED from the manifest; a missing manifest is
+      FATAL, not a guessed default (F5). Install routing is manifest-driven, not an
+      hledger special-case.
+
+  Found and fixed IN-PASS (not in the original findings): deps_state_refresh aborted under
+  `set -e` when ANY tool was absent — `command -v` returns 1, and a failing command
+  substitution inside an assignment fails the assignment. Recording that a tool is absent
+  IS the job; it must never be the thing that breaks the job. Regression-tested.
+
+  Tests (43/43, deterministic):
+    test-deps-manifest.bats 18/18 — F1 platform matrix (mac-arm64 != mac-x64; linux-arm64
+      yields NO url), F2 (64-hex digests; install REFUSES on mismatch and leaves nothing
+      behind), F4, F5, malformed-manifest-is-fatal.
+    test-deps-state.bats     9/9  — F3 TRIPWIRE: the fake binary records its own
+      invocations; ten guard calls after a fresh stamp leave ZERO traces. This PROVES the
+      fork is gone rather than asserting it should be.
+    test-hledger-floor.bats 16/16 — guard wiring, scope, 1.9 < 1.52.
+
+  End-to-end: checksum-verified install of the real 1.52.1 artifact -> stamp written ->
+  run-valuation-tests.sh 12/12 against the INSTALLED binary. Host is on 1.52.1.
+
+  REGRESSION GATE COULD NOT BE RUN — see TASK-TEST-004. The suite is NONDETERMINISTIC:
+  identical code, consecutive runs, base = 60 then 64 failures; led-013 = 76 then 67. The
+  baseline differs from ITSELF, so the mandated name-set diff reports phantom regressions.
+  What IS certified: 43/43 deterministic on this change's surface; zero failures anywhere
+  touching deps/hledger/floor/install; and the two mechanisms by which this change could
+  reach the flapping profile/hook suites were ruled out by execution (profile-manager never
+  sources dependency-installer; the fatal-manifest path does not trigger). Those suites are
+  stable in ISOLATION and identical on base and on this branch (18 passed / 1 failed).
+
+Status:               implemented — Verifier round 2 pending; blocked on TASK-TEST-004 for a
+                      trustworthy regression gate
 Taskwarrior:          (assign live TW id on dispatch)

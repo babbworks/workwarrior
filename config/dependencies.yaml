@@ -1,0 +1,121 @@
+# config/dependencies.yaml — the toolchain manifest.
+#
+# SINGLE SOURCE OF TRUTH for every external tool workwarrior depends on: its version
+# floor, why that floor exists, how to install it, and (where we ship a binary) exactly
+# which artifact and what it must hash to.
+#
+# Contract: dev/schemas/dependencies-v1.md
+# Reader:   lib/deps-manifest.sh  (the ONLY module that parses this file)
+#
+# WHY THIS FILE EXISTS (TASK-LED-013): these facts used to live as string literals
+# scattered across shell — MIN_VERSION_* constants in one file, a platform/asset matrix
+# in another. That produced two real bugs that a 23/23 test suite missed: a fabricated
+# download URL for a platform upstream does not build for, and an x86 binary served to
+# every Apple Silicon Mac. Facts that are DATA get reviewed. Facts buried in shell do not.
+#
+# See also: dev/logs/decisions.md 2026-07-13, dev/reports/verifier-TASK-LED-013.md
+
+schema: v1
+
+tools:
+
+  # ── hledger — the one with a hard floor ──────────────────────────────────
+  hledger:
+    display: Hledger
+    purpose: Plain-text accounting — the ledger's computational engine
+    min_version: "1.52"
+    enforcement: hard          # below the floor => refuse, do not degrade
+    strategy: static           # NO package manager can reach the floor (see below)
+
+    # An hledger below the floor does NOT error on -X / --value. It silently returns
+    # UNCONVERTED numbers. A wrong answer with no error is the worst outcome an
+    # accounting tool can produce, which is why enforcement is `hard`.
+    floor_reason: >-
+      Unit conversion (-X), time-aware valuation (--value=then|DATE|now), and the
+      attention queue (balance -X att -S) do not exist below 1.52. Verified against
+      1.52.1 — see dev/reports/ledger-hledger/.
+
+    # Debian 12's only candidate is 1.25-2+b5. This is not a lag to wait out.
+    # `apt install hledger` appears to succeed and leaves the user below the floor.
+    package_managers:
+      brew: hledger            # tracks upstream closely — acceptable on macOS
+      apt: unsupported         # ships 1.25
+      dnf: unsupported
+      pacman: unsupported
+
+    pinned: "1.52.1"
+    release_url: https://github.com/simonmichael/hledger/releases/download/{version}/{file}
+    install_to: ~/.local/bin
+
+    # NOTE ON TRUST: upstream publishes no checksums file for this release. These
+    # digests were computed by us from the assets we verified (12/12 valuation harness
+    # against linux-x64). They pin the artifact against LATER tampering; they are not an
+    # upstream-signed attestation. Do not claim more than that.
+    assets:
+      linux-x64:
+        file: hledger-linux-x64.tar.gz
+        sha256: 55bff5785d7528b939e4642a21d3c12a75a8095fedc973340b31dfd7367dd7a2
+      mac-arm64:
+        file: hledger-mac-arm64.tar.gz
+        sha256: cd2fda01e8b3e5fdd312c4caca2e55c53f3e966747b5ca245838931f9c4a450f
+      mac-x64:
+        file: hledger-mac-x64.tar.gz
+        sha256: 16e954cbb792fc24b427146df63bed84d9d4490f7bb62b51d824720317dd3037
+      # Upstream ships NO Linux ARM static build. Say so; never fabricate a URL.
+      linux-arm64: unsupported
+
+  # ── the rest: floors are advisory, package managers are fine ─────────────
+  task:
+    display: TaskWarrior
+    purpose: Task management
+    min_version: "2.6.0"
+    enforcement: advisory
+    strategy: package
+    package_managers:
+      brew: task
+      apt: taskwarrior
+      dnf: task
+      pacman: task
+
+  timew:
+    display: TimeWarrior
+    purpose: Time tracking — the capture surface (a card; Stream is the clock)
+    min_version: "1.4.0"
+    enforcement: advisory
+    strategy: package
+    package_managers:
+      brew: timewarrior
+      apt: timewarrior
+      dnf: timew
+      pacman: timew
+
+  jrnl:
+    display: JRNL
+    purpose: Journaling
+    min_version: "4.0"
+    enforcement: advisory
+    strategy: pipx
+    package_managers:
+      brew: pipx-install
+      apt: pipx-install
+      dnf: pipx-install
+      pacman: pipx-install
+
+  bugwarrior:
+    display: Bugwarrior
+    purpose: Issue-tracker bridge
+    min_version: "1.8.0"
+    enforcement: advisory
+    strategy: pipx
+
+  python3:
+    display: Python 3
+    purpose: Required by several services and every YAML reader
+    min_version: "3.9"
+    enforcement: advisory
+    strategy: package
+    package_managers:
+      brew: python3
+      apt: python3 python3-pip
+      dnf: python3 python3-pip
+      pacman: python python-pip
