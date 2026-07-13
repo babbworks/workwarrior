@@ -3558,9 +3558,12 @@ PYEOF
         if [[ "$WW_OUTPUT_MODE" == "json" ]]; then
           printf '%s\n' "$result"
         else
-          python3 - <<PYEOF2
-import json, sys
-d = json.loads('''$result''')
+          # TASK-JRN-001: the payload crosses as DATA (environment), never as program text.
+          # It was interpolated into a triple-quoted literal — journal CONTENT is user data,
+          # so an entry containing ''' escaped the string and executed.
+          WW_SCAN_JSON="$result" python3 - <<'PYEOF2'
+import json, os, sys
+d = json.loads(os.environ.get("WW_SCAN_JSON", "{}"))
 entries = d.get("entries", [])
 if not entries:
     print("  (no matching entries)")
@@ -3638,11 +3641,12 @@ PYEOF2
       fi
       # Resolve target journal file from jrnl.yaml
       local target_file
-      target_file="$(python3 - <<PYEOF
-import yaml, os
+      # TASK-JRN-001: the --journal value crosses as DATA (argv), never as program text.
+      target_file="$(python3 - "${ww_journal:-}" <<'PYEOF'
+import yaml, os, sys
 base = os.environ.get("WORKWARRIOR_BASE", "")
 cfg = os.path.join(base, "jrnl.yaml")
-journal_name = "${ww_journal}"
+journal_name = sys.argv[1] if len(sys.argv) > 1 else ""
 try:
     with open(cfg) as f:
         data = yaml.safe_load(f)
@@ -3663,11 +3667,12 @@ PYEOF
       # Load per-journal defaults from $WORKWARRIOR_BASE/ww.yaml (CLI flags win)
       local resolved_journal="${ww_journal:-default}"
       local defaults_json
-      defaults_json="$(python3 - <<PYEOF2
-import yaml, os, json
+      # TASK-JRN-001: value via argv, not interpolated into the program.
+      defaults_json="$(python3 - "${resolved_journal:-}" <<'PYEOF2'
+import yaml, os, json, sys
 base = os.environ.get("WORKWARRIOR_BASE", "")
 cfg = os.path.join(base, "ww.yaml")
-journal_key = "${resolved_journal}"
+journal_key = sys.argv[1] if len(sys.argv) > 1 else "default"
 result = {"project": "", "tags": "", "priority": ""}
 try:
     with open(cfg) as f:
@@ -3752,11 +3757,12 @@ print(json.dumps({'uuid':t.get('uuid',''),'description':t.get('description',''),
       t_priority="$(printf '%s' "$task_json"| python3 -c "import json,sys; d=json.load(sys.stdin); print(d['priority'])")"
       # Resolve target journal file
       local jt_target_file
-      jt_target_file="$(python3 - <<PYEOF
-import yaml, os
+      # TASK-JRN-001: value via argv, not interpolated into the program.
+      jt_target_file="$(python3 - "${jt_journal:-}" <<'PYEOF'
+import yaml, os, sys
 base = os.environ.get("WORKWARRIOR_BASE", "")
 cfg = os.path.join(base, "jrnl.yaml")
-journal_name = "${jt_journal}"
+journal_name = sys.argv[1] if len(sys.argv) > 1 else ""
 try:
     with open(cfg) as f:
         data = yaml.safe_load(f)
@@ -4006,7 +4012,9 @@ print('0')
       [[ -z "$lt_budget" ]] && lt_budget="time:${profile_slug}:budget"
       # Resolve ledger file
       local lt_ledger_file
-      lt_ledger_file="$(python3 - <<PYEOF
+      # TASK-JRN-001: no variables here today, but an unquoted delimiter is a loaded gun for
+      # whoever adds one. Quoted by policy — criterion 1 grep-gates it.
+      lt_ledger_file="$(python3 - <<'PYEOF'
 import yaml, os
 base = os.environ.get("WORKWARRIOR_BASE", "")
 cfg = os.path.join(base, "ledgers.yaml")
