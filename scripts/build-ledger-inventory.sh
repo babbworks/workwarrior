@@ -6,6 +6,14 @@ WW_BASE="${WW_BASE:-$HOME/ww}"
 OUT_DIR="$WW_BASE/resources/inventory"
 OUT_FILE="$OUT_DIR/ledger-accounts.yaml"
 
+# Source the ledgers.yaml schema owner relative to this script (not WW_BASE), so
+# ledger discovery works regardless of the WW_BASE value.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=/dev/null
+source "$SCRIPT_DIR/../lib/core-utils.sh" 2>/dev/null || true
+# shellcheck source=/dev/null
+source "$SCRIPT_DIR/../lib/ledger-config.sh" 2>/dev/null || true
+
 usage() {
   cat <<'EOF'
 Usage: build-ledger-inventory.sh [--print]
@@ -24,24 +32,24 @@ ledger_count=0
 
 for pdir in "$WW_BASE/profiles"/*/; do
   [[ -d "$pdir" ]] || continue
+  pdir="${pdir%/}"
   pname=$(basename "$pdir")
-  # Scan known ledger file locations
-  ledger_candidates=(
-    "$pdir/ledger/${pname}.journal"
-    "$pdir/ledgers/${pname}.journal"
-    "$pdir/${pname}.journal"
-  )
-  # Also scan jrnl.yaml-declared ledger paths (simple grep for .journal lines)
-  jrnl_yaml="$pdir/.config/jrnl.yaml"
-  if [[ -f "$jrnl_yaml" ]]; then
-    while IFS= read -r line; do
-      f=$(echo "$line" | awk '{print $NF}')
-      [[ -f "$f" ]] && ledger_candidates+=("$f")
-    done < <(grep '\.journal' "$jrnl_yaml" 2>/dev/null || true)
+  # Discover ledger files from the profile's ledgers.yaml (the schema owner),
+  # resolving the reserved default plus every named ledger (including hidden) —
+  # not by guessing filenames or grepping jrnl.yaml.
+  ledger_candidates=()
+  if [[ -f "$pdir/ledgers.yaml" ]]; then
+    dpath="$(WORKWARRIOR_BASE="$pdir" ledger_cfg_default_path 2>/dev/null || true)"
+    [[ -n "$dpath" ]] && ledger_candidates+=("$dpath")
+    while IFS= read -r nm; do
+      [[ -n "$nm" ]] || continue
+      npath="$(WORKWARRIOR_BASE="$pdir" ledger_cfg_resolve "$nm" 2>/dev/null || true)"
+      [[ -n "$npath" ]] && ledger_candidates+=("$npath")
+    done < <(WORKWARRIOR_BASE="$pdir" ledger_cfg_names --include-hidden 2>/dev/null || true)
   fi
   found_any=0
-  for lf in "${ledger_candidates[@]}"; do
-    [[ -f "$lf" ]] || continue
+  for lf in "${ledger_candidates[@]:-}"; do
+    [[ -n "$lf" && -f "$lf" ]] || continue
     found_any=1
     ((ledger_count++)) || true
     # Extract accounts via hledger if available

@@ -15,6 +15,11 @@ if [[ -z "${CORE_UTILS_LOADED:-}" ]]; then
   source "$SCRIPT_DIR/core-utils.sh"
 fi
 
+# The `l` function shares the ledger dispatcher with `ww ledger`.
+SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+[[ -f "$SCRIPT_DIR/ledger-config.sh" ]] && source "$SCRIPT_DIR/ledger-config.sh"
+[[ -f "$SCRIPT_DIR/ledger-dispatch.sh" ]] && source "$SCRIPT_DIR/ledger-dispatch.sh"
+
 # Skip re-initialization within the same shell session
 [[ -n "${SHELL_INTEGRATION_LOADED:-}" ]] && return 0
 
@@ -189,42 +194,29 @@ create_profile_aliases() {
       fi
     fi
   done
-  # Create l-<ledger-name> aliases for each ledger
+  # Create l-<ledger-name> aliases for each ledger, via the schema owner so that
+  # map-form (journal:) entries resolve correctly (the old IFS=: parser did not).
   if [[ -f "$ledger_config" ]]; then
-    # Parse ledgers.yaml to get ledger names and paths
-    # Format: "  ledger-name: /path/to/ledger.journal"
-    while IFS=: read -r ledger_name ledger_path; do
-      # Skip the "ledgers:" line and empty lines
-      if [[ "$ledger_name" =~ ^[[:space:]]*ledgers[[:space:]]*$ ]] || [[ -z "$ledger_name" ]]; then
-        continue
-      fi
-
-      # Trim whitespace from ledger name
-      ledger_name=$(echo "$ledger_name" | xargs)
-      ledger_path=$(echo "$ledger_path" | xargs)
-
-      # Skip if ledger_path is empty
-      if [[ -z "$ledger_path" ]]; then
-        continue
-      fi
-
-      # Create alias for this ledger
-      # If ledger name is "default", use profile name
-      if [[ "$ledger_name" == "default" ]]; then
-        local l_alias="alias l-${profile_name}='hledger -f ${ledger_path}'"
-        for _rc in "${rc_files[@]}"; do
-          add_alias_to_section "$l_alias" "$SECTION_LEDGER_ALIASES" "$_rc" \
-            || log_warning "Failed to add l-${profile_name} alias to $_rc"
-        done
-      else
-        # For named ledgers, use l-<profile-name>-<ledger-name>
-        local l_alias="alias l-${profile_name}-${ledger_name}='hledger -f ${ledger_path}'"
-        for _rc in "${rc_files[@]}"; do
-          add_alias_to_section "$l_alias" "$SECTION_LEDGER_ALIASES" "$_rc" \
-            || log_warning "Failed to add l-${profile_name}-${ledger_name} alias to $_rc"
-        done
-      fi
-    done < "$ledger_config"
+    local _def_path _l_alias _lname _lpath
+    _def_path="$(WORKWARRIOR_BASE="$profile_base" ledger_cfg_default_path 2>/dev/null || true)"
+    if [[ -n "$_def_path" ]]; then
+      # If ledger name is "default", use the profile name for the alias.
+      _l_alias="alias l-${profile_name}='hledger -f ${_def_path}'"
+      for _rc in "${rc_files[@]}"; do
+        add_alias_to_section "$_l_alias" "$SECTION_LEDGER_ALIASES" "$_rc" \
+          || log_warning "Failed to add l-${profile_name} alias to $_rc"
+      done
+    fi
+    while IFS= read -r _lname; do
+      [[ -n "$_lname" ]] || continue
+      _lpath="$(WORKWARRIOR_BASE="$profile_base" ledger_cfg_resolve "$_lname" 2>/dev/null || true)"
+      [[ -n "$_lpath" ]] || continue
+      _l_alias="alias l-${profile_name}-${_lname}='hledger -f ${_lpath}'"
+      for _rc in "${rc_files[@]}"; do
+        add_alias_to_section "$_l_alias" "$SECTION_LEDGER_ALIASES" "$_rc" \
+          || log_warning "Failed to add l-${profile_name}-${_lname} alias to $_rc"
+      done
+    done < <(WORKWARRIOR_BASE="$profile_base" ledger_cfg_names --include-hidden 2>/dev/null || true)
   else
     log_warning "ledgers.yaml not found, skipping ledger aliases"
   fi
@@ -746,35 +738,33 @@ l() {
     return $?
   fi
 
-  # Get default ledger path from ledgers.yaml
-  local default_ledger
-  default_ledger=$(grep "^  default:" "$ledger_config" | awk '{print $2}')
-
-  if [[ -z "$default_ledger" ]]; then
-    echo "Error: Default ledger not found in: $ledger_config" >&2
-    return 1
+  # Route through the shared dispatcher: reserved management words + hledger
+  # passthrough + -L selector + bare->balance. For the active profile, reuse the
+  # exported LEDGER_F (0 extra processes); for --profile/global scope, point the
+  # schema owner at the resolved base and let it resolve the default.
+  local _l_exit
+  if [[ "$WW_SCOPE_MODE" == "active" ]]; then
+    ledger_dispatch "${args[@]}"
+    _l_exit=$?
+  else
+    WORKWARRIOR_BASE="$WW_SCOPE_BASE" WARRIOR_PROFILE="$WW_SCOPE_PROFILE" LEDGER_F="" \
+      ledger_dispatch "${args[@]}"
+    _l_exit=$?
   fi
 
-  # Check if ledger file exists
-  if [[ ! -f "$default_ledger" ]]; then
-    echo "Error: Ledger file not found: $default_ledger" >&2
-    return 1
-  fi
-
-  # TASK-LED-013: `l` is an arbitrary-flag passthrough, so a below-floor hledger can
-  # be handed -X/--value and will return unconverted numbers with no error. Guard it.
-  # Absent-safe: if lib/hledger-version.sh is not loaded, this is a no-op.
-  if declare -F hledger_require_floor >/dev/null 2>&1; then
-    hledger_require_floor || return 2
-  fi
-
-  # Execute hledger with default ledger
-  hledger -f "$default_ledger" "${args[@]}"
-  local _l_exit=$?
-  if [[ $_l_exit -eq 0 ]] && _stream_ledger_is_write "${args[0]:-}"; then
-    local _l_obj; _l_obj="$(printf '%s%s' "$(date +%s)" "$default_ledger" | python3 -c "import sys,hashlib; print(hashlib.sha256(sys.stdin.read().encode()).hexdigest()[:12])" 2>/dev/null || echo "unknown")"
-    local _l_name; _l_name="$(basename "$default_ledger" .journal)"
-    _stream_emit T "${args[0]}" "$_l_obj" "{\"src\":\"ledger\",\"prof\":\"${WW_SCOPE_PROFILE:-}\",\"ledger\":\"${_l_name}\",\"tags\":[]}"
+  # Stream write-telemetry: detect the command after stripping a leading selector.
+  if [[ $_l_exit -eq 0 ]]; then
+    local _l_cmd="${args[0]:-}"
+    case "$_l_cmd" in
+      -L|--ledger) _l_cmd="${args[2]:-}" ;;
+      --ledger=*)  _l_cmd="${args[1]:-}" ;;
+    esac
+    if _stream_ledger_is_write "$_l_cmd"; then
+      local _l_def; _l_def="$(WORKWARRIOR_BASE="$WW_SCOPE_BASE" LEDGER_F="${LEDGER_F:-}" _ledger_default_file 2>/dev/null)"
+      local _l_obj; _l_obj="$(printf '%s%s' "$(date +%s)" "${_l_def:-l}" | python3 -c "import sys,hashlib; print(hashlib.sha256(sys.stdin.read().encode()).hexdigest()[:12])" 2>/dev/null || echo "unknown")"
+      local _l_name; _l_name="$(basename "${_l_def:-default}" .journal)"
+      _stream_emit T "$_l_cmd" "$_l_obj" "{\"src\":\"ledger\",\"prof\":\"${WW_SCOPE_PROFILE:-}\",\"ledger\":\"${_l_name}\",\"tags\":[]}"
+    fi
   fi
   return $_l_exit
 }

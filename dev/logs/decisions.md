@@ -5,6 +5,76 @@ Each entry: date, decision, context, and why — so future sessions don't re-lit
 
 ---
 
+## 2026-07-11: ledgers.yaml canonical schema — jrnl-style hybrid (Option 2)
+
+**Context:** A CLI-completeness audit of the ledger service found that `ledgers.yaml`
+has no schema definition and is written three incompatible ways and read four ways.
+Root cause: five independent code paths each re-implement their own YAML parse
+(`awk`/`grep`/`sed`/`IFS=:`/python) with no single owner of the file contract.
+
+**Key finding:** `ledgers.yaml` is not a real hledger format — hledger has no config
+file (it uses `-f <file>` + `include` directives). `ledgers.yaml` was invented to
+mirror `jrnl.yaml`, which *is* a real format. jrnl's native schema allows each entry
+value to be **either a string (path) or a map with a `journal:` key plus options**.
+This is why `cmd_ledger task` already reads `default` as string-or-dict-with-`journal:`.
+The three observed shapes are therefore: (1) inline string — legitimate, jrnl simple
+form; (2) nested `journal:` — legitimate, jrnl rich form and what the reader expects;
+(3) nested `path:` — the sole anomaly, invented by `ww resource create ledger`.
+
+**Decision:** Adopt jrnl's hybrid as the canonical schema (evaluated against a
+pure-inline Option 1 and a pure-nested manifest Option 3). Rationale: it matches the
+deliberate jrnl-parallel house style, the reader already half-implements it, simple
+ledgers stay one-liners, and per-entry metadata (commodity, hidden, include-role)
+becomes a one-field addition instead of a whole-file migration. Lowest-regret choice —
+near-zero cost over Option 1 today without foreclosing the multi-commodity / production
+direction.
+
+**Frozen contract (v1):**
+- Entry value is a **string** (absolute path) OR a **map** with path under `journal:`.
+- Writer emits string form unless metadata is set; upgrades to map form on demand.
+- `default:` is a reserved, required key resolved by name — never by position.
+  (Fixes the `ledger_handler.sh` `values()[0]` default-resolution bug.)
+- Blessed map fields v1: `journal` (required in map form), `commodity`, `hidden`.
+  Reserved-but-inert until a consumer lands: `role` (standalone|include), `description`.
+- Legacy nested `path:` is **read** with a deprecation warning (transition shim),
+  never written.
+- Single owning module `lib/ledger-config.sh`, python/`yaml.safe_load`-backed
+  (consistent with `lib/instance-registry.sh`), obeying sourced-lib rules (no
+  `set -euo pipefail`, `return` codes only). Readers:
+  `ledger_cfg_{path,names,resolve,default_path,get_field,exists}`. Writers:
+  `ledger_cfg_{add,remove,rename,set_default,set_field}`.
+
+**Resolved micro-decisions:** (1) `default` stays a direct entry, not an alias to a
+named ledger. (2) v1 ships `commodity` + `hidden` only; `role`/`description` reserved.
+(3) Duplicate paths across entries warn, not error (`default` legitimately shares a
+path with the profile's primary named ledger).
+
+**Motivating audit findings (to be closed by the implementation sequence):**
+- F1 — `cmd_hledger_passthrough` hard-codes `ledgers/default.journal` (never exists;
+  the default is `<profile>.journal`) and ignores the exported `LEDGER_F`. `ww hledger`
+  silently runs with no `-f`.
+- F2 — `ledgers.yaml` schema fork (three shapes) — resolved by this decision.
+- F3 — `ww ledger inventory` scans hard-coded paths and greps `jrnl.yaml`, never reads
+  `ledgers.yaml`.
+- F4 — two disagreeing default-ledger resolvers (`default:` key vs `values()[0]`).
+- F5 — missing manual verbs: `set-default`, `check`, `report`, a free-form transaction
+  poster.
+- F6 — `show_help_ledger` lists `task`/`inventory` but `dev/config/command-syntax.yaml`
+  does not (Gate C drift).
+
+**Implementation sequence (task cards):**
+- TASK-LED-004 — build `lib/ledger-config.sh` + unit tests (foundation; no consumer
+  changes yet).
+- TASK-LED-005 — repoint the six consumers at the module; fix `resource create`'s
+  `path:` writer (F2, F3, F4).
+- TASK-LED-006 — fix `cmd_hledger_passthrough` to use `LEDGER_F` (F1).
+- TASK-LED-007 — add missing verbs `set-default`/`check`/`report`/transaction poster
+  (F5); reconcile help ↔ command-syntax (F6).
+
+Work isolated on branch `agent/builder/ledger-schema` off `master`.
+
+---
+
 ## 2026-07-13 — TimeWarrior vs the ledger, resolved: capture -> record -> interpret
 
 **The open question (Q2 of `dev/docs/ledger-systems-accounting.md`):** TimeWarrior and hledger
