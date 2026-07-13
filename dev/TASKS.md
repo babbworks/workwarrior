@@ -17,7 +17,37 @@ Current phase: Phase 2 active — browser UI polish, resource management, test h
 
 ---
 
-## Stream: actor axis, the board, reconciliation (design 2026-07-12)
+## THE PROGRAM: capture → record → interpret
+
+One engine that records conserved flows in declared units, values them at a time under a coefficient table, and acts on what the valuation surfaces. **Personal productivity and industrial operations are the same system with different coefficients** — verified, not aspirational (`docs/ledger-systems-accounting.md` §6.5).
+
+```
+CAPTURE                  RECORD                      INTERPRET
+timew (a card)  ──┐
+agents          ──┼──►  STREAM (the clock)  ──►  HLEDGER (the journal)
+machines        ──┤     append-only, all actors    conservation · valuation
+manual punches  ──┘     B start / B stop           attention ranking
+```
+
+One direction, never backwards. **Every redundant store is a pure function of the append-only log** — timew is a cache of Stream, `derived/stream.journal` is a cache of Stream. Redundancy without forks.
+
+**Phase 0 (blocking) → Phase 1 (identity) → Phase 2 (bridge) → Phase 3 (journal) → Phase 4 (payoff).**
+
+---
+
+## Phase 0 — clear the decks (BLOCKING)
+
+Nothing computational works until these land.
+
+| ID | Status | Goal | Depends On | Notes |
+|---|---|---|---|---|
+| [TASK-LED-012](tasks/cards/TASK-LED-012.md) | pending | Land `ledger-schema` — rebase TASK-LED-004..011 onto `dev/` layout | STRUCT-1B | ~1,900 lines built+tested, STRANDED on a pre-rename branch. ⚠️ depth gotcha will bite the 4 ledger suites |
+| [TASK-LED-013](tasks/cards/TASK-LED-013.md) | pending | hledger version floor — upgrade, pin ≥1.52, guard at runtime | — | ⚠️ **Host runs 1.25.** Every verified result needs 1.52+. Gates Phases 3–4. Highest leverage, lowest risk |
+| [TASK-SHIP-001](tasks/cards/TASK-SHIP-001.md) | pending | Ship `dev/` with workwarrior | STRUCT-1B | Independent. ⚠️ Must still prove the product runs with `dev/` DELETED |
+
+---
+
+## Phase 1 — identity: the actor axis (design 2026-07-12)
 
 Spec: `specs/2026-07-12-stream-actor-axis-design.md`. Contracts: `schemas/stream-event-v1.md`, `schemas/actors-v1.md`.
 **Strictly sequential — each card depends on the one before it.** All touch `services/stream/stream.sh`; no two may run in parallel.
@@ -34,11 +64,33 @@ The reframe: a Bundy time recorder is **one clock, many cards**. Stream is the c
 
 ---
 
-## Packaging
+## Phase 2 — the bridge: capture → record
+
+Resolves Q2 (TimeWarrior vs the ledger). Decision: `logs/decisions.md` 2026-07-13.
 
 | ID | Status | Goal | Depends On | Notes |
 |---|---|---|---|---|
-| [TASK-SHIP-001](tasks/cards/TASK-SHIP-001.md) | pending | Ship `dev/` with workwarrior (substrate + record) | STRUCT-1B merged | Supersedes 1B's "stop shipping dev/". ⚠️ Must still prove the product runs with dev/ DELETED — ships, but never load-bearing |
+| [TASK-STRM-006](tasks/cards/TASK-STRM-006.md) | pending | `timew` on-modify hook — live card reader, not a store | STRM-003 | Kills the two-truths problem. Success test: **delete `~/.timewarrior` and lose nothing**. ⚠️ Hook/adapter tuple parity or ingest DOUBLES history |
+
+---
+
+## Phase 3 — the journal: record → interpret
+
+| ID | Status | Goal | Depends On | Notes |
+|---|---|---|---|---|
+| [TASK-LED-014](tasks/cards/TASK-LED-014.md) | pending | Actor accounts + the punch posting shape | STRM-003, LED-012 | **The actor is the SOURCE account.** What is conserved is an actor's hours — answers open question B. Docs only, no code. **Subsumes TASK-LED-002** (agent/session account hierarchy) |
+| [TASK-LED-015](tasks/cards/TASK-LED-015.md) | pending | `ww ledger sync-stream` — the derived journal | LED-014, LED-013 | **Regenerate, never append.** ⚠️ MUST never touch `manual.journal`. **Subsumes TASK-LED-003** (modular journals / include strategy — already documented in `docs/modular-journals.md`) |
+| [TASK-LED-016](tasks/cards/TASK-LED-016.md) | pending | The accrual rule — work creates obligation (opt-in) | LED-015 | 8h → 1.2h `backlog:tech-debt` (verified). ⚠️ `print --auto` is a VIEW, never a write-back — it double-counts |
+
+---
+
+## Phase 4 — the payoff
+
+| ID | Status | Goal | Depends On | Notes |
+|---|---|---|---|---|
+| [TASK-LED-017](tasks/cards/TASK-LED-017.md) | pending | The attention queue — `balance -X att -S` | LED-015, LED-013, STRM-002 | "Which 3 machines need attention" and "which task next" are **the same query**. Mechanism already verified — mostly plumbing |
+
+**Falls out for free, built for nothing extra:** the floor-manager view · the hung-agent detector (a stale punch *is* a non-terminating loop) · counterfactual audit (`--value=then` vs `now`, verified to reorder) · the agent budget governor (`costs:api:anthropic` already exists in the account tree).
 
 ---
 

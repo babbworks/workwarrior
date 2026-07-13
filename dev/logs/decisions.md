@@ -5,6 +5,69 @@ Each entry: date, decision, context, and why — so future sessions don't re-lit
 
 ---
 
+## 2026-07-13 — TimeWarrior vs the ledger, resolved: capture -> record -> interpret
+
+**The open question (Q2 of `dev/docs/ledger-systems-accounting.md`):** TimeWarrior and hledger
+both hold time. Two stores means two truths. Which is authoritative?
+
+**It was never a two-body problem.** Once Stream is the clock, three roles fall out and the
+dilemma dissolves:
+
+| | Role |
+|---|---|
+| **TimeWarrior** | **Capture.** One human, ergonomic, optional. |
+| **Stream** | **The record.** All actors, append-only. *The* truth. |
+| **hledger** | **Interpretation.** Conservation, valuation, consequence. |
+
+**Data flows capture -> record -> interpret, and never backwards.** TimeWarrior is never a
+consumer; the journal is never a capture surface.
+
+**Redundancy is resolved by making it derivable, not by tolerating two truths.** Redundancy is
+only dangerous when it is a *fork*. TimeWarrior becomes a **cache** of Stream (TASK-STRM-006: a
+live on-modify hook punches Stream directly, replacing batch scraping — the success test is
+*delete `~/.timewarrior` and lose nothing*). The derived journal becomes a **cache** of Stream
+(TASK-LED-015). Two redundant stores, zero forks, because both are pure functions of one
+append-only log — the same discipline hledger applies to valuation: one immutable record, many
+regenerable projections.
+
+**The journal takes two sources, kept apart by `include`.** It cannot be purely derived —
+**money and materials do not punch in**. So:
+```
+profile.journal
+    include manual.journal          ; human-written. NEVER generated.
+    include derived/stream.journal  ; GENERATED from stream.log. NEVER hand-edited.
+```
+**Derived artifacts are REGENERATED, never appended to.** This generalises the verified Q6
+hazard: the 1.2h -> 2.4h double-count happened precisely because derived postings were
+*appended* into a file that still carried the rule. Regeneration cannot double-count.
+`dev/docs/modular-journals.md` already documents `include` — no new machinery.
+
+**The posting shape — and what is conserved.** The actor is the **source account**:
+```
+2026-07-12 punch  human:op-03 -> lathe-01
+    time:project:line-a         2.25 h
+    actors:human:op-03         -2.25 h
+```
+Time flows FROM an actor's capacity INTO the work; actor accounts run negative, structurally
+like income accounts. **What is conserved is an actor's hours** — there are finite hours in a
+person, a shift, an agent's budget. This is the honest double-entry answer to open question B
+(conservation of attention), and **we could only reach it because the actor axis exists.** The
+stream and ledger threads turned out to need each other. Full chain: **capacity -> work -> debt**
+(the accrual rule, TASK-LED-016, verified).
+
+**Rejected: routing time through hledger's `timeclock` format.** Tempting — hledger reads it
+natively. Empirically tested: with a *named* `o` line it IS identity-aware and handles concurrent,
+independently-closed punches correctly (an initial suspicion that it could not was **wrong**, and
+the test disproved it). Rejected anyway, for a better reason: **timeclock is a fine transport but a
+poor model.** Its account is one flat string, so actor and object collapse into a single path; it
+carries no metadata and speaks only hours. It cannot hold the actor/object pair, the liability
+accrual, or any other commodity. We generate plain journal transactions instead.
+
+Cards: TASK-STRM-006, TASK-LED-014/015/016/017. Spec:
+`dev/specs/2026-07-12-stream-actor-axis-design.md` §7 (which this entry closes).
+
+---
+
 ## 2026-07-12 — dev/ SHIPS. Supersedes "stop shipping dev/" (TASK-STRUCT-1B)
 
 **Decision:** `dev/` ships with workwarrior — **both the substrate** (ONBOARDING, agent
