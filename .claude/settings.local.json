@@ -42,7 +42,12 @@
       "Bash(sqlite3 /Users/mp/ww/profiles/babb/.task/taskchampion.sqlite3 'SELECT data FROM tasks LIMIT 1')",
       "Bash(mkdir -p /Users/mp/ww-yupi/.claude/ww)",
       "Bash(cat)",
-      "Read(//Users/mp/ww-yupi/.claude/ww/**)"
+      "Read(//Users/mp/ww-yupi/.claude/ww/**)",
+      "Bash(bash -n lib/hledger-version.sh)",
+      "Bash(bash -n lib/dependency-installer.sh)",
+      "Bash(bash -n bin/ww)",
+      "Bash(bash -n lib/shell-integration.sh)",
+      "Bash(bats dev/tests/test-smoke.bats)"
     ]
   }
 }
