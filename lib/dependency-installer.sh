@@ -16,7 +16,20 @@ fi
 
 readonly MIN_VERSION_TASK="2.6.0"
 readonly MIN_VERSION_TIMEW="1.4.0"
-readonly MIN_VERSION_HLEDGER="1.30"
+# Version floors are DATA, in config/dependencies.yaml, read by lib/deps-manifest.sh
+# (TASK-LED-013). Do not hardcode a second copy here — a fallback literal is a second
+# source of truth for the number this file claims to have exactly one owner of
+# (verifier F5). If the manifest cannot be read, that is FATAL: silently guessing a
+# version floor is how a host ends up below one without knowing.
+# shellcheck source=./deps-manifest.sh
+source "$(dirname "${BASH_SOURCE[0]}")/deps-manifest.sh" 2>/dev/null || true
+MIN_VERSION_HLEDGER="$(deps_min_version hledger 2>/dev/null)"
+if [[ -z "$MIN_VERSION_HLEDGER" ]]; then
+  echo "deps: cannot read the hledger floor from config/dependencies.yaml" >&2
+  echo "      Refusing to guess a version floor." >&2
+  return 2 2>/dev/null || exit 2
+fi
+readonly MIN_VERSION_HLEDGER
 readonly MIN_VERSION_JRNL="4.0"
 readonly MIN_VERSION_PYTHON="3.9"
 readonly MIN_VERSION_BUGWARRIOR="1.8.0"
@@ -386,6 +399,15 @@ get_install_command() {
   local tool="$1"
   local pm="$2"
 
+  # TASK-LED-013: a package manager that cannot reach a tool's floor must NOT be
+  # recommended — the command would appear to succeed and leave the user below it.
+  # Debian 12's only hledger candidate is 1.25-2+b5. The manifest marks such
+  # combinations `unsupported`; route them to the static build instead.
+  if [[ "$(deps_package "$tool" "$pm" 2>/dev/null)" == "unsupported" ]]; then
+    echo "ww deps install $tool"
+    return 0
+  fi
+
   case "$pm" in
     brew)
       case "$tool" in
@@ -441,6 +463,13 @@ get_install_command() {
 get_upgrade_command() {
   local tool="$1"
   local pm="$2"
+
+  # TASK-LED-013: see get_install_command — `apt-get --only-upgrade hledger` cannot
+  # cross the floor on Debian/Ubuntu. Do not hand the user a no-op.
+  if [[ "$(deps_package "$tool" "$pm" 2>/dev/null)" == "unsupported" ]]; then
+    echo "ww deps install $tool"
+    return 0
+  fi
 
   case "$pm" in
     brew)

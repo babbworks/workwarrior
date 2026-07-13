@@ -43,6 +43,14 @@ fi
 if [[ -f "$WW_BASE/lib/security-backends.sh" ]]; then
   source "$WW_BASE/lib/security-backends.sh"
 fi
+# Toolchain floors (config/dependencies.yaml) + the runtime guard, which reads the
+# state stamp and forks nothing on the hot path (TASK-LED-013). Absent-safe: without
+# these, the guard is a no-op and behaviour is unchanged.
+if [[ -f "$WW_BASE/lib/hledger-version.sh" ]]; then
+  source "$WW_BASE/lib/hledger-version.sh"
+else
+  hledger_require_floor() { return 0; }
+fi
 
 # ============================================================================
 # HELP AND VERSION
@@ -1773,8 +1781,41 @@ cmd_deps() {
     check)
       check_all_dependencies
       display_dependency_status
+      # TASK-LED-013: this is the `apt update` moment. Probe the real binaries once,
+      # here, and write the toolchain stamp. The runtime floor guard then reads that
+      # stamp and forks NOTHING on the hot path.
+      if [[ -f "$WW_BASE/lib/deps-state.sh" ]]; then
+        source "$WW_BASE/lib/deps-state.sh"
+        if deps_state_refresh; then
+          log_success "Toolchain stamp refreshed: $(deps_state_path)"
+        else
+          log_warning "Could not write the toolchain stamp"
+        fi
+      fi
       ;;
     install)
+      # `ww deps install <tool>` is an EXPLICIT, named request, so performing the
+      # install here does not violate the no-auto-install-on-Linux policy — that
+      # policy governs the unattended bulk installer below. Tools whose manifest
+      # `strategy` is `static` are installed directly, because no package manager can
+      # reach their floor.
+      local dep_tool="${1:-}"
+      if [[ -n "$dep_tool" ]]; then
+        if [[ -f "$WW_BASE/lib/deps-state.sh" ]]; then
+          source "$WW_BASE/lib/deps-state.sh"
+        else
+          log_error "lib/deps-state.sh not found"
+          exit 2
+        fi
+        if [[ "$(deps_strategy "$dep_tool" 2>/dev/null)" != "static" ]]; then
+          log_error "'$dep_tool' is not a static-install tool. Run 'ww deps install' (no args)."
+          exit 1
+        fi
+        deps_install_static "$dep_tool"
+        local dep_rc=$?
+        [[ $dep_rc -eq 0 ]] && deps_state_refresh >/dev/null 2>&1
+        exit $dep_rc
+      fi
       run_dependency_installer
       ;;
     ""|help|-h|--help)
@@ -1784,14 +1825,23 @@ Dependency Management
 Usage: ww deps <action>
 
 Actions:
-  check       Check installed dependencies and their versions
-  install     Interactive dependency installation
+  check              Check installed dependencies and their versions
+  install            Interactive dependency installation
+  install hledger    Install the official hledger static build (see below)
 
 Install policy:
   'ww deps install' is the canonical install path for the core toolchain.
   It detects your package manager (brew, apt, dnf, pacman) and emits the
   correct install command per tool. On macOS (brew), installs run automatically.
   On Linux, the correct package manager command is shown -- no auto-install.
+
+hledger is the exception:
+  Workwarrior requires hledger >= 1.52 (unit conversion, time-aware valuation,
+  the attention queue). No Linux package manager ships it -- Debian 12's only
+  candidate is 1.25 -- so 'apt install hledger' cannot satisfy the floor.
+  'ww deps install hledger' fetches the official static build into ~/.local/bin.
+  It never overwrites a package-manager-owned /usr/bin/hledger; if an older one
+  still shadows it on PATH, you are told so plainly.
 
   Extension installs (ww tui install, ww mcp install) follow the same policy:
   auto-install on macOS via brew; platform-appropriate hint on Linux.
@@ -2306,6 +2356,9 @@ cmd_hledger_passthrough() {
     log_error "Hledger binary not found: hledger"
     exit 1
   fi
+  # TASK-LED-013: an hledger below the floor does not error on -X/--value, it
+  # silently returns unconverted numbers. Fail loudly rather than compute wrongly.
+  hledger_require_floor || exit 2
   local has_file=0
   local arg
   for arg in "$@"; do
