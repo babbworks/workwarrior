@@ -26,7 +26,8 @@ Workwarrior is a terminal-first, profile-based productivity system that unifies 
 | `dev/tests/` | BATS unit suites and integration test runners. | Always update when changing behavior |
 | `weapons/` | Weapon extensions (gun, sword). | Low risk |
 | `stream/` | Stream service and adapters. | Low risk |
-| `dev/` | Dev control plane. Not shipped. | Orchestrator only |
+| `dev/` | Dev control plane. **Ships** — substrate *and* project record, so recipients can evolve the program (decisions 2026-07-12). Nothing runtime depends on it; delete it and nothing breaks. | Orchestrator only |
+| `dev/schemas/` | **Versioned contracts** (`stream-event-v1`, `actors-v1`, `ledgers-yaml-v1`). Normative *what*; `decisions.md` holds the *why*. Public interface — version increments are an obligation. | Orchestrator only |
 | `dev/TASKS.md` | **Canonical task board.** Single source of truth for all open work. | Orchestrator only |
 
 **Never create files in:** `profiles/*/`, `bin/`, or repo root unless explicitly required by a task card.

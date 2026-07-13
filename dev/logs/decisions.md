@@ -5,6 +5,120 @@ Each entry: date, decision, context, and why — so future sessions don't re-lit
 
 ---
 
+## 2026-07-12 — dev/ SHIPS. Supersedes "stop shipping dev/" (TASK-STRUCT-1B)
+
+**Decision:** `dev/` ships with workwarrior — **both the substrate** (ONBOARDING, agent
+model, gates, scripting standards, schemas, tests) **and the project record** (TASKS.md,
+task cards, decisions log, verifier reports). Anyone who receives the program receives the
+means to evolve it, human or agent. `install.sh` gains one `cp -r` (TASK-SHIP-001).
+
+**This does NOT reverse TASK-STRUCT-1A/1B. It is what they earned.** Before 1A, the five
+runtime UDA YAMLs lived inside `system/`, so it *had* to ship: it was **load-bearing**. 1A
+moved them to `config/`; 1B proved by scratch-install that no runtime path depends on
+`dev/`. The achievement was never "dev/ doesn't ship" — it was:
+
+> **`dev/` went from load-bearing to shippable-by-choice.**
+
+Ship it and an adopter gets the full development substrate. Delete it and **nothing
+breaks**. That is strictly stronger than either "always ship" (hidden dependency) or "never
+ship" (recipients cannot evolve the program).
+
+**Why this is a supersede, not an amendment:** the STRUCT-1B card and its verifier report
+assert "scratch install ships config/ but NOT dev/" as a *passed acceptance criterion*.
+That sign-off was correct on its terms and is **not rewritten** — this repo's records are
+append-only. It is superseded here.
+
+**Consequence — schemas become public contracts.** `dev/schemas/` shipping means
+`stream-event-v1` and `actors-v1` stop being notes-to-self and become the interface third
+parties write lenses, adapters and importers against. **Version increments are now an
+obligation, not hygiene.**
+
+Adopters inheriting our task board is accepted and intentional: a worked corpus of real
+cards, decisions and sign-offs is the best teaching material an agent could be handed.
+No "clean board" mechanism will be built — adopters are assumed capable of directing agents.
+
+---
+
+## 2026-07-12 — dev/schemas/ is the home for versioned contracts; the placement rule
+
+**Problem:** the repo had at least two frozen contracts and **no home for either**. The
+`ledgers.yaml` v1 schema was buried as prose inside this very log; the stream event format
+existed only as a comment in `stream.sh`'s help text. Both are normative, multiple code
+paths depend on them, and neither was findable.
+
+**Decision:** `dev/schemas/<contract>-v<N>.md`, one file per versioned contract, with a
+clean division of labour:
+
+- **`dev/schemas/` records *what*** — fields, types, reserved keys, compatibility rules.
+  Canonical and versioned.
+- **`dev/logs/decisions.md` records *why*** — dated, narrative, append-only.
+
+A decisions log is the wrong place to look up a field name, and it grows forever.
+
+**The placement rule (settles "where do reference docs and YAMLs go?"):**
+
+> **If code reads it, it goes in `config/`. If a human or agent reads it, it goes in `dev/`.**
+
+A file therefore has a **home** (`config/actors.yaml`) and a **contract**
+(`dev/schemas/actors-v1.md`). Data and contract always split — including for files that
+*feel* like reference material: if it is loaded at runtime it is `config/`, no matter how
+reference-y it reads.
+
+Seeded with `stream-event-v1`, `actors-v1`, and `ledgers-yaml-v1` (retroactively homed from
+this log's 2026-07-11 entry, which remains as the historical record of the debate).
+
+---
+
+## 2026-07-12 — Stream: the encoding is FROZEN; ctx is the sole extension point
+
+**Decision:** the stream event line stays at **five positional fields, permanently**. All
+new dimensions — starting with `actor` — go into the `ctx` JSON object.
+
+**Why this is arithmetic, not preference.** Every consumer parses
+`line.split(None, 4)`. `maxsplit=4` makes `parts[4]` **the entire rest of the line**.
+Therefore: (a) a sixth positional field is *impossible* — it gets swallowed into `ctx` and
+corrupts the JSON parse; (b) inserting a field *before* `ctx` shifts every index, so
+`parts[3]` stops being the object — breaking all eight lenses **and silently misreading
+every event already written**. On an append-only log that is unrecoverable.
+
+**Why `ctx` is provably safe to grow — three independent facts:**
+1. Every lens reads it defensively (`json.loads` in try/except, then `.get(k, default)`).
+   Unknown keys are ignored **by construction**.
+2. The adapters already extend it (`src`, `prof`, `proj`, `tags`).
+3. **`_dedup_events` keys on `(ts, op, action, object)` — `ctx` is NOT in the key.** Event
+   identity deliberately excludes ctx, so enriching it **cannot create duplicates on
+   re-ingest**. The extension point is safe by design, not by luck.
+
+**Corollaries decided at the same time:**
+- **The schema version is an *event*, not a header.** `<ts> S schema v1 {...}` — a comment
+  line would be garbage to the positional parser; an `S` event is valid, greppable, dated,
+  and lives in the log's own history. Absence of the marker means v0. In an append-only
+  system, even the version is an append.
+- **Corrections are entries, never erasures.** A missed punch-out is closed by appending a
+  `B stop` carrying `ctx.reconciled` (`by`/`at`/`reason`). **Nothing auto-closes silently** —
+  closure is an act, attributable to an actor. Fabricating a punch-out would destroy the one
+  property that makes the record worth keeping.
+- **Actors punch; objects get punched onto.** A machine an operator works is an object; a
+  machine running unattended is an actor. Both, in different events.
+- **Actor identity is instance-scoped because the log is instance-scoped**
+  (`$WW_BASE/stream/stream.log`, one log shared by every profile). Profile-scoped IDs would
+  make the shared log incoherent. Participation — role and attention `weight` — is
+  profile-scoped. The `weight` is the ledger's coefficient in a different hat
+  (`dev/docs/ledger-systems-accounting.md` §6.5: *a mode is a price table*).
+
+**Underlying reframe.** Stream vs TimeWarrior was never a competition. A Bundy time
+recorder is **one clock and many cards** — the device is singular, the identities plural.
+**Stream is the clock; TimeWarrior is a card; `adapt_timew` is the card reader.** TimeWarrior's
+one-open-interval limit is not a defect to route around — it is *what a card is*. Verified:
+the existing `bundy` lens, unmodified, handled 40 concurrent actors and 80 overlapping
+punches, accumulating more logged time than wall-clock elapsed. The multi-punch clock
+already existed; it was missing identity and legibility, not capacity.
+
+Design: `dev/specs/2026-07-12-stream-actor-axis-design.md`. Contract:
+`dev/schemas/stream-event-v1.md`.
+
+---
+
 ## 2026-07-10 — Moving tests/ -> dev/tests/ breaks relative root derivation (depth gotcha)
 
 **Decision / learning (TASK-STRUCT-1B):** Test files derive the repo root relatively —

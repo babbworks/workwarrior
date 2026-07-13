@@ -17,6 +17,31 @@ Current phase: Phase 2 active — browser UI polish, resource management, test h
 
 ---
 
+## Stream: actor axis, the board, reconciliation (design 2026-07-12)
+
+Spec: `specs/2026-07-12-stream-actor-axis-design.md`. Contracts: `schemas/stream-event-v1.md`, `schemas/actors-v1.md`.
+**Strictly sequential — each card depends on the one before it.** All touch `services/stream/stream.sh`; no two may run in parallel.
+
+The reframe: a Bundy time recorder is **one clock, many cards**. Stream is the clock; TimeWarrior is a card; `adapt_timew` is the card reader. TimeWarrior's one-open-interval limit is not a defect to route around — it is what a card *is*. The multi-punch clock already exists (the unmodified `bundy` lens handled 40 concurrent actors); it was missing identity and legibility, not capacity.
+
+| Order | ID | Status | Goal | Depends On | Notes |
+|---|---|---|---|---|---|
+| 1 | [TASK-STRM-001](tasks/cards/TASK-STRM-001.md) | pending | Schema v1 marker (`S schema` event) + actor.sh resolution lib | — | Foundation. No behaviour change; nothing reads `ctx.actor` yet |
+| 2 | [TASK-STRM-002](tasks/cards/TASK-STRM-002.md) | pending | Actor registry `config/actors.yaml` + single owning module | 1 | One owner of the file contract — do NOT repeat the ledgers.yaml five-parser fork |
+| 3 | [TASK-STRM-003](tasks/cards/TASK-STRM-003.md) | pending | Emit the actor axis: punch verbs + adapter enrichment | 2 | ⚠️ Gate: re-ingest must produce ZERO duplicates; 5-field encoding untouched |
+| 4 | [TASK-STRM-004](tasks/cards/TASK-STRM-004.md) | pending | The board — who/what is currently IN (lens + CLI + JSON) | 3 | A stale punch **is a hung agent** — this is also the loop-agent no-progress detector |
+| 5 | [TASK-STRM-005](tasks/cards/TASK-STRM-005.md) | pending | Reconciliation — close missed punch-outs, individually + en masse | 4 | ⚠️ Corrections are entries, never erasures. **Nothing auto-closes, ever** |
+
+---
+
+## Packaging
+
+| ID | Status | Goal | Depends On | Notes |
+|---|---|---|---|---|
+| [TASK-SHIP-001](tasks/cards/TASK-SHIP-001.md) | pending | Ship `dev/` with workwarrior (substrate + record) | STRUCT-1B merged | Supersedes 1B's "stop shipping dev/". ⚠️ Must still prove the product runs with dev/ DELETED — ships, but never load-bearing |
+
+---
+
 ## Restructure: product-vs-meta (design 2026-07-09)
 
 Spec: `specs/2026-07-09-product-meta-restructure-design.md`. Parts 1–3 (docs/ dedup = Part 4, separate spec). Execute in dependency order; 1B runs SOLO.

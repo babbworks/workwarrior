@@ -1,7 +1,7 @@
 # Task Card Index
 
-Last updated: 2026-07-12 (TASK-STRUCT-1A/1B verified; 2/3 unblocked and dispatchable)
-Total: 119 task cards in `tasks/cards/`. Card `Status:` field is authoritative; this file is a scannable index.
+Last updated: 2026-07-12 (Stream actor-axis cards STRM-001..005 + SHIP-001 authored; STRUCT-1A/1B verified)
+Total: 139 task cards in `tasks/cards/` (the prior "119" was stale — recounted 2026-07-12). Card `Status:` field is authoritative; this file is a scannable index.
 
 ## Priority Queue
 
@@ -9,6 +9,12 @@ Total: 119 task cards in `tasks/cards/`. Card `Status:` field is authoritative; 
 |----------|------|------|
 | ~~HIGH~~ verified* | TASK-STRUCT-1A | Decouple runtime config system/config → config/ (⚠️ HIGH FRAG) — done, pre-merge N1/N2 |
 | ~~HIGH~~ verified* | TASK-STRUCT-1B | Rename system/ → dev/, tests/ → dev/tests/ — done, pre-merge N1/N2 |
+| HIGH | TASK-STRM-001 | Stream schema v1 marker + actor.sh resolution lib (foundation — dispatchable) |
+| HIGH | TASK-STRM-002 | Actor registry config/actors.yaml + owning module (needs STRM-001) |
+| HIGH | TASK-STRM-003 | Emit actor axis — punch verbs + adapter enrichment (needs STRM-002) |
+| HIGH | TASK-STRM-004 | The board — who/what is currently IN (needs STRM-003) |
+| MEDIUM | TASK-STRM-005 | Reconciliation — close missed punch-outs (needs STRM-004) |
+| MEDIUM | TASK-SHIP-001 | Ship dev/ with workwarrior (needs STRUCT-1B merged) |
 | HIGH | TASK-STRUCT-2 | Consolidate 4 entry docs → canonical set (1B satisfied — dispatchable) |
 | HIGH | TASK-STRUCT-3 | Relocate 9 empty service stubs → dev/specs/ (1B satisfied — dispatchable) |
 | HIGH | TASK-SITE-040 | Journal cross-journal entry link fix |
