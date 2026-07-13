@@ -6,10 +6,37 @@
 
 - **TaskWarrior** (`task`) — task management
 - **TimeWarrior** (`timew`) — time tracking
-- **Hledger** (`hledger`) — ledger accounting
+- **Hledger** (`hledger`) — ledger accounting — **requires >= 1.52** (see below)
 - **JRNL** (`jrnl`) — journaling
 - **pipx** — Python tool isolation (required for jrnl and bugwarrior)
 - **gh** — GitHub CLI (required for github-sync)
+
+## hledger requires >= 1.52, and your package manager cannot provide it
+
+Workwarrior's ledger is not a finance feature — it is a general systems-accounting
+engine. It depends on hledger's computational surface: unit conversion (`-X`),
+time-aware valuation (`--value`), and the attention queue (`balance -X att -S`).
+**Those capabilities do not exist in older builds.**
+
+The failure mode is the dangerous kind: an older hledger does not *error* on a
+valuation flag, it silently returns **unconverted numbers**. A wrong answer with no
+error is the worst possible outcome for an accounting tool, so workwarrior enforces
+the floor rather than degrading.
+
+**No Linux package manager ships a version that meets it.** Debian 12's only
+candidate is `1.25-2+b5`. `sudo apt install hledger` will appear to succeed and leave
+you below the floor. So:
+
+```bash
+ww deps install hledger     # fetches the official static build into ~/.local/bin
+```
+
+This never overwrites a package-manager-owned `/usr/bin/hledger`. If an older one
+still comes first on your `PATH`, you are told so plainly rather than having your
+`PATH` silently rewritten. On macOS, `brew install hledger` tracks upstream and is
+fine.
+
+Verify: `hledger --version` should report **1.52 or newer**.
 
 The installer detects your package manager and emits the correct install command:
 

@@ -43,6 +43,13 @@ fi
 if [[ -f "$WW_BASE/lib/security-backends.sh" ]]; then
   source "$WW_BASE/lib/security-backends.sh"
 fi
+# Owns the hledger version floor + the runtime guard (TASK-LED-013). Absent-safe:
+# without it, hledger_require_floor is a no-op and behaviour is unchanged.
+if [[ -f "$WW_BASE/lib/hledger-version.sh" ]]; then
+  source "$WW_BASE/lib/hledger-version.sh"
+else
+  hledger_require_floor() { return 0; }
+fi
 
 # ============================================================================
 # HELP AND VERSION
@@ -1775,6 +1782,20 @@ cmd_deps() {
       display_dependency_status
       ;;
     install)
+      # TASK-LED-013: `ww deps install hledger` is an EXPLICIT, named request, so
+      # performing the install here does not violate the no-auto-install-on-Linux
+      # policy — that policy governs the unattended bulk installer below. hledger is
+      # special-cased because no Linux package manager can reach its version floor.
+      if [[ "${1:-}" == "hledger" ]]; then
+        if [[ -f "$WW_BASE/lib/hledger-version.sh" ]]; then
+          source "$WW_BASE/lib/hledger-version.sh"
+        else
+          log_error "lib/hledger-version.sh not found"
+          exit 2
+        fi
+        hledger_install_static
+        exit $?
+      fi
       run_dependency_installer
       ;;
     ""|help|-h|--help)
@@ -1784,14 +1805,23 @@ Dependency Management
 Usage: ww deps <action>
 
 Actions:
-  check       Check installed dependencies and their versions
-  install     Interactive dependency installation
+  check              Check installed dependencies and their versions
+  install            Interactive dependency installation
+  install hledger    Install the official hledger static build (see below)
 
 Install policy:
   'ww deps install' is the canonical install path for the core toolchain.
   It detects your package manager (brew, apt, dnf, pacman) and emits the
   correct install command per tool. On macOS (brew), installs run automatically.
   On Linux, the correct package manager command is shown -- no auto-install.
+
+hledger is the exception:
+  Workwarrior requires hledger >= 1.52 (unit conversion, time-aware valuation,
+  the attention queue). No Linux package manager ships it -- Debian 12's only
+  candidate is 1.25 -- so 'apt install hledger' cannot satisfy the floor.
+  'ww deps install hledger' fetches the official static build into ~/.local/bin.
+  It never overwrites a package-manager-owned /usr/bin/hledger; if an older one
+  still shadows it on PATH, you are told so plainly.
 
   Extension installs (ww tui install, ww mcp install) follow the same policy:
   auto-install on macOS via brew; platform-appropriate hint on Linux.
@@ -2306,6 +2336,9 @@ cmd_hledger_passthrough() {
     log_error "Hledger binary not found: hledger"
     exit 1
   fi
+  # TASK-LED-013: an hledger below the floor does not error on -X/--value, it
+  # silently returns unconverted numbers. Fail loudly rather than compute wrongly.
+  hledger_require_floor || exit 2
   local has_file=0
   local arg
   for arg in "$@"; do

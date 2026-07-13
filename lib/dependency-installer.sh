@@ -16,7 +16,12 @@ fi
 
 readonly MIN_VERSION_TASK="2.6.0"
 readonly MIN_VERSION_TIMEW="1.4.0"
-readonly MIN_VERSION_HLEDGER="1.30"
+# hledger's floor is owned by lib/hledger-version.sh (TASK-LED-013) — the ledger's
+# computational surface (-X, --value, attention queue) does not exist below it, and
+# distro packages cannot reach it. Do not hardcode a second copy here.
+# shellcheck source=./hledger-version.sh
+source "$(dirname "${BASH_SOURCE[0]}")/hledger-version.sh" 2>/dev/null || true
+readonly MIN_VERSION_HLEDGER="${HLEDGER_MIN_VERSION:-1.52}"
 readonly MIN_VERSION_JRNL="4.0"
 readonly MIN_VERSION_PYTHON="3.9"
 readonly MIN_VERSION_BUGWARRIOR="1.8.0"
@@ -386,6 +391,16 @@ get_install_command() {
   local tool="$1"
   local pm="$2"
 
+  # TASK-LED-013: distro packages CANNOT reach the hledger floor. Debian 12's only
+  # candidate is 1.25-2+b5 against a ${MIN_VERSION_HLEDGER} floor — that is not a lag to wait
+  # out. Route Linux users to the official static build instead of a command that
+  # would leave them below the floor and think they had succeeded. (brew tracks
+  # upstream closely, so macOS keeps the normal path.)
+  if [[ "$tool" == "hledger" && "$pm" != "brew" ]]; then
+    echo "ww deps install hledger"
+    return 0
+  fi
+
   case "$pm" in
     brew)
       case "$tool" in
@@ -441,6 +456,13 @@ get_install_command() {
 get_upgrade_command() {
   local tool="$1"
   local pm="$2"
+
+  # TASK-LED-013: see get_install_command — `apt-get --only-upgrade hledger` cannot
+  # cross the floor on Debian/Ubuntu. Do not hand the user a no-op.
+  if [[ "$tool" == "hledger" && "$pm" != "brew" ]]; then
+    echo "ww deps install hledger"
+    return 0
+  fi
 
   case "$pm" in
     brew)

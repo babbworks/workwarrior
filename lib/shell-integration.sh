@@ -761,6 +761,13 @@ l() {
     return 1
   fi
 
+  # TASK-LED-013: `l` is an arbitrary-flag passthrough, so a below-floor hledger can
+  # be handed -X/--value and will return unconverted numbers with no error. Guard it.
+  # Absent-safe: if lib/hledger-version.sh is not loaded, this is a no-op.
+  if declare -F hledger_require_floor >/dev/null 2>&1; then
+    hledger_require_floor || return 2
+  fi
+
   # Execute hledger with default ledger
   hledger -f "$default_ledger" "${args[@]}"
   local _l_exit=$?
