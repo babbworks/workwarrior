@@ -88,24 +88,34 @@ Change types: `lib` | `service` | `profile` | `shell_integration` | `bin_ww` | `
 
 ---
 
-## Known Baseline Failures (~19)
+## The Regression Gate (TASK-TEST-004)
 
-Confirmed 2026-04-09. All failures are in profile management — completely unrelated to sync,
-shell integration, bin/ww routing, or any service code. Do NOT block on these.
+**Do not count failures. Diff their NAMES against the committed baseline.**
 
-| Test file | Failing tests | Reason |
-|---|---|---|
-| `test-profile-management-properties.bats` | ~17 | Properties 3/4/5/6/7/15/16/17/18/20/23/30/32 — profile delete/backup/list/copy/hook/name not fully enforced |
-| `test-profile-name-validation.bats` | ~2 | Properties 1/2 — 50-char profile name creation/rejection not yet enforced |
-| `test-browser.bats` | ~10 | Browser server lifecycle tests — require live server on port 7777; fail in isolated test runs (Kiro's work) |
+```bash
+bash dev/scripts/check-regression.sh     # exit 1 on any NEW failing test name
+```
 
-**Rule:** A clean full-suite run shows ~29 failures. Any failures OUTSIDE the three baseline files
-below are regressions and must be fixed before merge. Failures inside these files are pre-existing
-and must not block Verifier sign-off for unrelated tasks.
+- **`dev/tests/known-failures.txt`** is the baseline — **60 known failures**, committed as data,
+  verified byte-identical across three consecutive full runs.
+- The gate reports tests that have started **passing**, too, so the baseline cannot quietly rot.
+- **Never add a name to `known-failures.txt` to make the gate pass.** Fix the test, or fix the code.
 
-Do not stash-and-baseline — it causes merge conflicts with active work. Instead, compare
-`not ok` lines: if every failure is in `test-profile-management-properties.bats` or
-`test-profile-name-validation.bats`, the suite is clean for sign-off purposes.
+### Why the old numbers here were dangerous
+
+This section used to claim `~19`, and `~29` elsewhere, across "26 files". The real suite is
+**665 tests across 42 files**. Worse, the counts were *unstable*: the suite was
+nondeterministic, and the baseline differed from itself between consecutive runs of identical
+code (60, then 64). **A Verifier following the old guidance would have cleared a genuine
+regression as "baseline".**
+
+The cause is fixed (TASK-TEST-004): eight suites shared one `test-profiles/` directory at the
+repo root and each teardown `rm -rf`'d it; the browser suites raced on hardcoded ports. Tests
+now use `$BATS_TEST_TMPDIR` and kernel-assigned ports.
+
+**The lesson generalises, and it is the same one that produced `wwctl index`:**
+
+> Never hand-maintain a mirror of a fact that lives elsewhere. Derive it, or point at it.
 
 ---
 

@@ -64,5 +64,18 @@ Risk notes:           (Orchestrator) This is not cosmetic and it is not a "nice 
                       so easy to reason about. Prioritise before Phase 1 lands, since the STRM
                       cards all touch a shared dispatcher and will need exactly this gate.
 
-Status:               pending
+Resolution:
+  Implemented on agent/builder/test-004 (merged 2026-07-13).
+  8 suites shared ONE test-profiles/ dir at the REPO ROOT and each teardown rm -rf'd it;
+  browser tests raced on hardcoded ports with a teardown that killed without waiting.
+  Repointed at $BATS_TEST_TMPDIR; kernel-assigned free port per test; PIDs recorded;
+  teardown waits for death.
+  ACCEPTANCE MET: three consecutive full runs produce a BYTE-IDENTICAL failing-name-set
+  (60 each). Was 60 then 64 on identical code.
+  dev/tests/known-failures.txt (the committed baseline) + dev/scripts/check-regression.sh
+  (the gate; exits 1 on any NEW failing name, and reports newly-PASSING tests so the
+  baseline cannot rot).
+  It has already earned its keep: it caught a genuine break during LED-012.
+
+Status:               complete
 Taskwarrior:          (assign live TW id on dispatch)

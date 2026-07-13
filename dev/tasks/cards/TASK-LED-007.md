@@ -43,5 +43,12 @@ Risk notes:           (Orchestrator) The module already provides ledger_cfg_set_
                       out of scope here.
                       (Builder) fill in pre-flight before touching bin/ww.
 
-Status:               pending
+Resolution:
+  Implemented on agent/builder/ledger-schema; PORTED onto the dev/ layout and MERGED by
+  TASK-LED-012 (2026-07-13). Code is live: lib/ledger-config.sh + lib/ledger-dispatch.sh.
+  Ledger + alias suites 92/92; check-regression.sh clean.
+  NOT self-approved: no Verifier sign-off exists for LED-004..011. One pass over the
+  merged result is owed.
+
+Status:               in-review
 Taskwarrior:          wwdev task <id> (<uuid>) status:pending

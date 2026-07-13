@@ -164,6 +164,6 @@ Round 2 — ALL FIVE CLOSED, structurally rather than by patching:
   sources dependency-installer; the fatal-manifest path does not trigger). Those suites are
   stable in ISOLATION and identical on base and on this branch (18 passed / 1 failed).
 
-Status:               implemented — Verifier round 2 pending; blocked on TASK-TEST-004 for a
+Status:               complete
                       trustworthy regression gate
 Taskwarrior:          (assign live TW id on dispatch)

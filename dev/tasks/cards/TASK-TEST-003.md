@@ -27,6 +27,17 @@ Risk notes:           Medium. Changing test scaffolding can mask real failures i
 
 Notes:                priority: M · area: tests · created: 2026-04-27
 
-Status:               pending
+Resolution:
+  Delivered 2026-07-13 by TASK-TEST-004 (branch agent/builder/test-004, merged).
+  test-browser.bats now requests a free port from the kernel PER TEST instead of hardcoding
+  17777/17778, records the server PID itself (an early-crashing server was previously never
+  reaped), and teardown WAITS for actual process death rather than `kill` + sleep 0.3 —
+  which is what let a dying server hold its port into the next test.
+  Browser flaps: 4 -> 0. The suite's failing-name-set is now byte-identical across three
+  consecutive runs.
+  Superseded in scope by TASK-TEST-004, which fixed the same class of bug across 8 more
+  suites (shared test-profiles/ dir at the repo root).
+
+Status:               complete
 
 Taskwarrior:          wwdev task (644ebe39) status:pending
