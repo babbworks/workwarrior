@@ -47,7 +47,9 @@
       "Bash(bash -n lib/dependency-installer.sh)",
       "Bash(bash -n bin/ww)",
       "Bash(bash -n lib/shell-integration.sh)",
-      "Bash(bats dev/tests/test-smoke.bats)"
+      "Bash(bats dev/tests/test-smoke.bats)",
+      "Bash(python3 -)",
+      "Bash(bash dev/scripts/gen-index.sh)"
     ]
   }
 }

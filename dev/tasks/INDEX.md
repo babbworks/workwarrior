@@ -9,10 +9,10 @@ Generated: 2026-07-13 · 158 cards in `tasks/cards/`
 |---|---|
 | in-review | 9 |
 | verified | 2 |
-| pending | 23 |
+| pending | 22 |
 | parked | 2 |
 | deferred | 1 |
-| complete | 121 |
+| complete | 122 |
 
 ---
 
@@ -37,7 +37,7 @@ Generated: 2026-07-13 · 158 cards in `tasks/cards/`
 | [TASK-STRUCT-1A](cards/TASK-STRUCT-1A.md) | Decouple runtime config from dev/config/ into config/ | — |
 | [TASK-STRUCT-1B](cards/TASK-STRUCT-1B.md) | Rename system/ -> dev/, move tests/ -> dev/tests/, stop shipping dev/ | TASK-STRUCT-1A (runtime config must be d |
 
-## Pending (23)
+## Pending (22)
 
 | Card | Goal | Depends on |
 |---|---|---|
@@ -48,7 +48,6 @@ Generated: 2026-07-13 · 158 cards in `tasks/cards/`
 | [TASK-COMM-010](cards/TASK-COMM-010.md) | Warrior cross-profile annotation write — phase 2 | TASK-COMM-009 |
 | [TASK-DEPS-001](cards/TASK-DEPS-001.md) | The warrior fleet view — which instances are below floor? | TASK-LED-013 (merged — config/dependen |
 | [TASK-JRN-003](cards/TASK-JRN-003.md) | Silent failures that corrupt the journal record without saying so | TASK-JRN-001 (merged — do not conflict |
-| [TASK-LED-012](cards/TASK-LED-012.md) | Land ledger-schema — rebase TASK-LED-004..011 onto the dev/ layout | TASK-STRUCT-1B (merged — the rename th |
 | [TASK-LED-014](cards/TASK-LED-014.md) | Actor accounts + the punch posting shape | TASK-STRM-003 (events carry ctx.actor) |
 | [TASK-LED-015](cards/TASK-LED-015.md) | ww ledger sync-stream — the derived journal (regenerate, never append) | TASK-LED-014 (the posting shape must be  |
 | [TASK-LED-016](cards/TASK-LED-016.md) | The accrual rule — work creates obligation (opt-in) | TASK-LED-015 (postings must exist before |
@@ -78,7 +77,7 @@ Generated: 2026-07-13 · 158 cards in `tasks/cards/`
 |---|---|---|
 | [TASK-ISSUES-002](cards/TASK-ISSUES-002.md) | Bugwarrior profile setup for alpha and bravo profiles | — |
 
-## Complete (121)
+## Complete (122)
 
 - **TASK-1.1** — Deploy root CLAUDE.md
 - **TASK-1.2** — Deploy services/CLAUDE.md
@@ -117,6 +116,7 @@ Generated: 2026-07-13 · 158 cards in `tasks/cards/`
 - **TASK-LED-001** — Ledger transaction row redesign — 3-line item UI
 - **TASK-LED-002** — Agent/session ledger account hierarchy + session recording process
 - **TASK-LED-003** — Modular journal files and ledger include strategy
+- **TASK-LED-012** — Land ledger-schema — rebase TASK-LED-004..011 onto the dev/ layout
 - **TASK-LED-013** — hledger version floor — upgrade, pin, and guard at runtime
 - **TASK-MCP-001** — Integrate taskwarrior-mcp as ww mcp command
 - **TASK-QUAL-001** — Enforce artifact hygiene across repository
