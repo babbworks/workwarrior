@@ -125,6 +125,31 @@ random_alphanumeric() {
   assert_success
 }
 
+@test "Property 8: map-form named ledger yields a correct l-<profile>-<name> alias (LED-011)" {
+  profile_name="test-mapform-ledger"
+
+  create_profile_directories "$profile_name"
+  create_journal_config "$profile_name"
+  create_ledger_config "$profile_name"
+
+  # Append a map-form named ledger (journal: key) — the old IFS=: parser mishandles this.
+  cat >> "$PROFILES_DIR/$profile_name/ledgers.yaml" <<EOF
+  disney:
+    journal: $PROFILES_DIR/$profile_name/ledgers/disney.journal
+EOF
+
+  run create_profile_aliases "$profile_name"
+  assert_success
+
+  # Correct named alias exists and points at disney.journal
+  run grep "^alias l-${profile_name}-disney='hledger -f .*disney.journal'" "$SHELL_CONFIG"
+  assert_success
+
+  # No bogus l-<profile>-journal alias (the old parser's failure mode)
+  run grep "l-${profile_name}-journal" "$SHELL_CONFIG"
+  assert_failure
+}
+
 @test "Property 8: All four aliases created for profile (10 iterations)" {
   # Feature: workwarrior-profiles-and-services, Property 8: Complete Alias Creation
   

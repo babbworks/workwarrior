@@ -119,9 +119,19 @@ setup() {
   [[ "$output" == *"hledger_require_floor"* ]]
 }
 
-@test "guard is wired into the `l` shell function passthrough" {
-  run grep -B6 'hledger -f "\$default_ledger" "\${args\[@\]}"' "${REPO_ROOT}/lib/shell-integration.sh"
+@test "guard is wired into the ledger-dispatch passthrough (the l/ww-ledger surface)" {
+  # TASK-LED-012 moved the arbitrary-flag surface: `l` no longer shells out to hledger
+  # directly, it calls ledger_dispatch. The guard moved WITH the passthrough — which is
+  # what LED-013's card required ("ledger-dispatch.sh must SOURCE hledger-version.sh, not
+  # reimplement the floor"). Assert it at its real home, not its historical one.
+  run grep -A12 '^_ledger_passthrough()' "${REPO_ROOT}/lib/ledger-dispatch.sh"
   [[ "$output" == *"hledger_require_floor"* ]]
+}
+
+@test "ledger-dispatch does NOT reimplement the floor — it calls the single owner" {
+  # A second copy of the version logic is how a floor rots. There must be exactly one.
+  run grep -c 'HLEDGER_MIN_VERSION\|min_version' "${REPO_ROOT}/lib/ledger-dispatch.sh"
+  [ "$output" -eq 0 ]
 }
 
 @test "guard is ABSENT from basic internal call sites (they work fine on 1.25)" {

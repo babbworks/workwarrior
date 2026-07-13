@@ -32,26 +32,17 @@ if [[ ! -f "$ledgers_config" ]]; then
     exit 1
 fi
 
-# Extract default ledger path
-ledger_file=$(python3 -c "
-import yaml
-import sys
-try:
-    with open('$ledgers_config', 'r') as f:
-        config = yaml.safe_load(f)
-    ledgers = config.get('ledgers', {})
-    # Get first ledger as default
-    if ledgers:
-        print(list(ledgers.values())[0])
-    else:
-        sys.exit(1)
-except Exception as e:
-    print(f'ERROR: {e}', file=sys.stderr)
-    sys.exit(1)
-" 2>/dev/null)
+# Resolve the default ledger via the schema owner module (resolves the reserved
+# 'default' key by name, not by position — fixes the old values()[0] behavior).
+WW_BASE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+# shellcheck source=/dev/null
+source "$WW_BASE/lib/core-utils.sh" 2>/dev/null || true
+# shellcheck source=/dev/null
+source "$WW_BASE/lib/ledger-config.sh" 2>/dev/null || true
 
+ledger_file="$(ledger_cfg_default_path 2>/dev/null || true)"
 if [[ -z "$ledger_file" ]]; then
-    # Fallback to profile name
+    # Fallback to profile-named journal
     profile_name=$(basename "$WORKWARRIOR_BASE")
     ledger_file="$WORKWARRIOR_BASE/ledgers/${profile_name}.journal"
 fi

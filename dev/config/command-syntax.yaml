@@ -197,10 +197,14 @@ commands:
 
   - domain: "ledger"
     syntax:
-      - "ww ledger add <ledger>"
+      - "ww ledger new <ledger>"
       - "ww ledger list"
       - "ww ledger remove <ledger>"
       - "ww ledger rename <old> <new>"
+      - "ww ledger set-default <ledger>"
+      - "ww ledger task <uuid|id>"
+      - "ww ledger inventory"
+      - "ww ledger <hledger-command> [args]   # passthrough: bal, reg, print, accounts, add, check, close, import, bs, is"
     output_modes:
       default: "human-compact"
       supports_json: true

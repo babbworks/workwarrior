@@ -51,6 +51,15 @@ if [[ -f "$WW_BASE/lib/hledger-version.sh" ]]; then
 else
   hledger_require_floor() { return 0; }
 fi
+# The ledger schema owner + dispatcher (TASK-LED-004..011). ledger-dispatch.sh is the
+# single owner of the `ww ledger` / `l` command model; per TASK-LED-013 it MUST call
+# hledger_require_floor rather than reimplementing the floor — hence the order here.
+if [[ -f "$WW_BASE/lib/ledger-config.sh" ]]; then
+  source "$WW_BASE/lib/ledger-config.sh"
+fi
+if [[ -f "$WW_BASE/lib/ledger-dispatch.sh" ]]; then
+  source "$WW_BASE/lib/ledger-dispatch.sh"
+fi
 
 # ============================================================================
 # HELP AND VERSION
@@ -544,11 +553,16 @@ Actions:
   task <uuid|id> --hours <n>   Override duration (default: timetracked UDA or 0)
   task <uuid|id> --account <a> Override debit account (default: time:<profile>:<domain>)
   task <uuid|id> --budget <a>  Override credit account (default: time:<profile>:budget)
-  add <name>                   Add ledger to active profile
+  new <name>                   Create + register a ledger in the active profile
   list                         List ledgers in active profile
   remove <name>                Remove ledger from active profile
   rename <old> <new>           Rename ledger in active profile
+  set-default <name>           Point the default ledger at a named ledger
   inventory                    Build cross-profile ledger account inventory
+
+  Any other command passes through to hledger on the default ledger, e.g.:
+    bal | reg | print | accounts | check | close | add | import | bs | is | …
+  (bare 'ww ledger' shows a balance overview)
 
 Global Options:
   --profile <name>  Override profile for this invocation
@@ -559,7 +573,10 @@ Examples:
   ww ledger task abc-123
   ww ledger task abc-123 --hours 0.5
   ww ledger task abc-123 --account time:ww:research
-  ww ledger add business
+  ww ledger new business
+  ww ledger set-default business
+  ww ledger bal
+  ww ledger accounts
   ww ledger list
   ww ledgers
   ww ledger remove business
@@ -1690,21 +1707,13 @@ cmd_resource() {
               printf "\ninclude %s.journal\n" "$name" >> "$main_journal"
             fi
           fi
-          # Register in ledgers.yaml
+          # Register in ledgers.yaml via the schema owner (writes journal:/inline, never path:)
           if [[ -f "$ledgers_yaml" ]]; then
-            python3 - "$ledgers_yaml" "$name" "$ledger_file" <<'PYEOF'
-import sys, re
-yaml_path, name, path = sys.argv[1], sys.argv[2], sys.argv[3]
-content = open(yaml_path).read()
-if name + ':' in content:
-    print(f"already in ledgers.yaml")
-else:
-    entry = f"  {name}:\n    path: {path}\n"
-    # Insert after 'ledgers:' line
-    new = re.sub(r'(^ledgers:\s*\n)', r'\1' + entry, content, flags=re.MULTILINE)
-    open(yaml_path, 'w').write(new)
-    print(f"Registered in ledgers.yaml")
-PYEOF
+            if ledger_cfg_exists "$name"; then
+              log_info "already in ledgers.yaml"
+            elif ledger_cfg_add "$name" "$ledger_file"; then
+              log_info "Registered in ledgers.yaml"
+            fi
           fi
           log_success "Created ledger '$name' at $ledger_file"
           ;;
@@ -2364,8 +2373,13 @@ cmd_hledger_passthrough() {
   for arg in "$@"; do
     [[ "$arg" == "-f" || "$arg" == "--file" ]] && has_file=1
   done
-  local default_ledger="${WORKWARRIOR_BASE:-}/ledgers/default.journal"
-  if [[ $has_file -eq 0 && -n "${WORKWARRIOR_BASE:-}" && -f "$default_ledger" ]]; then
+  # Resolve the profile's default ledger: prefer the exported LEDGER_F, then the
+  # schema-owner resolver. (The old hard-coded default-journal path never existed on disk.)
+  local default_ledger="${LEDGER_F:-}"
+  if [[ -z "$default_ledger" && -n "${WORKWARRIOR_BASE:-}" ]]; then
+    default_ledger="$(ledger_cfg_default_path 2>/dev/null || true)"
+  fi
+  if [[ $has_file -eq 0 && -n "$default_ledger" && -f "$default_ledger" ]]; then
     command hledger -f "$default_ledger" "$@"
   else
     command hledger "$@"
@@ -3857,7 +3871,7 @@ cmd_ledger() {
   shift 2>/dev/null || true
 
   case "$action" in
-    list|"")
+    list)
       if [[ -z "${WORKWARRIOR_BASE:-}" ]]; then
         log_error "No active profile. Activate one with p-<profile-name>."
         exit 1
@@ -3867,20 +3881,9 @@ cmd_ledger() {
         log_error "ledgers.yaml not found: $cfg"
         exit 1
       fi
-      local names=()
-      mapfile -t names < <(awk '
-        /^ledgers:/ { in_l=1; next }
-        in_l && /^[^ ]/ { in_l=0 }
-        in_l && /^  [a-zA-Z0-9_-]+:/ {
-          name=$1; sub(":", "", name);
-          if (name != "default") print "  • " name
-        }
-      ' "$cfg"
-      )
+      # Names come from the schema owner (excludes reserved 'default' and hidden ledgers).
       local clean=()
-      for entry in "${names[@]}"; do
-        clean+=( "${entry#  • }" )
-      done
+      mapfile -t clean < <(ledger_cfg_names)
       if [[ "$WW_OUTPUT_MODE" == "json" ]]; then
         printf '{"profile":"%s","ledgers":' "${WARRIOR_PROFILE:-active}"
         print_json_array "${clean[@]}"
@@ -3896,48 +3899,6 @@ cmd_ledger() {
         else
           echo "  (none)"
         fi
-      fi
-      ;;
-    add|create)
-      if [[ -z "${WARRIOR_PROFILE:-}" ]]; then
-        log_error "No active profile. Activate one with p-<profile-name> or use --profile."
-        exit 1
-      fi
-      if [[ -z "${1:-}" ]]; then
-        log_error "Ledger name required"
-        echo "Usage: ww ledger add <name>"
-        exit 1
-      fi
-      if ! add_ledger_to_profile "$WARRIOR_PROFILE" "$1"; then
-        exit 1
-      fi
-      ;;
-    remove|delete|rm)
-      if [[ -z "${WARRIOR_PROFILE:-}" ]]; then
-        log_error "No active profile. Activate one with p-<profile-name> or use --profile."
-        exit 1
-      fi
-      if [[ -z "${1:-}" ]]; then
-        log_error "Ledger name required"
-        echo "Usage: ww ledger remove <name>"
-        exit 1
-      fi
-      if ! remove_ledger_from_profile "$WARRIOR_PROFILE" "$1"; then
-        exit 1
-      fi
-      ;;
-    rename)
-      if [[ -z "${WARRIOR_PROFILE:-}" ]]; then
-        log_error "No active profile. Activate one with p-<profile-name> or use --profile."
-        exit 1
-      fi
-      if [[ -z "${1:-}" || -z "${2:-}" ]]; then
-        log_error "Old and new ledger names required"
-        echo "Usage: ww ledger rename <old> <new>"
-        exit 1
-      fi
-      if ! rename_ledger_in_profile "$WARRIOR_PROFILE" "$1" "$2"; then
-        exit 1
       fi
       ;;
     task)
@@ -4057,16 +4018,10 @@ PYEOF
         echo "  Verify: hledger -f ${lt_ledger_file} check"
       fi
       ;;
-    inventory)
-      bash "$WW_BASE/scripts/build-ledger-inventory.sh" "$@"
-      ;;
-    help|-h|--help)
-      show_help_ledger
-      ;;
     *)
-      log_error "Unknown ledger action: $action"
-      echo "Run 'ww ledger help' for usage"
-      exit 1
+      # Reserved management words + hledger passthrough, shared with the `l`
+      # shell function via lib/ledger-dispatch.sh.
+      ledger_dispatch "$action" "$@"
       ;;
   esac
 }
