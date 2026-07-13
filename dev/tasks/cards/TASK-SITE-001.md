@@ -187,5 +187,12 @@ Risk notes:           (Orchestrator) No existing service named `browser` or `sit
                       and clear error message before attempting bind.
                       (Builder pre-flight) TBD
 
-Status:               pending
-Taskwarrior:          wwdev task 23 (65d58a60-6c64-4867-a0c6-262742607a57) status:pending
+Closure note:         Closed as SUPERSEDED. This parent epic's entire scope shipped via its own
+                      wave cards: SITE-002 (server), SITE-003 (shell), SITE-004 (live data),
+                      SITE-005 (polish), SITE-006 (export/inline forms) — all complete. Verified
+                      2026-07-13: services/browser/ serves 29 sections (tasks, time, journal,
+                      ledger, stream, community, warrior, gun, sword, ...). No residual scope.
+                      Board/index had carried this as 'pending' since the waves closed.
+
+Status:               complete — 2026-07-13 (superseded by delivered waves)
+Taskwarrior:          wwdev task 23 (65d58a60-6c64-4867-a0c6-262742607a57) status:completed

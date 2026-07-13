@@ -71,5 +71,11 @@ Design decisions required before implementation:
 
 Write scope:          TBD after design decisions.
 
-Status:               parked — requires design decisions before implementation
-Taskwarrior:          wwdev task 26 (249e3fff-11c3-4b13-ae94-1aca47d3a65f) status:pending +waiting
+Closure note:         Closed as SUPERSEDED. This card asked for 'a locally-served web interface
+                      for ww'. That was delivered by TASK-SITE-001..006 (`ww browser`, 29 sections).
+                      Parking it implied undone design work; none remains. NOTE: a divergent copy
+                      of this card also exists at tasks/cards/removed/TASK-WEB-001.md — the two
+                      differ. This live card is the authoritative one; removed/ is archive.
+
+Status:               closed — 2026-07-13 (superseded by the shipped browser)
+Taskwarrior:          wwdev task 26 (249e3fff-11c3-4b13-ae94-1aca47d3a65f) status:completed

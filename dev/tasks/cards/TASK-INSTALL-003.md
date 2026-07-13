@@ -1,6 +1,6 @@
 # TASK-INSTALL-003 — Installer v0.2: Multi-Instance Architecture
 
-**Status:** complete  
+Status:               complete  
 **Phase:** 2  
 **Completed:** 2026-05-02  
 **Priority:** HIGH

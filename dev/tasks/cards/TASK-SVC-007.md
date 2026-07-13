@@ -1,6 +1,6 @@
 # TASK-SVC-007 — Profile removal service (`ww remove`)
 
-**Status:** complete
+Status:               complete
 **Priority:** HIGH
 **Created:** 2026-04-12
 **Completed:** 2026-04-12

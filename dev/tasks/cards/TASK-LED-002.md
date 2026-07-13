@@ -59,5 +59,10 @@ Write scope:          dev/docs/ledger-account-hierarchy.md  (new)
 
 Tests required:       none (documentation task)
 
-Status:               open
+Closure note:         Closed as SUBSUMED. TASK-LED-014 (actor accounts + punch posting shape)
+                      supersedes this card: the actor IS the source account, which is the
+                      agent/session hierarchy this card asked for. TASKS.md already declared the
+                      subsumption; only the card status lagged. Do not dispatch separately.
+
+Status:               closed — 2026-07-13 (subsumed by TASK-LED-014)
 Priority:             medium

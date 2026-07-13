@@ -44,5 +44,23 @@ Fragility:            Medium — new lib; reads foreign profile data (read-only,
 
 Depends on:           TASK-COMM-001
 
+Rescoped:             2026-07-13 — RESCOPED after verification. This card was written as
+                      "promote the Warrior service from a README stub". That premise is
+                      obsolete: services/warrior/warrior.sh is a 215-line working service and
+                      `ww warrior` dispatches. Verified live 2026-07-13:
+                        criterion 1 (service implemented) ...... DONE
+                        criterion 2 (community list) ........... DONE
+                        criterion 4 (profiles) ................. DONE
+                        criterion 5 (read task <profile> <id>) . DONE
+                        criterion 6 (read journal <profile>) ... DONE
+                        criterion 3 (community export) ......... PARTIAL — `export <name>`
+                          exists but emits markdown only; the `--format html|json|md` flags
+                          in the original criterion are NOT implemented.
+                      RESIDUAL SCOPE (all that remains): add --format html|json to
+                      `ww warrior community export`. Everything else is delivered.
+                      NOTE: TASK-COMM-010 lists this card as a blocker. It is no longer
+                      blocked on the service existing — only on this export flag, which it
+                      does not actually need. Re-evaluate COMM-010's dependency at dispatch.
+
 Status:               pending
 Taskwarrior:          wwdev task 10 (c1cc443f-069f-418d-8cbb-e5744d00f787) status:pending

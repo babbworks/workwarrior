@@ -15,6 +15,8 @@ Task Lifecycle:
   verify-phase1                           Phase 1 gate verification (PASS/FAIL)
   new-task <TASK-ID> <"goal">             Generate task card + index in TASKS.md
   dispatch <role> <topic> <card-path>     Create git worktree on agent/<role>/<topic>
+  index [--check]                         Regenerate tasks/INDEX.md from card Status fields
+                                          (--check exits 1 if stale; never edit INDEX by hand)
   task-status                             Focused view: pending/in-progress/blocked cards
   worktrees [clean]                       List active worktrees; clean merges stale ones
 
@@ -85,6 +87,9 @@ case "${cmd}" in
     ;;
   dispatch)
     "${ROOT}/scripts/dispatch-worktree.sh" "$@"
+    ;;
+  index)
+    "${ROOT}/scripts/gen-index.sh" "$@"
     ;;
   task-status)
     CARDS_DIR="${ROOT}/tasks/cards"

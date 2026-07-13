@@ -27,5 +27,10 @@ Write scope:          dev/docs/modular-journals.md  (new)
 
 Tests required:       bats dev/tests/test-resource-create.bats  (new or extend existing)
 
-Status:               open
+Closure note:         Closed as SUBSUMED. The modular-journal include strategy is documented at
+                      dev/docs/modular-journals.md (verified present 2026-07-13), and TASK-LED-015
+                      (`ww ledger sync-stream`, regenerate-never-append) owns the implementation.
+                      TASKS.md already declared the subsumption; only the card status lagged.
+
+Status:               closed — 2026-07-13 (subsumed by TASK-LED-015)
 Priority:             low

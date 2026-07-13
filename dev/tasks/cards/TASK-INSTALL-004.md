@@ -1,6 +1,6 @@
 # TASK-INSTALL-004 — install.sh bash 3.2 compatibility + community.sh add bug
 
-**Status:** complete
+Status:               complete
 **Priority:** HIGH
 **Phase:** 2
 **Component:** install.sh, services/community/community.sh

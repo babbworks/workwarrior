@@ -208,8 +208,17 @@ These are merge blockers. Not advisory. Not optional.
 
 ## Canonical Task Source
 
-**`dev/TASKS.md` is the only source of truth for open work.** `dev/tasks/INDEX.md` is the scannable manifest of all task cards (`tasks/cards/`).
+Three files, three distinct jobs. Confusing them is what caused the 2026-07-13 drift.
 
+| File | Job | Editable? |
+|---|---|---|
+| `dev/tasks/cards/TASK-*.md` | **The `Status:` field is the SOLE source of truth for task status.** One canonical `Status:` line per card — no frontmatter status, no second `## Status` section. | Orchestrator |
+| `dev/tasks/INDEX.md` | The full backlog. **GENERATED** by `wwctl index`. | **NEVER by hand** |
+| `dev/TASKS.md` | The curated **plan**: priority, sequence, rationale. Not a status ledger. | Orchestrator |
+
+- Changed a card's `Status:`? Run `wwctl index`. `wwctl index --check` exits 1 if stale.
+- **A card whose `Status:` cannot be parsed is a fatal error, never a silent skip.** Silent skipping hid 15 cards from the board for months (`logs/decisions.md` 2026-07-13).
+- Never hand-maintain a mirror of a fact that lives in 145 other files. It will drift.
 - Orchestrator is the only agent that updates status fields
-- Every deferred TODO in production code must have a corresponding TASKS.md card (Gate E)
+- Every deferred TODO in production code must have a corresponding task card (Gate E)
 - New tasks are only added by the Orchestrator after Gate A is satisfied

@@ -9,7 +9,7 @@ This file is tool-agnostic — Claude Code, Amazon Q, Codex, Gemini, or any othe
 
 Workwarrior is a terminal-first, profile-based productivity system unifying TaskWarrior, TimeWarrior, JRNL, and Hledger under a single CLI (`ww`). Profiles are isolated workspaces — each has its own task data, time tracking, journals, and ledgers. Users activate profiles via shell aliases and all tool state follows automatically via env vars. The system supports multiple independent instances tracked in a registry at `~/.config/ww/registry/`.
 
-**Repo:** `Documents/vaults/babb/repos/ww/` (git)
+**Repo:** `github/workwarrior/` (git)
 **Dev instance:** `~/ww-dev/` (synced from repo via `dev-sync.sh`, not git)
 **Production instance:** `~/wwv02/` (23+ profiles, anchor command `ww`)
 
@@ -44,10 +44,25 @@ For task and time tracking conventions (UUID rule, lifecycle, annotations, UDAs,
 
 ## Current State
 
-- **Phase:** Phase 2 active
-- **Active work:** Browser UI (15+ panels), AI integration (ollama), weapons (gun/sword), profile management, multi-instance registry
-- **Known test baseline:** ~29 failures in `test-profile-management-properties.bats`, `test-profile-name-validation.bats`, `test-browser.bats`. Pre-existing — do not block on them.
+- **Phase: Program Phase 0 (blocking)** — `TASK-LED-013` (hledger version floor), `TASK-LED-012` (land ledger-schema), `TASK-SHIP-001` (ship `dev/`).
+  "Phase" means exactly one thing: a stage of THE PROGRAM in `dev/TASKS.md` (Phase 0 → Phase 4).
+  Older docs used "Phase 2" to mean the implementation era — that is historical, not a live queue.
+- **The plan:** capture → record → interpret. Stream is the clock; TimeWarrior is a card; hledger is the journal. Read the top of `dev/TASKS.md` before picking up anything.
+- **Delivered and not to be re-done:** the browser (`ww browser`, 29 sections), the community service, `ww warrior` / `ww projects` / `ww network`. 117 of 145 cards are complete.
+- **Known test baseline: 60 failures / 605 passing** on `bats dev/tests/` (measured 2026-07-13 on `agent/builder/struct-1b`). Concentrated in `profile-uda add wizard` (11), UDA `indicator`/`color` (12), profile properties, `cli`, `check_gh_cli`. Pre-existing — do not block on them, but **do not trust the old "~29" figure**; it was stale. Re-measure before claiming any change to it.
 - **CI:** Disabled. Tests run locally via `bats dev/tests/`.
+
+## Task Status — Where To Look
+
+| Question | Source of truth |
+|---|---|
+| What is this card's status? | The card itself: `Status:` in `dev/tasks/cards/TASK-*.md`. **Nothing else.** |
+| What is the whole backlog? | `dev/tasks/INDEX.md` — **GENERATED** by `wwctl index`. Never hand-edit it. |
+| What should I work on, and why? | `dev/TASKS.md` — the curated plan (priority, sequence, rationale). |
+
+Changed a card's `Status:`? Run `wwctl index`. `wwctl index --check` exits 1 if the index is stale.
+A card whose `Status:` cannot be parsed is a **fatal error**, not a silent skip — that silent skip
+once hid 15 cards from the board for months (see "Reconciliation 2026-07-13" in `dev/TASKS.md`).
 
 ---
 

@@ -990,3 +990,52 @@ direct ww command passthrough.
 **Heuristic files gitignored:** `config/cmd-heuristics.yaml` and `config/cmd-heuristics-corpus.yaml` are generated output from `ww compile-heuristics`. Each install regenerates its own based on the user's command surface. No reason to commit them.
 
 **Profile data gitignored:** `profiles/` contains all user-specific task, journal, ledger, and time data. Never belongs in the repo. Existing tracked profile files will need `git rm -r --cached profiles/` before commit.
+
+---
+
+## 2026-07-13 — The board is a plan, not a ledger: INDEX.md becomes generated
+
+**The problem.** A full audit of all 145 task cards found the board badly desynced from reality.
+Twelve cards were closable with zero engineering — the work was already shipped and verified
+running. Fifteen cards were invisible in `tasks/INDEX.md`. `TASK-SITE-006` appeared **twice in
+the same table**, once `complete` and once `pending`. `TASK-EXT-CRON-001` was listed as both
+complete *and* parked. Seven of the ten rows in the "Community Service — pending Gate A" table
+had already shipped.
+
+**The root cause was mechanical, not human.** `wwctl task-status` parsed status with
+`grep "^Status:" | awk '{print $2}'`. Three card formats existed in the wild:
+
+| Format | Cards | Seen by tooling? |
+|---|---|---|
+| Canonical `Status:` (per `templates/task-card.md`) | 130 | yes |
+| YAML frontmatter `status: pending` | 12 | **no — silently skipped** |
+| Bold markdown `**Status:** complete` | 3 | **no — silently skipped** |
+
+The fifteen cards the tooling could not parse are *exactly* the fifteen that had gone missing
+from the index. Four of them were worse than invisible: they carried **two contradictory status
+fields** — `status: pending` in frontmatter and a `## Status` body section reading
+`complete — 2026-04-27`. Whoever finished the work updated one and left the other.
+
+**The decision.**
+
+1. **The card `Status:` field is the sole source of truth.** One status field per card, canonical
+   format. All 145 cards normalised.
+2. **`tasks/INDEX.md` is GENERATED** (`dev/scripts/gen-index.sh`, `wwctl index`). It is a derived
+   artifact and must never be hand-edited. A hand-maintained mirror of a fact stored in 145 other
+   files *will* diverge; the only question is how fast.
+3. **`TASKS.md` is the curated PLAN — priority, sequence, rationale — and is no longer a status
+   ledger.** Its hand-copied "Completed Tasks" roll-up and five overlapping queue tables were
+   deleted; they were mirrors, and they had drifted.
+4. **An unparseable card is a fatal error, never a silent omission.** `gen-index.sh` refuses to
+   write a partial index and exits 1 naming the offenders. `wwctl index --check` exits 1 when the
+   index is stale, so it can be wired into CI (TASK-CI-001) as a gate.
+
+**Why (4) is the load-bearing one.** A single template alone would not have prevented this. The
+defect was that a status tool *silently omitted what it could not understand* — it reported
+success while showing an incomplete board, which is worse than reporting nothing. Any future card
+in a fourth format now fails loudly instead of quietly vanishing.
+
+**Also settled: "phase" means exactly one thing.** It had come to mean three (the historical
+project phases, THE PROGRAM's Phase 0-4, and the Community service's internal phases). A cold-start
+agent following the documented read order landed on the wrong queue. THE PROGRAM's Phase 0-4 keeps
+the name; the others are relabelled historical.
