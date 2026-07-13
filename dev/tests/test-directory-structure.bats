@@ -12,7 +12,7 @@ setup() {
   
   # Set up test environment
   export TEST_MODE=1
-  export TEST_PROFILES_DIR="${BATS_TEST_DIRNAME}/../../test-profiles"
+  export TEST_PROFILES_DIR="${BATS_TEST_TMPDIR}/test-profiles"
   export PROFILES_DIR="$TEST_PROFILES_DIR"
   
   # Create test profiles directory
