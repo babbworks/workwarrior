@@ -135,3 +135,35 @@ test** — which is precisely why they survived a 23/23 suite. The tests verifie
 logic the Builder was thinking about; they did not verify the URLs he was not.
 
 **Verifier: adversarial pass, 2026-07-13. Recommend FAIL → return to Builder.**
+
+---
+
+## Verifier Round 2 — 2026-07-13 — ✅ PASS
+
+Re-run after the Builder closed all five findings structurally (`config/dependencies.yaml`
++ `lib/deps-manifest.sh` + `lib/deps-state.sh`), and after TASK-TEST-004 made the
+regression gate operable.
+
+| Finding | Round 1 | Round 2 |
+|---|---|---|
+| F1 — 404 on Linux ARM; x86 served to Apple Silicon | HIGH | ✅ CLOSED. Asset matrix is DATA. Asserted: `mac-arm64 != mac-x64`; an unsupported platform CANNOT produce a URL. |
+| F2 — no checksum on a downloaded executable | MED-HI | ✅ CLOSED. Real SHA-256 per asset; install REFUSES on mismatch and leaves nothing behind (tested). |
+| F3 — guard forked `hledger --version` every invocation | MED | ✅ CLOSED. Stamp model. TRIPWIRE test: the fake binary records its own invocations; 10 guard calls after a fresh stamp leave ZERO traces. |
+| F4 — curl assumed | LOW | ✅ CLOSED. |
+| F5 — dead test line; fallback floor literal | LOW | ✅ CLOSED. A missing manifest is now FATAL, never a guessed floor. |
+
+**Regression gate (the round-1 blocker):** `dev/scripts/check-regression.sh` →
+**baseline 60, current 60, NO NEW FAILURES.** Round 1 could not run this — the baseline
+differed from itself. It now does, and LED-013 is clean against it by MEASUREMENT, not by
+the hand-argument round 1 was forced into.
+
+**Targeted suites:** 43/43 deterministic (test-deps-manifest 18, test-hledger-floor 16,
+test-deps-state 9).
+**End-to-end:** checksum-verified install of the real 1.52.1 artifact → stamp written →
+`run-valuation-tests.sh` **12/12 against the INSTALLED binary**.
+
+Builder also self-reported a bug found in-pass and not in the findings: `deps_state_refresh`
+aborted under `set -e` whenever any tool was absent. Recording that a tool is absent IS the
+job. Fixed and regression-tested. Reporting it unprompted is the behaviour we want.
+
+**VERDICT: PASS. Cleared to merge.**
