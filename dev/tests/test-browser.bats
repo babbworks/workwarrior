@@ -15,10 +15,23 @@ load 'test_helper/bats-assert/load'
 # Helpers
 # ---------------------------------------------------------------------------
 
-# Port used for the primary test server. Chosen to avoid collisions with the
-# default 7777 while tests run alongside a real server.
-TEST_PORT=17777
-TEST_PORT2=17778
+# TASK-TEST-004: ports are allocated PER TEST, never hardcoded.
+#
+# These were fixed at 17777/17778. Two tests in a row therefore competed for the same
+# port: teardown sent `kill` and slept 0.3s without waiting for the process to actually
+# exit, so the next test frequently tried to bind a port the dying server still held —
+# and either failed to start, or (worse) talked to the previous test's server. That was
+# a primary source of the suite's nondeterminism: the baseline differed from itself by
+# 4+ tests per run.
+#
+# Ask the kernel for a free port instead of guessing one.
+_free_port() {
+  python3 -c 'import socket
+s = socket.socket()
+s.bind(("127.0.0.1", 0))
+print(s.getsockname()[1])
+s.close()'
+}
 
 _wait_for_health() {
   # Wait up to 10 seconds for /health to return HTTP 200.
@@ -40,6 +53,12 @@ _wait_for_health() {
 
 setup() {
   export WW_BASE="${BATS_TEST_DIRNAME}/../.."
+  # A fresh port per test — no two tests can collide, and a leaked server from an
+  # earlier run cannot be mistaken for this one's.
+  export TEST_PORT TEST_PORT2 SERVER_PIDS
+  TEST_PORT="$(_free_port)"
+  TEST_PORT2="$(_free_port)"
+  SERVER_PIDS=""
   # Use a private temp dir for state files so tests do not pollute real state
   export TEST_STATE_DIR
   TEST_STATE_DIR="$(mktemp -d)"
@@ -52,28 +71,40 @@ setup() {
   chmod +x "${TEST_WW_BASE}/bin/ww"
 }
 
+# Kill a pid and WAIT for it to actually die. `kill` is asynchronous: returning before
+# the process has exited is what let a dying server keep holding its port into the next
+# test (TASK-TEST-004).
+_kill_and_wait() {
+  local pid="${1:-}"
+  [[ -n "$pid" ]] || return 0
+  kill -0 "$pid" 2>/dev/null || return 0
+  kill "$pid" 2>/dev/null || true
+  local waited=0
+  while kill -0 "$pid" 2>/dev/null && [[ $waited -lt 50 ]]; do
+    sleep 0.1
+    waited=$(( waited + 1 ))
+  done
+  # Still alive after 5s: stop asking politely.
+  kill -0 "$pid" 2>/dev/null && kill -9 "$pid" 2>/dev/null || true
+  wait "$pid" 2>/dev/null || true
+}
+
 teardown() {
-  # Stop any server that may still be running on TEST_PORT
-  local pid_file="${TEST_WW_BASE}/.state/browser.pid"
-  if [[ -f "$pid_file" ]]; then
-    local pid
-    pid="$(cat "$pid_file" 2>/dev/null || true)"
-    if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
-      kill "$pid" 2>/dev/null || true
-      sleep 0.3
-    fi
-    rm -f "$pid_file" "${TEST_WW_BASE}/.state/browser.port"
-  fi
-  # Also kill any stray server on TEST_PORT2 (port-conflict test)
-  local pid2_file="${TEST_WW_BASE}/.state/browser2.pid"
-  if [[ -f "$pid2_file" ]]; then
-    local pid2
-    pid2="$(cat "$pid2_file" 2>/dev/null || true)"
-    if [[ -n "$pid2" ]] && kill -0 "$pid2" 2>/dev/null; then
-      kill "$pid2" 2>/dev/null || true
-    fi
-    rm -f "$pid2_file"
-  fi
+  # Every server this test started, whether or not it managed to write a pid file.
+  local pid
+  for pid in $SERVER_PIDS; do
+    _kill_and_wait "$pid"
+  done
+
+  # Pid files the server wrote itself (belt and braces).
+  local f
+  for f in "${TEST_WW_BASE}/.state/browser.pid" "${TEST_WW_BASE}/.state/browser2.pid"; do
+    [[ -f "$f" ]] || continue
+    _kill_and_wait "$(cat "$f" 2>/dev/null || true)"
+    rm -f "$f"
+  done
+  rm -f "${TEST_WW_BASE}/.state/browser.port"
+
   rm -rf "${TEST_STATE_DIR}"
 }
 
@@ -87,6 +118,9 @@ _start_server() {
       --no-open \
       --ww-base "${TEST_WW_BASE}" \
       &
+  # Record the PID ourselves. Relying solely on the server writing a pid file meant a
+  # server that started but crashed early was never reaped, and leaked into later tests.
+  SERVER_PIDS="${SERVER_PIDS} $!"
   _wait_for_health "${port}"
 }
 

@@ -1,0 +1,71 @@
+# dev/tests/known-failures.txt — the committed regression baseline (TASK-TEST-004)
+#
+# The suite's failing-test-name-set on a clean tree. Verified IDENTICAL across three
+# consecutive full runs. A name appearing in the suite but NOT here is a REGRESSION.
+#
+# Gate:  bash dev/scripts/check-regression.sh
+# Do NOT add a name here to silence a regression. Fix the test or fix the code.
+#
+# Baseline measured: 2026-07-13 @ 552066a  (bats 1.8.2)
+# Count: 60
+
+check_gh_cli: fails when gh is not installed
+check_gh_cli: returns exit code 2 when gh not installed
+cli: create --help shows subcommand help
+cli: list --help shows subcommand help
+cli: show --help shows subcommand help
+color: content group writes rgb:255/165/0 (orange)
+color: not written when no group assigned
+color: planning group writes green (no uda_override for this name)
+color: rule written to .taskrc when group assigned
+color subcommand: shows current color for a UDA
+color subcommand: updates existing rule
+color: uda_override takes precedence over group (goals = orange not planning green)
+color: WW COLOR RULES block created in .taskrc
+GET /data/journal returns ok:true with entries array
+GET /data/ledger returns 200
+GET /data/tasks returns non-empty tasks array for remote-dev
+GET /data/tasks with remote-dev active returns ok:true
+GET /data/time returns ok:true with interval fields
+indicator: assigned when uda added with group
+indicator: not written when no group assigned
+indicator: planning group gets ⊞ character
+indicator: shown in list output
+indicator: unrecognized group falls back to ◆
+indicator: work group gets ⊡ character
+parity: check-parity.sh exits 0 against repo CSSOT
+POST /action add creates a task and returns tasks array
+POST /action done with valid task id returns ok:true
+POST /action with unknown action returns 400
+profile-uda add wizard: custom label accepted
+profile-uda add wizard: date type accepted
+profile-uda add wizard: duplicate name rejected
+profile-uda add wizard: group assignment writes to .taskrc group block
+profile-uda add wizard: interactive name prompt (no name arg)
+profile-uda add wizard: label auto-generated from name
+profile-uda add wizard: minimal path (name arg, string, no values, no group)
+profile-uda add wizard: numeric type accepted
+profile-uda add wizard: reorder confirmation changes value order
+profile-uda add wizard: trailing comma preserved in values
+profile-uda add wizard: values written to .taskrc
+Property 15: Maximum length profile names (50 chars) have correct paths
+Property 17: Maximum length profile names (50 chars) get executable hook
+Property 18: Hook calls timew start with tags
+Property 18: Hook calls timew stop
+Property 1: Maximum length profile names (50 chars) create correct paths
+Property 20: Copied journals have updated paths
+Property 2: Profile name exactly 50 characters is accepted
+Property 30: Active profile operations use only that profile's paths
+Property 32: Backup archive contains all profile directories (10 iterations)
+Property 3: Configuration files use absolute paths (10 iterations)
+Property 3: Default configuration files are created with valid content (10 iterations)
+Property 3: Default journal file has timestamp and welcome entry (10 iterations)
+Property 3: Default ledger file has account declarations and opening entry (10 iterations)
+Property 4: After deletion, aliases are removed from bashrc (10 iterations)
+Property 4: After deletion, profile directory does not exist (10 iterations)
+Property 5: Backup filename contains timestamp in YYYYMMDDHHMMSS format (10 iterations)
+Property 6: list_profiles returns profiles in sorted order (10 iterations)
+Property 7: Invalid profile name returns non-zero exit code (10 iterations)
+Property 7: Non-existent profile operations return non-zero exit code (10 iterations)
+sync_preflight: fails with [not-installed] when gh missing
+timew: extensions list with --profile shows empty extensions dir
