@@ -22,17 +22,15 @@ Why it matters:       The thesis is that double-entry is a conservation law and 
                       `service-uda-registry.yaml`, `uda-color-map.yaml`, `body-uda-map.yaml` — a
                       central registry that many services read. This is that same shape.
 
-DECISION REQUIRED (Orchestrator — do not self-approve):
+DECISIONS:
 
-  D1. NAME: `unit` or `commodity`?
-      RECOMMENDATION: **`unit`** (`config/units.yaml`).
-      `commodity` is hledger's word and carries financial baggage into a system whose entire
-      thesis is that units are GENERAL. We would be adopting the vocabulary of the special case
-      to describe the general case. `unit` is what the thing is; `commodity` is what hledger
-      calls it at the boundary. Map `unit -> hledger commodity` in the adapter, not in the name.
+  D1. NAME -> **`unit`**. DECIDED 2026-07-13 by the Orchestrator. `config/units.yaml`.
+      Rationale: `commodity` is hledger's word and carries financial baggage into a system whose
+      entire thesis is that units are GENERAL — it would adopt the vocabulary of the special case
+      to describe the general case. `unit` is what the thing IS; `commodity` is what hledger calls
+      it at the boundary. Map `unit -> hledger commodity` IN THE ADAPTER, never in the name.
 
-  D2. AUTHORITY: authoritative or advisory?
-      RECOMMENDATION: **authoritative, with a loud unknown.** If `stream` emits a unit the
+  D2. AUTHORITY -> **authoritative, with a loud unknown.** STILL OPEN — Orchestrator's call. If `stream` emits a unit the
       registry has never seen, the EVENT IS STILL RECORDED (the log is truth; the registry is a
       lookup table — same rule as actors-v1 §7), but the unit is reported as `unregistered` and
       surfaces in a report. Never silently coerce; never silently drop. An unknown unit is a
@@ -73,8 +71,8 @@ Fragility:            LOW to build (new files + one bin/ww verb), HIGH in conseq
                       vocabulary wrong and every downstream card inherits it. This is the cheapest
                       moment to get it right.
 
-Risk notes:           (Orchestrator) Two decisions above are yours (D1 name, D2 authority). Do not
-                      let the Builder pick them by implication.
+Risk notes:           (Orchestrator) D1 is DECIDED (`unit`). D2 (authority) is still open — do not
+                      let the Builder pick it by implication.
                       (Builder) The registry describes units. It does NOT value them. The moment a
                       coefficient appears in config/units.yaml, the mode concept has been collapsed
                       into the vocabulary and the "personal vs production is one engine with two

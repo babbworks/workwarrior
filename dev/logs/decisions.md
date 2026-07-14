@@ -5,6 +5,48 @@ Each entry: date, decision, context, and why — so future sessions don't re-lit
 
 ---
 
+## 2026-07-13 — The quantity noun is `unit`, not `commodity`. And "mode" is deferred.
+
+**Decision (D1, TASK-UNIT-001):** the system's shared vocabulary of quantity is the **unit**
+(`config/units.yaml`, `lib/unit-registry.sh`, `dev/schemas/units-v1.md`).
+
+**Why not `commodity`:** it is hledger's word, and it drags financial baggage into a system
+whose entire thesis is that units are **general** — hours, kWh, kg, machine-cycles, API
+dollars, defects. Naming the general case after the special case would quietly re-import the
+assumption we spent the whole analysis removing. `unit` is what the thing IS; `commodity` is
+what hledger calls it **at the boundary**. The mapping `unit -> hledger commodity` lives in the
+adapter, never in the name.
+
+**This is the keystone and it had no card.** TASK-LED-014/015/017 all *assumed* a shared unit
+vocabulary existed. Phase 3 is now gated on TASK-UNIT-001 rather than building on sand.
+
+**Still open (D2):** is the registry authoritative or advisory? Recommendation on the card:
+**authoritative, with a loud unknown** — if `stream` emits a unit the registry has never seen,
+the event is still RECORDED (the log is truth; the registry is a lookup table, same rule as
+actors-v1 §7) but reported as `unregistered`. Never silently coerce, never silently drop.
+
+---
+
+**"Mode" is DEFERRED to its own session. Verified: nothing depends on it.**
+
+§6.5 established that *a mode is a price table* — the same immutable records valued under
+different coefficients. It was tempting to treat "mode" as a first-class concept to be designed
+before Phase 3. It is not needed, and we checked rather than assumed:
+
+- The three cards that mention "mode" (LED-016, LED-017, UNIT-001) use it only as **explanation**.
+- The actual mechanism is `weight` in `profiles/<name>/actors.yaml` — delivered by **TASK-STRM-002**.
+- **Profiles ALREADY ARE the mode mechanism.** A formal "mode" would add only (a) a name for the
+  bundle and (b) optional-dependency installs attached to it. Nothing depends on either.
+- The one thing parked inside "mode" — where `ledger-cli` would live if ever required — is moot:
+  hledger does multi-factor weighted sums natively (verified), so ledger-cli is not needed at all.
+
+Mode remains a real and interesting generalisation (coefficients + unit templates + active
+services + optional deps = "personal" vs "production" as one engine). It gets its own
+co-analysis session. It blocks nothing.
+
+
+---
+
 ## 2026-07-11: ledgers.yaml canonical schema — jrnl-style hybrid (Option 2)
 
 **Context:** A CLI-completeness audit of the ledger service found that `ledgers.yaml`
