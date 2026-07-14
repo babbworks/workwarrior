@@ -77,3 +77,6 @@ tools/warlock/settings/
 resources/inventory/
 stream/stream.log
 stream/.cache/
+
+# Local, per-machine Claude permissions — never commit (leaks paths, usernames, grants)
+.claude/settings.local.json
