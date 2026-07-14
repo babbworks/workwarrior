@@ -59,5 +59,26 @@ Risk notes:           (Orchestrator) The v0 fallback is REQUIRED, not optional �
                       (ts,op,action,object) and the S event is a normal 4-tuple. Confirm the
                       marker is not re-emitted on every invocation.
 
-Status:               pending
+Resolution:
+  Implemented 2026-07-13 on agent/builder/strm-001.
+  services/stream/lib/actor.sh — the single owner of identity resolution, with the REQUIRED v0
+  fallback (actor -> ctx.actor, else "profile:" + ctx.prof). Never returns empty; never dies on a
+  malformed ctx (a lens must not be killed by one bad line).
+  The schema version is an EVENT (`<ts> S schema v1 {...}`), written idempotently before any
+  write, and `ww stream status` now reads the version FROM THE LOG — a constant cannot know the
+  version of a file written by another build.
+
+  CRITERION 5 FAILED ON FIRST ATTEMPT, AND THE CONTRACT WAS WRONG. stream-event-v1.md §6 claimed
+  "every existing lens handles it as a routine system event". FALSE: 6 of 8 lenses differed. Only
+  bundy (op B) and frick (op F) filter by op; burroughs/hollerith/pacioli/felt/dey/cooper render
+  or COUNT every event, so a synthetic S event read as ACTIVITY THAT NEVER HAPPENED — skewing the
+  very density signals felt/dey/cooper exist to measure.
+  FIXED AT ONE POINT, NOT SIX: replay_load() already excluded `H` (the legacy header) because the
+  log's own metadata is not an event the lenses analyse. `S` is the same category. One line; zero
+  lenses touched. All 8 now byte-identical. Contract corrected in place.
+
+  Tests 24/24 (test-stream-actor 14, test-stream-schema 10). Regression gate clean (60/60).
+  The 5-field encoding is untouched; system events remain IN the log — they are simply not work.
+
+Status:               in-review
 Taskwarrior:          (assign live TW id on dispatch)
