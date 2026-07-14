@@ -1,0 +1,110 @@
+# config/units.yaml — the unit registry.
+#
+# THE SYSTEM'S SHARED VOCABULARY OF QUANTITY. A unit declared here means the same thing
+# to the ledger, to `stream`, to `viz` and to tasks. If it did not, the two could never be
+# reconciled and the thesis collapses.
+#
+# THE THESIS (dev/docs/ledger-systems-accounting.md): double-entry is a conservation law,
+# and money is merely the first commodity it was applied to. So the UNIT — not the dollar —
+# is the system's most fundamental noun: hours, kilowatt-hours, kilograms, machine-cycles,
+# API dollars, defects.
+#
+# WHY `unit` AND NOT `commodity` (decisions.md 2026-07-13): `commodity` is hledger's word,
+# and it drags financial baggage into a system whose whole point is that units are GENERAL.
+# `unit` is what the thing IS; `commodity` is what hledger calls it AT THE BOUNDARY. The
+# mapping unit -> hledger commodity lives in the adapter (the `symbol` field), never in the name.
+#
+# Contract: dev/schemas/units-v1.md
+# Reader:   lib/unit-registry.sh   (the ONLY module that parses this file)
+
+schema: v1
+
+units:
+
+  # ── time ──────────────────────────────────────────────────────────────────
+  h:
+    display: Hour
+    dimension: time
+    symbol: h
+    precision: 2
+    equivalences:
+      - { to: min, factor: 60 }
+
+  min:
+    display: Minute
+    dimension: time
+    symbol: min
+    precision: 0
+
+  # ── energy ────────────────────────────────────────────────────────────────
+  kWh:
+    display: Kilowatt-hour
+    dimension: energy
+    symbol: kWh
+    precision: 3
+    equivalences:
+      - { to: Wh, factor: 1000 }
+
+  Wh:
+    display: Watt-hour
+    dimension: energy
+    symbol: Wh
+    precision: 0
+
+  # ── mass ──────────────────────────────────────────────────────────────────
+  kg:
+    display: Kilogram
+    dimension: mass
+    symbol: kg
+    precision: 3
+    equivalences:
+      - { to: g, factor: 1000 }
+
+  g:
+    display: Gram
+    dimension: mass
+    symbol: g
+    precision: 0
+
+  # ── count ─────────────────────────────────────────────────────────────────
+  sess:
+    display: Session
+    dimension: count
+    symbol: sess
+    precision: 0
+
+  # ── money ─────────────────────────────────────────────────────────────────
+  # Money is A unit, not THE unit. That demotion is the entire point.
+  USD:
+    display: US Dollar
+    dimension: money
+    symbol: USD
+    precision: 2
+
+  # ── score ─────────────────────────────────────────────────────────────────
+  # `att` is the synthetic unit the attention queue values everything into
+  # (TASK-LED-017: `hledger balance -X att -S`). It is a SCORE, not a measured
+  # quantity — nothing is ever "recorded in att"; things are VALUED into it.
+  #
+  # NOTE its equivalences are empty and must stay empty. Converting a real
+  # quantity into `att` is a PRICE (what a thing is WORTH), not an equivalence
+  # (what a thing IS). Prices live in a mode; see §Equivalences below.
+  att:
+    display: Attention
+    dimension: score
+    symbol: att
+    precision: 1
+
+# ── EQUIVALENCES ARE SAME-DIMENSION. THIS IS ENFORCED. ──────────────────────
+#
+# An equivalence is a CONVERSION: 1 kWh IS 1000 Wh. Always true, everywhere, for
+# everyone. It generates an hledger price directive (`P DATE kWh 1000 Wh`), because
+# hledger's price engine is — as verified — a unit-conversion algebra.
+#
+# A cross-dimension relation is NOT an equivalence. "An hour is worth 50 USD" and
+# "a machine-hour is worth 3 attention" are PRICES: contingent, contextual, and
+# different for different people at different times.
+#
+# The registry says what a unit IS. A mode says what it is WORTH.
+# lib/unit-registry.sh REJECTS a cross-dimension equivalence, so the boundary cannot
+# be crossed by accident.

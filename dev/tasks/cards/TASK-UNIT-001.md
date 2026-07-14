@@ -78,5 +78,19 @@ Risk notes:           (Orchestrator) Both decisions are made: D1 `unit`, D2 auth
                       into the vocabulary and the "personal vs production is one engine with two
                       price tables" result is lost.
 
-Status:               pending
+Resolution:
+  Implemented 2026-07-13 on agent/builder/unit-001.
+  config/units.yaml (9 units across time/energy/mass/count/money/score) + lib/unit-registry.sh
+  (the single owner) + dev/schemas/units-v1.md + `ww unit list|show|check|prices|validate`
+  (read-only, structurally asserted).
+  D1 `unit` and D2 authoritative-with-a-loud-unknown both implemented and tested.
+  THE SAME-DIMENSION INVARIANT IS ENFORCED: a cross-dimension equivalence is REJECTED, because
+  an equivalence is a CONVERSION (1 kWh = 1000 Wh, always true) while a cross-dimension relation
+  is a PRICE (what a thing is WORTH) and belongs to a mode. hledger agrees independently: -X Wh
+  leaves kg and h untouched, since no price path exists between dimensions.
+  END TO END VERIFIED: the registry's generated P directives drive real hledger conversion —
+  3 kWh -> 3000 Wh, 2 h -> 120 min — with no hand-written price table.
+  Tests 21/21; check-regression.sh clean.
+
+Status:               in-review
 Taskwarrior:          (assign live TW id on dispatch)
