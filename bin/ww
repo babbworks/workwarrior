@@ -1774,6 +1774,118 @@ EOF
 # DEPS COMMAND
 # ============================================================================
 
+# TASK-UNIT-001 — the unit registry. READ-ONLY: this verb never writes.
+# `unit` is the system's shared vocabulary of quantity. hledger calls it a "commodity" at
+# the boundary; we do not adopt the vocabulary of the special case (money) to describe the
+# general case (hours, kWh, kg, machine-cycles, defects). See decisions.md 2026-07-13.
+cmd_unit() {
+  local action="${1:-list}"
+  shift 2>/dev/null || true
+
+  if [[ -f "$WW_BASE/lib/unit-registry.sh" ]]; then
+    source "$WW_BASE/lib/unit-registry.sh"
+  else
+    log_error "lib/unit-registry.sh not found"
+    exit 2
+  fi
+
+  case "$action" in
+    list|"")
+      printf "  %-8s %-16s %-10s %-8s %s\n" "UNIT" "DISPLAY" "DIMENSION" "SYMBOL" "EQUIVALENCES"
+      printf "  %-8s %-16s %-10s %-8s %s\n" "----" "-------" "---------" "------" "------------"
+      local u eq
+      while IFS= read -r u; do
+        [[ -n "$u" ]] || continue
+        eq="$(unit_reg_equivalences "$u" 2>/dev/null | tr '\n' ',' | sed 's/,$//; s/,/, /g')"
+        printf "  %-8s %-16s %-10s %-8s %s\n" \
+          "$u" "$(unit_reg_display "$u")" "$(unit_reg_dimension "$u")" \
+          "$(unit_reg_symbol "$u")" "${eq:-—}"
+      done < <(unit_reg_list)
+      ;;
+    show)
+      local uid="${1:-}"
+      [[ -n "$uid" ]] || { log_error "Usage: ww unit show <id>"; exit 1; }
+      if ! unit_reg_exists "$uid"; then
+        log_error "Unknown unit: $uid"
+        echo "Run 'ww unit list' to see registered units." >&2
+        exit 1
+      fi
+      echo "  unit:       $uid"
+      echo "  display:    $(unit_reg_display "$uid")"
+      echo "  dimension:  $(unit_reg_dimension "$uid")"
+      echo "  symbol:     $(unit_reg_symbol "$uid")   (the hledger commodity)"
+      echo "  precision:  $(unit_reg_precision "$uid")"
+      local eq; eq="$(unit_reg_equivalences "$uid" 2>/dev/null)"
+      if [[ -n "$eq" ]]; then
+        echo "  equivalences:"
+        printf '%s\n' "$eq" | while read -r to factor; do
+          echo "    1 $(unit_reg_symbol "$uid") = ${factor} $(unit_reg_symbol "$to")"
+        done
+      fi
+      ;;
+    check)
+      # The LOUD UNKNOWN. Reports; never coerces, never drops.
+      local sym="${1:-}"
+      [[ -n "$sym" ]] || { log_error "Usage: ww unit check <symbol>"; exit 1; }
+      if unit_reg_symbol_known "$sym"; then
+        log_success "'$sym' is registered (unit: $(unit_reg_by_symbol "$sym"))"
+      else
+        log_warning "'$sym' is UNREGISTERED."
+        echo "  The value is still recorded — the log is truth; the registry is a lookup table." >&2
+        echo "  Add it to config/units.yaml, or leave it and it will keep reporting." >&2
+        exit 1
+      fi
+      ;;
+    prices)
+      # hledger price directives generated from the equivalences. VERIFIED: the price
+      # engine IS a unit-conversion algebra (`P DATE kWh 1000 Wh` + `-X Wh`).
+      unit_reg_price_directives "${1:-}"
+      ;;
+    validate)
+      if unit_reg_validate; then
+        log_success "Unit registry is coherent"
+      else
+        log_error "Unit registry has problems (see above)"
+        exit 1
+      fi
+      ;;
+    help|-h|--help)
+      cat << 'UNIT_HELP_EOF'
+Unit Registry — the system's shared vocabulary of quantity
+
+Usage: ww unit <action>
+
+Actions:
+  list                 List every registered unit (default)
+  show <id>            Full detail for one unit
+  check <symbol>       Is this hledger symbol registered? Reports; never coerces
+  prices [date]        Emit hledger P directives from the equivalences
+  validate             Check the registry is coherent
+
+A unit is what a thing IS. A price is what it is WORTH.
+  - An EQUIVALENCE is a conversion: 1 kWh = 1000 Wh. Always true, for everyone.
+    It must be SAME-DIMENSION, and the registry rejects it if not.
+  - A cross-dimension relation ("an hour is worth 50 USD") is a PRICE. Prices are
+    contingent and contextual, so they belong to a profile/mode -- not here.
+
+Money is A unit, not THE unit. That demotion is the point: double-entry is a
+conservation law, and money is merely the first commodity it was applied to.
+
+Examples:
+  ww unit list
+  ww unit show kWh
+  ww unit check Wh
+  ww unit prices 2026-01-01
+UNIT_HELP_EOF
+      ;;
+    *)
+      log_error "Unknown unit action: $action"
+      echo "Run 'ww unit help' for usage"
+      exit 1
+      ;;
+  esac
+}
+
 cmd_deps() {
   local action="${1:-}"
   shift 2>/dev/null || true
@@ -6421,6 +6533,9 @@ main() {
       ;;
     deps|d)
       cmd_deps "$@"
+      ;;
+    unit|units)
+      cmd_unit "$@"
       ;;
     instance)
       cmd_instance "$@"
