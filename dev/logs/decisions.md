@@ -20,8 +20,7 @@ adapter, never in the name.
 **This is the keystone and it had no card.** TASK-LED-014/015/017 all *assumed* a shared unit
 vocabulary existed. Phase 3 is now gated on TASK-UNIT-001 rather than building on sand.
 
-**Still open (D2):** is the registry authoritative or advisory? Recommendation on the card:
-**authoritative, with a loud unknown** — if `stream` emits a unit the registry has never seen,
+**Decision (D2, DECIDED 2026-07-13):** the registry is **authoritative, with a loud unknown** — if `stream` emits a unit the registry has never seen,
 the event is still RECORDED (the log is truth; the registry is a lookup table, same rule as
 actors-v1 §7) but reported as `unregistered`. Never silently coerce, never silently drop.
 

@@ -30,7 +30,7 @@ DECISIONS:
       to describe the general case. `unit` is what the thing IS; `commodity` is what hledger calls
       it at the boundary. Map `unit -> hledger commodity` IN THE ADAPTER, never in the name.
 
-  D2. AUTHORITY -> **authoritative, with a loud unknown.** STILL OPEN — Orchestrator's call. If `stream` emits a unit the
+  D2. AUTHORITY -> **authoritative, with a loud unknown.** DECIDED 2026-07-13. If `stream` emits a unit the
       registry has never seen, the EVENT IS STILL RECORDED (the log is truth; the registry is a
       lookup table — same rule as actors-v1 §7), but the unit is reported as `unregistered` and
       surfaces in a report. Never silently coerce; never silently drop. An unknown unit is a
@@ -71,8 +71,8 @@ Fragility:            LOW to build (new files + one bin/ww verb), HIGH in conseq
                       vocabulary wrong and every downstream card inherits it. This is the cheapest
                       moment to get it right.
 
-Risk notes:           (Orchestrator) D1 is DECIDED (`unit`). D2 (authority) is still open — do not
-                      let the Builder pick it by implication.
+Risk notes:           (Orchestrator) Both decisions are made: D1 `unit`, D2 authoritative-with-a-
+                      loud-unknown. The card is fully specified — Gate A satisfied, dispatchable.
                       (Builder) The registry describes units. It does NOT value them. The moment a
                       coefficient appears in config/units.yaml, the mode concept has been collapsed
                       into the vocabulary and the "personal vs production is one engine with two
