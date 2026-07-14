@@ -82,6 +82,13 @@ Resolves Q2 (TimeWarrior vs the ledger). Decision: `logs/decisions.md` 2026-07-1
 
 ## Phase 3 — the journal: record → interpret
 
+**Gated on [TASK-UNIT-001](tasks/cards/TASK-UNIT-001.md) — the unit registry (the KEYSTONE).** LED-014/015/017 all assume units exist as a shared vocabulary; nothing carded it until 2026-07-13. Two decisions are owed before it builds: `unit` vs `commodity` (recommend **unit**), and authoritative vs advisory (recommend **authoritative, with a loud unknown**).
+
+| ID | Status | Goal | Depends On | Notes |
+|---|---|---|---|---|
+| [TASK-UNIT-001](tasks/cards/TASK-UNIT-001.md) | pending | The unit registry — the system's shared vocabulary of quantity | — | **Blocks LED-014/015/017.** Describes what a unit IS; a *mode* says what it's WORTH — keep them apart |
+
+
 | ID | Status | Goal | Depends On | Notes |
 |---|---|---|---|---|
 | [TASK-LED-014](tasks/cards/TASK-LED-014.md) | pending | Actor accounts + the punch posting shape | STRM-003, LED-012 | **The actor is the SOURCE account.** What is conserved is an actor's hours — answers open question B. Docs only, no code. **Subsumes TASK-LED-002** (closed 2026-07-13) |
