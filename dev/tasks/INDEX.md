@@ -7,14 +7,21 @@ Generated: 2026-07-13 · 160 cards in `tasks/cards/`
 
 | Bucket | Count |
 |---|---|
+| in-progress | 1 |
 | in-review | 9 |
 | verified | 2 |
-| pending | 24 |
+| pending | 23 |
 | parked | 2 |
 | deferred | 1 |
 | complete | 122 |
 
 ---
+
+## In Progress (1)
+
+| Card | Goal | Depends on |
+|---|---|---|
+| [TASK-UNIT-001](cards/TASK-UNIT-001.md) | The unit registry — the system's shared vocabulary of quantity | —  (nothing blocks it; it blocks Phase |
 
 ## In Review (9)
 
@@ -37,7 +44,7 @@ Generated: 2026-07-13 · 160 cards in `tasks/cards/`
 | [TASK-STRUCT-1A](cards/TASK-STRUCT-1A.md) | Decouple runtime config from dev/config/ into config/ | — |
 | [TASK-STRUCT-1B](cards/TASK-STRUCT-1B.md) | Rename system/ -> dev/, move tests/ -> dev/tests/, stop shipping dev/ | TASK-STRUCT-1A (runtime config must be d |
 
-## Pending (24)
+## Pending (23)
 
 | Card | Goal | Depends on |
 |---|---|---|
@@ -64,7 +71,6 @@ Generated: 2026-07-13 · 160 cards in `tasks/cards/`
 | [TASK-STRUCT-2](cards/TASK-STRUCT-2.md) | Consolidate the four overlapping entry docs | TASK-STRUCT-1B (dev/ must exist as the p |
 | [TASK-STRUCT-3](cards/TASK-STRUCT-3.md) | Relocate 9 empty service stubs to dev/specs/service-designs/ | TASK-STRUCT-1B (dev/ must exist as the r |
 | [TASK-SVC-008](cards/TASK-SVC-008.md) | Rename bookbuilder → saves everywhere; add ww saves CLI | — |
-| [TASK-UNIT-001](cards/TASK-UNIT-001.md) | The unit registry — the system's shared vocabulary of quantity | —  (nothing blocks it; it blocks Phase |
 
 ## Parked (2)
 

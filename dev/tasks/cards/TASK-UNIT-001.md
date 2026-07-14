@@ -78,6 +78,44 @@ Risk notes:           (Orchestrator) Both decisions are made: D1 `unit`, D2 auth
                       into the vocabulary and the "personal vs production is one engine with two
                       price tables" result is lost.
 
+REMAINING — round 2 (card stays OPEN until these land):
+
+  The round-1 build shipped the vocabulary, the same-dimension invariant and the hledger
+  price-directive boundary. Four gaps were identified on review (2026-07-13) and are NOT done.
+  The third is the serious one.
+
+  R1. NO BASE UNIT PER DIMENSION.
+      Nothing declares that `Wh` is the anchor for energy, or `g` for mass. Without it you
+      cannot say "normalise everything in this dimension" — you can only convert to a unit you
+      name explicitly. Add `base: true` (exactly one per dimension; enforce it).
+
+  R2. CHAINED CONVERSION IS UNVERIFIED.
+      Adding `MWh -> kWh (x1000)` means `MWh -> Wh` requires hledger to CHAIN two price
+      directives. hledger can find conversion paths, but round 1 only tested DIRECT, single-hop
+      conversion. **Do not rely on chaining until it is executed and observed.** Verify against
+      the installed hledger before any downstream card assumes it.
+
+  R3. A DIMENSION CAN SILENTLY FRAGMENT — validate does NOT catch it.  ** the serious one **
+      `unit_reg_validate` checks that an equivalence target exists, shares the dimension, is not
+      self-referential, and has a positive factor. It does NOT check CONNECTIVITY. So a unit
+      added to a dimension with NO equivalence sits there as an ISLAND: incomparable to its
+      peers, and nothing complains. Two energy quantities that should be addable would simply
+      fail to combine in a report.
+      This is the same class of bug we have hunted all session: NOT AN ERROR — just a quietly
+      wrong answer. Make it fatal: every unit MUST have a conversion path to its dimension's
+      base (R1), or the registry is incoherent.
+
+  R4. NO `ww unit add`.
+      The CLI is read-only BY DESIGN and that is asserted structurally — correct for round 1,
+      but thin for adoption. A factory bringing this up needs `defects`, `billets`,
+      `machine-hours`, and "hand-edit a YAML file, then run validate" is a developer's workflow,
+      not an operator's. Add a write path that validates before it writes.
+
+  SETTLED, not a gap: units are INSTANCE-SCOPED ONLY — no per-profile tier (unlike actors,
+  which have three). A unit must mean the same thing everywhere or the shared vocabulary is not
+  shared. A kilogram does not become something else in the production profile.
+
+
 Resolution:
   Implemented 2026-07-13 on agent/builder/unit-001.
   config/units.yaml (9 units across time/energy/mass/count/money/score) + lib/unit-registry.sh
@@ -92,5 +130,5 @@ Resolution:
   3 kWh -> 3000 Wh, 2 h -> 120 min — with no hand-written price table.
   Tests 21/21; check-regression.sh clean.
 
-Status:               in-review
+Status:               in-progress — round 1 merged; R1-R4 remain (see REMAINING)
 Taskwarrior:          (assign live TW id on dispatch)
