@@ -14,10 +14,51 @@ source "$SCRIPT_DIR/lib/replay.sh"
 source "$SCRIPT_DIR/lib/lenses.sh"
 source "$SCRIPT_DIR/lib/adapters.sh"
 source "$SCRIPT_DIR/lib/codecs.sh"
+source "$SCRIPT_DIR/lib/actor.sh"
 
 STREAM_DIR="${WW_BASE}/stream"
 STREAM_LOG="${STREAM_DIR}/stream.log"
-STREAM_SCHEMA_VERSION="v0"
+
+# TASK-STRM-001. The schema version this build WRITES. It is NOT the authority on what a given
+# log IS — that is read from the log itself (_stream_log_schema_version). A constant cannot know
+# the version of a file written by some other build.
+STREAM_SCHEMA_VERSION="v1"
+
+# ── the schema version is an EVENT, not a header (stream-event-v1.md §6) ─────
+#
+# The log has no header line: a comment would be garbage to the positional parser, which splits
+# every line into exactly 5 fields. So the version is stated as an ordinary `S` (System) event —
+# the same mechanism cmd_reset already uses. It is a valid 5-field event, every existing lens
+# handles it as routine, it is greppable and dated, and it lives IN THE LOG'S OWN HISTORY.
+#
+# In an append-only system, even the schema version is an append.
+#
+# ABSENCE OF AN `S schema` EVENT MEANS v0. (A v0 log may also carry a legacy `0 H v0 stream.log`
+# header written by _ensure_stream_dir; that is corroborating evidence, not the authority.)
+
+# What version is THIS log? Read it from the log. Never from the constant.
+_stream_log_schema_version() {
+  [[ -f "$STREAM_LOG" ]] || { printf 'v0\n'; return 0; }
+  local v
+  v="$(awk '$2 == "S" && $3 == "schema" { ver = $4 } END { if (ver != "") print ver }' \
+       "$STREAM_LOG" 2>/dev/null)"
+  printf '%s\n' "${v:-v0}"
+}
+
+# Stamp the log as v1, exactly once. Idempotent: never double-writes.
+#
+# MUST run before any v1-only ctx key (e.g. `actor`) can be emitted — because absence of the
+# marker is what MEANS v0, a v1 key in an unmarked log would be undetectable.
+_stream_ensure_schema_marker() {
+  _ensure_stream_dir
+  local current
+  current="$(_stream_log_schema_version)"
+  [[ "$current" == "$STREAM_SCHEMA_VERSION" ]] && return 0
+
+  local ts; ts="$(date +%s)"
+  printf '%s S schema %s {"schema":"%s","prev":"%s"}\n' \
+    "$ts" "$STREAM_SCHEMA_VERSION" "$STREAM_SCHEMA_VERSION" "$current" >> "$STREAM_LOG"
+}
 
 show_help() {
   cat <<EOF
@@ -89,13 +130,20 @@ cmd_emit() {
     log_error "emit requires: <op> <action> <object> [ctx]"
     exit 1
   fi
-  _ensure_stream_dir
+  # TASK-STRM-001: stamp the schema BEFORE the event, so a v1-only ctx key can never land in a
+  # log that still reads as v0. Idempotent.
+  _stream_ensure_schema_marker
   local ts; ts="$(date +%s)"
+  # The 5-field positional encoding is FROZEN (stream-event-v1.md §1). Every consumer parses
+  # split(None, 4), so ctx IS the rest of the line: a 6th field is impossible, and inserting one
+  # before ctx silently misreads every event ever written. New dimensions go in ctx.
   printf '%s %s %s %s %s\n' "$ts" "$op" "$action" "$obj" "$ctx" >> "$STREAM_LOG"
   log_success "Event appended: $ts $op $action ${obj:0:12}…"
 }
 
 cmd_ingest() {
+  # TASK-STRM-001: the other write path — stamp before ingesting (idempotent).
+  _stream_ensure_schema_marker
   local source="all"
   local from_date=""
   while [[ $# -gt 0 ]]; do
@@ -197,7 +245,11 @@ cmd_status() {
     echo "Last entry:     $last_line"
   fi
   echo "Profile:        ${WARRIOR_PROFILE:-(none active)}"
-  echo "Schema:         ${STREAM_SCHEMA_VERSION}"
+  # TASK-STRM-001 criterion 4: report what THIS LOG is, not what this build writes. A constant
+  # cannot know the version of a file written by another build. Absence of an `S schema` event
+  # means v0.
+  local log_ver; log_ver="$(_stream_log_schema_version)"
+  echo "Schema:         ${log_ver}   (this build writes ${STREAM_SCHEMA_VERSION})"
 }
 
 cmd_reset() {

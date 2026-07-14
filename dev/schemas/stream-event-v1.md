@@ -194,12 +194,33 @@ Instead, the version is stated as an ordinary `S` (System) event — the same me
 1752300000 S schema v1 {"schema":"v1","prev":"v0"}
 ```
 
-It is a valid five-field event, every existing lens handles it as a routine system event,
-it is greppable and dated, and it lives **in the log's own history**. In an append-only
-system, even the schema version is an append.
+It is a valid five-field event, it is greppable and dated, and it lives **in the log's own
+history**. In an append-only system, even the schema version is an append.
 
 **A log with no `S schema` event is v0.** Absence is the v0 marker; this is why the
 marker must be written before any v1-only key is emitted.
+
+### System events are excluded from lenses — at ONE point
+
+**Correction (2026-07-13, TASK-STRM-001).** An earlier draft of this section claimed "every
+existing lens handles it as a routine system event." **That was false, and the build proved it:**
+six of the eight lenses differed once the marker was present.
+
+Only `bundy` (op `B`) and `frick` (op `F`) filter by op code. `burroughs`, `hollerith`,
+`pacioli`, `felt`, `dey` and `cooper` render or **count every event** — so a synthetic `S` event
+would have appeared as **activity that never happened**, skewing the density signals that `felt`,
+`dey` and `cooper` exist to measure.
+
+The rule already existed and simply had to be extended: `replay_load()` (`lib/replay.sh`) already
+excluded `H` — the legacy positional header — because **the log's own metadata is not an event the
+lenses analyse.** `S` (System: `schema`, `reset`) is the same category, and is now excluded at the
+same single point.
+
+> **System events stay IN the log. They are simply not *work*.**
+> The log is the record; a lens is a projection of it.
+
+Any consumer that reads the raw log directly (rather than through `replay_load`) will see `S`
+events, and should skip op codes it does not understand — as §7 already requires.
 
 ---
 
