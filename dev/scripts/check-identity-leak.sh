@@ -14,26 +14,27 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT"
 
 FAIL=0
+SELF="check-identity-leak.sh"
 
 # --- Our specific identity patterns (the actual leak) ---
 # /Users/mp/ — previous macOS machine
-if git grep -lI '/Users/mp/' 2>/dev/null | grep -v "TASK-SEC-001" | head -1 | grep -q .; then
+if git grep -lI '/Users/mp/' 2>/dev/null | grep -v "TASK-SEC-001\|$SELF" | head -1 | grep -q .; then
   echo "FAIL: /Users/mp/ found in tracked files:"
-  git grep -lI '/Users/mp/' 2>/dev/null | grep -v "TASK-SEC-001"
+  git grep -lI '/Users/mp/' 2>/dev/null | grep -v "TASK-SEC-001\|$SELF"
   FAIL=1
 fi
 
 # /home/morgen/ — current user's home
-if git grep -lI '/home/morgen/' 2>/dev/null | grep -v "TASK-SEC-001" | head -1 | grep -q .; then
+if git grep -lI '/home/morgen/' 2>/dev/null | grep -v "TASK-SEC-001\|$SELF" | head -1 | grep -q .; then
   echo "FAIL: /home/morgen/ found in tracked files:"
-  git grep -lI '/home/morgen/' 2>/dev/null | grep -v "TASK-SEC-001"
+  git grep -lI '/home/morgen/' 2>/dev/null | grep -v "TASK-SEC-001\|$SELF"
   FAIL=1
 fi
 
 # Absolute instance paths that are our specific machines
-if git grep -lI '~/wwv02' 2>/dev/null | grep -v "TASK-SEC-001\|\.claude/" | head -1 | grep -q .; then
+if git grep -lI '~/wwv02' 2>/dev/null | grep -v "TASK-SEC-001\|\.claude/\|$SELF" | head -1 | grep -q .; then
   echo "FAIL: ~/wwv02 (old instance name) found in tracked files:"
-  git grep -lI '~/wwv02' 2>/dev/null | grep -v "TASK-SEC-001\|\.claude/"
+  git grep -lI '~/wwv02' 2>/dev/null | grep -v "TASK-SEC-001\|\.claude/\|$SELF"
   FAIL=1
 fi
 
