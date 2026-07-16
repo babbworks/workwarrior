@@ -2002,9 +2002,12 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                     entries = scanner.parse_file(journal_file)
                     self._send_json(200, {"ok": True, "entries": entries, "total": len(entries)})
                     return
-                except Exception:
-                    pass
+                except Exception as exc:
+                    # TASK-JRN-003: do NOT silently fall through to a lossy parser.
+                    # Report the parse failure and use fallback with a warning flag.
+                    parse_error = str(exc)
             # Fallback: plain parse without annotation splitting
+            # TASK-JRN-003: explicitly marks output as degraded so the UI can show a warning.
             try:
                 import re as _re
                 content = open(journal_file).read()
@@ -2016,7 +2019,13 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                     if body:
                         entries.append({"date": date, "date_slug": date.replace(' ', '_').replace(':', '-'), "body": body, "annotations": []})
                 entries.reverse()
-                self._send_json(200, {"ok": True, "entries": entries, "total": len(entries)})
+                self._send_json(200, {
+                    "ok": True,
+                    "entries": entries,
+                    "total": len(entries),
+                    "degraded": True,
+                    "parse_warning": f"Full parser failed ({parse_error}); annotations may be missing"
+                })
             except OSError:
                 self._send_json(200, {"ok": True, "entries": []})
 
@@ -3729,7 +3738,7 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
             """Return nav order: default merged with active profile or global nav.yaml override."""
             default_order = [
                 "projects", "groups", "questions", "next", "schedule",
-                "sync", "models", "network", "bookbuilder", "export"
+                "sync", "models", "network", "saves", "export"
             ]
             order = list(default_order)
             try:

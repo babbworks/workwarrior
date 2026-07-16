@@ -334,8 +334,14 @@ copy_installation_files() {
     log_info "Copied tools/"
   fi
 
-  # Note: dev/ (the dev control plane — task board, roles, gates, wwctl) is
-  # intentionally NOT shipped. Runtime config it once held now lives in config/.
+  # Copy dev/ (the dev control plane — task board, specs, tests, roles, gates, wwctl).
+  # SHIPS BY CHOICE (TASK-SHIP-001): anyone who receives workwarrior receives the means
+  # to evolve it. STRUCT-1A/1B proved no runtime path depends on dev/ — it ships, but
+  # nothing may come to depend on it. The [[ -d ]] guard in ww-init.sh stays.
+  if [[ -d "$SCRIPT_DIR/dev" ]]; then
+    cp -r "$SCRIPT_DIR/dev" "$WW_INSTALL_DIR/dev"
+    log_info "Copied dev/"
+  fi
 
   # Create version file
   echo "$WW_VERSION" > "$WW_INSTALL_DIR/VERSION"

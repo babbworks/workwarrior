@@ -154,31 +154,66 @@ except Exception as e:
 PYEOF
       ;;
     export)
-      local name="${1:-}"
-      [[ -n "$name" ]] || { echo "Usage: ww warrior community export <name>" >&2; exit 1; }
+      local name="" format="md"
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          --format)  format="$2"; shift 2 ;;
+          --format=*) format="${1#--format=}"; shift ;;
+          *)         [[ -z "$name" ]] && name="$1"; shift ;;
+        esac
+      done
+      [[ -n "$name" ]] || { echo "Usage: ww warrior community export <name> [--format html|json|md]" >&2; exit 1; }
       local out
       out=$(python3 "$STORE_PY" show "$WW_BASE" "$name" 2>/dev/null) || { echo "warrior: community show failed" >&2; exit 1; }
-      python3 - "$name" "$out" <<'PYEOF'
-import sys, json, datetime
-name, raw = sys.argv[1], sys.argv[2]
+      python3 - "$name" "$out" "$format" <<'PYEOF'
+import sys, json, datetime, html as html_mod
+name, raw, fmt = sys.argv[1], sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else "md"
 try:
     data = json.loads(raw)
     entries = data.get("entries", [])
 except Exception:
     entries = []
-print(f"# Community: {name}")
-print(f"*Exported {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}*\n")
-for e in entries:
-    cap = e.get("captured_state", {}) if isinstance(e.get("captured_state"), dict) else {}
-    ref = e.get("source_ref", "")
-    kind = "task" if ".task." in ref else "journal" if ".journal." in ref else "entry"
-    desc = cap.get("description") or cap.get("body") or ref
-    print(f"## {kind.capitalize()}: {desc[:80]}")
-    print(f"*source: {ref}*\n")
-    for c in e.get("comments", []):
-        ts = c.get("created_at", "")[:16]
-        print(f"- [{ts}] {c.get('body','')}")
-    print()
+
+if fmt == "json":
+    print(json.dumps({
+        "community": name,
+        "exported_at": datetime.datetime.now().isoformat(),
+        "count": len(entries),
+        "entries": entries
+    }, indent=2))
+elif fmt == "html":
+    print(f"<html><head><title>Community: {html_mod.escape(name)}</title></head><body>")
+    print(f"<h1>Community: {html_mod.escape(name)}</h1>")
+    print(f"<p><em>Exported {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}</em></p>")
+    for e in entries:
+        cap = e.get("captured_state", {}) if isinstance(e.get("captured_state"), dict) else {}
+        ref = e.get("source_ref", "")
+        kind = "task" if ".task." in ref else "journal" if ".journal." in ref else "entry"
+        desc = cap.get("description") or cap.get("body") or ref
+        print(f"<h2>{html_mod.escape(kind.capitalize())}: {html_mod.escape(str(desc)[:80])}</h2>")
+        print(f"<p><em>source: {html_mod.escape(ref)}</em></p>")
+        if e.get("comments"):
+            print("<ul>")
+            for c in e.get("comments", []):
+                ts = c.get("created_at", "")[:16]
+                print(f"  <li>[{html_mod.escape(ts)}] {html_mod.escape(c.get('body',''))}</li>")
+            print("</ul>")
+    print("</body></html>")
+else:
+    # Default: markdown
+    print(f"# Community: {name}")
+    print(f"*Exported {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}*\n")
+    for e in entries:
+        cap = e.get("captured_state", {}) if isinstance(e.get("captured_state"), dict) else {}
+        ref = e.get("source_ref", "")
+        kind = "task" if ".task." in ref else "journal" if ".journal." in ref else "entry"
+        desc = cap.get("description") or cap.get("body") or ref
+        print(f"## {kind.capitalize()}: {desc[:80]}")
+        print(f"*source: {ref}*\n")
+        for c in e.get("comments", []):
+            ts = c.get("created_at", "")[:16]
+            print(f"- [{ts}] {c.get('body','')}")
+        print()
 PYEOF
       ;;
     show)

@@ -1,3 +1,7 @@
+# Service Design: base
+
+*(Relocated from services/base/ — TASK-STRUCT-3)*
+
 # Service overview: `base`
 
 **Source:** TASK-DESIGN-001 (design-only; no implementation in this change set beyond this document.)
@@ -25,3 +29,20 @@ Orchestrator and Builder agents; advanced users who reason about ww’s director
 - Should `base` subsume any logic today split across `scripts/` and `services/scripts/`?
 - How does `base` relate to `z-default` (catch-all) vs explicit empty categories in the registry?
 - What is the minimal BATS contract for any future `ww base` command (smoke + dry-run)?
+
+---
+
+## Original README
+
+# Service: base
+
+This directory contains services for the "base" category.
+
+## Purpose
+
+Place scripts and supporting files here to provide base-related functionality. Scripts should be executable and follow the Workwarrior service conventions.
+
+## Notes
+
+- Profile-specific overrides can be placed at: <profile-base>/services/base/
+- See services/README.md for registry behavior and best practices.

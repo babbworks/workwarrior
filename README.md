@@ -1,5 +1,7 @@
 # Workwarrior
 
+![CI](https://github.com/morgen/workwarrior/actions/workflows/ci.yml/badge.svg)
+
 Workwarrior wraps five open-source tools — TaskWarrior, TimeWarrior, JRNL, Hledger, and Bugwarrior — into a single profile-based productivity system. Each profile is an isolated workspace: its own tasks, time tracking, journals, double-entry ledgers, and configuration. Switch contexts instantly. Nothing bleeds between profiles.
 
 The system runs from the terminal, from a locally-served browser UI, or both at once. A natural language command layer translates plain English into tool commands using 627 compiled heuristic rules before optionally falling back to a local LLM.

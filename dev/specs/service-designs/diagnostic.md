@@ -1,3 +1,7 @@
+# Service Design: diagnostic
+
+*(Relocated from services/diagnostic/ — TASK-STRUCT-3)*
+
 # Service overview: `diagnostic`
 
 **Source:** TASK-DESIGN-001 (design-only.)
@@ -26,3 +30,20 @@ Builders during integration; users after migrations or sync incidents.
 - Merge vs differentiate from `dev/scripts/health.sh` and `wwctl health`.
 - Policy for network checks (opt-in only vs profile metadata flag).
 - Whether diagnostics should emit remediation task IDs referencing `dev/TASKS.md`.
+
+---
+
+## Original README
+
+# Service: diagnostic
+
+This directory contains services for the "diagnostic" category.
+
+## Purpose
+
+Place scripts and supporting files here to provide diagnostic-related functionality. Scripts should be executable and follow the Workwarrior service conventions.
+
+## Notes
+
+- Profile-specific overrides can be placed at: <profile-base>/services/diagnostic/
+- See services/README.md for registry behavior and best practices.

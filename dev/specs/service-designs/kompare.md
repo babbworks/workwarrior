@@ -1,3 +1,7 @@
+# Service Design: kompare
+
+*(Relocated from services/kompare/ — TASK-STRUCT-3)*
+
 # Service overview: `kompare`
 
 **Source:** TASK-DESIGN-001 (design-only.)
@@ -26,3 +30,20 @@ Power users maintaining multiple profiles; Verifier when reviewing sync deltas.
 - Scope creep vs `ww find` and `ww export` (clear ownership).
 - Redaction rules for secrets in `.taskrc` / tokens before diffing.
 - Windows / macOS line-ending normalization policy.
+
+---
+
+## Original README
+
+# Service: kompare
+
+This directory contains services for the "kompare" category.
+
+## Purpose
+
+Place scripts and supporting files here to provide kompare-related functionality. Scripts should be executable and follow the Workwarrior service conventions.
+
+## Notes
+
+- Profile-specific overrides can be placed at: <profile-base>/services/kompare/
+- See services/README.md for registry behavior and best practices.

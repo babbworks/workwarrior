@@ -4446,9 +4446,12 @@ CMD: "add task review and start tracking"
     const list = document.getElementById('journal-list');
     renderJournalPage(list);
     wireJournalEntryEvents(list);
+    // TASK-SITE-040: If the slug is not found in the current journal, try other journals
+    let found = false;
     const poll = setInterval(() => {
       const el = list.querySelector(`[data-slug="${slug}"]`);
       if (el) {
+        found = true;
         clearInterval(poll);
         // Un-collapse the parent date group if it is currently hidden
         const dateBody = el.closest('.journal-date-body');
@@ -4468,7 +4471,34 @@ CMD: "add task review and start tracking"
         }, 50);
       }
     }, 80);
-    setTimeout(() => clearInterval(poll), 3000);
+    setTimeout(() => {
+      clearInterval(poll);
+      // TASK-SITE-040: entry not found in current journal — try other journals
+      if (!found && profileResources?.resources?.journals) {
+        const journals = Object.keys(profileResources.resources.journals);
+        const currentJ = profileResources?.active?.journal || '';
+        const otherJournals = journals.filter(j => j !== currentJ);
+        (async () => {
+          for (const j of otherJournals) {
+            await setActiveResource('journals', j);
+            await loadJournal();
+            journalPage = Math.ceil(cachedJournalEntries.length / PAGE_SIZE);
+            const list2 = document.getElementById('journal-list');
+            renderJournalPage(list2);
+            wireJournalEntryEvents(list2);
+            const el2 = list2.querySelector(`[data-slug="${slug}"]`);
+            if (el2) {
+              el2.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              el2.classList.add('journal-entry-highlight');
+              setTimeout(() => el2.classList.remove('journal-entry-highlight'), 2500);
+              toast(`Found in journal: ${j}`);
+              return;
+            }
+          }
+          toast('Entry not found in any journal', 'error');
+        })();
+      }
+    }, 3000);
   };
 
   // ── Journal helpers ──────────────────────────────────────────────────────
@@ -10125,7 +10155,7 @@ CMD: "add task review and start tracking"
       await loadAttributes();
     });
 
-    // BookBuilder / Saves buttons
+    // Saves buttons
     const bbOut = () => document.getElementById('bb-output');
     const bbCmd = async (cmd) => {
       const out = bbOut();
@@ -10142,16 +10172,16 @@ CMD: "add task review and start tracking"
       const out = bbOut(); out.className = 'cmd-unified-output'; out.textContent = 'checking…';
       try {
         const r = await fetch('/cmd', { method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ cmd: 'find bookbuilder' }) });
+          body: JSON.stringify({ cmd: 'find saves' }) });
         const d = await r.json();
         const installed = d.ok && d.output && !d.output.includes('not found') && !d.output.includes('No such');
         if (installed) {
           const r2 = await fetch('/cmd', { method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({ cmd: 'bookbuilder status' }) });
+            body: JSON.stringify({ cmd: 'saves status' }) });
           const d2 = await r2.json();
-          out.textContent = d2.output || 'bookbuilder status returned empty';
+          out.textContent = d2.output || 'saves status returned empty';
         } else {
-          out.textContent = 'bookbuilder not installed — running in journal mode\n\nInstall: pip install peers8862-bookbuilder\n        or: pipx install peers8862-bookbuilder';
+          out.textContent = 'saves not installed — running in journal mode\n\nInstall: ww saves install\n        or: pipx install peers8862-bookbuilder';
         }
       } catch (e) { out.textContent = 'error: ' + e.message; }
     });
@@ -10172,7 +10202,7 @@ CMD: "add task review and start tracking"
         if (!t) return;
         const out = bbOut(); out.className = 'cmd-unified-output'; out.textContent = 'searching…';
         const r = await fetch('/cmd', { method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ cmd: `bookbuilder search ${t}` }) });
+          body: JSON.stringify({ cmd: `saves search ${t}` }) });
         const d = await r.json();
         if (d.ok && d.output && !d.output.includes('not found')) {
           out.textContent = d.output;
@@ -10182,7 +10212,7 @@ CMD: "add task review and start tracking"
           const hits = cachedJournalEntries.filter(e => (e.body || '').toLowerCase().includes(ql) && (e.body || '').includes('[saved]'));
           out.textContent = hits.length
             ? 'journal saves matching "' + t + '":\n' + hits.map(e => '  ' + e.body.split('\n')[0]).join('\n')
-            : 'no results (bookbuilder not installed; searched journal saves)';
+            : 'no results (saves not installed; searched journal)';
         }
         row.remove();
       };
@@ -10192,25 +10222,25 @@ CMD: "add task review and start tracking"
       body?.insertBefore(row, body.querySelector('div[style]') || body.firstChild);
       inp.focus();
     });
-    document.getElementById('btn-bb-inbox')?.addEventListener('click', () => bbCmd('bookbuilder inbox'));
-    document.getElementById('btn-bb-run')?.addEventListener('click', () => bbCmd('bookbuilder run'));
+    document.getElementById('btn-bb-inbox')?.addEventListener('click', () => bbCmd('saves inbox'));
+    document.getElementById('btn-bb-run')?.addEventListener('click', () => bbCmd('saves run'));
     document.getElementById('bb-add-form')?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const url = e.target.querySelector('input[name="url"]')?.value?.trim();
       if (!url) return;
       const out = bbOut();
       out.className = 'cmd-unified-output'; out.textContent = `saving: ${url}…`;
-      // Try bookbuilder add first
+      // Try saves add first
       const r = await fetch('/cmd', { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ cmd: `bookbuilder add ${url}` }) });
+        body: JSON.stringify({ cmd: `saves add ${url}` }) });
       const d = await r.json();
       if (d.ok && d.output && !d.output.includes('not found')) {
-        out.textContent = `✓ added to bookbuilder: ${url}\n${d.output}`;
-        toast('✓ saved to bookbuilder');
+        out.textContent = `✓ added to saves: ${url}\n${d.output}`;
+        toast('✓ saved');
       } else {
         // Fallback: journal
         await sendJournalNote(`[saved] ${url}`, null);
-        out.textContent = `✓ saved to journal (bookbuilder not installed): ${url}\n\nInstall: pipx install peers8862-bookbuilder`;
+        out.textContent = `✓ saved to journal (saves not installed): ${url}\n\nInstall: ww saves install`;
         toast('✓ saved to journal');
       }
       e.target.reset();

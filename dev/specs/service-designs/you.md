@@ -1,3 +1,7 @@
+# Service Design: you
+
+*(Relocated from services/you/ — TASK-STRUCT-3)*
+
 # Service overview: `you`
 
 **Source:** TASK-DESIGN-001 (design-only.)
@@ -26,3 +30,20 @@ Individual operators; optional multi-user machines with separate profiles.
 - Schema versioning and migration when keys rename.
 - Relationship to shell RC vs ww-only config.
 - Privacy: export/redaction rules when profile is zipped for support.
+
+---
+
+## Original README
+
+# Service: you
+
+This directory contains services for the "you" category.
+
+## Purpose
+
+Place scripts and supporting files here to provide you-related functionality. Scripts should be executable and follow the Workwarrior service conventions.
+
+## Notes
+
+- Profile-specific overrides can be placed at: <profile-base>/services/you/
+- See services/README.md for registry behavior and best practices.
