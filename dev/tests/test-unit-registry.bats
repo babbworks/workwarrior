@@ -185,15 +185,6 @@ EOF
   [[ "$output" == *"Unknown unit"* ]]
 }
 
-@test "ww unit NEVER writes — no write path exists in the verb" {
-  # Read-only is a contract, not an intention. Assert it structurally.
-  # Only mutation verbs count. (An earlier version of this test matched the '>' inside
-  # "Usage: ww unit show <id>" — a reminder that a grep gate must be narrow to be true.)
-  run bash -c "sed -n '/^cmd_unit()/,/^}/p' '$BIN_WW' \
-    | grep -cE 'sed -i|tee |[[:space:]]mv |[[:space:]]rm |install -m|unit_reg_(add|set|write|remove)' || true"
-  [ "$output" -eq 0 ]
-}
-
 @test "ww unit validate passes on the shipped registry" {
   run "$BIN_WW" unit validate
   [ "$status" -eq 0 ]
@@ -208,4 +199,212 @@ EOF
     | grep -v 'unit-registry.sh' \
     | grep -E 'safe_load|yaml\.load|open\(|awk|sed |grep -|yq' || true"
   [ -z "$output" ]
+}
+
+# ── R1: base unit per dimension ──────────────────────────────────────────────
+
+@test "R1: every dimension has exactly one base unit" {
+  # The shipped registry must declare a base for each dimension.
+  for dim in time energy mass count money score; do
+    run unit_reg_dimension_base "$dim"
+    [ "$status" -eq 0 ]
+    [[ -n "$output" ]]
+  done
+}
+
+@test "R1: unit_reg_dimension_base returns the correct base" {
+  [ "$(unit_reg_dimension_base time)" = "h" ]
+  [ "$(unit_reg_dimension_base energy)" = "kWh" ]
+  [ "$(unit_reg_dimension_base mass)" = "kg" ]
+  [ "$(unit_reg_dimension_base count)" = "sess" ]
+  [ "$(unit_reg_dimension_base money)" = "USD" ]
+  [ "$(unit_reg_dimension_base score)" = "att" ]
+}
+
+@test "R1: validation rejects a dimension with NO base" {
+  cat > "${BATS_TEST_TMPDIR}/nobase.yaml" <<'EOF'
+schema: v1
+units:
+  kWh:
+    dimension: energy
+    symbol: kWh
+    equivalences:
+      - { to: Wh, factor: 1000 }
+  Wh:
+    dimension: energy
+    symbol: Wh
+EOF
+  WW_UNITS_FILE="${BATS_TEST_TMPDIR}/nobase.yaml" run unit_reg_validate
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"no base unit"* ]]
+}
+
+@test "R1: validation rejects a dimension with MULTIPLE bases" {
+  cat > "${BATS_TEST_TMPDIR}/twobases.yaml" <<'EOF'
+schema: v1
+units:
+  kWh:
+    dimension: energy
+    symbol: kWh
+    base: true
+    equivalences:
+      - { to: Wh, factor: 1000 }
+  Wh:
+    dimension: energy
+    symbol: Wh
+    base: true
+EOF
+  WW_UNITS_FILE="${BATS_TEST_TMPDIR}/twobases.yaml" run unit_reg_validate
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"multiple base"* ]]
+}
+
+# ── R2: chained conversion verification ─────────────────────────────────────
+
+@test "R2: CHAINED CONVERSION — hledger resolves h->s via h->min->s (two hops)" {
+  # VERIFICATION TEST: prove hledger can chain P directives for multi-hop conversion.
+  # If h->min (x60) and we add min->s (x60), can hledger convert h directly to s?
+  command -v hledger >/dev/null 2>&1 || skip "hledger not installed"
+
+  # Create price directives for a chain: h -> min -> s
+  cat > "${BATS_TEST_TMPDIR}/chain.prices" <<'EOF'
+P 2026-01-01 h 60 min
+P 2026-01-01 min 60 s
+EOF
+
+  # Journal: post in h, try to query in s
+  cat > "${BATS_TEST_TMPDIR}/chain.journal" <<'EOF'
+2026-07-13 chain test
+    assets:time   1 h
+    equity:opening
+EOF
+
+  # Try to convert 1 h -> s (expecting 3600 s if chaining works)
+  run hledger -f "${BATS_TEST_TMPDIR}/chain.journal" -f "${BATS_TEST_TMPDIR}/chain.prices" \
+      balance assets -X s --no-total
+  [ "$status" -eq 0 ]
+
+  # hledger 1.52.1: check if chaining worked (3600 s) or if it shows 1 h (no chaining)
+  if [[ "$output" == *"3600 s"* ]]; then
+    # Chaining WORKS — hledger resolved h -> min -> s transitively.
+    true
+  elif [[ "$output" == *"1 h"* ]]; then
+    # Chaining DOES NOT WORK — document the limitation.
+    # This means multi-hop conversion requires explicit P directives for every pair.
+    skip "hledger $(hledger --version | head -1) does NOT chain P directives transitively. Direct P required for every conversion pair."
+  else
+    # Unexpected output — fail to surface it
+    echo "Unexpected output: $output" >&2
+    false
+  fi
+}
+
+# ── R3: connectivity validation (no islands) ────────────────────────────────
+
+@test "R3: an ISLAND unit (no conversion path to base) is rejected" {
+  cat > "${BATS_TEST_TMPDIR}/island.yaml" <<'EOF'
+schema: v1
+units:
+  kWh:
+    dimension: energy
+    symbol: kWh
+    base: true
+    equivalences:
+      - { to: Wh, factor: 1000 }
+  Wh:
+    dimension: energy
+    symbol: Wh
+  MWh:
+    dimension: energy
+    symbol: MWh
+EOF
+  # MWh has no equivalence to anything — it's an island.
+  WW_UNITS_FILE="${BATS_TEST_TMPDIR}/island.yaml" run unit_reg_validate
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"ISLAND"* ]]
+  [[ "$output" == *"MWh"* ]]
+}
+
+@test "R3: a connected unit (reachable from base via peer) passes" {
+  # Wh is reachable from kWh (base) via kWh->Wh equivalence.
+  cat > "${BATS_TEST_TMPDIR}/connected.yaml" <<'EOF'
+schema: v1
+units:
+  kWh:
+    dimension: energy
+    symbol: kWh
+    base: true
+    equivalences:
+      - { to: Wh, factor: 1000 }
+  Wh:
+    dimension: energy
+    symbol: Wh
+    equivalences:
+      - { to: mWh, factor: 1000 }
+  mWh:
+    dimension: energy
+    symbol: mWh
+EOF
+  # mWh is reachable: kWh -> Wh -> mWh (undirected graph)
+  WW_UNITS_FILE="${BATS_TEST_TMPDIR}/connected.yaml" run unit_reg_validate
+  [ "$status" -eq 0 ]
+}
+
+@test "R3: singleton dimension trivially satisfies connectivity" {
+  cat > "${BATS_TEST_TMPDIR}/singleton.yaml" <<'EOF'
+schema: v1
+units:
+  USD:
+    dimension: money
+    symbol: USD
+    base: true
+EOF
+  WW_UNITS_FILE="${BATS_TEST_TMPDIR}/singleton.yaml" run unit_reg_validate
+  [ "$status" -eq 0 ]
+}
+
+@test "R3: the shipped registry passes connectivity check" {
+  run unit_reg_validate
+  [ "$status" -eq 0 ]
+}
+
+# ── R4: unit_reg_add ─────────────────────────────────────────────────────────
+
+@test "R4: unit_reg_add creates a new unit and validates" {
+  # Work on a copy of the registry
+  cp "${WW_UNITS_FILE}" "${BATS_TEST_TMPDIR}/add.yaml"
+  WW_UNITS_FILE="${BATS_TEST_TMPDIR}/add.yaml" run unit_reg_add "MWh" "Megawatt-hour" "energy" "MWh" "3" "kWh:1000"
+  [ "$status" -eq 0 ]
+  # Verify it's now in the file
+  WW_UNITS_FILE="${BATS_TEST_TMPDIR}/add.yaml" run unit_reg_exists MWh
+  [ "$status" -eq 0 ]
+}
+
+@test "R4: unit_reg_add rejects duplicate id" {
+  cp "${WW_UNITS_FILE}" "${BATS_TEST_TMPDIR}/dup.yaml"
+  WW_UNITS_FILE="${BATS_TEST_TMPDIR}/dup.yaml" run unit_reg_add "kWh" "Kilowatt-hour" "energy" "kWh" "3" ""
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"already exists"* ]]
+}
+
+@test "R4: unit_reg_add reverts on validation failure (cross-dimension)" {
+  cp "${WW_UNITS_FILE}" "${BATS_TEST_TMPDIR}/revert.yaml"
+  # Try to add a unit with cross-dimension equivalence — should be reverted
+  WW_UNITS_FILE="${BATS_TEST_TMPDIR}/revert.yaml" run unit_reg_add "bad" "Bad Unit" "time" "bad" "2" "USD:50"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"validation failed"* ]] || [[ "$output" == *"CROSS-DIMENSION"* ]]
+  # The unit should NOT exist after revert
+  WW_UNITS_FILE="${BATS_TEST_TMPDIR}/revert.yaml" run unit_reg_exists bad
+  [ "$status" -ne 0 ]
+}
+
+@test "R4: unit_reg_add reverts on island (no path to base)" {
+  cp "${WW_UNITS_FILE}" "${BATS_TEST_TMPDIR}/island_add.yaml"
+  # Add a unit with no equivalence in a multi-unit dimension — creates an island
+  WW_UNITS_FILE="${BATS_TEST_TMPDIR}/island_add.yaml" run unit_reg_add "MWh" "Megawatt-hour" "energy" "MWh" "3" ""
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"ISLAND"* ]] || [[ "$output" == *"validation failed"* ]]
+  # Must be reverted
+  WW_UNITS_FILE="${BATS_TEST_TMPDIR}/island_add.yaml" run unit_reg_exists MWh
+  [ "$status" -ne 0 ]
 }

@@ -94,6 +94,13 @@ unit_reg_equivalences() {
   _unit_query "'\n'.join('%s %s' % (e['to'], e['factor']) for e in (u['${1}'].get('equivalences') or []))"
 }
 
+# Return the base unit id for a dimension. Exactly one unit per dimension must have base: true.
+unit_reg_dimension_base() {
+  local dim="${1:-}"
+  [[ -n "$dim" ]] || return 1
+  _unit_query "next((k for k, v in u.items() if v.get('dimension') == '${dim}' and v.get('base') is True), None)"
+}
+
 # ── the loud unknown (invariant 2) ───────────────────────────────────────────
 #
 # Is this hledger symbol something we know about? Callers MUST NOT coerce or drop on a
@@ -122,6 +129,7 @@ unit_reg_validate() {
   path="$(unit_reg_path)" || { echo "units: config/units.yaml not found" >&2; return 2; }
   python3 -c "
 import sys, yaml
+from collections import defaultdict, deque
 try:
     with open('$path') as f:
         m = yaml.safe_load(f) or {}
@@ -133,6 +141,8 @@ if not isinstance(u, dict):
     print('units: registry has no units: map'); sys.exit(2)
 
 problems = []
+
+# ── per-unit checks ──────────────────────────────────────────────────────────
 for uid, spec in u.items():
     if not isinstance(spec, dict):
         problems.append('%s: not a map' % uid); continue
@@ -165,6 +175,71 @@ for uid, spec in u.items():
         except (TypeError, ValueError):
             problems.append('%s: equivalence factor is not a number: %r' % (uid, factor))
 
+# ── R1: exactly one base per dimension ───────────────────────────────────────
+dims = defaultdict(list)
+for uid, spec in u.items():
+    if not isinstance(spec, dict):
+        continue
+    dim = spec.get('dimension')
+    if dim:
+        dims[dim].append(uid)
+
+bases = defaultdict(list)
+for uid, spec in u.items():
+    if not isinstance(spec, dict):
+        continue
+    if spec.get('base') is True:
+        dim = spec.get('dimension')
+        if dim:
+            bases[dim].append(uid)
+
+for dim, units in dims.items():
+    base_list = bases.get(dim, [])
+    if len(base_list) == 0:
+        problems.append('dimension %r: no base unit declared (exactly one unit needs base: true)' % dim)
+    elif len(base_list) > 1:
+        problems.append('dimension %r: multiple base units: %s (exactly one allowed)' % (dim, ', '.join(base_list)))
+
+# ── R3: connectivity — every unit must be reachable from the base ────────────
+# Build undirected adjacency from equivalences (a conversion is bidirectional).
+for dim, units in dims.items():
+    base_list = bases.get(dim, [])
+    if len(base_list) != 1:
+        continue  # can't check connectivity without exactly one base
+    base_id = base_list[0]
+    dim_units = [uid for uid in u if isinstance(u[uid], dict) and u[uid].get('dimension') == dim]
+    if len(dim_units) <= 1:
+        continue  # singleton dimension — nothing to connect
+
+    # Build adjacency graph (undirected: if A->B exists, B can reach A and vice versa)
+    adj = defaultdict(set)
+    for uid in dim_units:
+        spec = u[uid]
+        for e in (spec.get('equivalences') or []):
+            to = e.get('to')
+            if to and to in u and isinstance(u[to], dict) and u[to].get('dimension') == dim:
+                adj[uid].add(to)
+                adj[to].add(uid)
+
+    # BFS from base
+    visited = set()
+    queue = deque([base_id])
+    visited.add(base_id)
+    while queue:
+        node = queue.popleft()
+        for neighbor in adj.get(node, []):
+            if neighbor not in visited:
+                visited.add(neighbor)
+                queue.append(neighbor)
+
+    # Any unit not reached is an island
+    for uid in dim_units:
+        if uid not in visited:
+            problems.append(
+                '%s: ISLAND in dimension %r — no conversion path to base unit %r. '
+                'Every unit must be reachable from the dimension base, or quantities cannot be compared.'
+                % (uid, dim, base_id))
+
 for p in problems:
     print('  %s' % p)
 sys.exit(1 if problems else 0)
@@ -194,4 +269,116 @@ for uid, spec in u.items():
         tsym = u.get(to, {}).get('symbol', to)
         print('P $date %s %s %s' % (sym, e['factor'], tsym))
 " 2>/dev/null
+}
+
+# ── write path (R4) ─────────────────────────────────────────────────────────
+#
+# unit_reg_add <id> <display> <dimension> <symbol> <precision> [equivalences]
+#   equivalences: comma-separated "to:factor" pairs, e.g. "Wh:1000,MWh:0.001"
+#   Returns 0 on success, 1 on validation failure (reverted), 2 on I/O error.
+unit_reg_add() {
+  local id="${1:-}" display="${2:-}" dimension="${3:-}" symbol="${4:-}" precision="${5:-2}" equivalences="${6:-}"
+  [[ -n "$id" ]] || { echo "unit_reg_add: id required" >&2; return 1; }
+  [[ -n "$display" ]] || { echo "unit_reg_add: display required" >&2; return 1; }
+  [[ -n "$dimension" ]] || { echo "unit_reg_add: dimension required" >&2; return 1; }
+  [[ -n "$symbol" ]] || symbol="$id"
+
+  local path
+  path="$(unit_reg_path)" || { echo "unit_reg_add: config/units.yaml not found" >&2; return 2; }
+
+  # Check if unit already exists
+  if unit_reg_exists "$id"; then
+    echo "unit_reg_add: unit '$id' already exists" >&2
+    return 1
+  fi
+
+  # Back up the file for revert on validation failure
+  local backup="${path}.bak.$$"
+  cp "$path" "$backup" || { echo "unit_reg_add: failed to create backup" >&2; return 2; }
+
+  # Write the new unit using python to preserve YAML structure
+  python3 -c "
+import sys, yaml
+
+path = '$path'
+uid = '$id'
+display = '$display'
+dimension = '$dimension'
+symbol = '$symbol'
+precision = int('$precision')
+equiv_str = '$equivalences'
+
+with open(path) as f:
+    content = f.read()
+
+# Build equivalences list
+equivs = []
+if equiv_str:
+    for pair in equiv_str.split(','):
+        pair = pair.strip()
+        if ':' in pair:
+            to, factor = pair.split(':', 1)
+            equivs.append({'to': to.strip(), 'factor': float(factor.strip())})
+
+# Build the YAML block to append
+lines = []
+lines.append('')
+lines.append('  %s:' % uid)
+lines.append('    display: %s' % display)
+lines.append('    dimension: %s' % dimension)
+lines.append('    symbol: %s' % symbol)
+lines.append('    precision: %s' % precision)
+if equivs:
+    lines.append('    equivalences:')
+    for e in equivs:
+        # Use int if factor is whole number
+        f = int(e['factor']) if e['factor'] == int(e['factor']) else e['factor']
+        lines.append('      - { to: %s, factor: %s }' % (e['to'], f))
+
+# Find the right insertion point: before the trailing comments (after the last unit)
+# We insert right before the '# ── EQUIVALENCES' comment block at the end
+import re
+# Find the last non-comment, non-blank content line position
+content_lines = content.split('\n')
+insert_idx = len(content_lines)
+# Look for the trailing comment block about equivalences
+for i, line in enumerate(content_lines):
+    if line.startswith('# ── EQUIVALENCES ARE SAME-DIMENSION'):
+        insert_idx = i
+        break
+
+# Insert the new unit block
+new_content = '\n'.join(content_lines[:insert_idx]) + '\n'.join(lines) + '\n\n' + '\n'.join(content_lines[insert_idx:])
+with open(path, 'w') as f:
+    f.write(new_content)
+" 2>&1
+
+  local write_rc=$?
+  if [[ $write_rc -ne 0 ]]; then
+    cp "$backup" "$path"
+    rm -f "$backup"
+    echo "unit_reg_add: failed to write unit" >&2
+    return 2
+  fi
+
+  # Clear the module cache so validate re-reads the file
+  _WW_UNIT_REGISTRY_LOADED=""
+  source "${BASH_SOURCE[0]}"
+
+  # Validate the new state
+  local val_output
+  val_output="$(unit_reg_validate 2>&1)"
+  local val_rc=$?
+
+  if [[ $val_rc -ne 0 ]]; then
+    # REVERT: validation failed
+    cp "$backup" "$path"
+    rm -f "$backup"
+    echo "unit_reg_add: validation failed, reverted. Problems:" >&2
+    echo "$val_output" >&2
+    return 1
+  fi
+
+  rm -f "$backup"
+  return 0
 }

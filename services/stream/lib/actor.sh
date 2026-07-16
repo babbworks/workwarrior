@@ -63,7 +63,7 @@ else:
 # real one.
 actor_validate() {
   local id="${1:-}"
-  [[ "$id" =~ ^(human|agent|machine):[a-z0-9][a-z0-9_-]*$ ]]
+  [[ "$id" =~ ^(human|agent|machine):[a-z0-9][a-z0-9_.-]*$ ]]
 }
 
 # actor_kind <id> -> human|agent|machine   (or `profile` for a v0 fallback attribution)

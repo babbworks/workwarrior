@@ -1,0 +1,15 @@
+# Actor registry — instance roster
+# Schema: dev/schemas/actors-v1.md
+#
+# id_scheme is set on first `ww stream init` or instance creation:
+#   solo       — slug only (personal use)
+#   team       — slug.xxxx (4-char nano, teams of 2-50)
+#   enterprise — slug.xxxxxx (6-char nano, large orgs)
+#
+# Actors are registered via lib/actor-registry.sh (the single owner).
+# Do NOT hand-edit this file unless source is 'local'.
+
+schema: v1
+id_scheme: null
+
+actors: {}

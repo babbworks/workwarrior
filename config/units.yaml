@@ -27,6 +27,7 @@ units:
     dimension: time
     symbol: h
     precision: 2
+    base: true
     equivalences:
       - { to: min, factor: 60 }
 
@@ -42,6 +43,7 @@ units:
     dimension: energy
     symbol: kWh
     precision: 3
+    base: true
     equivalences:
       - { to: Wh, factor: 1000 }
 
@@ -57,6 +59,7 @@ units:
     dimension: mass
     symbol: kg
     precision: 3
+    base: true
     equivalences:
       - { to: g, factor: 1000 }
 
@@ -72,6 +75,7 @@ units:
     dimension: count
     symbol: sess
     precision: 0
+    base: true
 
   # ── money ─────────────────────────────────────────────────────────────────
   # Money is A unit, not THE unit. That demotion is the entire point.
@@ -80,6 +84,7 @@ units:
     dimension: money
     symbol: USD
     precision: 2
+    base: true
 
   # ── score ─────────────────────────────────────────────────────────────────
   # `att` is the synthetic unit the attention queue values everything into
@@ -94,6 +99,7 @@ units:
     dimension: score
     symbol: att
     precision: 1
+    base: true
 
 # ── EQUIVALENCES ARE SAME-DIMENSION. THIS IS ENFORCED. ──────────────────────
 #

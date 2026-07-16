@@ -1028,7 +1028,7 @@ Actions:
 Examples:
   eval "$(ww agent-init)"
   eval "$(ww agent init --config .claude/ww/config)"
-  eval "$(ww agent init --instance ~/wwv02 --profile ww-development)"
+  eval "$(ww agent init --instance ~/ww --profile ww-development)"
   ww agent end
   ww agent sessions
   ww agent sessions --all --stale
@@ -1849,6 +1849,62 @@ cmd_unit() {
         exit 1
       fi
       ;;
+    add)
+      # R4: interactive add — validates before writing, reverts on failure.
+      local uid="${1:-}"
+      if [[ -z "$uid" ]]; then
+        echo -n "Unit id: "; read -r uid
+      fi
+      [[ -n "$uid" ]] || { log_error "Unit id required"; exit 1; }
+
+      if unit_reg_exists "$uid"; then
+        log_error "Unit '$uid' already exists"
+        exit 1
+      fi
+
+      local display dimension symbol precision equivalences
+
+      echo -n "Display name [$uid]: "; read -r display
+      display="${display:-$uid}"
+
+      # Show existing dimensions
+      local existing_dims
+      existing_dims="$(python3 -c "
+import yaml
+with open('$(unit_reg_path)') as f:
+    m = yaml.safe_load(f) or {}
+dims = sorted(set(v.get('dimension','') for v in (m.get('units') or {}).values() if isinstance(v, dict)))
+print(', '.join(dims))
+" 2>/dev/null)"
+      echo "  Existing dimensions: $existing_dims"
+      echo -n "Dimension: "; read -r dimension
+      [[ -n "$dimension" ]] || { log_error "Dimension required"; exit 1; }
+
+      echo -n "Symbol (hledger commodity) [$uid]: "; read -r symbol
+      symbol="${symbol:-$uid}"
+
+      echo -n "Precision (decimal places) [2]: "; read -r precision
+      precision="${precision:-2}"
+
+      echo -n "Equivalences (to:factor,to:factor or empty): "; read -r equivalences
+
+      echo ""
+      echo "  Adding: $uid ($display) in dimension '$dimension', symbol=$symbol, precision=$precision"
+      [[ -n "$equivalences" ]] && echo "  Equivalences: $equivalences"
+      echo ""
+
+      local add_output
+      add_output="$(unit_reg_add "$uid" "$display" "$dimension" "$symbol" "$precision" "$equivalences" 2>&1)"
+      local add_rc=$?
+
+      if [[ $add_rc -eq 0 ]]; then
+        log_success "Unit '$uid' added and validated"
+      else
+        log_error "Failed to add unit '$uid'"
+        echo "$add_output" >&2
+        exit 1
+      fi
+      ;;
     help|-h|--help)
       cat << 'UNIT_HELP_EOF'
 Unit Registry — the system's shared vocabulary of quantity
@@ -1861,6 +1917,7 @@ Actions:
   check <symbol>       Is this hledger symbol registered? Reports; never coerces
   prices [date]        Emit hledger P directives from the equivalences
   validate             Check the registry is coherent
+  add [id]             Add a new unit (interactive prompts; validates before writing)
 
 A unit is what a thing IS. A price is what it is WORTH.
   - An EQUIVALENCE is a conversion: 1 kWh = 1000 Wh. Always true, for everyone.
@@ -1886,6 +1943,288 @@ UNIT_HELP_EOF
   esac
 }
 
+# DEPS CHECK --ALL — TASK-DEPS-001
+# The warrior fleet view: iterate all registered instances, read each one's
+# .state/deps.json stamp, and report which tools are below floor.
+# Read-only. Never installs or fixes anything across instances.
+# Exits 1 if ANY instance has a hard-floor violation.
+cmd_deps_check_all() {
+  local format="${1:-text}"
+
+  # Source the instance registry
+  if [[ -f "$WW_BASE/lib/instance-registry.sh" ]]; then
+    source "$WW_BASE/lib/instance-registry.sh"
+  else
+    log_error "lib/instance-registry.sh not found"
+    return 1
+  fi
+
+  # Source deps-state for manifest fingerprint comparison
+  if [[ -f "$WW_BASE/lib/deps-state.sh" ]]; then
+    source "$WW_BASE/lib/deps-state.sh"
+  else
+    log_error "lib/deps-state.sh not found"
+    return 1
+  fi
+
+  # Get current manifest fingerprint (to detect stale stamps)
+  local current_fp
+  current_fp="$(_deps_manifest_fingerprint)"
+
+  # Iterate instances
+  local instances_tsv has_violation=0
+  instances_tsv="$(ww_instance_list 1)"  # include hidden
+
+  if [[ -z "$instances_tsv" ]]; then
+    if [[ "$format" == "json" ]]; then
+      printf '{"fleet":[],"has_violations":false}\n'
+    else
+      echo "  No instances registered."
+    fi
+    return 0
+  fi
+
+  # Collect fleet data
+  local fleet_json="[]"
+  local table_lines=()
+
+  while IFS=$'\t' read -r iid alias version visibility status; do
+    [[ -n "$iid" ]] || continue
+
+    local install_path stamp_path stamp_status
+    install_path="$(ww_instance_where "$iid" 2>/dev/null)"
+    if [[ -z "$install_path" ]]; then
+      continue
+    fi
+
+    stamp_path="${install_path}/.state/deps.json"
+
+    if [[ ! -f "$stamp_path" ]]; then
+      # No stamp — report as unknown
+      _deps_fleet_add_unknown "$iid" "$alias" "$install_path" "$format"
+      continue
+    fi
+
+    # Read the stamp and check each tool
+    local stamp_fp
+    stamp_fp="$(python3 -c "
+import json, sys
+try:
+    s = json.load(open('${stamp_path}'))
+    print(s.get('manifest', ''))
+except Exception:
+    print('')
+" 2>/dev/null)"
+
+    local is_stale=0
+    if [[ "$stamp_fp" != "$current_fp" ]]; then
+      is_stale=1
+    fi
+
+    # Read all tools from the stamp
+    python3 -c "
+import json, sys
+try:
+    s = json.load(open('${stamp_path}'))
+except Exception:
+    sys.exit(1)
+tools = s.get('tools', {})
+for name, info in tools.items():
+    ver = info.get('version', '')
+    mn = info.get('min', '')
+    st = info.get('status', 'unknown')
+    print(f'{name}\t{ver}\t{mn}\t{st}')
+" 2>/dev/null | while IFS=$'\t' read -r tool_name tool_ver tool_min tool_status; do
+      [[ -n "$tool_name" ]] || continue
+
+      local display_status="$tool_status"
+      if [[ $is_stale -eq 1 ]]; then
+        display_status="stale"
+      fi
+
+      if [[ "$format" == "text" ]]; then
+        local status_icon="✓"
+        case "$display_status" in
+          below_floor) status_icon="✗ BELOW FLOOR"; has_violation=1 ;;
+          missing)     status_icon="✗ MISSING" ;;
+          stale)       status_icon="? STALE" ;;
+          unknown)     status_icon="? UNKNOWN" ;;
+        esac
+        printf '  %-14s %-12s %-10s %-8s %s\n' \
+          "${alias:-$iid}" "$tool_name" "${tool_ver:-—}" "${tool_min:-—}" "$status_icon"
+      fi
+
+      # Track violations for exit code
+      if [[ "$tool_status" == "below_floor" ]]; then
+        # Write to fd 3 if available to signal violation
+        true
+      fi
+    done
+
+    # Check if this instance has violations (need to re-read for exit code)
+    if python3 -c "
+import json, sys
+try:
+    s = json.load(open('${stamp_path}'))
+except Exception:
+    sys.exit(0)
+for name, info in s.get('tools', {}).items():
+    if info.get('status') == 'below_floor':
+        sys.exit(1)
+sys.exit(0)
+" 2>/dev/null; then
+      true
+    else
+      has_violation=1
+    fi
+
+  done <<< "$instances_tsv"
+
+  # JSON output mode
+  if [[ "$format" == "json" ]]; then
+    _deps_fleet_json "$instances_tsv" "$current_fp"
+    # Check for violations in JSON mode too
+    has_violation=$(_deps_fleet_has_violations "$instances_tsv")
+    [[ "$has_violation" == "1" ]] && return 1
+    return 0
+  fi
+
+  # Text mode header (printed before the loop output — let me restructure)
+  # Actually the loop already printed. Print a summary.
+  echo ""
+  if [[ $has_violation -eq 1 ]]; then
+    echo "  ⚠ One or more instances are below a hard floor."
+    return 1
+  else
+    echo "  All instances within floor."
+    return 0
+  fi
+}
+
+_deps_fleet_add_unknown() {
+  local iid="$1" alias="$2" install_path="$3" format="$4"
+  if [[ "$format" == "text" ]]; then
+    printf '  %-14s %-12s %-10s %-8s %s\n' \
+      "${alias:-$iid}" "(all)" "—" "—" "? NO STAMP"
+  fi
+}
+
+_deps_fleet_json() {
+  local instances_tsv="$1" current_fp="$2"
+  local registry_dir
+  registry_dir="$(ww_registry_dir)"
+
+  echo "$instances_tsv" | python3 -c "
+import json, sys, os
+
+current_fp = sys.argv[1]
+registry_dir = sys.argv[2]
+
+fleet = []
+for line in sys.stdin.read().strip().splitlines():
+    if not line.strip():
+        continue
+    parts = line.split('\t')
+    while len(parts) < 5:
+        parts.append('')
+    iid, alias, version, visibility, status = parts[:5]
+
+    # Find install path from registry
+    manifest_file = os.path.join(registry_dir, iid + '.json')
+    install_path = ''
+    if os.path.isfile(manifest_file):
+        try:
+            d = json.load(open(manifest_file))
+            install_path = d.get('install_path', '')
+        except Exception:
+            pass
+
+    stamp_path = os.path.join(install_path, '.state', 'deps.json') if install_path else ''
+    instance_entry = {
+        'id': iid,
+        'alias': alias,
+        'version': version,
+        'install_path': install_path,
+        'tools': {},
+        'stamp_status': 'unknown',
+    }
+
+    if stamp_path and os.path.isfile(stamp_path):
+        try:
+            s = json.load(open(stamp_path))
+            stamp_fp = s.get('manifest', '')
+            instance_entry['stamp_status'] = 'fresh' if stamp_fp == current_fp else 'stale'
+            instance_entry['checked_at'] = s.get('checked_at', 0)
+            for tname, tinfo in s.get('tools', {}).items():
+                tool_st = tinfo.get('status', 'unknown')
+                if instance_entry['stamp_status'] == 'stale':
+                    tool_st = 'stale'
+                instance_entry['tools'][tname] = {
+                    'version': tinfo.get('version', ''),
+                    'min': tinfo.get('min', ''),
+                    'status': tool_st,
+                    'path': tinfo.get('path', ''),
+                }
+        except Exception:
+            instance_entry['stamp_status'] = 'unreadable'
+    else:
+        instance_entry['stamp_status'] = 'absent'
+
+    fleet.append(instance_entry)
+
+has_violations = any(
+    any(t.get('status') == 'below_floor' for t in inst['tools'].values())
+    for inst in fleet
+)
+
+print(json.dumps({
+    'fleet': fleet,
+    'has_violations': has_violations,
+    'manifest_fingerprint': current_fp,
+}, indent=2))
+" "$current_fp" "$registry_dir"
+}
+
+_deps_fleet_has_violations() {
+  local instances_tsv="$1"
+  local registry_dir
+  registry_dir="$(ww_registry_dir)"
+
+  echo "$instances_tsv" | python3 -c "
+import json, sys, os
+
+registry_dir = sys.argv[1]
+
+for line in sys.stdin.read().strip().splitlines():
+    if not line.strip():
+        continue
+    parts = line.split('\t')
+    iid = parts[0] if parts else ''
+    if not iid:
+        continue
+    manifest_file = os.path.join(registry_dir, iid + '.json')
+    if not os.path.isfile(manifest_file):
+        continue
+    try:
+        d = json.load(open(manifest_file))
+        install_path = d.get('install_path', '')
+    except Exception:
+        continue
+    stamp_path = os.path.join(install_path, '.state', 'deps.json')
+    if not os.path.isfile(stamp_path):
+        continue
+    try:
+        s = json.load(open(stamp_path))
+        for tname, tinfo in s.get('tools', {}).items():
+            if tinfo.get('status') == 'below_floor':
+                print('1')
+                sys.exit(0)
+    except Exception:
+        pass
+print('0')
+" "$registry_dir" 2>/dev/null
+}
+
 cmd_deps() {
   local action="${1:-}"
   shift 2>/dev/null || true
@@ -1900,6 +2239,22 @@ cmd_deps() {
 
   case "$action" in
     check)
+      # TASK-DEPS-001: --all iterates the instance registry and shows a fleet table
+      local fleet_mode=0 fleet_format="text"
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          --all)        fleet_mode=1; shift ;;
+          --format)     fleet_format="$2"; shift 2 ;;
+          --format=*)   fleet_format="${1#--format=}"; shift ;;
+          *) shift ;;
+        esac
+      done
+
+      if [[ $fleet_mode -eq 1 ]]; then
+        cmd_deps_check_all "$fleet_format"
+        return $?
+      fi
+
       check_all_dependencies
       display_dependency_status
       # TASK-LED-013: this is the `apt update` moment. Probe the real binaries once,
@@ -2517,7 +2872,8 @@ cmd_list_passthrough() {
     fi
   fi
   [[ -z "$list_basename" ]] && list_basename="tasks"
-  python3 "$WW_BASE/tools/list/list.py" -t "$list_dir" -l "$list_basename" "$@"
+  local profile_name="${WARRIOR_PROFILE:-}"
+  python3 "$WW_BASE/tools/list/list.py" -t "$list_dir" -l "$list_basename" --profile-name "$profile_name" "$@"
 }
 
 # ============================================================================
@@ -3671,8 +4027,12 @@ try:
     journals = data.get("journals", {})
     default_path = journals.get("default", os.path.join(base, "journals", os.path.basename(base) + ".txt"))
     print(default_path)
-except Exception:
-    print(os.path.join(base, "journals", "default.txt"))
+except FileNotFoundError:
+    sys.stderr.write(f"journal-resolve: jrnl.yaml not found: {cfg}\n")
+    sys.exit(2)
+except Exception as e:
+    sys.stderr.write(f"journal-resolve: malformed jrnl.yaml: {e}\n")
+    sys.exit(2)
 PYEOF
 )"
         local filter_args=()
@@ -3777,13 +4137,22 @@ try:
     with open(cfg) as f:
         data = yaml.safe_load(f)
     journals = data.get("journals", {})
-    if journal_name and journal_name in journals:
-        print(journals[journal_name])
+    if journal_name:
+        if journal_name in journals:
+            print(journals[journal_name])
+        else:
+            valid = ", ".join(journals.keys()) if journals else "(none)"
+            sys.stderr.write(f"journal-resolve: '{journal_name}' not found. Valid: {valid}\n")
+            sys.exit(1)
     else:
         default = journals.get("default", os.path.join(base, "journals", os.path.basename(base) + ".txt"))
         print(default)
-except Exception:
-    print(os.path.join(base, "journals", "default.txt"))
+except FileNotFoundError:
+    sys.stderr.write(f"journal-resolve: jrnl.yaml not found: {cfg}\n")
+    sys.exit(2)
+except Exception as e:
+    sys.stderr.write(f"journal-resolve: malformed jrnl.yaml: {e}\n")
+    sys.exit(2)
 PYEOF
 )"
       if [[ -z "$target_file" ]]; then
@@ -3893,12 +4262,21 @@ try:
     with open(cfg) as f:
         data = yaml.safe_load(f)
     journals = data.get("journals", {})
-    if journal_name and journal_name in journals:
-        print(journals[journal_name])
+    if journal_name:
+        if journal_name in journals:
+            print(journals[journal_name])
+        else:
+            valid = ", ".join(journals.keys()) if journals else "(none)"
+            sys.stderr.write(f"journal-resolve: '{journal_name}' not found. Valid: {valid}\n")
+            sys.exit(1)
     else:
         print(journals.get("default", os.path.join(base, "journals", os.path.basename(base) + ".txt")))
-except Exception:
-    print(os.path.join(base, "journals", "default.txt"))
+except FileNotFoundError:
+    sys.stderr.write(f"journal-resolve: jrnl.yaml not found: {cfg}\n")
+    sys.exit(2)
+except Exception as e:
+    sys.stderr.write(f"journal-resolve: malformed jrnl.yaml: {e}\n")
+    sys.exit(2)
 PYEOF
 )"
       local timestamp profile_name
@@ -4130,12 +4508,260 @@ PYEOF
         echo "  Verify: hledger -f ${lt_ledger_file} check"
       fi
       ;;
+    sync-stream)
+      cmd_ledger_sync_stream "$@"
+      ;;
+    attention)
+      cmd_ledger_attention "$@"
+      ;;
+    explain)
+      cmd_ledger_explain "$@"
+      ;;
     *)
       # Reserved management words + hledger passthrough, shared with the `l`
       # shell function via lib/ledger-dispatch.sh.
       ledger_dispatch "$action" "$@"
       ;;
   esac
+}
+
+# LEDGER SYNC-STREAM — TASK-LED-015
+# Regenerate derived/stream.journal from stream.log punch intervals.
+cmd_ledger_sync_stream() {
+  local dry_run=0 generated_ts=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --dry-run) dry_run=1; shift ;;
+      --generated-ts) generated_ts="$2"; shift 2 ;;
+      --generated-ts=*) generated_ts="${1#--generated-ts=}"; shift ;;
+      *) shift ;;
+    esac
+  done
+
+  local ww_base="${WW_BASE:-$HOME/ww}"
+  local stream_log="${ww_base}/stream/stream.log"
+  local script="${ww_base}/services/stream/sync-to-journal.py"
+
+  if [[ ! -f "$script" ]]; then
+    log_error "sync-to-journal.py not found: $script"
+    return 1
+  fi
+
+  if [[ ! -f "$stream_log" ]]; then
+    log_error "stream.log not found: $stream_log"
+    return 1
+  fi
+
+  if [[ -z "${WORKWARRIOR_BASE:-}" ]]; then
+    log_error "No active profile. Activate one with p-<profile-name>."
+    return 1
+  fi
+
+  local output_dir="${WORKWARRIOR_BASE}/ledgers/derived"
+  local output_file="${output_dir}/stream.journal"
+
+  local py_args=(
+    --stream-log "$stream_log"
+    --ww-base "$ww_base"
+  )
+  [[ -n "$generated_ts" ]] && py_args+=(--generated-ts "$generated_ts")
+
+  if [[ $dry_run -eq 1 ]]; then
+    py_args+=(--dry-run)
+    python3 "$script" "${py_args[@]}"
+  else
+    py_args+=(--output "$output_file")
+    python3 "$script" "${py_args[@]}"
+
+    # Ensure the profile's main journal includes derived/stream.journal
+    _ledger_ensure_include
+  fi
+}
+
+# Ensure the profile's default journal has: include derived/stream.journal
+_ledger_ensure_include() {
+  local profile_base="${WORKWARRIOR_BASE}/ledgers"
+  local include_line="include derived/stream.journal"
+
+  # Find the profile's main journal (the default from ledgers.yaml)
+  local main_journal=""
+  if declare -f ledger_cfg_default_path >/dev/null 2>&1; then
+    main_journal="$(ledger_cfg_default_path 2>/dev/null || true)"
+  fi
+
+  # Fallback: <profile-name>.journal
+  if [[ -z "$main_journal" || ! -f "$main_journal" ]]; then
+    local profile_name
+    profile_name="$(basename "$WORKWARRIOR_BASE")"
+    main_journal="${profile_base}/${profile_name}.journal"
+  fi
+
+  # NEVER touch manual.journal
+  if [[ "$(basename "$main_journal")" == "manual.journal" ]]; then
+    return 0
+  fi
+
+  # Create the main journal if it doesn't exist
+  if [[ ! -f "$main_journal" ]]; then
+    mkdir -p "$(dirname "$main_journal")"
+    printf '; %s — profile journal\n' "$(basename "$WORKWARRIOR_BASE")" > "$main_journal"
+  fi
+
+  # Check if include already present
+  if ! grep -qF "$include_line" "$main_journal" 2>/dev/null; then
+    printf '\n%s\n' "$include_line" >> "$main_journal"
+  fi
+}
+
+# LEDGER ATTENTION — TASK-LED-017
+# The attention queue — value every account in a synthetic commodity.
+# Generates P directives from actor weights, ranks accounts by weighted balance.
+cmd_ledger_attention() {
+  local format="" top="" at_date="" filter="" show_weights=0 profile_override=""
+  local weights_file=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --format)      format="$2"; shift 2 ;;
+      --format=*)    format="${1#--format=}"; shift ;;
+      --top)         top="$2"; shift 2 ;;
+      --top=*)       top="${1#--top=}"; shift ;;
+      --at)          at_date="$2"; shift 2 ;;
+      --at=*)        at_date="${1#--at=}"; shift ;;
+      --filter)      filter="$2"; shift 2 ;;
+      --filter=*)    filter="${1#--filter=}"; shift ;;
+      --profile)     profile_override="$2"; shift 2 ;;
+      --profile=*)   profile_override="${1#--profile=}"; shift ;;
+      --show-weights) show_weights=1; shift ;;
+      --weights-file) weights_file="$2"; shift 2 ;;
+      --weights-file=*) weights_file="${1#--weights-file=}"; shift ;;
+      -h|--help)
+        cat <<EOF
+Usage: ww ledger attention [OPTIONS]
+
+Rank accounts by attention value — a weighted sum of balances.
+
+Options:
+  --top N           Show only the top N entries
+  --at DATE         Counterfactual: value at a specific date (YYYY-MM-DD)
+  --format json     Output as JSON (for browser/app consumption)
+  --filter STR      Only show accounts containing STR
+  --profile P       Use actor weights from a different profile
+  --show-weights    Include the weight column in text output
+  --weights-file F  Write the generated weights journal to F
+
+The coefficient table is generated from the profile's actors.yaml weights.
+Same records + different profile = different ranking. A mode IS a price table.
+EOF
+        return 0
+        ;;
+      *) shift ;;
+    esac
+  done
+
+  local ww_base="${WW_BASE:-$HOME/ww}"
+  local script="${ww_base}/services/stream/attention.py"
+
+  if [[ ! -f "$script" ]]; then
+    log_error "attention.py not found: $script"
+    return 1
+  fi
+
+  # Resolve profile base
+  local profile_base="${WORKWARRIOR_BASE:-}"
+  if [[ -n "$profile_override" ]]; then
+    # Look up named profile's base directory
+    local profiles_dir="${ww_base}/profiles"
+    if [[ -d "${profiles_dir}/${profile_override}" ]]; then
+      profile_base="${profiles_dir}/${profile_override}"
+    else
+      log_error "Profile not found: $profile_override"
+      return 1
+    fi
+  fi
+
+  if [[ -z "$profile_base" ]]; then
+    log_error "No active profile. Activate one with p-<profile-name>."
+    return 1
+  fi
+
+  local py_args=(
+    --ww-base "$ww_base"
+    --profile-base "$profile_base"
+  )
+  [[ -n "$format" ]]       && py_args+=(--format "$format")
+  [[ -n "$top" ]]          && py_args+=(--top "$top")
+  [[ -n "$at_date" ]]      && py_args+=(--at "$at_date")
+  [[ -n "$filter" ]]       && py_args+=(--filter "$filter")
+  [[ -n "$weights_file" ]] && py_args+=(--weights-file "$weights_file")
+  [[ $show_weights -eq 1 ]] && py_args+=(--show-weights)
+
+  python3 "$script" "${py_args[@]}"
+}
+
+# LEDGER EXPLAIN — TASK-LED-016
+# Show the materialised text (`print --auto --forecast`) so a human can audit
+# the divergence between file truth and computed truth. Read-only, stdout only.
+# NEVER writes to any file — that would trigger the double-count hazard.
+cmd_ledger_explain() {
+  local format="text"
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --format)    format="$2"; shift 2 ;;
+      --format=*)  format="${1#--format=}"; shift ;;
+      -h|--help)
+        cat <<EOF
+Usage: ww ledger explain [OPTIONS]
+
+Show the computed truth: what hledger would report if auto-rules and forecasts
+were materialised. This is a VIEW — read-only, never written to any file.
+
+The divergence between 'ww ledger explain' and 'ww ledger print' is exactly
+the auto-derived postings (accrual rules, forecasts). Both are valid views of
+the same immutable record.
+
+WARNING: The output of this command MUST NEVER be piped back into a journal
+file. The auto-rules would fire again on the derived postings, producing 2×
+the correct amount (verified hazard).
+
+Options:
+  --format text|json    Output format (default: text)
+EOF
+        return 0
+        ;;
+      *) shift ;;
+    esac
+  done
+
+  if [[ -z "${WORKWARRIOR_BASE:-}" ]]; then
+    log_error "No active profile. Activate one with p-<profile-name>."
+    return 1
+  fi
+
+  local target
+  target="$(_ledger_default_file)" || {
+    log_error "Cannot resolve default ledger file"
+    return 1
+  }
+
+  if [[ ! -f "$target" ]]; then
+    log_error "Ledger file not found: $target"
+    return 1
+  fi
+
+  # Find the rules file
+  local rules_file="${WORKWARRIOR_BASE}/ledgers/rules.journal"
+  local hledger_args=(print --auto --forecast)
+
+  if [[ "$format" == "json" ]]; then
+    hledger_args+=(-O json)
+  fi
+
+  # Run with rules included if available
+  if [[ -f "$rules_file" ]]; then
+    command hledger -f "$target" -f "$rules_file" "${hledger_args[@]}"
+  else
+    command hledger -f "$target" "${hledger_args[@]}"
+  fi
 }
 
 # ============================================================================
@@ -4162,7 +4788,7 @@ Arguments:
 
 Examples:
   ww sync ~/Documents/repos/ww
-  ww sync --from ~/Documents/repos/ww --to ~/wwv02
+  ww sync --from ~/Documents/repos/ww --to ~/ww
   ww sync ~/Documents/repos/ww --dry-run
   ww sync ~/Documents/repos/ww --force
 
@@ -6454,8 +7080,11 @@ main() {
     hledger)
       cmd_hledger_passthrough "$@"
       ;;
-    list|lists)
+    list)
       cmd_list_passthrough "$@"
+      ;;
+    lists)
+      cmd_list_passthrough --show-lists "$@"
       ;;
     community)
       cmd_community "$@"

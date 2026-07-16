@@ -43,6 +43,7 @@ units:
     dimension: energy
     symbol: kWh
     precision: 3
+    base: true
     equivalences:
       - { to: Wh, factor: 1000 }
 
@@ -60,6 +61,7 @@ units:
 | `display` | string | no | Human-readable name. Defaults to the id. |
 | `symbol` | string | no | **The hledger commodity string.** Defaults to the id. This is the boundary. |
 | `precision` | int | no | Decimal places. Default 2. |
+| `base` | bool | no | If `true`, this unit is the **base** (anchor) for its dimension. Exactly one unit per dimension must be `base: true`. The base is the normalisation target — all other units in the dimension must have a conversion path to it. |
 | `equivalences` | list | no | `{to, factor}` — see §3. |
 
 ---
@@ -96,6 +98,33 @@ why ledger-cli's `C` directive, and ledger-cli itself, are not needed.
 
 Validation rules: the target must exist, must share the unit's `dimension`, must not be the unit
 itself, and `factor` must be a number > 0.
+
+---
+
+## 3a. Base unit per dimension
+
+Exactly one unit per dimension must declare `base: true`. The base is the **normalisation
+anchor** — the unit everything else in that dimension can be expressed in terms of. Without it,
+"normalise everything in this dimension" has no target.
+
+**Enforced by `unit_reg_validate`**: zero bases in a dimension is an error; more than one is an
+error.
+
+---
+
+## 3b. Connectivity — no islands
+
+Every non-base unit in a dimension **must have a conversion path to the base**. A unit with no
+equivalences and no incoming equivalences from a connected peer is an **island**: it sits in the
+dimension but cannot be compared to anything. Two energy quantities that should be addable would
+quietly fail to combine in a report — the same class of "not an error, just a wrong answer" bug
+that the registry exists to prevent.
+
+**Implementation**: BFS from the base unit along the undirected equivalence graph. Any unit not
+reached is reported as an island error.
+
+**Exception**: a dimension with only one unit (which must be the base) trivially satisfies
+connectivity.
 
 ---
 
@@ -141,16 +170,23 @@ Single owner: `lib/unit-registry.sh`, python/`yaml.safe_load`-backed (consistent
 return codes only, no `exit`.
 
 **Reads:** `unit_reg_list` · `unit_reg_exists` · `unit_reg_display` · `unit_reg_dimension` ·
-`unit_reg_symbol` · `unit_reg_precision` · `unit_reg_equivalences` · `unit_reg_by_symbol`
+`unit_reg_symbol` · `unit_reg_precision` · `unit_reg_equivalences` · `unit_reg_by_symbol` ·
+`unit_reg_dimension_base`
 **Unknowns:** `unit_reg_symbol_known` · `unit_reg_unregistered`
-**Integrity:** `unit_reg_validate`
+**Integrity:** `unit_reg_validate` (same-dimension, base-per-dimension, connectivity)
+**Write:** `unit_reg_add` (validates before commit; reverts on failure)
 **Ledger boundary:** `unit_reg_price_directives [date]`
 
-CLI (read-only): `ww unit list|show <id>|check <symbol>|prices [date]|validate`
+CLI: `ww unit list|show <id>|check <symbol>|prices [date]|validate|add [id]`
 
 ---
 
 ## 7. Changelog
+
+**v1.1 — 2026-07-15** — round 2 (R1–R4). Added `base` field (exactly one per dimension,
+enforced). Added connectivity validation (BFS from base; islands are rejected). Added
+`unit_reg_dimension_base(dim)`. Added `unit_reg_add` write path (validates before commit,
+reverts on failure). Chained conversion verified with hledger 1.52.1.
 
 **v1 — 2026-07-13** — initial contract. `unit` chosen over `commodity`; same-dimension
 equivalences enforced; authoritative with a loud unknown; equivalences generate hledger `P`

@@ -16,6 +16,12 @@ source "$SCRIPT_DIR/lib/adapters.sh"
 source "$SCRIPT_DIR/lib/codecs.sh"
 source "$SCRIPT_DIR/lib/actor.sh"
 
+# actor-registry lives in the top-level lib/; resolve relative to the repo root.
+# WW_BASE is the runtime home (~/$USER/ww), but the library ships with the repo.
+_ww_lib_dir="${WW_BASE}/lib"
+[[ -f "${_ww_lib_dir}/actor-registry.sh" ]] || _ww_lib_dir="${SCRIPT_DIR}/../../lib"
+source "${_ww_lib_dir}/actor-registry.sh"
+
 STREAM_DIR="${WW_BASE}/stream"
 STREAM_LOG="${STREAM_DIR}/stream.log"
 
@@ -125,11 +131,39 @@ EOF
 }
 
 cmd_emit() {
+  local actor_flag=""
+  local args=()
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --actor) actor_flag="$2"; shift 2 ;;
+      *) args+=("$1"); shift ;;
+    esac
+  done
+  set -- "${args[@]}"
+
   local op="${1:-}" action="${2:-}" obj="${3:-}" ctx="${4:-}"
   if [[ -z "$op" || -z "$action" || -z "$obj" ]]; then
     log_error "emit requires: <op> <action> <object> [ctx]"
     exit 1
   fi
+
+  # Inject actor into ctx if provided
+  if [[ -n "$actor_flag" ]]; then
+    if ! actor_validate "$actor_flag"; then
+      log_error "Invalid --actor ID: '$actor_flag'"
+      exit 1
+    fi
+    ctx=$(echo "${ctx:-{}}" | python3 -c "
+import sys, json
+try:
+    d = json.load(sys.stdin)
+except:
+    d = {}
+d['actor'] = sys.argv[1]
+print(json.dumps(d, separators=(',',':')))
+" "$actor_flag")
+  fi
+
   # TASK-STRM-001: stamp the schema BEFORE the event, so a v1-only ctx key can never land in a
   # log that still reads as v0. Idempotent.
   _stream_ensure_schema_marker
@@ -139,6 +173,293 @@ cmd_emit() {
   # before ctx silently misreads every event ever written. New dimensions go in ctx.
   printf '%s %s %s %s %s\n' "$ts" "$op" "$action" "$obj" "$ctx" >> "$STREAM_LOG"
   log_success "Event appended: $ts $op $action ${obj:0:12}…"
+}
+
+cmd_punch() {
+  local direction="" actor="" object="" proj="" tags_arr=()
+  local at_time="" reason="" by_actor=""
+  # Parse: ww stream punch in|out --actor <id> --object <obj> [--proj P] [--tags t1 t2]
+  #        [--at <time>] [--reason <text>] [--by <reconciler>]
+  direction="${1:-}"; shift || true
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --actor)  actor="$2"; shift 2 ;;
+      --object) object="$2"; shift 2 ;;
+      --proj)   proj="$2"; shift 2 ;;
+      --at)     at_time="$2"; shift 2 ;;
+      --reason) reason="$2"; shift 2 ;;
+      --by)     by_actor="$2"; shift 2 ;;
+      --tags)   shift; while [[ $# -gt 0 && "$1" != --* ]]; do tags_arr+=("$1"); shift; done ;;
+      *) log_error "Unknown option: $1"; exit 1 ;;
+    esac
+  done
+
+  # Validate
+  [[ -z "$direction" ]] && { log_error "Usage: ww stream punch in|out --actor <id> --object <obj>"; exit 1; }
+  [[ "$direction" != "in" && "$direction" != "out" ]] && { log_error "Direction must be 'in' or 'out'"; exit 1; }
+  [[ -z "$actor" ]] && { log_error "--actor required"; exit 1; }
+  [[ -z "$object" ]] && { log_error "--object required"; exit 1; }
+
+  # --reason is only valid on punch out
+  if [[ -n "$reason" && "$direction" == "in" ]]; then
+    log_error "--reason is only valid on punch out (reconciled close)"
+    exit 1
+  fi
+
+  # Validate actor ID format
+  if ! actor_validate "$actor"; then
+    log_error "Invalid actor ID: '$actor' (must be <kind>:<local-id>)"
+    exit 1
+  fi
+
+  # Check actor exists in registry (warning if not in profile members, error if unknown)
+  if ! actor_reg_exists "$actor"; then
+    log_error "Unknown actor: '$actor' — not found in registry (config/actors.yaml)"
+    exit 1
+  fi
+
+  # Map direction to action
+  local action
+  [[ "$direction" == "in" ]] && action="start" || action="stop"
+
+  # Determine timestamps
+  local ts now_ts
+  now_ts="$(date +%s)"
+  if [[ -n "$at_time" ]]; then
+    # --at sets the asserted timestamp (field 1)
+    if [[ "$at_time" =~ ^[0-9]+$ ]]; then
+      ts="$at_time"
+    else
+      ts="$(_date_to_ts "$at_time")"
+    fi
+  else
+    ts="$now_ts"
+  fi
+
+  # If reconciled close: check already-closed, build reconciled ctx
+  if [[ "$direction" == "out" && -n "$reason" ]]; then
+    # Resolve reconciler
+    local reconciler="${by_actor:-profile:${WARRIOR_PROFILE:-default}}"
+
+    # Check if already closed (object not in open set)
+    if [[ -f "$STREAM_LOG" ]]; then
+      local is_open
+      is_open=$(awk -v obj="$object" '
+        $2 == "B" && $3 == "start" && $4 == obj { open = 1 }
+        $2 == "B" && ($3 == "stop" || $3 == "end") && $4 == obj { open = 0 }
+        END { print open+0 }
+      ' "$STREAM_LOG")
+      if [[ "$is_open" -eq 0 ]]; then
+        log_info "Already closed: $object (no-op)"
+        return 0
+      fi
+    fi
+
+    # Build ctx with reconciled key
+    local tags_json="[]"
+    if [[ ${#tags_arr[@]} -gt 0 ]]; then
+      tags_json=$(printf '%s\n' "${tags_arr[@]}" | python3 -c "import sys,json; print(json.dumps([l.strip() for l in sys.stdin if l.strip()]))")
+    fi
+    local ctx
+    ctx=$(python3 -c "
+import json, sys
+d = {'actor': sys.argv[1], 'src': 'stream', 'prof': sys.argv[2]}
+if sys.argv[3]: d['proj'] = sys.argv[3]
+tags = json.loads(sys.argv[4])
+if tags: d['tags'] = tags
+d['reconciled'] = {
+    'by': sys.argv[5],
+    'at': int(sys.argv[6]),
+    'reason': sys.argv[7]
+}
+print(json.dumps(d, separators=(',',':')))
+" "$actor" "${WARRIOR_PROFILE:-}" "$proj" "$tags_json" "$reconciler" "$now_ts" "$reason")
+
+    _stream_ensure_schema_marker
+    printf '%s %s %s %s %s\n' "$ts" "B" "stop" "$object" "$ctx" >> "$STREAM_LOG"
+    log_success "Reconciled close: $actor → $object (by $reconciler, reason: $reason)"
+    return 0
+  fi
+
+  # Regular (non-reconciled) punch
+  local ctx
+  local tags_json="[]"
+  if [[ ${#tags_arr[@]} -gt 0 ]]; then
+    tags_json=$(printf '%s\n' "${tags_arr[@]}" | python3 -c "import sys,json; print(json.dumps([l.strip() for l in sys.stdin if l.strip()]))")
+  fi
+  ctx=$(python3 -c "
+import json, sys
+d = {'actor': sys.argv[1], 'src': 'stream', 'prof': sys.argv[2]}
+if sys.argv[3]: d['proj'] = sys.argv[3]
+tags = json.loads(sys.argv[4])
+if tags: d['tags'] = tags
+print(json.dumps(d, separators=(',',':')))
+" "$actor" "${WARRIOR_PROFILE:-}" "$proj" "$tags_json")
+
+  # Emit via the existing path (handles schema marker, append, log)
+  _stream_ensure_schema_marker
+  printf '%s %s %s %s %s\n' "$ts" "B" "$action" "$object" "$ctx" >> "$STREAM_LOG"
+  log_success "Punch $direction: $actor → $object"
+}
+
+cmd_reconcile() {
+  # ww stream reconcile --stale <seconds> --reason <text> [--at <time>] [--confirm]
+  # Without --confirm: DRY RUN only (print what would be closed)
+  # With --confirm: actually append events
+  local stale="" reason="" at_time="" confirm=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --stale)   stale="$2"; shift 2 ;;
+      --reason)  reason="$2"; shift 2 ;;
+      --at)      at_time="$2"; shift 2 ;;
+      --confirm) confirm="1"; shift ;;
+      *) log_error "Unknown option: $1"; exit 1 ;;
+    esac
+  done
+
+  # Validate required args
+  [[ -z "$stale" ]] && { log_error "--stale <seconds> required"; exit 1; }
+  [[ -z "$reason" ]] && { log_error "--reason <text> required"; exit 1; }
+  [[ ! "$stale" =~ ^[0-9]+$ ]] && { log_error "--stale must be a number (seconds)"; exit 1; }
+
+  if [[ ! -f "$STREAM_LOG" ]]; then
+    log_info "No stream log. Nothing to reconcile."
+    return 0
+  fi
+
+  # Resolve reconciler
+  local reconciler="profile:${WARRIOR_PROFILE:-default}"
+
+  # Determine asserted timestamp (field 1)
+  local now_ts asserted_ts
+  now_ts="$(date +%s)"
+  if [[ -n "$at_time" ]]; then
+    if [[ "$at_time" =~ ^[0-9]+$ ]]; then
+      asserted_ts="$at_time"
+    else
+      asserted_ts="$(_date_to_ts "$at_time")"
+    fi
+  else
+    asserted_ts="$now_ts"
+  fi
+
+  # Get the open set and filter by stale threshold
+  local _py_reconcile; _py_reconcile="$(mktemp /tmp/ww_reconcile_XXXXXX.py)"
+  cat > "$_py_reconcile" <<'PYEOF'
+import sys, json, time
+
+stale_threshold = int(sys.argv[1])
+now = int(time.time())
+
+# Track open punches: obj -> {ts, actor, proj}
+starts = {}
+
+for line in sys.stdin:
+    line = line.strip()
+    if not line:
+        continue
+    parts = line.split(None, 4)
+    if len(parts) < 4:
+        continue
+    ts_str, op, action, obj = parts[0], parts[1], parts[2], parts[3]
+    if op != "B":
+        continue
+    try:
+        ts = int(ts_str)
+    except ValueError:
+        continue
+    ctx_raw = parts[4] if len(parts) > 4 else "{}"
+    try:
+        ctx = json.loads(ctx_raw)
+        if not isinstance(ctx, dict):
+            ctx = {}
+    except Exception:
+        ctx = {}
+
+    actor = ctx.get("actor", "")
+    proj = ctx.get("proj", "")
+
+    if action == "start":
+        starts[obj] = {"ts": ts, "actor": actor, "proj": proj}
+    elif action in ("stop", "end"):
+        starts.pop(obj, None)
+
+# Filter to stale entries
+stale_entries = []
+for obj, info in starts.items():
+    duration_s = now - info["ts"]
+    if duration_s > stale_threshold:
+        stale_entries.append({
+            "object": obj,
+            "actor": info["actor"],
+            "proj": info["proj"],
+            "since": info["ts"],
+            "duration_s": duration_s,
+        })
+
+# Sort by duration descending
+stale_entries.sort(key=lambda r: r["duration_s"], reverse=True)
+
+# Output as JSON (one entry per line for easy parsing)
+print(json.dumps(stale_entries, separators=(",", ":")))
+PYEOF
+
+  local stale_json
+  stale_json=$(replay_load | python3 "$_py_reconcile" "$stale")
+  rm -f "$_py_reconcile"
+
+  local count
+  count=$(printf '%s' "$stale_json" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))")
+
+  if [[ "$count" -eq 0 ]]; then
+    log_info "No stale punches found (threshold: ${stale}s). Nothing to reconcile."
+    return 0
+  fi
+
+  # Dry-run (default): just print what would be closed
+  if [[ -z "$confirm" ]]; then
+    echo "DRY RUN — would close $count stale punch(es):"
+    printf '%s' "$stale_json" | python3 -c "
+import sys, json
+entries = json.load(sys.stdin)
+for e in entries:
+    h = e['duration_s'] // 3600
+    m = (e['duration_s'] % 3600) // 60
+    dur = f'{h}h {m:02d}m' if h else f'{m}m'
+    print(f\"  {e['actor']:<25} {e['object']:<20} open {dur}\")
+"
+    echo ""
+    echo "Run with --confirm to apply."
+    return 0
+  fi
+
+  # Confirmed: emit one reconciled B stop event per stale entry
+  _stream_ensure_schema_marker
+  printf '%s' "$stale_json" | python3 -c "
+import sys, json
+entries = json.load(sys.stdin)
+reconciler = sys.argv[1]
+now_ts = int(sys.argv[2])
+asserted_ts = sys.argv[3]
+reason = sys.argv[4]
+prof = sys.argv[5]
+for e in entries:
+    ctx = {
+        'actor': e['actor'],
+        'src': 'stream',
+        'prof': prof,
+        'reconciled': {
+            'by': reconciler,
+            'at': now_ts,
+            'reason': reason
+        }
+    }
+    if e.get('proj'):
+        ctx['proj'] = e['proj']
+    print(f\"{asserted_ts} B stop {e['object']} {json.dumps(ctx, separators=(',',':'))}\")
+" "$reconciler" "$now_ts" "$asserted_ts" "$reason" "${WARRIOR_PROFILE:-}" >> "$STREAM_LOG"
+
+  echo "$count punches closed by $reconciler for reason: $reason"
 }
 
 cmd_ingest() {
@@ -438,16 +759,21 @@ _hooks_remove() {
 
 _hooks_status() {
   local profiles_dir="${WW_BASE}/profiles"
-  printf "%-20s %-12s\n" "PROFILE" "HOOKS"
-  printf "%s\n" "$(printf '%0.s─' {1..32})"
+  printf "%-20s %-12s %-12s\n" "PROFILE" "TASK HOOKS" "TIMEW HOOK"
+  printf "%s\n" "$(printf '%0.s─' {1..44})"
   while IFS= read -r pdir; do
     local name; name="$(basename "$pdir")"
     local hooks_dir="${pdir}/.task/hooks"
+    local task_status="none" timew_status="none"
     if [[ -f "${hooks_dir}/on-add.stream-emit" ]]; then
-      printf "%-20s %-12s\n" "$name" "installed"
-    else
-      printf "%-20s %-12s\n" "$name" "none"
+      task_status="installed"
     fi
+    # TASK-STRM-006: timew hook is active if the shell-integration.sh sources the hook helper
+    local hook_helper="${SCRIPT_DIR}/hooks/timew-stream-hook.sh"
+    if [[ -f "$hook_helper" ]]; then
+      timew_status="active"
+    fi
+    printf "%-20s %-12s %-12s\n" "$name" "$task_status" "$timew_status"
   done < <(find "$profiles_dir" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | sort)
 }
 
@@ -503,11 +829,40 @@ echo "$new"
 HOOK
 }
 
+cmd_board() {
+  local actor_filter="" proj_filter="" stale_dur="" format="text"
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --actor)  actor_filter="$2"; shift 2 ;;
+      --proj)   proj_filter="$2"; shift 2 ;;
+      --stale)  stale_dur="$2"; shift 2 ;;
+      --format) format="$2"; shift 2 ;;
+      *) log_error "Unknown option: $1"; exit 1 ;;
+    esac
+  done
+
+  if [[ ! -f "$STREAM_LOG" ]]; then
+    echo "Nobody is in. (No stream log found.)"
+    exit 0
+  fi
+
+  # Feed the board lens with filter args passed as env vars.
+  # Export so the second stage of the pipe (replay_apply_lens) inherits them.
+  export BOARD_ACTOR_FILTER="$actor_filter"
+  export BOARD_PROJ_FILTER="$proj_filter"
+  export BOARD_STALE_DUR="$stale_dur"
+  export BOARD_FORMAT="$format"
+  replay_load | replay_apply_lens "board"
+}
+
 main() {
   local cmd="${1:-help}"
   shift || true
   case "$cmd" in
     emit)           cmd_emit "$@" ;;
+    punch)          cmd_punch "$@" ;;
+    reconcile)      cmd_reconcile "$@" ;;
+    board)          cmd_board "$@" ;;
     ingest)         cmd_ingest "$@" ;;
     view|replay)    cmd_view "$@" ;;
     sessions)       cmd_sessions "$@" ;;

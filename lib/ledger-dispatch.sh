@@ -50,6 +50,51 @@ _ledger_passthrough() {
   fi
 }
 
+# ── TASK-LED-016: WRITE-BACK REFUSAL ──────────────────────────────────────────
+#
+# THE HAZARD (verified): `print --auto` output MUST NEVER be piped back into a
+# journal that still holds the auto-rule. The rule fires again on the derived
+# posting: 1.2h becomes 2.4h. This is the single worst data-corruption bug this
+# system can produce: it silently double-counts work history.
+#
+# This function REFUSES to write content containing auto-expanded postings into
+# any file inside the profile's ledger tree. It is the gatekeeper. Any ww code
+# path that might materialise auto output MUST call this before writing.
+#
+# Returns 0 if writing is safe, 1 if refused.
+ledger_refuse_auto_writeback() {
+  local content="$1"
+  local target_file="${2:-}"
+
+  # Refuse if the content appears to contain auto-expanded postings
+  # (the --auto flag materialises rules into plain postings, so we can't
+  # always detect them. But we CAN refuse if the caller declares --auto was used.)
+  if [[ "${_LEDGER_AUTO_ACTIVE:-}" == "1" ]]; then
+    log_error "REFUSED: cannot write --auto/--forecast output back into the ledger tree."
+    log_error "The auto rule would fire again on the derived postings (double-count hazard)."
+    log_error "Use 'ww ledger explain' to VIEW the computed state. It is read-only."
+    return 1
+  fi
+
+  # Also refuse if target is inside the ledger tree and content smells like
+  # materialised auto output (belt-and-suspenders)
+  if [[ -n "$target_file" && -n "${WORKWARRIOR_BASE:-}" ]]; then
+    local ledger_dir="${WORKWARRIOR_BASE}/ledgers"
+    if [[ "$target_file" == "$ledger_dir"* ]]; then
+      # Check if content has the telltale of auto-expanded rules
+      if echo "$content" | grep -qE 'backlog:|accrued-' 2>/dev/null; then
+        if [[ "${_LEDGER_WRITEBACK_FORCE:-}" != "1" ]]; then
+          log_error "REFUSED: content appears to contain auto-derived postings."
+          log_error "Writing it into the ledger tree would cause double-counting."
+          return 1
+        fi
+      fi
+    fi
+  fi
+
+  return 0
+}
+
 # Resolve the passthrough target file for an optional selected ledger name.
 # With a name: resolve via the schema owner (error if unknown / no active
 # profile). Without: the profile default (0 extra processes when LEDGER_F is set).

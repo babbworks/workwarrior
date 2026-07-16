@@ -1,0 +1,27 @@
+; rules.journal — hledger auto-posting rules for this profile.
+;
+; THE ACCRUAL RULE (TASK-LED-016): work creates obligation.
+; An hour spent on a project accrues a liability against that project.
+;
+; OPT-IN ONLY. These rules fire only when hledger is invoked with --auto.
+; Reports are LITERAL by default — a user who does not ask for derived
+; postings must never see them.
+;
+; THE HAZARD: `print --auto` output MUST NEVER be written back into a journal
+; that still holds these rules. The rule fires again on the posting it created,
+; producing 2× the original amount (verified: 1.2h becomes 2.4h). This is
+; enforced in lib/ledger-dispatch.sh: any write-back of --auto output is refused.
+;
+; COEFFICIENT: set to 0 by default (inert). Change it to activate the rule.
+; A coefficient of 0.15 means "for every 8 hours of work, 1.2 hours of
+; review/debt-servicing obligation is accrued."
+;
+; Adjust per profile. A research profile might set 0.0 (pure exploration,
+; no debt). A production profile might set 0.20 (stricter).
+
+; ── Accrual: time:project:* → backlog:tech-debt ───────────────────────────────
+; Uncomment and set coefficient to activate:
+;
+; = time:project:*
+;     backlog:tech-debt                *0.00
+;     time:accrued-review             *-0.00

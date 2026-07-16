@@ -76,7 +76,7 @@ for task in data:
     if ts == 0:
         continue
 
-    c = json.dumps({'src':'task','prof':prof,'proj':proj,'tags':tags,'name':desc}, separators=(',',':'))
+    c = json.dumps({'src':'task','prof':prof,'actor':f'profile:{prof}','proj':proj,'tags':tags,'name':desc}, separators=(',',':'))
     print(f'{ts} T {action} {uuid} {c}')
 
     if start:
@@ -143,7 +143,7 @@ for interval in data:
         continue
     proj = first_project(tags)
     obj  = h12(start, json.dumps(tags))
-    c    = json.dumps({'src':'timew','prof':prof,'proj':proj,'tags':tags}, separators=(',',':'))
+    c    = json.dumps({'src':'timew','prof':prof,'actor':f'profile:{prof}','proj':proj,'tags':tags}, separators=(',',':'))
     print(f'{ts_start} B start {obj} {c}')
     if ts_end > 0:
         print(f'{ts_end} B stop {obj} {c}')

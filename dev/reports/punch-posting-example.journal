@@ -1,0 +1,60 @@
+; Punch Posting Worked Example — LED-014
+; This file must pass: hledger -f <this-file> check
+; Expected: actors run negative, time:project positive, total zero.
+;
+; Three actors, two projects, one reconciled punch.
+
+; ── Day 1: 2026-07-12 ────────────────────────────────────────────────────────
+
+2026-07-12 * punch  Marta Ruiz -> lathe-01
+    ; stream:obj=a3f8c92b1e4d
+    ; stream:actor=human:marta.k7x2
+    ; stream:start=1752300142
+    ; stream:end=1752308342
+    time:project:line-a          2.28 h
+    actors:human:marta.k7x2    -2.28 h
+
+2026-07-12 * punch  Claude Ledger -> ledger-refactor
+    ; stream:obj=b7e2d4f109ac
+    ; stream:actor=agent:claude-ledger.p3n1
+    ; stream:start=1752301200
+    ; stream:end=1752303960
+    time:project:ledger          0.77 h
+    actors:agent:claude-ledger.p3n1    -0.77 h
+
+2026-07-12 * punch  Haas ST-20 -> workorder-8891
+    ; stream:obj=c4d9e1f2a3b5
+    ; stream:actor=machine:lathe-01.d4m8
+    ; stream:start=1752300000
+    ; stream:end=1752314400
+    time:project:line-a          4.00 h
+    actors:machine:lathe-01.d4m8    -4.00 h
+
+; ── Day 2: 2026-07-13 — includes a reconciled punch ──────────────────────────
+
+2026-07-13 * punch  Marta Ruiz -> lathe-01
+    ; stream:obj=d5e6f7a8b9c0
+    ; stream:actor=human:marta.k7x2
+    ; stream:start=1752386400
+    ; stream:end=1752415200
+    time:project:line-a          8.00 h
+    actors:human:marta.k7x2    -8.00 h
+
+2026-07-13 * punch  Marta Ruiz -> press-north  ; reconciled
+    ; stream:obj=e1f2a3b4c5d6
+    ; stream:actor=human:marta.k7x2
+    ; stream:start=1752415200
+    ; stream:end=1752418800
+    ; reconciled:by=human:morgen
+    ; reconciled:at=1752420000
+    ; reconciled:reason=shift boundary
+    time:project:line-a          1.00 h
+    actors:human:marta.k7x2    -1.00 h
+
+2026-07-13 * punch  Claude Ledger -> stream-schema
+    ; stream:obj=f2a3b4c5d6e7
+    ; stream:actor=agent:claude-ledger.p3n1
+    ; stream:start=1752386400
+    ; stream:end=1752397200
+    time:project:stream          3.00 h
+    actors:agent:claude-ledger.p3n1    -3.00 h
