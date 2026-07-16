@@ -33,5 +33,5 @@ Risk notes:           (Orchestrator) GitBook config fix (.gitbook.yaml points at
                       Part 4 — do not touch it here. Some tools/CI may reference readme.md
                       lowercase; grep before renaming.
 
-Status:               pending
+Status:               complete
 Taskwarrior:          (assign live TW id on dispatch) status:pending

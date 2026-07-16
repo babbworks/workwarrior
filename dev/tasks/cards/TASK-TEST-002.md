@@ -6,15 +6,15 @@ Acceptance criteria:  1. CI workflow runs baseline suites for touched areas.
                       2. Failures block merge until resolved.
                       3. CI output clearly maps failures to gate criteria.
 
-Write scope:          /Users/mp/ww/.github/workflows/workwarrior-tests.yml
-                      /Users/mp/ww/dev/tests/TESTING-QUICK-START.md
-                      /Users/mp/ww/dev/workflows/feature-delivery.md
+Write scope:          ~/ww/.github/workflows/workwarrior-tests.yml
+                      ~/ww/dev/tests/TESTING-QUICK-START.md
+                      ~/ww/dev/workflows/feature-delivery.md
 
 Tests required:       gh workflow run dry-run (or local lint of workflow)
-                      bats /Users/mp/ww/dev/tests/*.bats
-                      bash /Users/mp/ww/dev/tests/run-integration-tests.sh
+                      bats ~/ww/dev/tests/*.bats
+                      bash ~/ww/dev/tests/run-integration-tests.sh
 
-Rollback:             git checkout /Users/mp/ww/.github/workflows/workwarrior-tests.yml /Users/mp/ww/dev/tests/TESTING-QUICK-START.md /Users/mp/ww/dev/workflows/feature-delivery.md
+Rollback:             git checkout ~/ww/.github/workflows/workwarrior-tests.yml ~/ww/dev/tests/TESTING-QUICK-START.md ~/ww/dev/workflows/feature-delivery.md
 
 Fragility:            None
 

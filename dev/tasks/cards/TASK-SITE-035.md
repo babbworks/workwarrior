@@ -13,9 +13,9 @@ Acceptance criteria:  1. Lists add flow handles fetch/JSON failures with visible
                          (new list + refresh) alongside add-item flow.
                       5. Manual smoke check: create/switch list, add item, edit item, remove item.
 
-Write scope:          /Users/mp/ww/services/browser/static/index.html
-                      /Users/mp/ww/services/browser/static/app.js
-                      /Users/mp/ww/dev/tasks/cards/TASK-SITE-035.md
+Write scope:          ~/ww/services/browser/static/index.html
+                      ~/ww/services/browser/static/app.js
+                      ~/ww/dev/tasks/cards/TASK-SITE-035.md
 
 Tests required:       node --check services/browser/static/app.js
                       python3 -m py_compile services/browser/server.py

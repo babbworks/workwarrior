@@ -9,14 +9,14 @@ Acceptance criteria:  1. Every file in lib/ and services/custom/ has `set -euo p
                       3. Full BATS suite passes after the change (set -u may expose latent bugs).
                       4. Any latent bugs exposed by -u are fixed in the same task.
 
-Write scope:          /Users/mp/ww/bin/ww
-                      /Users/mp/ww/lib/*.sh  (all 24 files)
-                      /Users/mp/ww/services/custom/*.sh  (all 6 files)
+Write scope:          ~/ww/bin/ww
+                      ~/ww/lib/*.sh  (all 24 files)
+                      ~/ww/services/custom/*.sh  (all 6 files)
 
 Tests required:       bats dev/tests/
                       Manual: ww help; ww profile list; i help
 
-Rollback:             git checkout /Users/mp/ww/bin/ww $(git ls-files /Users/mp/ww/lib/*.sh) $(git ls-files /Users/mp/ww/services/custom/*.sh)
+Rollback:             git checkout ~/ww/bin/ww $(git ls-files ~/ww/lib/*.sh) $(git ls-files ~/ww/services/custom/*.sh)
 
 Fragility:            SERIALIZED: bin/ww
                       HIGH FRAGILITY context: lib/github-*.sh, lib/sync-*.sh — adding -u may expose

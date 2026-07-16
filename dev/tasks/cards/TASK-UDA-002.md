@@ -38,9 +38,9 @@ Acceptance criteria:  1. A unicode indicator map is defined in dev/config/uda-in
                       6. User can override any indicator via ww profile uda add --advanced
                          or ww profile uda perm <name> indicator:<char>.
 
-Write scope:          /Users/mp/ww/dev/config/uda-indicator-map.yaml  (new)
-                      /Users/mp/ww/services/profile/subservices/uda-manager.sh
-                      /Users/mp/ww/bin/ww  (indicator assignment in uda add)
+Write scope:          ~/ww/dev/config/uda-indicator-map.yaml  (new)
+                      ~/ww/services/profile/subservices/uda-manager.sh
+                      ~/ww/bin/ww  (indicator assignment in uda add)
 
 Tests required:       Manual: task list with indicator column after adding UDAs
                       bats dev/tests/test-profile-uda.bats (indicator written to .taskrc)

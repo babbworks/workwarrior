@@ -6,19 +6,19 @@ Acceptance criteria:  1. Output-mode policy is documented in CSSOT and help.
                       2. Read/list/status/check commands support `--json`.
                       3. Default output remains compact human for daily terminal use.
 
-Write scope:          /Users/mp/ww/bin/ww
-                      /Users/mp/ww/lib/core-utils.sh
-                      /Users/mp/ww/docs/usage-examples.md
-                      /Users/mp/ww/dev/config/command-syntax.yaml
+Write scope:          ~/ww/bin/ww
+                      ~/ww/lib/core-utils.sh
+                      ~/ww/docs/usage-examples.md
+                      ~/ww/dev/config/command-syntax.yaml
 
-Tests required:       /Users/mp/ww/bin/ww profile list
-                      /Users/mp/ww/bin/ww profile list --json
-                      /Users/mp/ww/bin/ww service list --json
-                      bats /Users/mp/ww/dev/tests/test-scripts-integration.sh
+Tests required:       ~/ww/bin/ww profile list
+                      ~/ww/bin/ww profile list --json
+                      ~/ww/bin/ww service list --json
+                      bats ~/ww/dev/tests/test-scripts-integration.sh
 
-Rollback:             git checkout /Users/mp/ww/bin/ww /Users/mp/ww/lib/core-utils.sh /Users/mp/ww/docs/usage-examples.md /Users/mp/ww/dev/config/command-syntax.yaml
+Rollback:             git checkout ~/ww/bin/ww ~/ww/lib/core-utils.sh ~/ww/docs/usage-examples.md ~/ww/dev/config/command-syntax.yaml
 
-Fragility:            SERIALIZED: /Users/mp/ww/bin/ww
+Fragility:            SERIALIZED: ~/ww/bin/ww
 
 Risk notes:           Existing behavior affected: output rendering and scriptability of command results.
                       Tests currently covering write scope: integration tests plus manual output checks.

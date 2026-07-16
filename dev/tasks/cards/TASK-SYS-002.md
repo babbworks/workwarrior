@@ -6,14 +6,14 @@ Acceptance criteria:  1. `verify-phase1` output groups failures by category (str
                       2. Expected rollout failures are clearly labeled with next action.
                       3. No false-negative checks from missing fallback directories (`audits`/`outputs`).
 
-Write scope:          /Users/mp/ww/dev/scripts/verify-phase1.sh
-                      /Users/mp/ww/dev/config/phase1-checklist.txt
-                      /Users/mp/ww/dev/README.md
+Write scope:          ~/ww/dev/scripts/verify-phase1.sh
+                      ~/ww/dev/config/phase1-checklist.txt
+                      ~/ww/dev/README.md
 
-Tests required:       /Users/mp/ww/dev/bin/wwctl verify-phase1
-                      /Users/mp/ww/dev/bin/wwctl status
+Tests required:       ~/ww/dev/bin/wwctl verify-phase1
+                      ~/ww/dev/bin/wwctl status
 
-Rollback:             git checkout /Users/mp/ww/dev/scripts/verify-phase1.sh /Users/mp/ww/dev/config/phase1-checklist.txt /Users/mp/ww/dev/README.md
+Rollback:             git checkout ~/ww/dev/scripts/verify-phase1.sh ~/ww/dev/config/phase1-checklist.txt ~/ww/dev/README.md
 
 Fragility:            None
 

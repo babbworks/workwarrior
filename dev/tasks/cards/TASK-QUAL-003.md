@@ -11,7 +11,7 @@ Acceptance criteria:  1. Every script in functions/ is traced: is it sourced, ca
                          intentionally separate with a comment explaining why.
                       4. After cleanup, no file in functions/ is a Gate E violation (unexplained TODO).
 
-Write scope:          /Users/mp/ww/functions/  (audit and delete only — no new code)
+Write scope:          ~/ww/functions/  (audit and delete only — no new code)
 
 Tests required:       bats dev/tests/
                       Manual: confirm ww and shell aliases still work after any deletions

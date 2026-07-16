@@ -7,7 +7,7 @@ Acceptance criteria:  1. git status on a clean working tree shows none of:
                       2. .gitignore covers: **/.DS_Store, *.sqlite3, github-sync/,
                          profiles/*/.config/, profiles/*/list/
                       3. bin/wwctl verify-phase1 passes all hygiene checks
-Write scope:          /Users/mp/ww/.gitignore
+Write scope:          ~/ww/.gitignore
                       git rm --cached for already-tracked artifacts (no file content change)
 Tests required:       git status (verify clean output)
                       bin/wwctl verify-phase1 (hygiene section)

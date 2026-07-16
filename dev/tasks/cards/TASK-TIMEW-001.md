@@ -40,15 +40,15 @@ Acceptance criteria:  1. ww timew extensions list
 
                       7. timew extensions domain added to CSSOT
 
-Write scope:          /Users/mp/ww/bin/ww
-                      /Users/mp/ww/dev/config/command-syntax.yaml
-                      /Users/mp/ww/docs/taskwarrior-extensions/timew-billable-integration.md  (new)
+Write scope:          ~/ww/bin/ww
+                      ~/ww/dev/config/command-syntax.yaml
+                      ~/ww/docs/taskwarrior-extensions/timew-billable-integration.md  (new)
 
 Tests required:       Manual: ww timew extensions install billable; timew report billable
                       bats dev/tests/ (regression check)
 
-Rollback:             git checkout /Users/mp/ww/bin/ww
-                      git checkout /Users/mp/ww/dev/config/command-syntax.yaml
+Rollback:             git checkout ~/ww/bin/ww
+                      git checkout ~/ww/dev/config/command-syntax.yaml
                       rm $TIMEWARRIORDB/extensions/billable
 
 Fragility:            SERIALIZED: bin/ww

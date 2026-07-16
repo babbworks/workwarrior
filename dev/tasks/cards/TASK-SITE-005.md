@@ -174,10 +174,10 @@ Acceptance criteria:
 
 ---
 
-Write scope:          /Users/mp/ww/services/browser/server.py        (update /data/ledger + add GET /data/commands)
-                      /Users/mp/ww/services/browser/static/app.js    (top bar stats, section polish, typeahead, terminal position)
-                      /Users/mp/ww/services/browser/static/index.html (top bar markup, terminal position button)
-                      /Users/mp/ww/services/browser/static/style.css  (top bar styles, pulsing dot, indented ledger, typeahead hints)
+Write scope:          ~/ww/services/browser/server.py        (update /data/ledger + add GET /data/commands)
+                      ~/ww/services/browser/static/app.js    (top bar stats, section polish, typeahead, terminal position)
+                      ~/ww/services/browser/static/index.html (top bar markup, terminal position button)
+                      ~/ww/services/browser/static/style.css  (top bar styles, pulsing dot, indented ledger, typeahead hints)
 
 Tests required:       bats dev/tests/test-browser.bats
                       bats dev/tests/test-browser-data.bats

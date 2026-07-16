@@ -60,10 +60,10 @@ Acceptance criteria:  1. ww profile sync configure
                          - Include credential distribution guidance
                          - Include conflict resolution guidance
 
-Write scope:          /Users/mp/ww/bin/ww
-                      /Users/mp/ww/services/profile/sync.sh  (new service)
-                      /Users/mp/ww/docs/sync-setup.md  (new)
-                      /Users/mp/ww/dev/config/command-syntax.yaml
+Write scope:          ~/ww/bin/ww
+                      ~/ww/services/profile/sync.sh  (new service)
+                      ~/ww/docs/sync-setup.md  (new)
+                      ~/ww/dev/config/command-syntax.yaml
 
 Tests required:       Integration tests only — requires a live TaskChampion sync server
                       Unit tests for config write/read logic

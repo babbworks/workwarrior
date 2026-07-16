@@ -43,12 +43,12 @@ Acceptance criteria:  1. `ww routines` command family exists with list/new/edit/
                       5. Integration doc written at docs/taskwarrior-extensions/cron-integration.md.
                       6. BATS coverage added for routines list/new/run/status.
 
-Write scope:          /Users/mp/ww/bin/ww
-                      /Users/mp/ww/dev/config/command-syntax.yaml
-                      /Users/mp/ww/docs/taskwarrior-extensions/cron-integration.md
-                      /Users/mp/ww/dev/tests/test-routines.bats
-                      /Users/mp/ww/docs/usage-examples.md
-                      /Users/mp/ww/services/README.md
+Write scope:          ~/ww/bin/ww
+                      ~/ww/dev/config/command-syntax.yaml
+                      ~/ww/docs/taskwarrior-extensions/cron-integration.md
+                      ~/ww/dev/tests/test-routines.bats
+                      ~/ww/docs/usage-examples.md
+                      ~/ww/services/README.md
 
 Status:               complete
 

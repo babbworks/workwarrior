@@ -6,16 +6,16 @@ Acceptance criteria:  1. A script maps change type to required tests from config
                       2. Verifier flow uses this mapping before sign-off.
                       3. Missing required tests block completion.
 
-Write scope:          /Users/mp/ww/dev/config/test-baseline.yaml
-                      /Users/mp/ww/dev/scripts/select-tests.sh
-                      /Users/mp/ww/dev/scripts/verify-phase1.sh
-                      /Users/mp/ww/dev/workflows/feature-delivery.md
+Write scope:          ~/ww/dev/config/test-baseline.yaml
+                      ~/ww/dev/scripts/select-tests.sh
+                      ~/ww/dev/scripts/verify-phase1.sh
+                      ~/ww/dev/workflows/feature-delivery.md
 
-Tests required:       bash /Users/mp/ww/dev/scripts/select-tests.sh lib
-                      bash /Users/mp/ww/dev/scripts/select-tests.sh service
-                      bash /Users/mp/ww/dev/scripts/select-tests.sh github_sync
+Tests required:       bash ~/ww/dev/scripts/select-tests.sh lib
+                      bash ~/ww/dev/scripts/select-tests.sh service
+                      bash ~/ww/dev/scripts/select-tests.sh github_sync
 
-Rollback:             git checkout /Users/mp/ww/dev/config/test-baseline.yaml /Users/mp/ww/dev/scripts/select-tests.sh /Users/mp/ww/dev/scripts/verify-phase1.sh /Users/mp/ww/dev/workflows/feature-delivery.md
+Rollback:             git checkout ~/ww/dev/config/test-baseline.yaml ~/ww/dev/scripts/select-tests.sh ~/ww/dev/scripts/verify-phase1.sh ~/ww/dev/workflows/feature-delivery.md
 
 Fragility:            None
 

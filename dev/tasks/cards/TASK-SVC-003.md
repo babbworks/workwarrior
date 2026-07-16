@@ -6,18 +6,18 @@ Acceptance criteria:  1. `ww service list` enumerates available services with sh
                       2. `ww service info <name>` shows command syntax and scope requirements.
                       3. `ww service help <name>` routes to detailed usage help.
 
-Write scope:          /Users/mp/ww/bin/ww
-                      /Users/mp/ww/services/README.md
-                      /Users/mp/ww/docs/service-development.md
-                      /Users/mp/ww/dev/config/command-syntax.yaml
+Write scope:          ~/ww/bin/ww
+                      ~/ww/services/README.md
+                      ~/ww/docs/service-development.md
+                      ~/ww/dev/config/command-syntax.yaml
 
-Tests required:       bats /Users/mp/ww/dev/tests/test-service-discovery.bats
-                      bash /Users/mp/ww/dev/tests/test-service-discovery.sh
-                      /Users/mp/ww/bin/ww service list
+Tests required:       bats ~/ww/dev/tests/test-service-discovery.bats
+                      bash ~/ww/dev/tests/test-service-discovery.sh
+                      ~/ww/bin/ww service list
 
-Rollback:             git checkout /Users/mp/ww/bin/ww /Users/mp/ww/services/README.md /Users/mp/ww/docs/service-development.md /Users/mp/ww/dev/config/command-syntax.yaml
+Rollback:             git checkout ~/ww/bin/ww ~/ww/services/README.md ~/ww/docs/service-development.md ~/ww/dev/config/command-syntax.yaml
 
-Fragility:            SERIALIZED: /Users/mp/ww/bin/ww
+Fragility:            SERIALIZED: ~/ww/bin/ww
 
 Risk notes:           Existing behavior affected: service routing and help behavior.
                       Tests currently covering write scope: service discovery tests.

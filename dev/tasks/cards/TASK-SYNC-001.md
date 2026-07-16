@@ -9,8 +9,8 @@ Acceptance criteria:  1. github-api.sh: tests for check_gh_cli (not installed, n
                       4. sync-pull.sh / sync-push.sh: at least one happy-path and one error-path test each using mocked gh CLI.
                       5. All new tests pass in bats dev/tests/.
 
-Write scope:          /Users/mp/ww/dev/tests/test-github-sync.bats  (new file)
-                      /Users/mp/ww/dev/tests/test-sync-state.bats   (new file)
+Write scope:          ~/ww/dev/tests/test-github-sync.bats  (new file)
+                      ~/ww/dev/tests/test-sync-state.bats   (new file)
 
 Tests required:       bats dev/tests/test-github-sync.bats
                       bats dev/tests/test-sync-state.bats

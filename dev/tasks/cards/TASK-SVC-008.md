@@ -18,4 +18,4 @@ Write scope:          - `services/bookbuilder/` → `services/saves/` (directory
 
 Notes:                priority: H · area: cli browser · created: 2026-04-27
 
-Status:               pending
+Status:               complete

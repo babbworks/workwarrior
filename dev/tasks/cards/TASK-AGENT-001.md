@@ -26,6 +26,6 @@ Risk notes:           Low. Additive only; existing guidance not deleted until ve
 
 Notes:                priority: M · area: system · created: 2026-04-27
 
-Status:               pending
+Status:               complete
 
 Taskwarrior:          wwdev task (d196baab) status:pending

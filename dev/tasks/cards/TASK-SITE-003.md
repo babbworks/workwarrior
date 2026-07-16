@@ -139,11 +139,11 @@ Acceptance criteria:
 
 ---
 
-Write scope:          /Users/mp/ww/services/browser/static/index.html   (new)
-                      /Users/mp/ww/services/browser/static/style.css    (new)
-                      /Users/mp/ww/services/browser/static/app.js       (new)
-                      /Users/mp/ww/services/browser/server.py           (update _handle_index + add static file serving)
-                      /Users/mp/ww/dev/tests/test-browser.bats              (add Wave 2 smoke tests)
+Write scope:          ~/ww/services/browser/static/index.html   (new)
+                      ~/ww/services/browser/static/style.css    (new)
+                      ~/ww/services/browser/static/app.js       (new)
+                      ~/ww/services/browser/server.py           (update _handle_index + add static file serving)
+                      ~/ww/dev/tests/test-browser.bats              (add Wave 2 smoke tests)
 
 ---
 
@@ -167,9 +167,9 @@ Tests required:       bats dev/tests/test-browser.bats
                       Manual: ww browser (open in browser, verify layout, sidebar, terminal line)
                       Manual: Tab key toggles mode; Enter executes command; Arrow-up recalls history
 
-Rollback:             rm -rf /Users/mp/ww/services/browser/static/
-                      git checkout /Users/mp/ww/services/browser/server.py
-                      git checkout /Users/mp/ww/dev/tests/test-browser.bats
+Rollback:             rm -rf ~/ww/services/browser/static/
+                      git checkout ~/ww/services/browser/server.py
+                      git checkout ~/ww/dev/tests/test-browser.bats
 
 Fragility:            None — new static files + minimal server.py change to _handle_index()
                       No changes to bin/ww in this wave

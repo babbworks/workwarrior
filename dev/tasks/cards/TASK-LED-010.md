@@ -58,5 +58,5 @@ Resolution:
   NOT self-approved: no Verifier sign-off exists for LED-004..011. One pass over the
   merged result is owed.
 
-Status:               in-review
+Status:               complete
 Taskwarrior:          wwdev task <id> (<uuid>) status:pending

@@ -58,9 +58,9 @@ Acceptance criteria:  1. ww profile urgency show
                              ─────────────────
                              total:       10.4
 
-Write scope:          /Users/mp/ww/bin/ww
-                      /Users/mp/ww/services/profile/urgency.sh  (new service)
-                      /Users/mp/ww/dev/config/command-syntax.yaml
+Write scope:          ~/ww/bin/ww
+                      ~/ww/services/profile/urgency.sh  (new service)
+                      ~/ww/dev/config/command-syntax.yaml
 
 Tests required:       bats dev/tests/
                       Manual: ww profile urgency show / tune / explain <id>

@@ -1,22 +1,22 @@
 ## TASK-SYS-001: Fully activate /system control plane
 
-Goal:                 Make `/Users/mp/ww/system` the single active operating system for project development.
+Goal:                 Make `~/ww/system` the single active operating system for project development.
 
 Acceptance criteria:  1. All operator docs/scripts reference `dev/` paths only.
                       2. `bin/wwctl status` and `bin/wwctl verify-phase1` run without path-resolution errors.
                       3. No stale references to `devdev/*` or `dev/main/*` remain in active files.
 
-Write scope:          /Users/mp/ww/dev/README.md
-                      /Users/mp/ww/dev/scripts/common.sh
-                      /Users/mp/ww/dev/scripts/system-status.sh
-                      /Users/mp/ww/dev/scripts/verify-phase1.sh
-                      /Users/mp/ww/dev/workflows/phase1.md
+Write scope:          ~/ww/dev/README.md
+                      ~/ww/dev/scripts/common.sh
+                      ~/ww/dev/scripts/system-status.sh
+                      ~/ww/dev/scripts/verify-phase1.sh
+                      ~/ww/dev/workflows/phase1.md
 
-Tests required:       /Users/mp/ww/dev/bin/wwctl status
-                      /Users/mp/ww/dev/bin/wwctl verify-phase1
-                      rg -n "devdev/|dev/main" /Users/mp/ww/system
+Tests required:       ~/ww/dev/bin/wwctl status
+                      ~/ww/dev/bin/wwctl verify-phase1
+                      rg -n "devdev/|dev/main" ~/ww/system
 
-Rollback:             git checkout /Users/mp/ww/dev/README.md /Users/mp/ww/dev/scripts/common.sh /Users/mp/ww/dev/scripts/system-status.sh /Users/mp/ww/dev/scripts/verify-phase1.sh /Users/mp/ww/dev/workflows/phase1.md
+Rollback:             git checkout ~/ww/dev/README.md ~/ww/dev/scripts/common.sh ~/ww/dev/scripts/system-status.sh ~/ww/dev/scripts/verify-phase1.sh ~/ww/dev/workflows/phase1.md
 
 Fragility:            None
 

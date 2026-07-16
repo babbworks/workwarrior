@@ -58,5 +58,5 @@ Risk notes:           (Orchestrator) The audit's framing is right and worth keep
                       trustworthy. This is the same discipline the ledger enforces — corrections
                       are entries, never erasures; and nothing fabricates a result to look tidy.
 
-Status:               pending
+Status:               complete
 Taskwarrior:          (assign live TW id on dispatch)

@@ -41,10 +41,10 @@ Acceptance criteria:  1. ww profile density install: pipx install twdensity + id
                       4. ww profile uda list shows [extension:twdensity] on density UDAs
                       5. docs/taskwarrior-extensions/twdensity-integration.md written
 
-Write scope:          /Users/mp/ww/bin/ww
-                      /Users/mp/ww/dev/config/service-uda-registry.yaml
-                      /Users/mp/ww/dev/config/command-syntax.yaml
-                      /Users/mp/ww/docs/taskwarrior-extensions/twdensity-integration.md
+Write scope:          ~/ww/bin/ww
+                      ~/ww/dev/config/service-uda-registry.yaml
+                      ~/ww/dev/config/command-syntax.yaml
+                      ~/ww/docs/taskwarrior-extensions/twdensity-integration.md
 
 Fragility:            SERIALIZED: bin/ww
                       Low — additive .taskrc writes only

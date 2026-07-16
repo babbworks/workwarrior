@@ -14,14 +14,14 @@ Acceptance criteria:  1. ww tui launches taskwarrior-tui with --taskrc and --tas
                       7. docs/taskwarrior-extensions/tui-integration.md written with assessment,
                          decision rationale, profile config patterns, future options.
 
-Write scope:          /Users/mp/ww/bin/ww
-                      /Users/mp/ww/dev/config/command-syntax.yaml
-                      /Users/mp/ww/docs/taskwarrior-extensions/tui-integration.md  (new)
+Write scope:          ~/ww/bin/ww
+                      ~/ww/dev/config/command-syntax.yaml
+                      ~/ww/docs/taskwarrior-extensions/tui-integration.md  (new)
 
 Tests required:       Manual: ww tui help; ww tui install; ww tui (with active profile)
 
-Rollback:             git checkout /Users/mp/ww/bin/ww
-                      git checkout /Users/mp/ww/dev/config/command-syntax.yaml
+Rollback:             git checkout ~/ww/bin/ww
+                      git checkout ~/ww/dev/config/command-syntax.yaml
 
 Fragility:            SERIALIZED: bin/ww
 

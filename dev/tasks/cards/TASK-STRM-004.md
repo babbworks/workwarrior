@@ -58,5 +58,5 @@ Risk notes:           (Orchestrator) A STALE PUNCH IS A HUNG AGENT. An agent tha
                       different acts, and closing belongs to STRM-005.
                       (Builder) Read-only. This card MUST NOT append any event.
 
-Status:               pending
+Status:               complete
 Taskwarrior:          (assign live TW id on dispatch)

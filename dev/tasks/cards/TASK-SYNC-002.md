@@ -13,15 +13,15 @@ Acceptance criteria:  1. github-sync-state.sh:182 — bare `mv` after jq transfo
                       4. Each fix has a BATS test that triggers the failure path and verifies
                          correct error handling / no data loss.
 
-Write scope:          /Users/mp/ww/lib/github-sync-state.sh
-                      /Users/mp/ww/lib/sync-detector.sh
-                      /Users/mp/ww/lib/profile-manager.sh
-                      /Users/mp/ww/dev/tests/test-sync-state.bats  (new or extend from SYNC-001)
+Write scope:          ~/ww/lib/github-sync-state.sh
+                      ~/ww/lib/sync-detector.sh
+                      ~/ww/lib/profile-manager.sh
+                      ~/ww/dev/tests/test-sync-state.bats  (new or extend from SYNC-001)
 
 Tests required:       bats dev/tests/test-sync-state.bats
                       bats dev/tests/
 
-Rollback:             git checkout /Users/mp/ww/lib/github-sync-state.sh /Users/mp/ww/lib/sync-detector.sh /Users/mp/ww/lib/profile-manager.sh
+Rollback:             git checkout ~/ww/lib/github-sync-state.sh ~/ww/lib/sync-detector.sh ~/ww/lib/profile-manager.sh
 
 Fragility:            HIGH FRAGILITY: lib/github-sync-state.sh, lib/sync-detector.sh
                       HIGH RISK: lib/profile-manager.sh — profile data loss on failed restore

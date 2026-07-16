@@ -79,5 +79,5 @@ Resolution:
   Verified: injection suite green; the 5 journal suites still 88/88; check-regression.sh
   clean against the committed baseline.
 
-Status:               in-review
+Status:               complete
 Taskwarrior:          (assign live TW id on dispatch)

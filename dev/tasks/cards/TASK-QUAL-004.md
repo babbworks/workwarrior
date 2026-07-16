@@ -15,14 +15,14 @@ Acceptance criteria:  1. filter_system_tags() correctly removes SYSTEM_TAGS memb
                          empty input returns empty array, sync:* tag removed.
                       5. All currently passing tests remain passing (no regressions).
 
-Write scope:          /Users/mp/ww/lib/field-mapper.sh
-                      /Users/mp/ww/lib/sync-pull.sh
-                      /Users/mp/ww/dev/tests/test-github-sync.bats
+Write scope:          ~/ww/lib/field-mapper.sh
+                      ~/ww/lib/sync-pull.sh
+                      ~/ww/dev/tests/test-github-sync.bats
 
 Tests required:       bats dev/tests/test-github-sync.bats
                       bats dev/tests/
 
-Rollback:             git checkout /Users/mp/ww/lib/field-mapper.sh /Users/mp/ww/lib/sync-pull.sh /Users/mp/ww/dev/tests/test-github-sync.bats
+Rollback:             git checkout ~/ww/lib/field-mapper.sh ~/ww/lib/sync-pull.sh ~/ww/dev/tests/test-github-sync.bats
 
 Fragility:            HIGH FRAGILITY: field-mapper.sh (sync correctness layer), sync-pull.sh
 

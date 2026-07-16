@@ -6,15 +6,15 @@ Acceptance criteria:  1. `.gitignore` covers known runtime artifacts (`.DS_Store
                       2. Already tracked artifacts are untracked safely.
                       3. Hygiene check script can be run before merge.
 
-Write scope:          /Users/mp/ww/.gitignore
-                      /Users/mp/ww/dev/scripts/check-artifacts.sh
-                      /Users/mp/ww/dev/workflows/phase1.md
+Write scope:          ~/ww/.gitignore
+                      ~/ww/dev/scripts/check-artifacts.sh
+                      ~/ww/dev/workflows/phase1.md
 
 Tests required:       git ls-files '*.DS_Store' '*.sqlite3'
-                      bash /Users/mp/ww/dev/scripts/check-artifacts.sh
+                      bash ~/ww/dev/scripts/check-artifacts.sh
                       git status --short
 
-Rollback:             git checkout /Users/mp/ww/.gitignore /Users/mp/ww/dev/scripts/check-artifacts.sh /Users/mp/ww/dev/workflows/phase1.md
+Rollback:             git checkout ~/ww/.gitignore ~/ww/dev/scripts/check-artifacts.sh ~/ww/dev/workflows/phase1.md
 
 Fragility:            None
 

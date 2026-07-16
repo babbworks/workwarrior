@@ -62,5 +62,5 @@ Rescoped:             2026-07-13 — RESCOPED after verification. This card was 
                       blocked on the service existing — only on this export flag, which it
                       does not actually need. Re-evaluate COMM-010's dependency at dispatch.
 
-Status:               pending
+Status:               complete
 Taskwarrior:          wwdev task 10 (c1cc443f-069f-418d-8cbb-e5744d00f787) status:pending

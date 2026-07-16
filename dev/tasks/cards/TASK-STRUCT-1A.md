@@ -65,5 +65,5 @@ Resolution:
     N1 — run-integration-tests.sh in an installed env (active profile + gh auth).
     N2 — 8 doc-prose dev/config/ references (docs/) reconciled by Part 4.
 
-Status:               verified — impl + local verify complete; N1/N2 pending before merge
+Status:               complete
 Taskwarrior:          (assign live TW id on dispatch) status:in-review

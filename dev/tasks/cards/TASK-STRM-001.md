@@ -80,5 +80,5 @@ Resolution:
   Tests 24/24 (test-stream-actor 14, test-stream-schema 10). Regression gate clean (60/60).
   The 5-field encoding is untouched; system events remain IN the log — they are simply not work.
 
-Status:               in-review
+Status:               complete
 Taskwarrior:          (assign live TW id on dispatch)

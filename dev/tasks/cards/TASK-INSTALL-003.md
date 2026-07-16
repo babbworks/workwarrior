@@ -67,4 +67,4 @@ Rebuild the installer to support a 6-preset taxonomy, multi-instance routing via
 
 ## Migration
 
-Production install migrated from `~/ww` (3 profiles) + `~/ww-dev` (19 profiles) → `~/wwv02` (23 profiles, multi preset, cmd `ww`). Shell configs cleaned and regenerated. GitHub package created at `~/wwv02-package/`.
+Production install migrated from `~/ww` (3 profiles) + `~/ww` (19 profiles) → `~/ww` (23 profiles, multi preset, cmd `ww`). Shell configs cleaned and regenerated. GitHub package created at `~/ww/`.

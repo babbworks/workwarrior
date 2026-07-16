@@ -51,10 +51,10 @@ Acceptance criteria:  1. ww schedule enable/disable toggle works per profile
                       5. ww profile uda list shows [extension:taskcheck] on these UDAs
                       6. docs/taskwarrior-extensions/taskcheck-integration.md written
 
-Write scope:          /Users/mp/ww/bin/ww
-                      /Users/mp/ww/dev/config/service-uda-registry.yaml
-                      /Users/mp/ww/dev/config/command-syntax.yaml
-                      /Users/mp/ww/docs/taskwarrior-extensions/taskcheck-integration.md
+Write scope:          ~/ww/bin/ww
+                      ~/ww/dev/config/service-uda-registry.yaml
+                      ~/ww/dev/config/command-syntax.yaml
+                      ~/ww/docs/taskwarrior-extensions/taskcheck-integration.md
 
 Fragility:            SERIALIZED: bin/ww
 

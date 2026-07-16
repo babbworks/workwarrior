@@ -60,5 +60,5 @@ Risk notes:           (Orchestrator) This resolves open question B of ledger-sys
                       work is this card. Work -> debt is that one. Two separate postings, two
                       separate cards.
 
-Status:               pending
+Status:               complete
 Taskwarrior:          (assign live TW id on dispatch)

@@ -6,15 +6,15 @@ Acceptance criteria:  1. Release checklist includes mandatory sign-off fields an
                       2. Release commands/workflow reference checklist gate before tagging.
                       3. Docs explain release gate process clearly.
 
-Write scope:          /Users/mp/ww/dev/gates/release-checklist.md
-                      /Users/mp/ww/dev/gates/all-gates.md
-                      /Users/mp/ww/docs/RELEASE-CHECKLIST.md
-                      /Users/mp/ww/dev/workflows/feature-delivery.md
+Write scope:          ~/ww/dev/gates/release-checklist.md
+                      ~/ww/dev/gates/all-gates.md
+                      ~/ww/docs/RELEASE-CHECKLIST.md
+                      ~/ww/dev/workflows/feature-delivery.md
 
-Tests required:       rg -n "Sign-Off|evidence|Gate D" /Users/mp/ww/dev/gates/release-checklist.md /Users/mp/ww/dev/gates/all-gates.md
+Tests required:       rg -n "Sign-Off|evidence|Gate D" ~/ww/dev/gates/release-checklist.md ~/ww/dev/gates/all-gates.md
                       Manual: walkthrough release workflow and verify checklist gate step exists.
 
-Rollback:             git checkout /Users/mp/ww/dev/gates/release-checklist.md /Users/mp/ww/dev/gates/all-gates.md /Users/mp/ww/docs/RELEASE-CHECKLIST.md /Users/mp/ww/dev/workflows/feature-delivery.md
+Rollback:             git checkout ~/ww/dev/gates/release-checklist.md ~/ww/dev/gates/all-gates.md ~/ww/docs/RELEASE-CHECKLIST.md ~/ww/dev/workflows/feature-delivery.md
 
 Fragility:            None
 

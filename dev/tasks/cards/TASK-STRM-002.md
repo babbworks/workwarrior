@@ -56,5 +56,30 @@ Risk notes:           (Orchestrator) The one-owning-module rule is the whole poi
                       log. There must be no rename path. Forward-compat: an unqualified ID
                       reads as local-instance, so a future registry tier does not break IDs.
 
-Status:               pending
+Status:               complete
+
+Resolution addendum (2026-07-14):
+  STRM-002 implementation is functionally complete (registry module works,
+  23 tests pass) but two design issues surfaced post-verification:
+
+  1. ACTOR ID FORMAT — the original `human:morgen` format is not collision-safe
+     at scale. DESIGN DECISION (accepted):
+     - Three tiers: solo (slug only), team (slug.nano4), enterprise (slug.nano6)
+     - Slug: [a-z0-9][a-z0-9-]*, max 30 chars. Human-readable portion.
+     - Nano: base36 (a-z0-9), 4 or 6 chars. Auto-assigned at registration.
+     - id_scheme stored in config/actors.yaml, set on first stream init.
+     - Federation prefix (instance_id/) deferred — added only when federating.
+     - Examples: human:marta.k7x2, agent:claude-budget.p3n1, machine:haas-lathe.d4m8
+
+  2. SHIPPING — config/actors.yaml must not contain personal data in the repo.
+     FIX: ships with `id_scheme: null` and `actors: {}`. Setup prompted on
+     first stream init. No personal data ever committed.
+
+  REMAINING WORK to close this card:
+  - Update lib/actor-registry.sh: actor_reg_add must auto-append nano suffix
+    based on id_scheme (solo = no suffix, team = 4, enterprise = 6)
+  - Update actor_validate in services/stream/lib/actor.sh to accept the
+    slug.nano format (currently only validates `kind:local-id` as [a-z0-9_-]*)
+  - Add id_scheme setup prompt to stream init path
+  - Update tests for new format
 Taskwarrior:          (assign live TW id on dispatch)

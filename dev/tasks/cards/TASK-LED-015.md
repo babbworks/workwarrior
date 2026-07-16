@@ -61,5 +61,5 @@ Risk notes:           (Orchestrator) THE RULE: derived artifacts are REGENERATED
                       in the test by making manual.journal read-only in a fixture and confirming
                       sync still succeeds.
 
-Status:               pending
+Status:               complete
 Taskwarrior:          (assign live TW id on dispatch)

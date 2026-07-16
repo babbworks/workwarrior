@@ -29,9 +29,9 @@ Acceptance criteria:  1. ww next calls scheduler's `next` command with active pr
                       4. Requires active profile — errors clearly if none active
                       5. docs/taskwarrior-extensions/scheduler-integration.md written
 
-Write scope:          /Users/mp/ww/bin/ww
-                      /Users/mp/ww/dev/config/command-syntax.yaml
-                      /Users/mp/ww/docs/taskwarrior-extensions/scheduler-integration.md
+Write scope:          ~/ww/bin/ww
+                      ~/ww/dev/config/command-syntax.yaml
+                      ~/ww/docs/taskwarrior-extensions/scheduler-integration.md
 
 Fragility:            SERIALIZED: bin/ww
 

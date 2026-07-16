@@ -6,15 +6,15 @@ Acceptance criteria:  1. Milestone rubric includes stability, test coverage, doc
                       2. Each criterion has an evidence source and owner role.
                       3. Milestone status can be evaluated from current reports/checklists.
 
-Write scope:          /Users/mp/ww/dev/reports/production-readiness-rubric.md
-                      /Users/mp/ww/dev/gates/all-gates.md
-                      /Users/mp/ww/docs/RELEASE-CHECKLIST.md
-                      /Users/mp/ww/dev/workflows/feature-delivery.md
+Write scope:          ~/ww/dev/reports/production-readiness-rubric.md
+                      ~/ww/dev/gates/all-gates.md
+                      ~/ww/docs/RELEASE-CHECKLIST.md
+                      ~/ww/dev/workflows/feature-delivery.md
 
-Tests required:       rg -n "production-ready|rubric|evidence" /Users/mp/ww/dev/reports/production-readiness-rubric.md /Users/mp/ww/dev/gates/all-gates.md /Users/mp/ww/docs/RELEASE-CHECKLIST.md
+Tests required:       rg -n "production-ready|rubric|evidence" ~/ww/dev/reports/production-readiness-rubric.md ~/ww/dev/gates/all-gates.md ~/ww/docs/RELEASE-CHECKLIST.md
                       Manual: milestone dry-run against current project status.
 
-Rollback:             git checkout /Users/mp/ww/dev/reports/production-readiness-rubric.md /Users/mp/ww/dev/gates/all-gates.md /Users/mp/ww/docs/RELEASE-CHECKLIST.md /Users/mp/ww/dev/workflows/feature-delivery.md
+Rollback:             git checkout ~/ww/dev/reports/production-readiness-rubric.md ~/ww/dev/gates/all-gates.md ~/ww/docs/RELEASE-CHECKLIST.md ~/ww/dev/workflows/feature-delivery.md
 
 Fragility:            None
 

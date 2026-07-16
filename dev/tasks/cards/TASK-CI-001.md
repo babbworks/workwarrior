@@ -25,6 +25,6 @@ Risk notes:           Low once test baseline is clean. Risk: exposing latent tes
 
 Notes:                priority: L · area: ci · created: 2026-04-27
 
-Status:               pending
+Status:               complete
 
 Taskwarrior:          wwdev task (c6c97477) status:pending

@@ -47,5 +47,5 @@ Risk notes:           (Orchestrator) All 9 confirmed exec:0 in the restructure a
                       deliberately. If a discovery test hardcodes a count of categories, update
                       the expected count in the same change.
 
-Status:               pending
+Status:               complete
 Taskwarrior:          (assign live TW id on dispatch) status:pending

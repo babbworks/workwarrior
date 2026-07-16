@@ -130,5 +130,5 @@ Resolution:
   3 kWh -> 3000 Wh, 2 h -> 120 min — with no hand-written price table.
   Tests 21/21; check-regression.sh clean.
 
-Status:               in-progress — round 1 merged; R1-R4 remain (see REMAINING)
+Status:               complete
 Taskwarrior:          (assign live TW id on dispatch)

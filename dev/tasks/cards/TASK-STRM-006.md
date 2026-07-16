@@ -57,5 +57,5 @@ Risk notes:           (Orchestrator) Criterion 5 (hook/adapter tuple parity) is 
                       from timew's interval record. These MUST agree to the second, or use the
                       interval's own start/end rather than `date +%s`.
 
-Status:               pending
+Status:               complete
 Taskwarrior:          (assign live TW id on dispatch)

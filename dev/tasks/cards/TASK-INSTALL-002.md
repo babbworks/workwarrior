@@ -9,11 +9,11 @@ Acceptance criteria:  1. `journals` bare command lists only journal names define
                       2. Config keys (body, date, tags, title, colors, default, editor) never appear in output.
                       3. Fix handles jrnl.yaml files with multiple top-level sections cleanly.
 
-Write scope:          /Users/mp/ww/lib/shell-integration.sh  (journals() function only)
+Write scope:          ~/ww/lib/shell-integration.sh  (journals() function only)
 
 Tests required:       Manual: activate profile → journals (verify only real journal names shown)
 
-Rollback:             git checkout /Users/mp/ww/lib/shell-integration.sh
+Rollback:             git checkout ~/ww/lib/shell-integration.sh
 
 Fragility:            SERIALIZED: lib/shell-integration.sh
 

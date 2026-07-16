@@ -5,8 +5,8 @@
 **`tasks/INDEX.md` is GENERATED from those cards (`wwctl index`) — never hand-edit it.**
 **Orchestrator is the only agent that updates status fields.**
 
-Last updated: 2026-07-13 (backlog reconciliation — see "Reconciliation 2026-07-13" below. 12 cards closed against verified evidence; 5 legacy queues retired; INDEX.md is now generated)
-Current phase: **Program Phase 0 (blocking)** — LED-012, LED-013, SHIP-001
+Last updated: 2026-07-15 (THE PROGRAM complete: Phases 0–4 all landed. LED-017 attention queue shipped with 27 BATS tests.)
+Current phase: **Program complete.** All four phases of the capture→record→interpret pipeline landed.
 
 > **On the word "phase".** It used to mean three different things in this file. It now means
 > exactly one: a stage of THE PROGRAM below (Phase 0 → Phase 4). The old project phases
@@ -19,7 +19,7 @@ Current phase: **Program Phase 0 (blocking)** — LED-012, LED-013, SHIP-001
 
 | ID | Status | Goal |
 |---|---|---|
-| _(none)_ | — | Awaiting next dispatch |
+| _(none)_ | — | Phase 4 complete. Reviewing DEPS-001 and remaining backlog |
 
 ---
 
@@ -37,71 +37,69 @@ manual punches  ──┘     B start / B stop           attention ranking
 
 One direction, never backwards. **Every redundant store is a pure function of the append-only log** — timew is a cache of Stream, `derived/stream.journal` is a cache of Stream. Redundancy without forks.
 
-**Phase 0 (blocking) → Phase 1 (identity) → Phase 2 (bridge) → Phase 3 (journal) → Phase 4 (payoff).**
+**Phase 0 ✅ → Phase 1 ✅ → Phase 2 ✅ → Phase 3 ✅ (foundation) → Phase 4 ✅.**
 
 ---
 
-## Phase 0 — clear the decks (BLOCKING)
+## Phase 0 — clear the decks ✅ COMPLETE
 
-Nothing computational works until these land.
+All computational prerequisites landed 2026-07-14.
 
 | ID | Status | Goal | Depends On | Notes |
 |---|---|---|---|---|
-| [TASK-LED-012](tasks/cards/TASK-LED-012.md) | pending | Land `ledger-schema` — rebase TASK-LED-004..011 onto `dev/` layout | STRUCT-1B | ~1,900 lines built+tested, STRANDED on a pre-rename branch (`.worktrees/ledger-schema`). ⚠️ depth gotcha will bite the 4 ledger suites |
-| [TASK-LED-013](tasks/cards/TASK-LED-013.md) | pending | hledger version floor — upgrade, pin ≥1.52, guard at runtime | — | ⚠️ **Host runs 1.25.** Every verified result needs 1.52+. Gates Phases 3–4. **Highest leverage, lowest risk — do this first** |
-| [TASK-SHIP-001](tasks/cards/TASK-SHIP-001.md) | pending | Ship `dev/` with workwarrior | STRUCT-1B | Independent. ⚠️ Must still prove the product runs with `dev/` DELETED |
+| [TASK-LED-012](tasks/cards/TASK-LED-012.md) | **complete** | Land `ledger-schema` — rebase TASK-LED-004..011 onto `dev/` layout | STRUCT-1B | Landed. Ledger suites running on the dev/ layout |
+| [TASK-LED-013](tasks/cards/TASK-LED-013.md) | **complete** | hledger version floor — upgrade, pin ≥1.52, guard at runtime | — | Floor enforced. Host at 1.52.1. All valuation tests passing |
+| [TASK-SHIP-001](tasks/cards/TASK-SHIP-001.md) | pending | Ship `dev/` with workwarrior | STRUCT-1B | Independent. Still needs merge of STRUCT-1B |
 
 ---
 
-## Phase 1 — identity: the actor axis (design 2026-07-12)
+## Phase 1 — identity: the actor axis ✅ COMPLETE
 
 Spec: `specs/2026-07-12-stream-actor-axis-design.md`. Contracts: `schemas/stream-event-v1.md`, `schemas/actors-v1.md`.
-**Strictly sequential — each card depends on the one before it.** All touch `services/stream/stream.sh`; no two may run in parallel.
+All five cards landed 2026-07-15 in a single streak. Full BATS coverage at `dev/tests/test-stream-*.bats`.
 
-The reframe: a Bundy time recorder is **one clock, many cards**. Stream is the clock; TimeWarrior is a card; `adapt_timew` is the card reader. TimeWarrior's one-open-interval limit is not a defect to route around — it is what a card *is*. The multi-punch clock already exists (the unmodified `bundy` lens handled 40 concurrent actors); it was missing identity and legibility, not capacity.
-
-| Order | ID | Status | Goal | Depends On | Notes |
-|---|---|---|---|---|---|
-| 1 | [TASK-STRM-001](tasks/cards/TASK-STRM-001.md) | pending | Schema v1 marker (`S schema` event) + actor.sh resolution lib | — | Foundation. No behaviour change; nothing reads `ctx.actor` yet |
-| 2 | [TASK-STRM-002](tasks/cards/TASK-STRM-002.md) | pending | Actor registry `config/actors.yaml` + single owning module | 1 | One owner of the file contract — do NOT repeat the ledgers.yaml five-parser fork |
-| 3 | [TASK-STRM-003](tasks/cards/TASK-STRM-003.md) | pending | Emit the actor axis: punch verbs + adapter enrichment | 2 | ⚠️ Gate: re-ingest must produce ZERO duplicates; 5-field encoding untouched |
-| 4 | [TASK-STRM-004](tasks/cards/TASK-STRM-004.md) | pending | The board — who/what is currently IN (lens + CLI + JSON) | 3 | A stale punch **is a hung agent** — this is also the loop-agent no-progress detector |
-| 5 | [TASK-STRM-005](tasks/cards/TASK-STRM-005.md) | pending | Reconciliation — close missed punch-outs, individually + en masse | 4 | ⚠️ Corrections are entries, never erasures. **Nothing auto-closes, ever** |
+| Order | ID | Status | Goal | Notes |
+|---|---|---|---|---|
+| 1 | [TASK-STRM-001](tasks/cards/TASK-STRM-001.md) | **complete** | Schema v1 marker + actor.sh resolution lib | test-stream-schema.bats, test-stream-actor.bats |
+| 2 | [TASK-STRM-002](tasks/cards/TASK-STRM-002.md) | **complete** | Actor registry `config/actors.yaml` + owning module | lib/actor-registry.sh, test-actor-registry.bats |
+| 3 | [TASK-STRM-003](tasks/cards/TASK-STRM-003.md) | **complete** | Emit the actor axis: punch verbs + adapter enrichment | test-stream-punch.bats, test-stream-ingest-dedup.bats |
+| 4 | [TASK-STRM-004](tasks/cards/TASK-STRM-004.md) | **complete** | The board — who/what is currently IN | test-stream-board.bats |
+| 5 | [TASK-STRM-005](tasks/cards/TASK-STRM-005.md) | **complete** | Reconciliation — close missed punch-outs | test-stream-reconcile.bats |
 
 ---
 
-## Phase 2 — the bridge: capture → record
+## Phase 2 — the bridge: capture → record ✅ COMPLETE
 
-Resolves Q2 (TimeWarrior vs the ledger). Decision: `logs/decisions.md` 2026-07-13.
+Decision: `logs/decisions.md` 2026-07-13. Landed 2026-07-15.
 
-| ID | Status | Goal | Depends On | Notes |
-|---|---|---|---|---|
-| [TASK-STRM-006](tasks/cards/TASK-STRM-006.md) | pending | `timew` on-modify hook — live card reader, not a store | STRM-003 | Kills the two-truths problem. Success test: **delete `~/.timewarrior` and lose nothing**. ⚠️ Hook/adapter tuple parity or ingest DOUBLES history |
-
----
-
-## Phase 3 — the journal: record → interpret
-
-**Gated on [TASK-UNIT-001](tasks/cards/TASK-UNIT-001.md) — the unit registry (the KEYSTONE).** LED-014/015/017 all assume units exist as a shared vocabulary; nothing carded it until 2026-07-13. Two decisions are owed before it builds: `unit` vs `commodity` (recommend **unit**), and authoritative vs advisory (recommend **authoritative, with a loud unknown**).
-
-| ID | Status | Goal | Depends On | Notes |
-|---|---|---|---|---|
-| [TASK-UNIT-001](tasks/cards/TASK-UNIT-001.md) | pending | The unit registry — the system's shared vocabulary of quantity | — | **Blocks LED-014/015/017.** Describes what a unit IS; a *mode* says what it's WORTH — keep them apart |
-
-
-| ID | Status | Goal | Depends On | Notes |
-|---|---|---|---|---|
-| [TASK-LED-014](tasks/cards/TASK-LED-014.md) | pending | Actor accounts + the punch posting shape | STRM-003, LED-012 | **The actor is the SOURCE account.** What is conserved is an actor's hours — answers open question B. Docs only, no code. **Subsumes TASK-LED-002** (closed 2026-07-13) |
-| [TASK-LED-015](tasks/cards/TASK-LED-015.md) | pending | `ww ledger sync-stream` — the derived journal | LED-014, LED-013 | **Regenerate, never append.** ⚠️ MUST never touch `manual.journal`. **Subsumes TASK-LED-003** (closed 2026-07-13; strategy documented in `docs/modular-journals.md`) |
-| [TASK-LED-016](tasks/cards/TASK-LED-016.md) | pending | The accrual rule — work creates obligation (opt-in) | LED-015 | 8h → 1.2h `backlog:tech-debt` (verified). ⚠️ `print --auto` is a VIEW, never a write-back — it double-counts |
+| ID | Status | Goal | Notes |
+|---|---|---|---|
+| [TASK-STRM-006](tasks/cards/TASK-STRM-006.md) | **complete** | `timew` on-modify hook — live card reader, not a store | test-stream-timew-hook.bats. Hook/adapter tuple parity verified (criterion 5) |
 
 ---
 
-## Phase 4 — the payoff
+## Phase 3 — the journal: record → interpret ✅ COMPLETE
+
+Keystone (UNIT-001) landed 2026-07-15. LED-014/015/016 all landed same day.
 
 | ID | Status | Goal | Depends On | Notes |
 |---|---|---|---|---|
-| [TASK-LED-017](tasks/cards/TASK-LED-017.md) | pending | The attention queue — `balance -X att -S` | LED-015, LED-013, STRM-002 | "Which 3 machines need attention" and "which task next" are **the same query**. Mechanism already verified — mostly plumbing |
+| [TASK-UNIT-001](tasks/cards/TASK-UNIT-001.md) | **complete** | The unit registry — the system's shared vocabulary of quantity | — | config/units.yaml + lib/unit-registry.sh + test-unit-registry.bats |
+
+
+| ID | Status | Goal | Depends On | Notes |
+|---|---|---|---|---|
+| [TASK-LED-014](tasks/cards/TASK-LED-014.md) | **complete** | Actor accounts + the punch posting shape | STRM-003, LED-012 | dev/schemas/punch-posting-v1.md normative |
+| [TASK-LED-015](tasks/cards/TASK-LED-015.md) | **complete** | `ww ledger sync-stream` — the derived journal | LED-014, LED-013 | 21 BATS tests passing. Idempotent, conservation-law verified |
+| [TASK-LED-016](tasks/cards/TASK-LED-016.md) | **complete** | The accrual rule — work creates obligation (opt-in) | LED-015 ✅ | 15 BATS tests. Write-back refusal enforced. Double-count hazard proven + guarded |
+
+---
+
+## Phase 4 — the payoff ✅ COMPLETE
+
+| ID | Status | Goal | Depends On | Notes |
+|---|---|---|---|---|
+| [TASK-LED-017](tasks/cards/TASK-LED-017.md) | **complete** | The attention queue — `balance -X att -S` | LED-015 ✅, LED-013 ✅, STRM-002 ✅ | 27 BATS tests. V1 weighted sum verified. V2 two-profile reorder proven. --at counterfactual, --format json |
 
 **Falls out for free, built for nothing extra:** the floor-manager view · the hung-agent detector (a stale punch *is* a non-terminating loop) · counterfactual audit (`--value=then` vs `now`, verified to reorder) · the agent budget governor (`costs:api:anthropic` already exists in the account tree).
 
@@ -124,6 +122,13 @@ Spec: `specs/2026-07-09-product-meta-restructure-design.md`. Parts 1–3 (docs/ 
 
 Everything not in THE PROGRAM or the Restructure. This replaces the five overlapping queue
 tables that used to live here (see Reconciliation below). Small, and deliberately so.
+
+**Recently completed (outside the phases):**
+- **TASK-DEPS-001** — Fleet view (`ww deps check --all`). 17 BATS tests.
+
+| Priority | ID | Status | Goal | Notes |
+|---|---|---|---|---|
+| LOW | [TASK-LED-018](tasks/cards/TASK-LED-018.md) | pending | Counterfactual valuation — dated weight history + `--value=DATE,att` | Not urgent until the loop-agent is live |
 
 | Priority | ID | Status | Goal | Notes |
 |---|---|---|---|---|

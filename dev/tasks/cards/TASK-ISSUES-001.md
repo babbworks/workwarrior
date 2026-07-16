@@ -22,16 +22,16 @@ Acceptance criteria:  1. `ww issues uda` becomes a first-class ww command with s
                       5. Tests: bats tests covering `ww issues uda install` idempotency and
                          service UDA classification.
 
-Write scope:          /Users/mp/ww/bin/ww
-                      /Users/mp/ww/services/profile/subservices/uda-manager.sh
-                      /Users/mp/ww/dev/config/command-syntax.yaml
-                      /Users/mp/ww/dev/tests/test-service-discovery.bats (or new test file)
+Write scope:          ~/ww/bin/ww
+                      ~/ww/services/profile/subservices/uda-manager.sh
+                      ~/ww/dev/config/command-syntax.yaml
+                      ~/ww/dev/tests/test-service-discovery.bats (or new test file)
 
 Tests required:       bats dev/tests/
                       Manual: ww issues uda list / install / group github
 
-Rollback:             git checkout /Users/mp/ww/bin/ww
-                      git checkout /Users/mp/ww/services/profile/subservices/uda-manager.sh
+Rollback:             git checkout ~/ww/bin/ww
+                      git checkout ~/ww/services/profile/subservices/uda-manager.sh
 
 Fragility:            SERIALIZED: bin/ww (one writer at a time)
 

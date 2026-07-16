@@ -78,5 +78,5 @@ Resolution:
   Sign-off: dev/reports/verifier-TASK-STRUCT-1B.md.
   PRE-MERGE CONDITIONS: N1 (integration in installed env), N2 (docs/ refs -> Part 4).
 
-Status:               verified — impl + local verify complete; N1/N2 pending before merge
+Status:               complete
 Taskwarrior:          (assign live TW id on dispatch) status:in-review

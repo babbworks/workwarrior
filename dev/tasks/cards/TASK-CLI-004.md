@@ -6,18 +6,18 @@ Acceptance criteria:  1. Legacy commands still execute successfully.
                       2. Deprecation warnings identify preferred replacements.
                       3. Deprecation matrix is documented in CSSOT and docs.
 
-Write scope:          /Users/mp/ww/bin/ww
-                      /Users/mp/ww/lib/core-utils.sh
-                      /Users/mp/ww/docs/usage-examples.md
-                      /Users/mp/ww/dev/config/command-syntax.yaml
+Write scope:          ~/ww/bin/ww
+                      ~/ww/lib/core-utils.sh
+                      ~/ww/docs/usage-examples.md
+                      ~/ww/dev/config/command-syntax.yaml
 
-Tests required:       bats /Users/mp/ww/dev/tests/test-scripts-integration.sh
-                      /Users/mp/ww/bin/ww journals list
-                      /Users/mp/ww/bin/ww journal list
+Tests required:       bats ~/ww/dev/tests/test-scripts-integration.sh
+                      ~/ww/bin/ww journals list
+                      ~/ww/bin/ww journal list
 
-Rollback:             git checkout /Users/mp/ww/bin/ww /Users/mp/ww/lib/core-utils.sh /Users/mp/ww/docs/usage-examples.md /Users/mp/ww/dev/config/command-syntax.yaml
+Rollback:             git checkout ~/ww/bin/ww ~/ww/lib/core-utils.sh ~/ww/docs/usage-examples.md ~/ww/dev/config/command-syntax.yaml
 
-Fragility:            SERIALIZED: /Users/mp/ww/bin/ww
+Fragility:            SERIALIZED: ~/ww/bin/ww
 
 Risk notes:           Existing behavior affected: backward compatibility paths.
                       Tests currently covering write scope: integration scripts and manual alias checks.
@@ -27,9 +27,9 @@ Risk notes:           Existing behavior affected: backward compatibility paths.
                       while emitting preferred-syntax warnings; plural help-topic aliases also emit nudges.
                       Added deprecation matrix in dev/config/command-syntax.yaml and compatibility section
                       in docs/usage-examples.md.
-                      Verification (2026-04-04): bats /Users/mp/ww/dev/tests/test-scripts-integration.sh (pass),
-                      /Users/mp/ww/bin/ww journals list (pass with deprecation warning),
-                      /Users/mp/ww/bin/ww journal list (pass).
+                      Verification (2026-04-04): bats ~/ww/dev/tests/test-scripts-integration.sh (pass),
+                      ~/ww/bin/ww journals list (pass with deprecation warning),
+                      ~/ww/bin/ww journal list (pass).
 
 Status:               complete
 

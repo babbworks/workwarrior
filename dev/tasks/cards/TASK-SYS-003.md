@@ -6,14 +6,14 @@ Acceptance criteria:  1. A machine-readable command spec exists and is linked fr
                       2. Every active service has an entry with syntax, flags, scope rules, and examples.
                       3. CLI/help/doc updates require updating CSSOT in the same task.
 
-Write scope:          /Users/mp/ww/dev/config/command-syntax.yaml
-                      /Users/mp/ww/dev/README.md
-                      /Users/mp/ww/dev/workflows/feature-delivery.md
+Write scope:          ~/ww/dev/config/command-syntax.yaml
+                      ~/ww/dev/README.md
+                      ~/ww/dev/workflows/feature-delivery.md
 
-Tests required:       rg -n "^  - domain:" /Users/mp/ww/dev/config/command-syntax.yaml
-                      rg -n "command-syntax.yaml" /Users/mp/ww/system
+Tests required:       rg -n "^  - domain:" ~/ww/dev/config/command-syntax.yaml
+                      rg -n "command-syntax.yaml" ~/ww/system
 
-Rollback:             git checkout /Users/mp/ww/dev/config/command-syntax.yaml /Users/mp/ww/dev/README.md /Users/mp/ww/dev/workflows/feature-delivery.md
+Rollback:             git checkout ~/ww/dev/config/command-syntax.yaml ~/ww/dev/README.md ~/ww/dev/workflows/feature-delivery.md
 
 Fragility:            None
 

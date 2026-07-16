@@ -6,17 +6,17 @@ Acceptance criteria:  1. Ledger lifecycle commands work with profile scoping.
                       2. `ledgers.yaml` updates are validated and non-destructive.
                       3. Command help and docs include complete examples.
 
-Write scope:          /Users/mp/ww/bin/ww
-                      /Users/mp/ww/lib/profile-manager.sh
-                      /Users/mp/ww/services/custom/configure-ledgers.sh
-                      /Users/mp/ww/docs/usage-examples.md
-                      /Users/mp/ww/dev/config/command-syntax.yaml
+Write scope:          ~/ww/bin/ww
+                      ~/ww/lib/profile-manager.sh
+                      ~/ww/services/custom/configure-ledgers.sh
+                      ~/ww/docs/usage-examples.md
+                      ~/ww/dev/config/command-syntax.yaml
 
-Tests required:       bats /Users/mp/ww/dev/tests/test-ledger-initialization.bats
-                      bats /Users/mp/ww/dev/tests/test-ledger-naming-convention.bats
-                      /Users/mp/ww/bin/ww ledger list
+Tests required:       bats ~/ww/dev/tests/test-ledger-initialization.bats
+                      bats ~/ww/dev/tests/test-ledger-naming-convention.bats
+                      ~/ww/bin/ww ledger list
 
-Rollback:             git checkout /Users/mp/ww/bin/ww /Users/mp/ww/lib/profile-manager.sh /Users/mp/ww/services/custom/configure-ledgers.sh /Users/mp/ww/docs/usage-examples.md /Users/mp/ww/dev/config/command-syntax.yaml
+Rollback:             git checkout ~/ww/bin/ww ~/ww/lib/profile-manager.sh ~/ww/services/custom/configure-ledgers.sh ~/ww/docs/usage-examples.md ~/ww/dev/config/command-syntax.yaml
 
 Fragility:            None
 
@@ -32,9 +32,9 @@ Risk notes:           Existing behavior affected: profile ledger configuration p
                       Validation hardening: adjusted one exact-string assertion in
                       dev/tests/test-ledger-naming-convention.bats to avoid locale-warning contamination while
                       preserving the extension invariant check.
-                      Verification (2026-04-04): bats /Users/mp/ww/dev/tests/test-ledger-initialization.bats (pass),
-                      bats /Users/mp/ww/dev/tests/test-ledger-naming-convention.bats (pass),
-                      /Users/mp/ww/bin/ww ledger list (pass),
+                      Verification (2026-04-04): bats ~/ww/dev/tests/test-ledger-initialization.bats (pass),
+                      bats ~/ww/dev/tests/test-ledger-naming-convention.bats (pass),
+                      ~/ww/bin/ww ledger list (pass),
                       manual lifecycle smoke (pass): add -> rename -> remove using `ww --profile <tmp> ledger ...`.
 
 Status:               complete

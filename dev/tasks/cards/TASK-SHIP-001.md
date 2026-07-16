@@ -61,5 +61,5 @@ Risk notes:           (Orchestrator) Criterion 3 is the one that matters and it 
                       intentional (a worked corpus is the best teaching material an agent can
                       get). No "clean board" mechanism is in scope.
 
-Status:               pending
+Status:               complete
 Taskwarrior:          (assign live TW id on dispatch)

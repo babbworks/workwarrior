@@ -68,5 +68,5 @@ Risk notes:           (Orchestrator) THE HARD RULE: never fabricate a punch-out 
                       --stale value could otherwise close hundreds of live punches in one
                       command.
 
-Status:               pending
+Status:               complete
 Taskwarrior:          (assign live TW id on dispatch)

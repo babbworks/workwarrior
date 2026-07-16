@@ -13,13 +13,13 @@ Acceptance criteria:  1. Labels from GitHub issue are mapped to TaskWarrior tags
                          tag deduplication.
                       5. TODO comment at sync-pull.sh is replaced with the implementation.
 
-Write scope:          /Users/mp/ww/lib/sync-pull.sh
-                      /Users/mp/ww/dev/tests/test-github-sync.bats
+Write scope:          ~/ww/lib/sync-pull.sh
+                      ~/ww/dev/tests/test-github-sync.bats
 
 Tests required:       bats dev/tests/test-github-sync.bats
                       bats dev/tests/
 
-Rollback:             git checkout /Users/mp/ww/lib/sync-pull.sh
+Rollback:             git checkout ~/ww/lib/sync-pull.sh
 
 Fragility:            HIGH FRAGILITY: lib/sync-pull.sh
 

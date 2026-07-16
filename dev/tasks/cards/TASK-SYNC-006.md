@@ -22,20 +22,20 @@ Acceptance criteria:  1. A label-UDA map is defined in dev/config/label-uda-map.
                          to UDA on pull, unknown prefix ignored gracefully, empty UDA
                          removes label.
 
-Write scope:          /Users/mp/ww/dev/config/label-uda-map.yaml  (new)
-                      /Users/mp/ww/lib/field-mapper.sh
-                      /Users/mp/ww/lib/sync-push.sh
-                      /Users/mp/ww/lib/sync-pull.sh
-                      /Users/mp/ww/dev/tests/test-github-sync.bats
+Write scope:          ~/ww/dev/config/label-uda-map.yaml  (new)
+                      ~/ww/lib/field-mapper.sh
+                      ~/ww/lib/sync-push.sh
+                      ~/ww/lib/sync-pull.sh
+                      ~/ww/dev/tests/test-github-sync.bats
 
 Tests required:       bats dev/tests/test-github-sync.bats
                       bats dev/tests/
 
-Rollback:             git checkout /Users/mp/ww/lib/field-mapper.sh \
-                        /Users/mp/ww/lib/sync-push.sh \
-                        /Users/mp/ww/lib/sync-pull.sh \
-                        /Users/mp/ww/dev/tests/test-github-sync.bats
-                      rm /Users/mp/ww/dev/config/label-uda-map.yaml
+Rollback:             git checkout ~/ww/lib/field-mapper.sh \
+                        ~/ww/lib/sync-push.sh \
+                        ~/ww/lib/sync-pull.sh \
+                        ~/ww/dev/tests/test-github-sync.bats
+                      rm ~/ww/dev/config/label-uda-map.yaml
 
 Fragility:            HIGH FRAGILITY: field-mapper.sh, sync-push.sh, sync-pull.sh
 

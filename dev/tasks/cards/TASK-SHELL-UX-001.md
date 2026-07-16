@@ -20,12 +20,12 @@ Acceptance criteria:  1. `source ~/.bashrc` or `source ~/.zshrc` is a silent no-
                       8. Bare commands available: profile, profiles, journals, ledgers, services, groups,
                          models, extensions, custom, shortcuts, deps, version, search, tasks, times.
 
-Write scope:          /Users/mp/ww/lib/shell-integration.sh
-                      /Users/mp/ww/lib/core-utils.sh
-                      /Users/mp/ww/bin/ww-init.sh
-                      /Users/mp/ww/scripts/create-ww-profile.sh
-                      /Users/mp/.bashrc
-                      /Users/mp/.zshrc
+Write scope:          ~/ww/lib/shell-integration.sh
+                      ~/ww/lib/core-utils.sh
+                      ~/ww/bin/ww-init.sh
+                      ~/ww/scripts/create-ww-profile.sh
+                      ~/.bashrc
+                      ~/.zshrc
 
 Tests required:       Manual smoke:
                         source ~/.bashrc  (should be silent)
@@ -35,10 +35,10 @@ Tests required:       Manual smoke:
                         search    (routes to ww find)
                         New terminal: no auto-profile-activation unless intentional
 
-Rollback:             git checkout /Users/mp/ww/lib/shell-integration.sh
-                      git checkout /Users/mp/ww/lib/core-utils.sh
-                      git checkout /Users/mp/ww/bin/ww-init.sh
-                      git checkout /Users/mp/ww/scripts/create-ww-profile.sh
+Rollback:             git checkout ~/ww/lib/shell-integration.sh
+                      git checkout ~/ww/lib/core-utils.sh
+                      git checkout ~/ww/bin/ww-init.sh
+                      git checkout ~/ww/scripts/create-ww-profile.sh
 
 Fragility:            SERIALIZED: lib/shell-integration.sh (all shell functions sourced from here)
 

@@ -60,5 +60,5 @@ Risk notes:           (Orchestrator) The write-back refusal is NOT optional and 
                       failure.
                       (Builder) Opt-in means opt-in. Do not "helpfully" default --auto on.
 
-Status:               pending
+Status:               complete
 Taskwarrior:          (assign live TW id on dispatch)

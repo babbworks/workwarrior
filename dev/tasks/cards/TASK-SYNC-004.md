@@ -12,13 +12,13 @@ Acceptance criteria:  Either:
                       B. Explicitly defer — remove the TODO comment, add deferred note in
                          TASKS.md backlog, document why it's out of scope.
 
-Write scope:          /Users/mp/ww/lib/sync-pull.sh
-                      (if option A: /Users/mp/ww/dev/tests/test-github-sync.bats)
+Write scope:          ~/ww/lib/sync-pull.sh
+                      (if option A: ~/ww/dev/tests/test-github-sync.bats)
 
 Tests required:       bats dev/tests/
                       (if option A: bats dev/tests/test-github-sync.bats)
 
-Rollback:             git checkout /Users/mp/ww/lib/sync-pull.sh
+Rollback:             git checkout ~/ww/lib/sync-pull.sh
 
 Fragility:            HIGH FRAGILITY: lib/sync-pull.sh
 

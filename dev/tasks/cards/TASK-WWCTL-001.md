@@ -90,26 +90,26 @@ Acceptance criteria:
 
   14. wwctl usage updated with all new commands and examples.
 
-Write scope:          /Users/mp/ww/dev/bin/wwctl
-                      /Users/mp/ww/dev/scripts/docs-check.sh       (new)
-                      /Users/mp/ww/dev/scripts/health.sh            (new)
-                      /Users/mp/ww/dev/scripts/todo-scan.sh         (new)
-                      /Users/mp/ww/dev/scripts/profile-health.sh    (new)
-                      /Users/mp/ww/dev/scripts/release-check.sh     (new)
-                      /Users/mp/ww/dev/scripts/diff-summary.sh      (new)
-                      /Users/mp/ww/docs/overviews/source-map.yaml      (new)
-                      /Users/mp/ww/docs/overviews/INDEX.md             (changelog)
-                      /Users/mp/ww/docs/overviews/bin/*.md             (changelogs)
-                      /Users/mp/ww/docs/overviews/lib/*.md             (changelogs)
-                      /Users/mp/ww/docs/overviews/services/**/*.md     (changelogs)
-                      /Users/mp/ww/docs/overviews/cross-cutting/**/*.md (changelogs)
+Write scope:          ~/ww/dev/bin/wwctl
+                      ~/ww/dev/scripts/docs-check.sh       (new)
+                      ~/ww/dev/scripts/health.sh            (new)
+                      ~/ww/dev/scripts/todo-scan.sh         (new)
+                      ~/ww/dev/scripts/profile-health.sh    (new)
+                      ~/ww/dev/scripts/release-check.sh     (new)
+                      ~/ww/dev/scripts/diff-summary.sh      (new)
+                      ~/ww/docs/overviews/source-map.yaml      (new)
+                      ~/ww/docs/overviews/INDEX.md             (changelog)
+                      ~/ww/docs/overviews/bin/*.md             (changelogs)
+                      ~/ww/docs/overviews/lib/*.md             (changelogs)
+                      ~/ww/docs/overviews/services/**/*.md     (changelogs)
+                      ~/ww/docs/overviews/cross-cutting/**/*.md (changelogs)
 
 Tests required:       bats dev/tests/
                       Manual: wwctl health; wwctl docs-check; wwctl todo-scan
                       Manual: wwctl profile-health; wwctl release-check
                       Manual: wwctl diff-summary; wwctl worktrees
 
-Rollback:             git checkout /Users/mp/ww/dev/bin/wwctl
+Rollback:             git checkout ~/ww/dev/bin/wwctl
                       git rm dev/scripts/docs-check.sh health.sh todo-scan.sh
                       git rm dev/scripts/profile-health.sh release-check.sh diff-summary.sh
                       git checkout docs/overviews/

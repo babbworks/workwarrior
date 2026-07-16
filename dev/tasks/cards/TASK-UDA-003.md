@@ -41,10 +41,10 @@ Acceptance criteria:  1. dev/config/uda-color-map.yaml defines:
                       7. ww profile uda color <name> [color] — show or set color for a UDA
                          interactively if no color arg given.
 
-Write scope:          /Users/mp/ww/dev/config/uda-color-map.yaml  (new)
-                      /Users/mp/ww/bin/ww
-                      /Users/mp/ww/services/profile/subservices/uda-manager.sh
-                      /Users/mp/ww/scripts/create-ww-profile.sh  (write color block on create)
+Write scope:          ~/ww/dev/config/uda-color-map.yaml  (new)
+                      ~/ww/bin/ww
+                      ~/ww/services/profile/subservices/uda-manager.sh
+                      ~/ww/scripts/create-ww-profile.sh  (write color block on create)
 
 Tests required:       bats dev/tests/test-profile-uda.bats
                       Manual: task list after profile create — verify color rules active

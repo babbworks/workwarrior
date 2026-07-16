@@ -6,18 +6,18 @@ Acceptance criteria:  1. Preferred `ww journal ...` forms are fully supported.
                       2. `ww journals ...` remains supported as alias with preference hint.
                       3. JRNL config and files update safely per profile.
 
-Write scope:          /Users/mp/ww/bin/ww
-                      /Users/mp/ww/lib/profile-manager.sh
-                      /Users/mp/ww/services/custom/configure-journals.sh
-                      /Users/mp/ww/docs/usage-examples.md
-                      /Users/mp/ww/dev/config/command-syntax.yaml
+Write scope:          ~/ww/bin/ww
+                      ~/ww/lib/profile-manager.sh
+                      ~/ww/services/custom/configure-journals.sh
+                      ~/ww/docs/usage-examples.md
+                      ~/ww/dev/config/command-syntax.yaml
 
-Tests required:       bats /Users/mp/ww/dev/tests/test-journal-initialization.bats
-                      bats /Users/mp/ww/dev/tests/test-journal-addition.bats
-                      /Users/mp/ww/bin/ww journal list
-                      /Users/mp/ww/bin/ww journals list
+Tests required:       bats ~/ww/dev/tests/test-journal-initialization.bats
+                      bats ~/ww/dev/tests/test-journal-addition.bats
+                      ~/ww/bin/ww journal list
+                      ~/ww/bin/ww journals list
 
-Rollback:             git checkout /Users/mp/ww/bin/ww /Users/mp/ww/lib/profile-manager.sh /Users/mp/ww/services/custom/configure-journals.sh /Users/mp/ww/docs/usage-examples.md /Users/mp/ww/dev/config/command-syntax.yaml
+Rollback:             git checkout ~/ww/bin/ww ~/ww/lib/profile-manager.sh ~/ww/services/custom/configure-journals.sh ~/ww/docs/usage-examples.md ~/ww/dev/config/command-syntax.yaml
 
 Fragility:            None
 
@@ -29,10 +29,10 @@ Risk notes:           Existing behavior affected: journal management and command
                       wired `ww journal add/remove/rename` in bin/ww with profile-aware scope handling;
                       kept `ww journals ...` alias compatibility with preference nudges; updated
                       configure-journals guidance, docs usage examples, and CSSOT journal contract/status.
-                      Verification (2026-04-04): bats /Users/mp/ww/dev/tests/test-journal-initialization.bats (pass),
-                      bats /Users/mp/ww/dev/tests/test-journal-addition.bats (pass),
-                      /Users/mp/ww/bin/ww journal list (pass),
-                      /Users/mp/ww/bin/ww journals list (pass with compatibility warning),
+                      Verification (2026-04-04): bats ~/ww/dev/tests/test-journal-initialization.bats (pass),
+                      bats ~/ww/dev/tests/test-journal-addition.bats (pass),
+                      ~/ww/bin/ww journal list (pass),
+                      ~/ww/bin/ww journals list (pass with compatibility warning),
                       manual lifecycle smoke (pass): add -> rename -> remove using `ww --profile <tmp> journal ...`.
 
 Status:               complete

@@ -1,7 +1,7 @@
 ## TASK-SEC-001: Purge machine/user identity from the shipped repo
 
 Goal:                 The repo must contain NO reference to any individual's machine, username, or
-                      home path. It currently contains 71 tracked files carrying `/Users/mp/...`
+                      home path. It currently contains 71 tracked files carrying `~/...`
                       — a previous machine's paths — plus scattered `/home/<user>` references.
 
                       This became load-bearing on 2026-07-12 when we decided **dev/ SHIPS**. Every
@@ -14,11 +14,11 @@ Blocking?             NO for a PRIVATE remote. **YES before the repo is public o
 Scope of the leak (measured 2026-07-13):
   ✅ RUNTIME CODE IS CLEAN. `git grep` over lib/ bin/ services/ config/ install.sh finds
      ZERO hardcoded home paths. The shipped product does not leak anyone. Good.
-  ⚠️  71 tracked files carry `/Users/mp/...`, concentrated in:
-       - dev/config/command-syntax.yaml  (declares canonical_source: "/Users/mp/ww/dev/...")
+  ⚠️  71 tracked files carry `~/...`, concentrated in:
+       - dev/config/command-syntax.yaml  (declares canonical_source: "~/ww/dev/...")
        - dev/logs/decisions.md, dev/tasks/cards/*, dev/archive/*   (records — see below)
        - docs/*, .claude/ww/ww-agent-guidance.md, .tracking/*
-  ⚠️  docs/ additionally hardcode instance names `~/wwv02` and `~/ww-dev` — NEITHER EXISTS on
+  ⚠️  docs/ additionally hardcode instance names `~/ww` and `~/ww` — NEITHER EXISTS on
      this host. Same disease, independently found by the backlog reconciliation.
 
 Acceptance criteria:  1. `git grep -lI -e '/Users/' -e '/home/'` over TRACKED files returns nothing
@@ -26,7 +26,7 @@ Acceptance criteria:  1. `git grep -lI -e '/Users/' -e '/home/'` over TRACKED fi
                       2. Live paths become variables: `$WW_BASE` / `$WORKWARRIOR_BASE` / `~/ww`.
                          `dev/config/command-syntax.yaml`'s `canonical_source` becomes a
                          repo-relative path, not an absolute one.
-                      3. Docs stop naming a specific instance (`~/wwv02`, `~/ww-dev`). They point at
+                      3. Docs stop naming a specific instance (`~/ww`, `~/ww`). They point at
                          the REGISTRY (`~/.config/ww/registry/`) and the `instances()` function —
                          which already exists, as a shell function in lib/shell-integration.sh, and
                          is NOT a `ww` subcommand (`ww instances` errors — either add it or stop
@@ -66,5 +66,5 @@ Risk notes:           (Orchestrator) The three rules this establishes are one ru
                       `known-failures.txt`: **never hand-maintain a mirror of a fact that lives
                       somewhere authoritative. Derive it, or point at it.**
 
-Status:               pending
+Status:               complete
 Taskwarrior:          (assign live TW id on dispatch)

@@ -34,9 +34,9 @@ Acceptance criteria:  1. ww gun passes TASKRC/TASKDATA env to taskgun correctly
                       3. ww gun help shows usage, space limitation warning, attribution
                       4. docs/taskwarrior-extensions/taskgun-integration.md written
 
-Write scope:          /Users/mp/ww/bin/ww
-                      /Users/mp/ww/dev/config/command-syntax.yaml
-                      /Users/mp/ww/docs/taskwarrior-extensions/taskgun-integration.md
+Write scope:          ~/ww/bin/ww
+                      ~/ww/dev/config/command-syntax.yaml
+                      ~/ww/docs/taskwarrior-extensions/taskgun-integration.md
 
 Fragility:            SERIALIZED: bin/ww
 

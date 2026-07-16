@@ -62,5 +62,5 @@ Risk notes:           (Orchestrator) This card is mostly plumbing — the MECHAN
                       This unifies the "invariant engine" idea into valuation: a failed assertion
                       is just an account with a very high attention-value.
 
-Status:               pending
+Status:               complete
 Taskwarrior:          (assign live TW id on dispatch)

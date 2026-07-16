@@ -43,15 +43,15 @@ Acceptance criteria:  1. ww mcp install
 
                       6. mcp domain added to CSSOT (command-syntax.yaml)
 
-Write scope:          /Users/mp/ww/bin/ww
-                      /Users/mp/ww/dev/config/command-syntax.yaml
-                      /Users/mp/ww/docs/taskwarrior-extensions/mcp-integration.md  (new)
+Write scope:          ~/ww/bin/ww
+                      ~/ww/dev/config/command-syntax.yaml
+                      ~/ww/docs/taskwarrior-extensions/mcp-integration.md  (new)
 
 Tests required:       Manual: ww mcp install; ww mcp status; ww mcp register
                       bats dev/tests/ (regression check only — no new BATS needed for install wrappers)
 
-Rollback:             git checkout /Users/mp/ww/bin/ww
-                      git checkout /Users/mp/ww/dev/config/command-syntax.yaml
+Rollback:             git checkout ~/ww/bin/ww
+                      git checkout ~/ww/dev/config/command-syntax.yaml
                       rm -rf ~/.local/share/ww/mcp/taskwarrior/
 
 Fragility:            SERIALIZED: bin/ww (one writer at a time)

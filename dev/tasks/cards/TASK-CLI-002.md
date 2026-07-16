@@ -6,18 +6,18 @@ Acceptance criteria:  1. Scope resolution follows approved policy (active/last p
                       2. Flag behavior is consistent across core domains.
                       3. Invalid flag combinations return clear errors.
 
-Write scope:          /Users/mp/ww/bin/ww
-                      /Users/mp/ww/lib/core-utils.sh
-                      /Users/mp/ww/lib/shell-integration.sh
-                      /Users/mp/ww/dev/config/command-syntax.yaml
+Write scope:          ~/ww/bin/ww
+                      ~/ww/lib/core-utils.sh
+                      ~/ww/lib/shell-integration.sh
+                      ~/ww/dev/config/command-syntax.yaml
 
-Tests required:       bats /Users/mp/ww/dev/tests/test-shell-functions.bats
-                      bats /Users/mp/ww/dev/tests/test-scripts-integration.sh
-                      bats /Users/mp/ww/dev/tests/test-service-discovery.bats
+Tests required:       bats ~/ww/dev/tests/test-shell-functions.bats
+                      bats ~/ww/dev/tests/test-scripts-integration.sh
+                      bats ~/ww/dev/tests/test-service-discovery.bats
 
-Rollback:             git checkout /Users/mp/ww/bin/ww /Users/mp/ww/lib/core-utils.sh /Users/mp/ww/lib/shell-integration.sh /Users/mp/ww/dev/config/command-syntax.yaml
+Rollback:             git checkout ~/ww/bin/ww ~/ww/lib/core-utils.sh ~/ww/lib/shell-integration.sh ~/ww/dev/config/command-syntax.yaml
 
-Fragility:            SERIALIZED: /Users/mp/ww/bin/ww /Users/mp/ww/lib/shell-integration.sh
+Fragility:            SERIALIZED: ~/ww/bin/ww ~/ww/lib/shell-integration.sh
 
 Risk notes:           Existing behavior affected: command parsing and profile targeting across services.
                       Tests currently covering write scope: shell function and integration test suites.
@@ -28,9 +28,9 @@ Risk notes:           Existing behavior affected: command parsing and profile ta
                       for profile/service/journal/ledger list flows.
                       Added persistent last-profile state helpers in lib/core-utils.sh and activation writes in
                       lib/shell-integration.sh.
-                      Verification (2026-04-04): bats /Users/mp/ww/dev/tests/test-shell-functions.bats (pass),
-                      bats /Users/mp/ww/dev/tests/test-scripts-integration.sh (pass),
-                      bats /Users/mp/ww/dev/tests/test-service-discovery.bats (pass),
+                      Verification (2026-04-04): bats ~/ww/dev/tests/test-shell-functions.bats (pass),
+                      bats ~/ww/dev/tests/test-scripts-integration.sh (pass),
+                      bats ~/ww/dev/tests/test-service-discovery.bats (pass),
                       manual checks: ww --json service list, ww --compact profile list,
                       ww --profile work journal list, ww --profile work --json journal list,
                       ww --json --compact service list (expected error).

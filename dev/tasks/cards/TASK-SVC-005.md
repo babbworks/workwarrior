@@ -6,16 +6,16 @@ Acceptance criteria:  1. Template create/list/edit/delete flows are deterministi
                       2. Errors are actionable with clear next-step guidance.
                       3. Help/usage examples match implemented behavior.
 
-Write scope:          /Users/mp/ww/services/questions/q.sh
-                      /Users/mp/ww/services/questions/README.md
-                      /Users/mp/ww/dev/tests/test-questions-service.sh
-                      /Users/mp/ww/dev/config/command-syntax.yaml
+Write scope:          ~/ww/services/questions/q.sh
+                      ~/ww/services/questions/README.md
+                      ~/ww/dev/tests/test-questions-service.sh
+                      ~/ww/dev/config/command-syntax.yaml
 
-Tests required:       bash /Users/mp/ww/dev/tests/test-questions-service.sh
-                      bats /Users/mp/ww/dev/tests/test-scripts-integration.sh
+Tests required:       bash ~/ww/dev/tests/test-questions-service.sh
+                      bats ~/ww/dev/tests/test-scripts-integration.sh
                       Manual: q, q list, q new journal
 
-Rollback:             git checkout /Users/mp/ww/services/questions/q.sh /Users/mp/ww/services/questions/README.md /Users/mp/ww/dev/tests/test-questions-service.sh /Users/mp/ww/dev/config/command-syntax.yaml
+Rollback:             git checkout ~/ww/services/questions/q.sh ~/ww/services/questions/README.md ~/ww/dev/tests/test-questions-service.sh ~/ww/dev/config/command-syntax.yaml
 
 Fragility:            None
 
@@ -27,8 +27,8 @@ Risk notes:           Existing behavior affected: interactive prompt flow and te
                       validation; added actionable next-step error hints; added optional `--yes` for
                       non-interactive template delete; aligned service README and usage examples with
                       implemented command forms.
-                      Verification (2026-04-04): WW_BASE=/Users/mp/ww bash /Users/mp/ww/dev/tests/test-questions-service.sh (pass),
-                      bats /Users/mp/ww/dev/tests/test-scripts-integration.sh (pass),
+                      Verification (2026-04-04): WW_BASE=~/ww bash ~/ww/dev/tests/test-questions-service.sh (pass),
+                      bats ~/ww/dev/tests/test-scripts-integration.sh (pass),
                       manual checks (pass): q, q list, q new journal (piped input).
 
 Status:               complete

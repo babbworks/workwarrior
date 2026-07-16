@@ -6,16 +6,16 @@ Acceptance criteria:  1. `ww profile import <archive>` creates a profile from ba
                       2. `ww profile restore <profile> <archive>` restores existing profile safely.
                       3. Restore process includes preflight validation and rollback guidance.
 
-Write scope:          /Users/mp/ww/scripts/manage-profiles.sh
-                      /Users/mp/ww/lib/profile-manager.sh
-                      /Users/mp/ww/docs/usage-examples.md
-                      /Users/mp/ww/dev/config/command-syntax.yaml
+Write scope:          ~/ww/scripts/manage-profiles.sh
+                      ~/ww/lib/profile-manager.sh
+                      ~/ww/docs/usage-examples.md
+                      ~/ww/dev/config/command-syntax.yaml
 
-Tests required:       bats /Users/mp/ww/dev/tests/test-backup-portability.bats
-                      bats /Users/mp/ww/dev/tests/test-profile-management-properties.bats
-                      bash /Users/mp/ww/dev/tests/test-scripts-integration.sh
+Tests required:       bats ~/ww/dev/tests/test-backup-portability.bats
+                      bats ~/ww/dev/tests/test-profile-management-properties.bats
+                      bash ~/ww/dev/tests/test-scripts-integration.sh
 
-Rollback:             git checkout /Users/mp/ww/scripts/manage-profiles.sh /Users/mp/ww/lib/profile-manager.sh /Users/mp/ww/docs/usage-examples.md /Users/mp/ww/dev/config/command-syntax.yaml
+Rollback:             git checkout ~/ww/scripts/manage-profiles.sh ~/ww/lib/profile-manager.sh ~/ww/docs/usage-examples.md ~/ww/dev/config/command-syntax.yaml
 
 Fragility:            None
 

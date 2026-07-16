@@ -63,5 +63,5 @@ Risk notes:           (Orchestrator) Criterion 6 is non-negotiable and must be p
                       (Builder) Do NOT re-implement the v0 fallback — call actor.sh (STRM-001).
                       Punch verbs write; they must not auto-close anything (see STRM-005).
 
-Status:               pending
+Status:               complete
 Taskwarrior:          (assign live TW id on dispatch)

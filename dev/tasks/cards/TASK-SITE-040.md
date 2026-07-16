@@ -20,6 +20,6 @@ Risk notes:           Low — isolated to the add-form submission path.
 
 Notes:                priority: M · area: browser · created: 2026-04-27
 
-Status:               pending
+Status:               complete
 
 Taskwarrior:          wwdev task (52986c8d) status:pending

@@ -50,5 +50,5 @@ Risk notes:           (Orchestrator) This is the first concrete piece of the WAR
                       Keep it read-only: a fleet command that can mutate N instances at once is a
                       different, much more dangerous card.
 
-Status:               pending
+Status:               complete
 Taskwarrior:          (assign live TW id on dispatch)

@@ -6,15 +6,15 @@ Acceptance criteria:  1. A parity-check script compares help output against docu
                       2. Parity failures are reported with actionable diff references.
                       3. Verifier workflow requires parity pass before completion.
 
-Write scope:          /Users/mp/ww/dev/scripts/check-parity.sh
-                      /Users/mp/ww/dev/config/command-syntax.yaml
-                      /Users/mp/ww/dev/workflows/feature-delivery.md
+Write scope:          ~/ww/dev/scripts/check-parity.sh
+                      ~/ww/dev/config/command-syntax.yaml
+                      ~/ww/dev/workflows/feature-delivery.md
 
-Tests required:       bash /Users/mp/ww/dev/scripts/check-parity.sh
-                      /Users/mp/ww/bin/ww help
-                      rg -n "journal|ledger|service" /Users/mp/ww/docs/usage-examples.md /Users/mp/ww/dev/config/command-syntax.yaml
+Tests required:       bash ~/ww/dev/scripts/check-parity.sh
+                      ~/ww/bin/ww help
+                      rg -n "journal|ledger|service" ~/ww/docs/usage-examples.md ~/ww/dev/config/command-syntax.yaml
 
-Rollback:             git checkout /Users/mp/ww/dev/scripts/check-parity.sh /Users/mp/ww/dev/config/command-syntax.yaml /Users/mp/ww/dev/workflows/feature-delivery.md
+Rollback:             git checkout ~/ww/dev/scripts/check-parity.sh ~/ww/dev/config/command-syntax.yaml ~/ww/dev/workflows/feature-delivery.md
 
 Fragility:            None
 

@@ -6,17 +6,17 @@ Acceptance criteria:  1. Approved domain map exists for all core services.
                       2. Primary and alias forms are defined (e.g., `journal` preferred, `journals` alias).
                       3. Dispatch behavior in `bin/ww` matches documented taxonomy.
 
-Write scope:          /Users/mp/ww/bin/ww
-                      /Users/mp/ww/dev/config/command-syntax.yaml
-                      /Users/mp/ww/docs/usage-examples.md
+Write scope:          ~/ww/bin/ww
+                      ~/ww/dev/config/command-syntax.yaml
+                      ~/ww/docs/usage-examples.md
 
-Tests required:       bats /Users/mp/ww/dev/tests/test-scripts-integration.sh
-                      /Users/mp/ww/bin/ww help
-                      /Users/mp/ww/bin/ww help standalone
+Tests required:       bats ~/ww/dev/tests/test-scripts-integration.sh
+                      ~/ww/bin/ww help
+                      ~/ww/bin/ww help standalone
 
-Rollback:             git checkout /Users/mp/ww/bin/ww /Users/mp/ww/dev/config/command-syntax.yaml /Users/mp/ww/docs/usage-examples.md
+Rollback:             git checkout ~/ww/bin/ww ~/ww/dev/config/command-syntax.yaml ~/ww/docs/usage-examples.md
 
-Fragility:            SERIALIZED: /Users/mp/ww/bin/ww — confirm no overlapping active CLI task
+Fragility:            SERIALIZED: ~/ww/bin/ww — confirm no overlapping active CLI task
 
 Risk notes:           Existing behavior affected: all top-level CLI routing.
                       Tests currently covering write scope: script integration tests and help checks.
@@ -27,11 +27,11 @@ Risk notes:           Existing behavior affected: all top-level CLI routing.
                       Debug closure (2026-04-04): fixed test env shell-config honoring in lib/shell-integration.sh;
                       fixed manage-profiles filesystem calls to use `command find`; stabilized integration backup test
                       destination handling in dev/tests/test-scripts-integration.sh.
-                      Verification (2026-04-04): bats /Users/mp/ww/dev/tests/test-scripts-integration.sh (pass),
-                      WW_BASE=/Users/mp/ww /Users/mp/ww/bin/ww help (pass),
-                      WW_BASE=/Users/mp/ww /Users/mp/ww/bin/ww groups (pass),
-                      WW_BASE=/Users/mp/ww /Users/mp/ww/bin/ww services (pass),
-                      WW_BASE=/Users/mp/ww WARRIOR_PROFILE=work WORKWARRIOR_BASE=/Users/mp/ww/profiles/work
-                      /Users/mp/ww/bin/ww journal list (pass), /Users/mp/ww/bin/ww journals (pass).
+                      Verification (2026-04-04): bats ~/ww/dev/tests/test-scripts-integration.sh (pass),
+                      WW_BASE=~/ww ~/ww/bin/ww help (pass),
+                      WW_BASE=~/ww ~/ww/bin/ww groups (pass),
+                      WW_BASE=~/ww ~/ww/bin/ww services (pass),
+                      WW_BASE=~/ww WARRIOR_PROFILE=work WORKWARRIOR_BASE=~/ww/profiles/work
+                      ~/ww/bin/ww journal list (pass), ~/ww/bin/ww journals (pass).
 
 Status:               complete

@@ -17,17 +17,17 @@ Acceptance criteria:  1. Pre-flight check function added to github-sync.sh:
                       5. Help text for github-sync.sh updated to list error categories.
                       6. Tests cover each pre-flight failure path.
 
-Write scope:          /Users/mp/ww/services/custom/github-sync.sh
-                      /Users/mp/ww/lib/github-api.sh
-                      /Users/mp/ww/lib/sync-pull.sh
-                      /Users/mp/ww/lib/sync-push.sh
-                      /Users/mp/ww/dev/config/command-syntax.yaml
+Write scope:          ~/ww/services/custom/github-sync.sh
+                      ~/ww/lib/github-api.sh
+                      ~/ww/lib/sync-pull.sh
+                      ~/ww/lib/sync-push.sh
+                      ~/ww/dev/config/command-syntax.yaml
 
 Tests required:       bash dev/tests/run-integration-tests.sh
                       bats dev/tests/test-github-sync.bats
                       bats dev/tests/
 
-Rollback:             git checkout /Users/mp/ww/services/custom/github-sync.sh /Users/mp/ww/lib/github-api.sh /Users/mp/ww/lib/sync-pull.sh /Users/mp/ww/lib/sync-push.sh /Users/mp/ww/dev/config/command-syntax.yaml
+Rollback:             git checkout ~/ww/services/custom/github-sync.sh ~/ww/lib/github-api.sh ~/ww/lib/sync-pull.sh ~/ww/lib/sync-push.sh ~/ww/dev/config/command-syntax.yaml
 
 Fragility:            HIGH FRAGILITY: all files in write scope.
 

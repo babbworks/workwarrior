@@ -60,10 +60,10 @@ Acceptance criteria:
 
 ---
 
-Write scope:          /Users/mp/ww/services/browser/                  (new — all files within)
-                      /Users/mp/ww/bin/ww                             (add cmd_browser + dispatch)
-                      /Users/mp/ww/dev/tests/test-browser.sh              (new BATS suite)
-                      /Users/mp/ww/dev/config/command-syntax.yaml  (add browser domain)
+Write scope:          ~/ww/services/browser/                  (new — all files within)
+                      ~/ww/bin/ww                             (add cmd_browser + dispatch)
+                      ~/ww/dev/tests/test-browser.sh              (new BATS suite)
+                      ~/ww/dev/config/command-syntax.yaml  (add browser domain)
 
 ---
 
@@ -112,10 +112,10 @@ Tests required:       bats dev/tests/test-browser.sh
                                 -H 'Content-Type: application/json' \
                                 -d '{"cmd":"task count"}' (verify JSON response)
 
-Rollback:             rm -rf /Users/mp/ww/services/browser/
-                      rm -f /Users/mp/ww/dev/tests/test-browser.sh
-                      git checkout /Users/mp/ww/bin/ww
-                      git checkout /Users/mp/ww/dev/config/command-syntax.yaml
+Rollback:             rm -rf ~/ww/services/browser/
+                      rm -f ~/ww/dev/tests/test-browser.sh
+                      git checkout ~/ww/bin/ww
+                      git checkout ~/ww/dev/config/command-syntax.yaml
 
 Fragility:            SERIALIZED: bin/ww — confirm no parallel active task touches this file
                       None other — services/browser/ and dev/tests/test-browser.sh are new files

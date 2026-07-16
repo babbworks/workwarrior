@@ -60,11 +60,11 @@ Acceptance criteria:
        Preserve existing icon system, including placeholder weapon icons.
        Treat read-only service panels as acceptable for this wave.
 
-Write scope:          /Users/mp/ww/services/browser/server.py
-                      /Users/mp/ww/services/browser/static/index.html
-                      /Users/mp/ww/services/browser/static/app.js
-                      /Users/mp/ww/services/browser/static/style.css
-                      /Users/mp/ww/services/browser/browser.sh  (export subcommand)
+Write scope:          ~/ww/services/browser/server.py
+                      ~/ww/services/browser/static/index.html
+                      ~/ww/services/browser/static/app.js
+                      ~/ww/services/browser/static/style.css
+                      ~/ww/services/browser/browser.sh  (export subcommand)
 
 Tests required:       bats dev/tests/test-browser.bats
                       Manual: task start → verify timew tracking in profile .timewarrior
