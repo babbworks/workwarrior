@@ -8,7 +8,7 @@
 
 ```bash
 cd system
-eval "$(ww agent init --instance ~/wwv02 --profile ww-development)"
+eval "$(ww agent init --instance ~/ww --profile ww-development)"
 bin/wwctl status
 bin/wwctl new-task TASK-XXX "goal"
 bin/wwctl dispatch builder <topic> tasks/cards/TASK-XXX.md
@@ -25,7 +25,7 @@ dev/
 ├── ONBOARDING.md           ← start here
 ├── CLAUDE.md               ← full project + agent rules
 ├── TASKS.md                ← summary task board; links to tasks/cards/
-├── dev-instance.md         ← three-directory model: repo / ww-dev / wwv02
+├── dev-instance.md         ← three-directory model: repo / dev-instance / prod-instance
 ├── fragility-register.md   ← file-by-file access policy
 ├── services-CLAUDE.md      ← service development contract
 ├── total-architecture.md   ← system-wide architecture overview
@@ -41,7 +41,7 @@ dev/
 │   └── serialization-paths.txt
 │
 ├── scripts/
-│   ├── dev-sync.sh         ← Sync program files: repo → ww-dev or wwv02
+│   ├── dev-sync.sh         ← Sync program files: repo → dev-instance or prod-instance
 │   ├── select-tests.sh     ← Test matrix by change type
 │   ├── check-parity.sh     ← Gate C: CSSOT vs ww help output
 │   ├── new-task.sh         ← Generate task card + update TASKS.md

@@ -25,7 +25,7 @@ Low-level install infrastructure: shell detection, rc file management, directory
 **`add_ww_to_shell_rc(install_dir)`** — Appends the ww bootstrap block to all detected rc files:
 ```bash
 # === WW INIT ===
-export WW_BASE="/Users/mp/ww"
+export WW_BASE="~/ww"
 source "$WW_BASE/bin/ww-init.sh"
 # === END WW INIT ===
 ```

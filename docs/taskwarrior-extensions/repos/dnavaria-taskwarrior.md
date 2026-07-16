@@ -96,7 +96,7 @@ The `install.sh` script will:
 Add to your `~/.zshrc`:
 
 ```bash
-source /Users/dnavaria/project/taskwarrior/scripts/aliases.sh
+source ~/project/taskwarrior/scripts/aliases.sh
 ```
 
 Then reload:

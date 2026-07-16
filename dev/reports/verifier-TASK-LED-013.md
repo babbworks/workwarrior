@@ -15,7 +15,7 @@ installer's platform matrix and in a criterion the Builder believed was satisfie
 | 2 | dependency-installer installs/upgrades hledger to >= floor; mechanism briefed | ✅ PASS — mechanism (a) chosen on evidence (`apt-cache policy hledger` → Candidate 1.25-2+b5; apt provably cannot reach the floor) |
 | 3 | Runtime guard fails loudly and early; must not silently degrade | ✅ PASS — exit 2, actionable message, and it does not send apt users to a package manager that cannot satisfy the floor |
 | 4 | **Guard fires ONCE per session, not per invocation (no per-command `hledger --version` fork)** | ❌ **FAIL — see F3** |
-| 5 | run-valuation-tests.sh passes against the INSTALLED hledger | ✅ PASS — 12/12 against `/home/morgen/.local/bin/hledger` 1.52.1 |
+| 5 | run-valuation-tests.sh passes against the INSTALLED hledger | ✅ PASS — 12/12 against `~/.local/bin/hledger` 1.52.1 |
 | 6 | Version floor documented in dev/schemas/ if any contract depends on it | ✅ N/A — no schema depends on it yet; correctly deferred to LED-017 |
 
 **Regression gate:** ✅ PASS. Full `bats dev/tests/` — 60 failures, failing-test-NAME-SET

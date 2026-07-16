@@ -97,7 +97,7 @@ Blocking findings (HIGH severity): none.
 Non-blocking findings (must be tracked):
 1. N1 — Integration suite (run-integration-tests.sh) not executable in a bare repo
    checkout (no active profile / gh auth). MUST be validated in an installed environment
-   (~/ww-dev or ~/wwv02 with a test profile) before Part 1 merges to master. Tracked here;
+   (~/ww or ~/ww with a test profile) before Part 1 merges to master. Tracked here;
    fold into the pre-merge checklist for the restructure branch.
 2. N2 — 8 doc-prose references to dev/config/<moved file> under docs/ (incl. the
    docs/site mirror) now describe a stale path. Assigned to Part 4 (docs/ dedup), which

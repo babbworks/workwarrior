@@ -1,7 +1,7 @@
 version: 1
 updated: "2026-04-20"
 policy:
-  canonical_source: "/Users/mp/ww/dev/config/command-syntax.yaml"
+  canonical_source: "dev/config/command-syntax.yaml"
   update_required_on:
     - "any CLI command/subcommand addition, rename, or removal"
     - "any flag/scope/output behavior change"

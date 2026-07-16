@@ -1,8 +1,8 @@
 # Codex Semi-Final: Deep Comparison of Remix Documents
 
 Primary documents compared:
-- `/Users/mp/ww/dev/plans/codex-remix-1.md`
-- `/Users/mp/ww/dev/plans/claude-remix-1.md`
+- `~/ww/dev/plans/codex-remix-1.md`
+- `~/ww/dev/plans/claude-remix-1.md`
 
 This document provides a detailed side-by-side analysis and a semi-final recommendation before execution begins.
 

@@ -90,8 +90,8 @@ ww mcp register
 ```
 command: taskwarrior-mcp
 env:
-  TW_MCP_TASKRC: /Users/mp/ww/profiles/work/.taskrc
-  TW_MCP_TASK_DATA: /Users/mp/ww/profiles/work/.task
+  TW_MCP_TASKRC: ~/ww/profiles/work/.taskrc
+  TW_MCP_TASK_DATA: ~/ww/profiles/work/.task
 ```
 
 Configure your MCP client with these values.

@@ -1,6 +1,6 @@
 # Stream Research — 2026-06-04
 
-## WebWarrior PWA (reference implementation at /Users/mp/Documents/WebWarrior/)
+## WebWarrior PWA (reference implementation at ~/Documents/WebWarrior/)
 
 The elite-level stream in WebWarrior works as follows:
 
@@ -54,7 +54,7 @@ async function updateStreamUI() {
 
 ---
 
-## workwarrior repo (/Users/mp/Documents/Vaults/babb/repos/workwarrior)
+## workwarrior repo (~/Documents/Vaults/babb/repos/workwarrior)
 
 No dedicated stream service, stream.log, or Hollerith encoding found.
 Only "stream" references are stdin/stdout (`input_stream`) in Timewarrior on-modify hooks.
@@ -63,7 +63,7 @@ This is the original pre-WebWarrior codebase — stream was not yet built at thi
 
 ---
 
-## ww-standard repo (/Users/mp/github/ww-standard) — DATED CONTENT NOTES
+## ww-standard repo (~/github/ww-standard) — DATED CONTENT NOTES
 
 ww-standard is documentation (255 md files). Key dated/outdated items:
 

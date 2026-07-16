@@ -1,6 +1,6 @@
 Comparison complete. `claude-plan-1.md` is the stronger execution document; `codex-plan-1.md` is the stronger governance skeleton. The right move is to ratify a merged version with `claude-plan-1.md` as the base and a few governance upgrades from `codex-plan-1.md`.
 
-Primary sources reviewed: [claude-plan-1.md](/Users/mp/ww/dev/plans/claude-plan-1.md), [codex-plan-1.md](/Users/mp/ww/dev/plans/codex-plan-1.md).
+Primary sources reviewed: [claude-plan-1.md](~/ww/dev/plans/claude-plan-1.md), [codex-plan-1.md](~/ww/dev/plans/codex-plan-1.md).
 
 **Assessment**
 - `claude-plan-1.md` wins on operational detail: concrete tasks, sequencing, acceptance criteria, and immediate repo-specific risk handling.
@@ -36,5 +36,5 @@ Primary sources reviewed: [claude-plan-1.md](/Users/mp/ww/dev/plans/claude-plan-
 
 **Go/No-Go Decision**
 - Go with hybrid ratification now.
-- Use [claude-plan-1.md](/Users/mp/ww/dev/plans/claude-plan-1.md) as execution blueprint.
-- Apply governance tightening from [codex-plan-1.md](/Users/mp/ww/dev/plans/codex-plan-1.md): hard gates A-E, explicit no self-approval, and serialized ownership for shared core files.
+- Use [claude-plan-1.md](~/ww/dev/plans/claude-plan-1.md) as execution blueprint.
+- Apply governance tightening from [codex-plan-1.md](~/ww/dev/plans/codex-plan-1.md): hard gates A-E, explicit no self-approval, and serialized ownership for shared core files.

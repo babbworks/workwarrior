@@ -126,7 +126,7 @@ Each registered instance has a JSON manifest:
 {
   "id": "main",
   "alias": "main",
-  "install_path": "/Users/you/ww",
+  "install_path": "~/ww",
   "preset": "multi",
   "command_name": "ww",
   "visibility": "visible",
@@ -235,7 +235,7 @@ The installer accepts a custom command name (`--cmd <name>`). Each name gets its
 ~/.config/wwdev/
   bootstrap.sh          → defines wwdev() shell function
   registry/
-    main.json           → points to ~/ww-dev
+    main.json           → points to ~/ww
 
 ~/.zshrc
   source ~/.config/ww/bootstrap.sh

@@ -351,7 +351,7 @@ Surfaced during the product-vs-meta restructure design
 
 - **`_ww_apply_prompt_prefix()` uses regex detection**: Uses `=~ ^[a-z][a-z0-9_-]*\|` to detect and strip ww-style prefix on deactivation, instead of hardcoded `ww|*` glob (which would miss standalone instance prefixes like `basic1|`).
 
-- **Production migrated to `~/wwv02`**: Legacy `~/ww` eliminated. 23 profiles consolidated into new multi-instance install. Shell configs rewritten. GitHub package snapshot at `~/wwv02-package/`.
+- **Production migrated to `~/ww`**: Legacy `~/ww` eliminated. 23 profiles consolidated into new multi-instance install. Shell configs rewritten. GitHub package snapshot at `~/ww/`.
 
 - **Default profile renamed `main` → `default`**: `install.sh` `create_default_main_profile()` now creates `default` profile, not `main`.
 
@@ -578,7 +578,7 @@ Sidebar label changed from "Community" to "Communities" — the service manages 
 
 ## 2026-04-08 — Minimal root CLAUDE.md stub approved
 
-**Decision:** `/Users/mp/ww/CLAUDE.md` created as a minimal redirect stub (no dev content) to fix Claude Code's auto-load gap. All real content stays in `dev/`. The stub redirects to `dev/ONBOARDING.md` and states the Orchestrator→Builder→Verifier→Docs handoff requirement. Previous rule was "no CLAUDE.md at root" — this is a narrow exception for tooling necessity, not a content file.
+**Decision:** `~/ww/CLAUDE.md` created as a minimal redirect stub (no dev content) to fix Claude Code's auto-load gap. All real content stays in `dev/`. The stub redirects to `dev/ONBOARDING.md` and states the Orchestrator→Builder→Verifier→Docs handoff requirement. Previous rule was "no CLAUDE.md at root" — this is a narrow exception for tooling necessity, not a content file.
 
 ---
 
@@ -598,9 +598,9 @@ Sidebar label changed from "Community" to "Communities" — the service manages 
 
 **Decision:** TASK-1.1 (deploy root CLAUDE.md), TASK-1.2 (deploy services/CLAUDE.md), and TASK-1.4 (TASKS.md at root) closed as design corrections rather than executed.
 
-**Context:** Phase 1 verify-phase1.sh checked for these files at `/Users/mp/ww/CLAUDE.md` and `/Users/mp/ww/TASKS.md`, following the conventional "repo root = agent entry point" pattern.
+**Context:** Phase 1 verify-phase1.sh checked for these files at `~/ww/CLAUDE.md` and `~/ww/TASKS.md`, following the conventional "repo root = agent entry point" pattern.
 
-**Why closed:** `/Users/mp/ww` is a hybrid — it's both a software project (`bin/`, `lib/`, `services/`) and a user data container (`profiles/`). CLAUDE.md and TASKS.md are dev artifacts. Placing them at the root would put agent context files alongside a user's personal task data and journals. The `dev/` directory was explicitly created as the control plane for these files — they already exist there and are already authoritative. Copying them to the root creates a maintenance split without benefit.
+**Why closed:** `~/ww` is a hybrid — it's both a software project (`bin/`, `lib/`, `services/`) and a user data container (`profiles/`). CLAUDE.md and TASKS.md are dev artifacts. Placing them at the root would put agent context files alongside a user's personal task data and journals. The `dev/` directory was explicitly created as the control plane for these files — they already exist there and are already authoritative. Copying them to the root creates a maintenance split without benefit.
 
 **Consequence:** verify-phase1.sh rollout checks for root CLAUDE.md/TASKS.md will always fail. Those checks should be updated to point at `dev/CLAUDE.md` and `dev/TASKS.md` instead.
 

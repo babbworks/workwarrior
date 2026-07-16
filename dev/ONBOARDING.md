@@ -10,15 +10,15 @@ This file is tool-agnostic — Claude Code, Amazon Q, Codex, Gemini, or any othe
 Workwarrior is a terminal-first, profile-based productivity system unifying TaskWarrior, TimeWarrior, JRNL, and Hledger under a single CLI (`ww`). Profiles are isolated workspaces — each has its own task data, time tracking, journals, and ledgers. Users activate profiles via shell aliases and all tool state follows automatically via env vars. The system supports multiple independent instances tracked in a registry at `~/.config/ww/registry/`.
 
 **Repo:** `github/workwarrior/` (git)
-**Dev instance:** `~/ww-dev/` (synced from repo via `dev-sync.sh`, not git)
-**Production instance:** `~/wwv02/` (23+ profiles, anchor command `ww`)
+**Dev instance:** `~/ww/` (synced from repo via `dev-sync.sh`, not git)
+**Production instance:** `~/ww/` (23+ profiles, anchor command `ww`)
 
 ---
 
 ## Step 1: Session Init
 
 ```bash
-eval "$(ww agent init --instance ~/wwv02 --profile ww-development)"
+eval "$(ww agent init --instance ~/ww --profile ww-development)"
 wwctl status
 ```
 
@@ -33,7 +33,7 @@ Confirm the printed header shows the correct instance and profile. See `.claude/
 | `dev/CLAUDE.md` | Directory map, agent model, scripting standards, fragility markers, testing, hard gates |
 | `dev/TASKS.md` | Current task board: what's done, pending, in-progress |
 | `dev/roles/*.md` | Per-role constraints and multi-agent working norms (Orchestrator/Builder/Verifier/Docs) |
-| `dev/dev-instance.md` | Three-directory model: repo / ww-dev / wwv02, sync workflow |
+| `dev/dev-instance.md` | Three-directory model: repo / dev-instance / prod-instance, sync workflow |
 | `dev/logs/decisions.md` | Every non-obvious architectural decision — read before touching `lib/` or sync files |
 
 For service work: also read `dev/services-CLAUDE.md`.

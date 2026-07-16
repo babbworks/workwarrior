@@ -1,8 +1,8 @@
 # Codex Table Comparison: Claude vs Codex Semifinal
 
 Source documents:
-- `/Users/mp/ww/dev/plans/claude-semifinal.md`
-- `/Users/mp/ww/dev/plans/codex-semifinal.md`
+- `~/ww/dev/plans/claude-semifinal.md`
+- `~/ww/dev/plans/codex-semifinal.md`
 
 ## Point-by-Point Agree/Disagree Table
 

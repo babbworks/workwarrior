@@ -25,7 +25,7 @@ Workwarrior is a terminal-first, profile-based productivity system that unifies 
 | `docs/` | User-facing documentation. Docs agent owns updates here. | Write after merge only |
 | `dev/tests/` | BATS unit suites and integration test runners. | Always update when changing behavior |
 | `weapons/` | Weapon extensions (gun, sword). | Low risk |
-| `stream/` | Stream service and adapters. | Low risk |
+| `stream/` | Stream service and adapters. `services/stream/lib/actor.sh` is the single owner of identity resolution (STRM-001). | Low risk |
 | `dev/` | Dev control plane. **Ships** — substrate *and* project record, so recipients can evolve the program (decisions 2026-07-12). Nothing runtime depends on it; delete it and nothing breaks. | Orchestrator only |
 | `dev/schemas/` | **Versioned contracts** (`stream-event-v1`, `actors-v1`, `ledgers-yaml-v1`). Normative *what*; `decisions.md` holds the *why*. Public interface — version increments are an obligation. | Orchestrator only |
 | `dev/TASKS.md` | **Canonical task board.** Single source of truth for all open work. | Orchestrator only |
@@ -39,7 +39,7 @@ Workwarrior is a terminal-first, profile-based productivity system that unifies 
 **Every agent session starts with:**
 
 ```bash
-eval "$(ww agent init --instance ~/wwv02 --profile ww-development)"
+eval "$(ww agent init --instance ~/ww --profile ww-development)"
 wwctl status
 ```
 
@@ -94,7 +94,7 @@ Set when a profile is active. All exported by `ww agent init`. Safe to reference
 | Variable | Value |
 |---|---|
 | `WARRIOR_PROFILE` | Active profile name (e.g., `ww-development`) |
-| `WORKWARRIOR_BASE` | Instance install path (e.g., `~/wwv02`) |
+| `WORKWARRIOR_BASE` | Instance install path (e.g., `~/ww`) |
 | `TASKRC` | Profile `.taskrc` path |
 | `TASKDATA` | Profile `.task/` directory path |
 | `TIMEWARRIORDB` | Profile `.timewarrior/` path |

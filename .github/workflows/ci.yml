@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install BATS
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq bats
+
+      - name: Install Python dependencies
+        run: |
+          pip install pyyaml
+
+      - name: Run smoke tests
+        run: bats dev/tests/test-smoke.bats
+
+  bats-core:
+    runs-on: ubuntu-latest
+    needs: smoke
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install BATS + helpers
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq bats
+
+      - name: Install Python dependencies
+        run: |
+          pip install pyyaml
+
+      - name: Run targeted test suites
+        run: |
+          bats dev/tests/test-service-discovery.bats
+          bats dev/tests/test-journal-injection.bats
+          bats dev/tests/test-stream-schema.bats
+          bats dev/tests/test-stream-actor.bats
+          bats dev/tests/test-stream-punch.bats
+          bats dev/tests/test-stream-ingest-dedup.bats
+          bats dev/tests/test-unit-registry.bats
+          bats dev/tests/test-actor-registry.bats
+          bats dev/tests/test-ledger-attention.bats
+          bats dev/tests/test-ledger-auto-rules.bats
+          bats dev/tests/test-ledger-sync-stream.bats
+          bats dev/tests/test-deps-fleet.bats
+          bats dev/tests/test-install-ships-dev.bats
+
+  identity-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for identity leaks
+        run: bash dev/scripts/check-identity-leak.sh
+
+  index-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Python dependencies
+        run: pip install pyyaml
+
+      - name: Verify INDEX is not stale
+        run: |
+          bash dev/scripts/gen-index.sh
+          if ! git diff --quiet dev/tasks/INDEX.md; then
+            echo "FAIL: INDEX.md is stale. Run 'bash dev/scripts/gen-index.sh' and commit."
+            git diff dev/tasks/INDEX.md
+            exit 1
+          fi

@@ -3,7 +3,7 @@
 ## What happened this session
 
 ### System fixes
-- Created `/Users/mp/ww/CLAUDE.md` — minimal redirect stub so Claude Code auto-loads dev/ at session start. Approved by user. Not a dev content file — just points to `dev/ONBOARDING.md`.
+- Created `~/ww/CLAUDE.md` — minimal redirect stub so Claude Code auto-loads dev/ at session start. Approved by user. Not a dev content file — just points to `dev/ONBOARDING.md`.
 - Deleted `TASK-ISSUES-002` — bugwarrior setup for additional profiles removed from backlog per user decision.
 
 ### New task cards created
@@ -29,7 +29,7 @@ Verifier agent was interrupted by quota mid-run. The BATS test run (bz2kjp9zq ta
 
 Run:
 ```bash
-cd /Users/mp/ww
+cd ~/ww
 ww help 2>/tmp/ww_stderr.txt && wc -c /tmp/ww_stderr.txt   # must be 0 bytes
 ww help 2>/dev/null | grep -A2 "Compatibility:"             # must show single-quotes, no system groups
 bash dev/scripts/select-tests.sh bin_ww --run            # 1 known failure OK

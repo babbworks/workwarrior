@@ -1,13 +1,13 @@
 journals:
-    default: /home/morgen/.local/share/jrnl/journal.txt
-    b: /home/morgen/docs/journals/j-babb.txt
-    hc: /home/morgen/docs/journals/j-hillcity.txt
-    cj: /home/morgen/docs/journals/j-jc.txt
-    wp: /home/morgen/docs/journals/j-workpads.txt
-    lx: /home/morgen/docs/journals/j-linux.txt
-    rs: /home/morgen/docs/journals/j-rust.txt
-    bs: /home/morgen/docs/journals/j-babbsystem.txt
-    cd: /home/morgen/docs/journals/j-coding.txt
-    yp: /home/morgen/docs/journals/j-yupi.txt
+    default: ~/.local/share/jrnl/journal.txt
+    b: ~/docs/journals/j-babb.txt
+    hc: ~/docs/journals/j-hillcity.txt
+    cj: ~/docs/journals/j-jc.txt
+    wp: ~/docs/journals/j-workpads.txt
+    lx: ~/docs/journals/j-linux.txt
+    rs: ~/docs/journals/j-rust.txt
+    bs: ~/docs/journals/j-babbsystem.txt
+    cd: ~/docs/journals/j-coding.txt
+    yp: ~/docs/journals/j-yupi.txt
     
 

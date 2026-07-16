@@ -55,25 +55,25 @@ Running record of user prompts with contextual metadata. Appended by the assista
 **intent:** Implement all 9 community enhancements across store, CLI, lib, and browser server
 **type:** build
 **area:** community, cli, browser, schema, tests
-**outcome:** All 9 implemented; 52/52 bats tests passing; COMM-011 lifecycle completed — but in ~/ww not ~/ww-dev (incorrect install)
+**outcome:** All 9 implemented; 52/52 bats tests passing; COMM-011 lifecycle completed — but in ~/ww not ~/ww (incorrect install)
 
 ### G
 **prompt:** *(interrupted)* "make sure the 'wwdev' journal is being updated also in the wwdev profile in our ww-dev installation of workwarrior. continue"
-**intent:** Correct ww tracking to use ~/ww-dev instead of ~/ww; resume community.sh implementation
+**intent:** Correct ww tracking to use ~/ww instead of ~/ww; resume community.sh implementation
 **type:** ops + build
 **area:** ww-lifecycle, community, cli
-**outcome:** Identified ~/ww vs ~/ww-dev divergence; caught up COMM-001/006/007/010/011 lifecycle in ww-dev; completed community.sh with all new commands; 52/52 tests passing
+**outcome:** Identified ~/ww vs ~/ww divergence; caught up COMM-001/006/007/010/011 lifecycle in ww-dev; completed community.sh with all new commands; 52/52 tests passing
 
 ### H
 **prompt:** "thanks. for browser not seeing option to create with any enhanced options like description, removing entry unsure of how to do, don't see ability."
 **intent:** Report three browser UI gaps: create has no description field, no entry remove, no community management
 **type:** debug + build
 **area:** community, browser
-**outcome:** COMM-012: create form + description field, management bar (describe/rename/archive-toggle), entry remove + refresh buttons, comment copy-back → source; synced files to ~/ww-dev manually
+**outcome:** COMM-012: create form + description field, management bar (describe/rename/archive-toggle), entry remove + refresh buttons, comment copy-back → source; synced files to ~/ww manually
 
 ### I
-**prompt:** "are these changes be copied into ~/ww-dev installation per past sessions?"
-**intent:** Question about sync mechanism between repo and ~/ww-dev
+**prompt:** "are these changes be copied into ~/ww installation per past sessions?"
+**intent:** Question about sync mechanism between repo and ~/ww
 **type:** question
 **area:** ops
 **outcome:** Initially said manual cp; user corrected — install.sh --force is the right mechanism and is safe (profiles/ never touched)

@@ -1,6 +1,6 @@
 # Workwarrior Technical Overview
 
-**Install path:** `/Users/mp/ww`
+**Install path:** `~/ww`
 **Entry point:** `bin/ww` (2686 lines) — routes all `ww` commands to services and lib functions
 **Shell bootstrap:** `bin/ww-init.sh` — sourced by `.bashrc`/`.zshrc` at shell start
 

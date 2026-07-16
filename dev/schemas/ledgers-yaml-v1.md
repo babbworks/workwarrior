@@ -28,12 +28,12 @@ either a string (the path) or a map carrying the path plus options.**
 
 ```yaml
 # simple form — entry value is the path
-default: /home/u/ww/profiles/work/ledgers/work.journal
-consulting: /home/u/ww/profiles/work/ledgers/consulting.journal
+default: ~/ww/profiles/work/ledgers/work.journal
+consulting: ~/ww/profiles/work/ledgers/consulting.journal
 
 # rich form — entry value is a map, path under `journal:`
 energy:
-  journal: /home/u/ww/profiles/work/ledgers/energy.journal
+  journal: ~/ww/profiles/work/ledgers/energy.journal
   commodity: kWh
   hidden: false
 ```
