@@ -8,12 +8,22 @@ session ledgering.
 ## Canonical Account Hierarchy
 
 ```hledger
+; ── Actors (source of capacity — run NEGATIVE) ───────────────────────────────
+; An actor is anything that can punch in: human, agent, machine.
+; When they work, time flows FROM their capacity INTO the project.
+; Balance shows total hours INVESTED (displayed as negative).
+actors:human:<id>           ; human operator capacity (e.g. actors:human:marta.k7x2)
+actors:agent:<id>           ; AI agent capacity (e.g. actors:agent:claude-ledger.p3n1)
+actors:machine:<id>         ; unattended machine capacity (e.g. actors:machine:lathe-01.d4m8)
+actors:profile:<name>       ; fallback: v0 events attributed to profile context
+
 ; ── Time invested (analogous to "expenses") ──────────────────────────────────
 time:project:<name>         ; hours on a specific project
 time:admin                  ; overhead / coordination time
 time:review                 ; code review, reading, research
 time:ops                    ; devops, infrastructure, tooling
 time:learning               ; study, exploration, prototyping
+time:unclassified:<object>  ; punches with no project tag (object name as fallback)
 
 ; ── Sessions (sources of work, analogous to "income") ────────────────────────
 sessions:agent:claude       ; claude-assisted work sessions

@@ -17,10 +17,10 @@ The system has three runtime surfaces: a terminal CLI (`ww`), a locally-served b
 | Path                                | Role                                                             | Git? |
 | ----------------------------------- | ---------------------------------------------------------------- | ---- |
 | `~/Documents/Vaults/babb/repos/ww/` | **Repo** — all development                                       | yes  |
-| `~/ww-dev/`                         | **Dev instance** — live testing against `ww-development` profile | no   |
+| `~/ww/`                         | **Dev instance** — live testing against `ww-development` profile | no   |
 | `~/ww/`                             | **Production instance** — real profiles, real data               | no   |
 
-`~/ww-dev/` and `~/ww/` are deployed copies of the repo's program files. They receive updates via `dev/scripts/dev-sync.sh`. Neither is a git repo — they hold runtime state (profiles, tools, state files) that never commits.
+`~/ww/` and `~/ww/` are deployed copies of the repo's program files. They receive updates via `dev/scripts/dev-sync.sh`. Neither is a git repo — they hold runtime state (profiles, tools, state files) that never commits.
 
 **What syncs vs. what doesn't:**
 

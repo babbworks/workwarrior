@@ -570,6 +570,11 @@ _stream_timew_is_write() {
   esac
 }
 
+# TASK-STRM-006: source the timew stream hook helper (fail-soft)
+_ww_stream_hooks_dir="${SCRIPT_DIR}/../services/stream/hooks"
+[[ -f "${_ww_stream_hooks_dir}/timew-stream-hook.sh" ]] && \
+  source "${_ww_stream_hooks_dir}/timew-stream-hook.sh" 2>/dev/null || true
+
 _stream_jrnl_is_write() {
   # Write if there are args that aren't read-only flags
   local args=("$@")
@@ -796,7 +801,38 @@ list() {
   fi
   [[ -z "$list_basename" ]] && list_basename="tasks"
 
-  python3 "${WW_BASE:-$HOME/ww}/tools/list/list.py" -t "$list_dir" -l "$list_basename" "${args[@]}"
+  python3 "${WW_BASE:-$HOME/ww}/tools/list/list.py" -t "$list_dir" -l "$list_basename" --profile-name "${WW_SCOPE_PROFILE:-}" "${args[@]}"
+  return $?
+}
+
+# Lists function - shows all lists for the active profile with interactive picker
+# Usage: lists [--global|--profile <name>]
+lists() {
+  if ! ww_resolve_scope "$@"; then
+    return 1
+  fi
+  local args=("${WW_REMAINING_ARGS[@]}")
+
+  if [[ "$WW_SCOPE_MODE" == "global" ]]; then
+    ensure_global_workspace
+  fi
+
+  local list_dir="$WW_SCOPE_BASE/list"
+  mkdir -p "$list_dir"
+
+  local list_basename="tasks"
+  local lists_yaml="$WW_SCOPE_BASE/lists.yaml"
+  if [[ -f "$lists_yaml" ]]; then
+    local line
+    line=$(grep -E '^[[:space:]]*default:[[:space:]]*' "$lists_yaml" | head -1 || true)
+    if [[ -n "$line" ]]; then
+      list_basename="${line##*:}"
+      list_basename=$(echo "$list_basename" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    fi
+  fi
+  [[ -z "$list_basename" ]] && list_basename="tasks"
+
+  python3 "${WW_BASE:-$HOME/ww}/tools/list/list.py" -t "$list_dir" -l "$list_basename" --profile-name "${WW_SCOPE_PROFILE:-}" --show-lists "${args[@]}"
   return $?
 }
 
@@ -816,6 +852,7 @@ task() {
 }
 
 # TimeWarrior wrapper with scope support
+# TASK-STRM-006: emits B start/stop stream events with dedup-parity to adapt_timew
 timew() {
   if ! ww_resolve_scope "$@"; then
     return 1
@@ -829,12 +866,17 @@ timew() {
   local base="$WW_SCOPE_BASE"
   TIMEWARRIORDB="$base/.timewarrior" command timew "${args[@]}"
   local _tw_exit=$?
+  # TASK-STRM-006: emit stream events on successful start/stop
+  # Fail soft: never break timew. All errors silently return.
   if [[ $_tw_exit -eq 0 ]] && _stream_timew_is_write "${args[0]:-}"; then
-    local _tw_action="${args[0]}"
-    local _tw_tags; _tw_tags="$(TIMEWARRIORDB="$base/.timewarrior" command timew get dom.active.tag.1 2>/dev/null || true)"
-    local _tw_obj; _tw_obj="$(printf '%s' "${args[*]}" | python3 -c "import sys,hashlib; print(hashlib.sha256(sys.stdin.read().encode()).hexdigest()[:12])" 2>/dev/null || echo "unknown")"
-    local _tw_c; _tw_c="{\"src\":\"timew\",\"prof\":\"${WW_SCOPE_PROFILE:-}\",\"tags\":[\"${_tw_tags:-}\"]}"
-    _stream_emit B "$_tw_action" "$_tw_obj" "$_tw_c"
+    case "${args[0]}" in
+      start|continue)
+        _stream_timew_emit_start "$base/.timewarrior" "${WW_SCOPE_PROFILE:-}" 2>/dev/null || true
+        ;;
+      stop)
+        _stream_timew_emit_stop "$base/.timewarrior" "${WW_SCOPE_PROFILE:-}" 2>/dev/null || true
+        ;;
+    esac
   fi
   return $_tw_exit
 }
