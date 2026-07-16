@@ -44,13 +44,12 @@ For task and time tracking conventions (UUID rule, lifecycle, annotations, UDAs,
 
 ## Current State
 
-- **Phase: Program Phase 0 (blocking)** — `TASK-LED-013` (hledger version floor), `TASK-LED-012` (land ledger-schema), `TASK-SHIP-001` (ship `dev/`).
-  "Phase" means exactly one thing: a stage of THE PROGRAM in `dev/TASKS.md` (Phase 0 → Phase 4).
-  Older docs used "Phase 2" to mean the implementation era — that is historical, not a live queue.
-- **The plan:** capture → record → interpret. Stream is the clock; TimeWarrior is a card; hledger is the journal. Read the top of `dev/TASKS.md` before picking up anything.
-- **Delivered and not to be re-done:** the browser (`ww browser`, 29 sections), the community service, `ww warrior` / `ww projects` / `ww network`. 117 of 145 cards are complete.
-- **Known test baseline: 60 failures / 605 passing** on `bats dev/tests/` (measured 2026-07-13 on `agent/builder/struct-1b`). Concentrated in `profile-uda add wizard` (11), UDA `indicator`/`color` (12), profile properties, `cli`, `check_gh_cli`. Pre-existing — do not block on them, but **do not trust the old "~29" figure**; it was stale. Re-measure before claiming any change to it.
-- **CI:** Disabled. Tests run locally via `bats dev/tests/`.
+- **THE PROGRAM IS COMPLETE.** All four phases (capture → record → interpret → payoff) landed 2026-07-15/16.
+  Stream, ledger sync, attention queue, auto-rules — all operational with tests.
+- **155 of 165 cards complete.** 7 pending (popup pipeline, community chain, deferred items). 0 in-review.
+- **CI:** Enabled. `.github/workflows/ci.yml` runs smoke, 13 BATS suites, identity gate, and INDEX staleness check on every push.
+- **Identity:** Purged. `bash dev/scripts/check-identity-leak.sh` verifies no machine/user paths are tracked.
+- **The plan going forward:** feature work (list service → popup), and the items in `dev/TASKS.md` "Outside the program" section.
 
 ## Task Status — Where To Look
 
