@@ -37,7 +37,7 @@ def main(argv=None):
     get=subs.add_parser('get');get.add_argument('identity')
     receipt=subs.add_parser('receipt');receipt.add_argument('key')
     events=subs.add_parser('events');events.add_argument('--after',type=int,default=0);events.add_argument('--limit',type=int,default=100)
-    lens=subs.add_parser('lens');lens.add_argument('name');lens.add_argument('--method');lens.add_argument('--start');lens.add_argument('--end');lens.add_argument('--as-of');lens.add_argument('--actor');lens.add_argument('--object',dest='object_id')
+    lens=subs.add_parser('lens');lens.add_argument('name');lens.add_argument('--method');lens.add_argument('--start');lens.add_argument('--end');lens.add_argument('--as-of');lens.add_argument('--recorded-before');lens.add_argument('--actor');lens.add_argument('--object',dest='object_id')
     plan=subs.add_parser('plan');plan.add_argument('operation');plan.add_argument('--input',required=True);plan.add_argument('--key',required=True)
     apply=subs.add_parser('apply');apply.add_argument('--input',required=True);apply.add_argument('--plan-sha256',required=True)
     request=subs.add_parser('request',help='One structured API request on stdin, used by configured adapters.');request.add_argument('--input',default='-')
@@ -62,7 +62,7 @@ def main(argv=None):
             elif args.command=='get':result=ops.get(args.identity)
             elif args.command=='receipt':result=ops.receipt(args.key)
             elif args.command=='events':result=ops.events(args.after,args.limit)
-            elif args.command=='lens':result=ops.lens(args.name,**{k:getattr(args,k) for k in ('start','end','as_of','actor','object_id','method') if getattr(args,k) is not None})
+            elif args.command=='lens':result=ops.lens(args.name,**{k:getattr(args,k) for k in ('start','end','as_of','actor','object_id','method','recorded_before') if getattr(args,k) is not None})
             else:result=getattr(ops,args.command)()
         print(json.dumps(result,ensure_ascii=False,sort_keys=True,allow_nan=False));return 0
     except (OpError,OSError,ValueError) as exc:
@@ -80,7 +80,7 @@ def dispatch(ops,data):
     if command=='receipt':return ops.receipt(data.get('key'))
     if command in ('lens','events'):
         parameters=data.get('parameters',{})
-        fields(parameters,('start','end','as_of','actor','object_id','method') if command=='lens' else ('after','limit'))
+        fields(parameters,('start','end','as_of','actor','object_id','method','recorded_before') if command=='lens' else ('after','limit'))
         if command=='events':return ops.events(**parameters)
         return ops.lens(text(data.get('identity'),'lens'),**parameters)
     if command in ('snapshot','info','audit','capabilities'):return getattr(ops,command)()

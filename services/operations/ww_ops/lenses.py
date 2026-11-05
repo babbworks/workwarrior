@@ -22,6 +22,10 @@ CATALOG = {
 }
 
 
+for _lens, _method in {'bundy':'source-activity-intervals/v1', 'board':'source-open-activities/v1', 'frick':'source-state-transitions/v1', 'baldwin':'source-snapshot-deltas/v1'}.items():
+    CATALOG[_lens].setdefault('alternate_methods', []).append(_method)
+
+
 def differences(before, after, path=''):
     if isinstance(before, dict) and isinstance(after, dict):
         result = []
@@ -95,12 +99,13 @@ def difference_data(events, order, lo, hi, clock):
             'basis': 'Differences of logged counts; zero bins mean no eligible recorded events, not proven inactivity.'}
 
 
-def project(name, events, scope, *, start=None, end=None, as_of=None, actor=None, object_id=None, method=None):
+def project(name, events, scope, *, start=None, end=None, as_of=None, actor=None, object_id=None, method=None, recorded_before=None):
     if name not in CATALOG:
         raise OpError('unsupported_lens', 'Unknown inventor lens.')
     spec = CATALOG[name]
     method = method or spec['method']
-    if method not in [spec['method'], *spec.get('alternate_methods', [])]:
+    external = {'bundy': 'source-activity-intervals/v1', 'board': 'source-open-activities/v1', 'frick': 'source-state-transitions/v1', 'baldwin': 'source-snapshot-deltas/v1'}
+    if method not in [spec['method'], *spec.get('alternate_methods', []), external.get(name)]:
         raise OpError('unsupported_method', 'Select a method declared for this inventor lens.')
     if name in ('board', 'bundy') and as_of is None:
         raise OpError('invalid_input', 'Supply an explicit as_of timestamp for interval views.')
@@ -114,7 +119,8 @@ def project(name, events, scope, *, start=None, end=None, as_of=None, actor=None
     if len({e['id'] for e in events}) != len(events):
         raise OpError('invalid_event_history', 'Repeated event identities are not independent observations.')
     # Event time orders projections; source cursor and hash make late arrivals visible.
-    all_events = sorted((e for e in events if clock is None or ticks(e['occurred_at']) <= clock),
+    all_events = sorted((e for e in events if (clock is None or ticks(e['occurred_at']) <= clock)
+                        and (recorded_before is None or ticks(e['recorded_at']) < ticks(recorded_before))),
                         key=lambda e: (ticks(e['occurred_at']), e['sequence']))
     def matches_object(event):
         if object_id is None or event['object'] == object_id:
@@ -125,9 +131,13 @@ def project(name, events, scope, *, start=None, end=None, as_of=None, actor=None
     selected = [e for e in all_events if (lo is None or lo <= ticks(e['occurred_at']))
                 and (hi is None or ticks(e['occurred_at']) < hi)
                 and (actor is None or e['actor'] == actor) and matches_object(e)]
-    eligible = [e for e in selected if e['category'] == 'observation']
+    eligible = [e for e in selected if e['category'] == 'observation' and e['data'].get('mode') != 'simulation']
     warnings = ['Quantities describe recorded inputs; completeness and external truth are not established by this lens.']
-    if method in ('hourly-count-first-difference/v1', 'hourly-count-second-difference/v1'):
+    if method == external.get(name):
+        from .source_observations import project_source
+        data = project_source(name, all_events, selected, lo, hi, clock, actor, object_id)
+        warnings.append('Explicit source observations; elapsed source intervals are not native attempts or measured useful effort.')
+    elif method in ('hourly-count-first-difference/v1', 'hourly-count-second-difference/v1'):
         data = difference_data(eligible, 1 if name == 'felt' else 2, lo, hi, clock)
         warnings.append('Unscaled finite differences of counts are not a physical derivative or proof of acceleration in useful work.')
     elif name == 'burroughs':
@@ -220,7 +230,9 @@ def project(name, events, scope, *, start=None, end=None, as_of=None, actor=None
             'source_events': len(all_events), 'selected_events': len(selected), 'eligible_events': len(eligible),
             'excluded_from_activity': len(selected) - len(eligible), 'scope': scope,
             'window': {'start': timestamp(start) if start else None, 'end': timestamp(end) if end else None, 'bounds': '[start,end)'},
-            'as_of': timestamp(as_of) if as_of else None, 'clock_semantics': 'event-time cutoff with currently recorded knowledge; late arrivals may revise results',
+            'recorded_before': timestamp(recorded_before) if recorded_before else None,
+            'recorded_bounds': 'exclusive; recorded_at < recorded_before',
+            'as_of': timestamp(as_of) if as_of else None, 'clock_semantics': 'event time and optional exclusive recorded-time cutoff; absent recorded cutoff uses current knowledge',
             'actor': actor, 'object': object_id, 'role': spec['role'], 'qualification': 'local computational contract; external construct validity unestablished',
             'warnings': warnings}
     return {'protocol': 'ww-lens-result/v1', 'lens': name, 'description': spec['description'], 'method': method, 'data': data, 'meta': meta}
