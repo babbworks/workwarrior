@@ -1150,3 +1150,12 @@ in a fourth format now fails loudly instead of quietly vanishing.
 project phases, THE PROGRAM's Phase 0-4, and the Community service's internal phases). A cold-start
 agent following the documented read order landed on the wrong queue. THE PROGRAM's Phase 0-4 keeps
 the name; the others are relabelled historical.
+
+
+## 2026-11-05 — Optional scoped operational backend (TASK-OPS-001 / NA-367)
+
+The company integration uses a new external SQLite journal with explicit organization/instance/profile context. Source observations, administrative records and derived results stay distinguishable; unique producer/source-event IDs replace timestamp coincidence as identity. Native assignments, attempts and unreviewed returns have their own issued identities and versions. Atomic requests include objects, history, events and receipts; unknown cross-system outcomes are recovered by stable request identity.
+
+Inventor names remain primary, paired with versioned method descriptions. Baldwin and Grant receive deliberately narrow declared methods; the historical alternate finite-difference interpretation is not silently adopted. JSON is computed lens output, live interval views require an explicit as-of clock, and density/signal inputs exclude derived events. These semantics do not rewrite the legacy stream or claim to have repaired its separate historical implementation.
+
+Company authority and factual/publication acceptance remain in their native services. Actor strings identify attribution; local OS identity supplies this prototype's write boundary. No runner, provider sync, hosted endpoint or scheduler is installed by the backend.

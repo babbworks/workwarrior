@@ -237,3 +237,8 @@ Full policy: `fragility-register.md`
 |---|---|
 | `lib/github-*.sh`, `lib/sync-*.sh`, `services/custom/github-sync.sh` | HIGH FRAGILITY |
 | `bin/ww`, `lib/shell-integration.sh` | SERIALIZED |
+
+
+## ABC operational integration — 2026-11-05
+
+Owner-authorized local fork work: qualify transactional operational events, native bindings and assignment/attempt/return semantics before stronger company integration. TASK-OPS-001 owns the scoped backend. ABC owns company commitments and its adapter/UI; MAKE owns Dispatch integrity and its independent research/Join decisions. No production-instance sync, release or timer activation is part of this increment. Historical stream/card claims above retain their original context; the 2026-11-05 investigation found actor-pairing, derived-feedback and output-contract gaps.

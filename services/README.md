@@ -471,3 +471,8 @@ For issues or questions about services:
 2. Review the main system documentation
 3. Examine existing services for examples
 4. Test services in isolation before integration
+
+
+## Scoped operations backend
+
+`ww operations` provides explicit-context assignments, concurrent attempts, returned-artifact metadata, a transactional event journal, retry-safe receipts and typed inventor-named lenses. Run `ww operations --help`. It requires a dedicated external `--store` and explicit organization/instance/profile scope; it never initializes from a read, changes ambient profiles, calls an AI provider, approves MAKE evidence or installs schedules. See `dev/schemas/operations-v1.md`. The installed legacy `ww stream` log is not migrated or rewritten by this service.

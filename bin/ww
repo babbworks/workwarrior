@@ -102,6 +102,7 @@ Commands:
   projects    Cross-resource project views (list, show, describe)
   network     Connectivity checks (internet, GitHub, Ollama)
   server      TaskChampion sync management (status, setup, sync, enable, disable)
+  operations  Scoped transactional assignments, returns, event journal and inventor lenses
   stream      Append-only event log with lens projections (emit, ingest, view, sessions)
   viz         Terminal visualization pipeline (dashboard, grid, field, timeline, renderers)
   saves       Knowledge base builder — saves content, search, pipeline
@@ -7121,6 +7122,9 @@ main() {
       else
         log_error "servers service not found"; exit 1
       fi
+      ;;
+    operations)
+      bash "$WW_BASE/services/operations/operations.sh" "$@"
       ;;
     stream)
       if [[ -f "$WW_BASE/services/stream/stream.sh" ]]; then

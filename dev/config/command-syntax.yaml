@@ -551,3 +551,16 @@ commands:
       default: "human-compact"
       supports_json: false
     status: "active"
+
+# Optional structured operational provider; explicit scopes replace ambient profile selection.
+operational_backend_v1:
+  namespace: operations
+  help: "ww operations --help"
+  output: "structured JSON, except argparse help"
+  syntax:
+    - "ww operations capabilities"
+    - "ww operations --store DIR init --organization ID"
+    - "ww operations --store DIR --scope-file SCOPE.json snapshot"
+    - "ww operations --store DIR --scope-file SCOPE.json plan ACTION --input INPUT.json --key KEY"
+    - "ww operations --store DIR --scope-file SCOPE.json apply --input PLAN.json --plan-sha256 HASH"
+    - "ww operations --store DIR --scope-file SCOPE.json lens bundy --as-of TIMESTAMP"
