@@ -3747,7 +3747,8 @@ def make_handler(state: ServerState, ww_bin: str, heuristic_engine: HeuristicEng
                 if profile and base:
                     nav_path = os.path.join(base, "profiles", profile, "nav.yaml")
                     if not os.path.isfile(nav_path):
-                        # Fall back to global default in .claude/ww/nav.yaml
+                        nav_path = os.path.join(base, "config", "browser", "nav.yaml")
+                    if not os.path.isfile(nav_path):
                         nav_path = os.path.join(base, ".claude", "ww", "nav.yaml")
                     if os.path.isfile(nav_path):
                         with open(nav_path) as fh:

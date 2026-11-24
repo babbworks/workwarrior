@@ -67,6 +67,9 @@ dev/
 └── archive/                ← Phase 1 artifacts and historical docs
 ```
 
-> Session-init protocol, task lifecycle (UUID rule), UDA/ledger references, and parallel
-> sub-agent conventions live in `.claude/ww/ww-agent-guidance.md` (working reference until
-> TASK-AGENT-001 promotes it to `resources/agent-templates/`).
+Use the [agent guidance template](../resources/agent-templates/ww-agent-guidance.md)
+for session initialization, task lifecycle, annotations, and sub-agent conventions.
+Development instance and profile defaults live in [agent.conf](config/agent.conf).
+The development profile's [ledger account hierarchy](reference/ledger-accounts.md)
+governs `wwdev.journal`. The [UDA registry](reference/uda-registry.md) tracks the
+project additions in the development profile's TaskWarrior `.taskrc`.

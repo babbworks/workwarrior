@@ -9,7 +9,7 @@ Key files (in read order):
 2. `dev/CLAUDE.md` — directory map, agent model, scripting standards, fragility markers, hard gates
 3. `dev/TASKS.md` — canonical task board (Orchestrator-only writes)
 4. `dev/tasks/INDEX.md` — scannable manifest of all task cards
-5. `.claude/ww/ww-agent-guidance.md` — session-init protocol, task lifecycle & UUID rule, annotations, UDAs, parallel sub-agent tracking
+5. `resources/agent-templates/ww-agent-guidance.md` — session-init protocol, task lifecycle & UUID rule, annotations, UDAs, parallel sub-agent tracking
 6. `dev/logs/decisions.md` — every non-obvious architectural decision
 
 **Never skip the Orchestrator → Builder → Verifier → Docs handoff sequence.**

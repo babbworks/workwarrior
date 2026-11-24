@@ -2,13 +2,13 @@
 
 > This is the canonical, installable version of the agent session guidance.
 > It lives at `$WW_BASE/resources/agent-templates/ww-agent-guidance.md` when installed.
-> Per-project `.claude/ww/ww-agent-guidance.md` should reference this file.
+> Link to this template from the project’s agent instructions.
 
 ---
 
 ## Profile Config
 
-Read from `.claude/ww/config` (per-project):
+Use `dev/config/agent.conf` for project defaults. `ww agent init --config <file>` selects a different file. Legacy Claude config paths still work when the visible default is absent. The file holds an instance path and profile name.
 
 ```
 WW_PROFILE=<profile-name>
@@ -37,8 +37,8 @@ eval "$(ww agent init --instance ~/ww --profile $WW_PROFILE)"
 Or manually:
 
 ```bash
-WW_PROFILE=$(grep WW_PROFILE .claude/ww/config | cut -d= -f2)
-WW_BASE=$(grep WW_BASE .claude/ww/config | cut -d= -f2)
+WW_PROFILE=$(grep WW_PROFILE dev/config/agent.conf | cut -d= -f2)
+WW_BASE=$(grep WW_BASE dev/config/agent.conf | cut -d= -f2)
 WW_BASE="${WW_BASE/#\~/$HOME}"
 TASKRC=$WW_BASE/profiles/$WW_PROFILE/.taskrc
 TIMEWDB=$WW_BASE/profiles/$WW_PROFILE/.timewarrior
@@ -120,8 +120,7 @@ Before defining a new account or commodity:
 
 ## New Project Setup
 
-1. `mkdir .claude/ww`
-2. Copy this guidance (or point at canonical path)
-3. `printf "WW_PROFILE=<name>\nWW_BASE=~/ww\n" > .claude/ww/config`
-4. Reference in project's CLAUDE.md
-5. Agent is oriented on next session open
+1. `mkdir -p dev/config`
+2. Link to this guidance from the project’s agent instructions
+3. `printf "WW_PROFILE=<name>\nWW_BASE=~/ww\n" > dev/config/agent.conf`
+4. Run `ww agent init --config dev/config/agent.conf` to inspect the activation commands.

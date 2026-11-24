@@ -43,7 +43,7 @@ eval "$(ww agent init --instance ~/ww --profile ww-development)"
 wwctl status
 ```
 
-See `.claude/ww/ww-agent-guidance.md` for the full session-init protocol and env-var derivation.
+See [the agent guidance template](../resources/agent-templates/ww-agent-guidance.md) for the full session-init protocol and env-var derivation.
 
 ---
 

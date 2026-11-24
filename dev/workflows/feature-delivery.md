@@ -8,7 +8,7 @@ Use this workflow for all implementation tasks after Phase 1 is complete. Every 
 
 - Task card exists in TASKS.md with status `pending`
 - Gate A is satisfied (acceptance criteria authored by Orchestrator)
-- Session init complete: `eval "$(ww agent init)"` — see `.claude/ww/ww-agent-guidance.md`
+- Session init complete: `eval "$(ww agent init)"` — see [the agent guidance template](../../resources/agent-templates/ww-agent-guidance.md)
 
 ---
 

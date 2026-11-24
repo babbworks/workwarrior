@@ -260,3 +260,5 @@ CI runs on every push: smoke tests, 13 targeted BATS suites, identity gate, and 
 - `dev/docs/ledger-systems-accounting.md` — the thesis: double-entry as general systems accounting
 - `dev/TASKS.md` — canonical task board
 - `dev/schemas/` — data contracts
+
+- [WorkWarrior and WebWarrior compatibility](docs/webwarrior-compatibility.md)

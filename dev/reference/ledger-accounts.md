@@ -27,7 +27,7 @@ Assets
     CLI              FILE   newent/cli.py + models.py
   Docs
     Canonical        FILE   ARCHITECTURE, CLI-DESIGN, DATA-MODEL, SERVICES
-    Guidance         FILE   .claude/ww/*.md
+    Guidance         FILE   dev/reference/*.md
 
 Liabilities
   Tests

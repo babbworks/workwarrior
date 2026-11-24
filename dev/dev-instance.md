@@ -17,7 +17,7 @@ Config for the dev instance:
 WW_PROFILE=ww-development
 WW_BASE=~/ww
 ```
-Set in `.claude/ww/config`.
+Set in [`dev/config/agent.conf`](config/agent.conf).
 
 ---
 

@@ -9,7 +9,7 @@ See `resources/agent-templates/ww-agent-guidance.md` for the full reference.
 
 ## Local Overrides (this project)
 
-Profile config: `.claude/ww/config`
+Profile config: `dev/config/agent.conf`
 
 ```
 WW_PROFILE=ww-development

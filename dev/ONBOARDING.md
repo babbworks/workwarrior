@@ -22,7 +22,7 @@ eval "$(ww agent init --instance ~/ww --profile ww-development)"
 wwctl status
 ```
 
-Confirm the printed header shows the correct instance and profile. See `.claude/ww/ww-agent-guidance.md` for the full session-init protocol.
+Confirm the printed header shows the correct instance and profile. See [the agent guidance template](../resources/agent-templates/ww-agent-guidance.md) for the full session-init protocol.
 
 ---
 
@@ -38,7 +38,7 @@ Confirm the printed header shows the correct instance and profile. See `.claude/
 
 For service work: also read `dev/services-CLAUDE.md`.
 For fragility detail: also read `dev/fragility-register.md`.
-For task and time tracking conventions (UUID rule, lifecycle, annotations, UDAs, parallel sub-agents): read `.claude/ww/ww-agent-guidance.md`.
+For task and time tracking conventions (UUID rule, lifecycle, annotations, UDAs, parallel sub-agents): read [the agent guidance template](../resources/agent-templates/ww-agent-guidance.md).
 
 ---
 

@@ -1017,7 +1017,7 @@ Usage: ww agent <action> [options]
 
 Actions:
   init                     Verify instance, export env vars, register session
-  init --config <file>     Read WW_PROFILE/WW_BASE from config file (default: .claude/ww/config)
+  init --config <file>     Read WW_PROFILE/WW_BASE from config file (default: dev/config/agent.conf; legacy paths also supported)
   init --instance <path>   Set instance path directly (overrides config)
   init --profile <name>    Set profile name directly (overrides config)
   init --quiet             Suppress session header output
@@ -1028,7 +1028,7 @@ Actions:
 
 Examples:
   eval "$(ww agent-init)"
-  eval "$(ww agent init --config .claude/ww/config)"
+  eval "$(ww agent init --config dev/config/agent.conf)"
   eval "$(ww agent init --instance ~/ww --profile ww-development)"
   ww agent end
   ww agent sessions
@@ -1065,7 +1065,7 @@ cmd_agent() {
 
       # Resolve config file
       if [[ -z "$cfg_file" ]]; then
-        for candidate in ".claude/ww/config" "$HOME/.claude/projects/$(pwd | tr '/' '-' | sed 's/^-//')/memory/.claude/ww/config"; do
+        for candidate in "dev/config/agent.conf" ".claude/ww/config" "$HOME/.claude/projects/$(pwd | tr '/' '-' | sed 's/^-//')/memory/.claude/ww/config"; do
           [[ -f "$candidate" ]] && { cfg_file="$candidate"; break; }
         done
       fi
